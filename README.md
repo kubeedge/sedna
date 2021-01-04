@@ -1,2 +1,106 @@
-# sedna
-AI tookit over KubeEdge
+# Neptune
+
+## What is Neptune?
+
+Neptune is an edge-cloud synergy AI project incubated in KubeEdge SIG AI. Benefiting from the edge-cloud synergy capabilities provided by KubeEdge, Neptune can implement across edge-cloud collaborative training and collaborative inference capabilities, such as joint inference, incremental learning, and federated learning. Neptune supports popular AI frameworks, such as TensorFlow, Pytorch, PaddlePaddle, MindSpore. 
+
+Neptune can simply enable edge-cloud synergy capabilities to existing training and inference scripts, bringing the benefits of reducing costs, improving model performance, and protecting data privacy.
+
+
+**Currently, this project is in the preview and being promoted to enter the KubeEdge community.**
+
+## Features
+    
+Neptune has the following features：  
+ 
+* Provide the edge-cloud synergy AI framework.
+    * Provide dataset and model management across edge-cloud, helping developers quickly implement synergy AI applications.
+    
+* Provide edge-cloud synergy training and inference frameworks.
+    * Joint inference: under the condition of limited resources on the edge, difficult inference tasks are offloaded to the cloud to improve the overall performance, keeping the throughput.
+    * Incremental training: For small samples and non-iid data on the edge, models can be adaptively optimized on the cloud or edge. The more the models are used, the smarter they are.
+    * Federated learning: For those scenarios that the data being too large, or unwilling to migrate raw data to the cloud, or high privacy protection requirements, models are trained at the edge and parameters are aggregated on the cloud to resolve data silos effectively.
+    * etc..
+    
+* Compatibility
+    * Compatible with mainstream AI frameworks such as TensorFlow, Pytorch, PaddlePaddle, and MindSpore.
+    * Provides extended interfaces for developers to quickly integrate third-party algorithms, and some necessary algorithms for edge-cloud synergy have been preset, such as hard sample discovering, aggregation algorithm. 
+
+
+## Architecture
+#### Neptune's edge-cloud synergy is implemented based on the following capabilities provided by KubeEdge:
+* Unified orchestration of across edge-cloud applications.
+* Router: across edge-cloud message channel in management plane.
+* EdgeMesh: across edge-cloud microservice discovery and traffic governance in data plane.
+
+
+
+<div align=center>
+<img src="./docs/proposals/images/framework.png"/>
+</div>
+
+
+### Component
+Neptune consists of the following components：
+
+#### GlobalManager
+* Unified edge-cloud synergy AI task management
+* Cross edge-cloud synergy management and collaboration
+* Central Configuration Management
+
+#### LocalController
+* Local process control of edge-cloud synergy AI tasks
+* Local general management: model, dataset, and status synchronization
+
+
+#### Worker
+* Do inference or training, based on existing ML framework.
+* Launch on demand, imagine they are docker containers.
+* Different workers for different features.
+* Could run on edge or cloud.
+
+
+#### Lib
+* Expose the Edge AI features to applications, i.e. training or inference programs.
+
+
+
+## Guides
+### Installation
+Follow the [Neptune installation document](docs/setup/install.md) to install Neptune.
+
+### Examples
+Example1：[Joint Inference Service in Helmet Detection Scenario ](/examples/helmet_detection_inference/README.md).
+
+
+## Roadmap
+
+* [2021 Q1 Roadmap](./docs/roadmap.md#2021-q1-roadmap)
+
+## Meeting
+
+Regular Community Meeting:
+- Pacific Time: **Thursday at 10:00-11:00 Beijing Time** (weekly, starting from Nov. 12th 2020).
+([Convert to your timezone](https://www.thetimezoneconverter.com/?t=10%3A00&tz=GMT%2B8&))
+
+Resources:
+- [Meeting notes and agenda](https://docs.google.com/document/d/12n3kGUWTkAH4q2Wv5iCVGPTA_KRWav_eakbFrF9iAww/edit)
+- [Meeting recordings](https://www.youtube.com/playlist?list=PLQtlO1kVWGXkRGkjSrLGEPJODoPb8s5FM)
+- [Meeting link](https://zoom.us/j/4167237304)
+- [Meeting Calendar](https://calendar.google.com/calendar/u/0/r?cid=Y19nODluOXAwOG05MzFiYWM3NmZsajgwZzEwOEBncm91cC5jYWxlbmRhci5nb29nbGUuY29t) | [Subscribe](https://calendar.google.com/calendar/u/0/r?cid=OHJqazhvNTE2dmZ0ZTIxcWlidmxhZTNsajRAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ)
+
+## Contact
+
+If you need support, start with the [troubleshooting guide](./docs/troubleshooting.md), and work your way through the process that we've outlined.
+
+If you have questions, feel free to reach out to us in the following ways:
+- [Mailing list](https://groups.google.com/forum/#!forum/kubeedge)
+- [slack](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
+
+## Contributing
+
+If you're interested in being a contributor and want to get involved in developing the Neptune code, please see [CONTRIBUTING](CONTRIBUTING.md) for details on submitting patches and the contribution workflow.
+
+## License
+
+Neptune is under the Apache 2.0 license. See the[LICENSE](LICENSE) file for details.
