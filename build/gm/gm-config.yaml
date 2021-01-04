@@ -1,0 +1,10 @@
+kubeConfig: /root/.kube/config
+master: ""
+namespace: default
+imageHub:
+ "tensorflow:1.15": "docker.io/neptune/tensorflow-base-image-to-filled:1.15"
+websocket:
+  address: 0.0.0.0
+  port: 9000
+localController:
+  server: http://localhost:9100

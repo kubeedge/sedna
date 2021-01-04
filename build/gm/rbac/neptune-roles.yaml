@@ -1,0 +1,61 @@
+# permissions for end users to edit memcacheds.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: neptune-role
+rules:
+# list/watch these ai-feature crds
+- apiGroups:
+  - neptune.io
+  resources:
+  - datasets
+  - models
+  - jointinferenceservices
+  verbs:
+  - get
+  - list
+  - watch
+
+# update crd status
+- apiGroups:
+  - neptune.io
+  resources:
+  - datasets/status
+  - models/status
+  - jointinferenceservices/status
+  verbs:
+  - get
+  - update
+
+# current we implement ai features by k8s pods, services
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - get
+
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
