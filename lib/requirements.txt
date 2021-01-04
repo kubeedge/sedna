@@ -1,0 +1,6 @@
+flask==1.1.2
+keras==2.4.3
+opencv-python==4.4.0.44
+websockets==8.1
+Pillow==8.0.1
+requests==2.24.0
