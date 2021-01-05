@@ -1,6 +1,10 @@
 # github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
 github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm
+# github.com/PuerkitoBio/purell v1.1.1
+github.com/PuerkitoBio/purell
+# github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
+github.com/PuerkitoBio/urlesc
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
 # github.com/blang/semver v3.5.0+incompatible
@@ -12,6 +16,9 @@ github.com/davecgh/go-spew/spew
 # github.com/docker/distribution v2.7.1+incompatible
 github.com/docker/distribution/digestset
 github.com/docker/distribution/reference
+# github.com/emicklei/go-restful v2.9.5+incompatible
+github.com/emicklei/go-restful
+github.com/emicklei/go-restful/log
 # github.com/emicklei/go-restful/v3 v3.4.0
 ## explicit
 github.com/emicklei/go-restful/v3
@@ -20,6 +27,14 @@ github.com/emicklei/go-restful/v3/log
 github.com/evanphx/json-patch
 # github.com/go-logr/logr v0.2.0
 github.com/go-logr/logr
+# github.com/go-openapi/jsonpointer v0.19.3
+github.com/go-openapi/jsonpointer
+# github.com/go-openapi/jsonreference v0.19.3
+github.com/go-openapi/jsonreference
+# github.com/go-openapi/spec v0.19.3
+github.com/go-openapi/spec
+# github.com/go-openapi/swag v0.19.5
+github.com/go-openapi/swag
 # github.com/gogo/protobuf v1.3.1
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
@@ -63,6 +78,10 @@ github.com/jinzhu/now
 github.com/json-iterator/go
 # github.com/konsorten/go-windows-terminal-sequences v1.0.3
 github.com/konsorten/go-windows-terminal-sequences
+# github.com/mailru/easyjson v0.7.0
+github.com/mailru/easyjson/buffer
+github.com/mailru/easyjson/jlexer
+github.com/mailru/easyjson/jwriter
 # github.com/mattn/go-sqlite3 v1.14.5
 github.com/mattn/go-sqlite3
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
@@ -116,6 +135,9 @@ golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/ssh/terminal
+# golang.org/x/mod v0.3.0
+golang.org/x/mod/module
+golang.org/x/mod/semver
 # golang.org/x/net v0.0.0-20200707034311-ab3426394381
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -135,8 +157,23 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
+golang.org/x/text/width
 # golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 golang.org/x/time/rate
+# golang.org/x/tools v0.0.0-20200616133436-c1934b75d054
+golang.org/x/tools/go/ast/astutil
+golang.org/x/tools/imports
+golang.org/x/tools/internal/event
+golang.org/x/tools/internal/event/core
+golang.org/x/tools/internal/event/keys
+golang.org/x/tools/internal/event/label
+golang.org/x/tools/internal/fastwalk
+golang.org/x/tools/internal/gocommand
+golang.org/x/tools/internal/gopathwalk
+golang.org/x/tools/internal/imports
+# golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+golang.org/x/xerrors
+golang.org/x/xerrors/internal
 # google.golang.org/appengine v1.6.5
 google.golang.org/appengine/internal
 google.golang.org/appengine/internal/base
@@ -477,6 +514,28 @@ k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
 # k8s.io/cloud-provider v0.19.3 => k8s.io/cloud-provider v0.19.3
 k8s.io/cloud-provider
+# k8s.io/code-generator v0.19.3 => k8s.io/code-generator v0.19.3
+## explicit
+k8s.io/code-generator/cmd/client-gen
+k8s.io/code-generator/cmd/client-gen/args
+k8s.io/code-generator/cmd/client-gen/generators
+k8s.io/code-generator/cmd/client-gen/generators/fake
+k8s.io/code-generator/cmd/client-gen/generators/scheme
+k8s.io/code-generator/cmd/client-gen/generators/util
+k8s.io/code-generator/cmd/client-gen/path
+k8s.io/code-generator/cmd/client-gen/types
+k8s.io/code-generator/cmd/deepcopy-gen
+k8s.io/code-generator/cmd/deepcopy-gen/args
+k8s.io/code-generator/cmd/defaulter-gen
+k8s.io/code-generator/cmd/defaulter-gen/args
+k8s.io/code-generator/cmd/informer-gen
+k8s.io/code-generator/cmd/informer-gen/args
+k8s.io/code-generator/cmd/informer-gen/generators
+k8s.io/code-generator/cmd/lister-gen
+k8s.io/code-generator/cmd/lister-gen/args
+k8s.io/code-generator/cmd/lister-gen/generators
+k8s.io/code-generator/pkg/namer
+k8s.io/code-generator/pkg/util
 # k8s.io/component-base v0.19.3 => k8s.io/component-base v0.19.3
 ## explicit
 k8s.io/component-base/cli/flag
@@ -488,12 +547,27 @@ k8s.io/component-base/metrics
 k8s.io/component-base/metrics/legacyregistry
 k8s.io/component-base/term
 k8s.io/component-base/version
+# k8s.io/gengo v0.0.0-20200428234225-8167cfdcfc14
+k8s.io/gengo/args
+k8s.io/gengo/examples/deepcopy-gen/generators
+k8s.io/gengo/examples/defaulter-gen/generators
+k8s.io/gengo/examples/set-gen/sets
+k8s.io/gengo/generator
+k8s.io/gengo/namer
+k8s.io/gengo/parser
+k8s.io/gengo/types
 # k8s.io/klog/v2 v2.4.0
 ## explicit
 k8s.io/klog/v2
 # k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 ## explicit
+k8s.io/kube-openapi/cmd/openapi-gen
+k8s.io/kube-openapi/cmd/openapi-gen/args
+k8s.io/kube-openapi/pkg/common
+k8s.io/kube-openapi/pkg/generators
+k8s.io/kube-openapi/pkg/generators/rules
 k8s.io/kube-openapi/pkg/util/proto
+k8s.io/kube-openapi/pkg/util/sets
 # k8s.io/kubernetes v1.19.3
 ## explicit
 k8s.io/kubernetes/pkg/api/legacyscheme
