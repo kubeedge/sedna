@@ -12,9 +12,10 @@ require (
 	k8s.io/api v0.19.3
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v0.19.3
+	k8s.io/code-generator v0.19.3
 	k8s.io/component-base v0.19.3
 	k8s.io/klog/v2 v2.4.0
-	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd // indirect
+	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 	k8s.io/kubernetes v1.19.3
 	sigs.k8s.io/yaml v1.2.0
 )
