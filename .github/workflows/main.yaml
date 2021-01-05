@@ -1,0 +1,137 @@
+name: Main CI WorkFlow
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+  pull_request:
+
+jobs:
+  verify-and-lint:
+    runs-on: ubuntu-latest
+    name: Verify codegen/vendor/licenses, do lint
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14.x
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          path: ./src/github.com/${{ github.repository }}
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Install dependences
+        run: |
+          sudo apt-get install -y jq pycodestyle
+
+      - name: Run verify test
+        run: make verify
+        working-directory: ./src/github.com/${{ github.repository }}
+
+      - name: Run go lint test
+        run: make lint
+        working-directory: ./src/github.com/${{ github.repository }}
+
+      - name: Run python code style test
+        run: pycodestyle lib
+        working-directory: ./src/github.com/${{ github.repository }}
+
+  build:
+    runs-on: ubuntu-latest
+    name: build gm and lc
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14.x
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - run: make
+
+  basic_test:
+    runs-on: ubuntu-latest
+    name: 'Unit test, integration test edge (noop now)'
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14.x
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Install dependences
+        run: ': to be added'
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - run: ': to be added'
+
+  e2e_test:
+    runs-on: ubuntu-latest
+    name: 'E2e test (noop now)'
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14.x
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Install dependences
+        run: ': to be added'
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - run: ': to be added'
+
+  docker_build:
+    runs-on: ubuntu-latest
+    name: docker image build for gm/lc
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14.x
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - run: make gmimage
+
+      - run: make lcimage
