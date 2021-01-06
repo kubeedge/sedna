@@ -1,3 +1,4 @@
+简体中文 | [English](./README.md)
 # Neptune
 [![CI](https://github.com/edgeai-neptune/neptune/workflows/CI/badge.svg?branch=main)](https://github.com/edgeai-neptune/neptune/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/edgeai-neptune/neptune)](https://goreportcard.com/report/github.com/edgeai-neptune/neptune)
@@ -81,16 +82,19 @@ Neptune的安装文档请参考[这里](/docs/setup/install.md)。
 - [会议日历](https://calendar.google.com/calendar/u/0/r?cid=Y19nODluOXAwOG05MzFiYWM3NmZsajgwZzEwOEBncm91cC5jYWxlbmRhci5nb29nbGUuY29t) | [订阅日历](https://calendar.google.com/calendar/u/0/r?cid=OHJqazhvNTE2dmZ0ZTIxcWlidmxhZTNsajRAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ)
 
 ## 支持
+<!--
 如果您需要支持，请从 [故障排除指南](./docs/troubleshooting.md) 开始，然后按照我们概述的流程进行操作。
+-->
 
 如果您有任何疑问，请以下方式与我们联系：
-- [Mailing list](https://groups.google.com/forum/#!forum/kubeedge)
-- [slack](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
+- [slack channel](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
 
+<!--
 ## 贡献
 
 如果您有兴趣成为一个贡献者，也想参与到Neptune的代码开发中，
 请查看[CONTRIBUTING](CONTRIBUTING.md)获取更多关于如何提交Patch和贡献的流程。
+-->
 
 ## 许可证
 

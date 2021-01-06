@@ -1,3 +1,4 @@
+English | [简体中文](./README_zh.md)
 # Neptune
 [![CI](https://github.com/edgeai-neptune/neptune/workflows/CI/badge.svg?branch=main)](https://github.com/edgeai-neptune/neptune/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/edgeai-neptune/neptune)](https://goreportcard.com/report/github.com/edgeai-neptune/neptune)
@@ -73,7 +74,7 @@ Neptune consists of the following components：
 Follow the [Neptune installation document](docs/setup/install.md) to install Neptune.
 
 ### Examples
-Example1：[Joint Inference Service in Helmet Detection Scenario ](/examples/helmet_detection_inference/README.md).
+Example1：[Joint Inference Service in Helmet Detection Scenario](/examples/helmet_detection_inference/README.md).
 
 
 ## Roadmap
@@ -94,15 +95,18 @@ Resources:
 
 ## Contact
 
+<!--
 If you need support, start with the [troubleshooting guide](./docs/troubleshooting.md), and work your way through the process that we've outlined.
+-->
 
 If you have questions, feel free to reach out to us in the following ways:
-- [Mailing list](https://groups.google.com/forum/#!forum/kubeedge)
-- [slack](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
+- [slack channel](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
 
+<!--
 ## Contributing
 
 If you're interested in being a contributor and want to get involved in developing the Neptune code, please see [CONTRIBUTING](CONTRIBUTING.md) for details on submitting patches and the contribution workflow.
+-->
 
 ## License
 
