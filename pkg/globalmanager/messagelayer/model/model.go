@@ -1,5 +1,6 @@
 package model
 
+// MessageHeader defines the header between LC and GM
 type MessageHeader struct {
 	Namespace string `json:"namespace"`
 
@@ -10,7 +11,7 @@ type MessageHeader struct {
 	Operation string `json:"operation"`
 }
 
-// Message struct
+// Message defines the message between LC and GM
 type Message struct {
 	MessageHeader `json:"header"`
 	Content       []byte `json:"content"`

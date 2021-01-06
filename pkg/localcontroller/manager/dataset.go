@@ -25,7 +25,7 @@ type DatasetManager struct {
 	VolumeMountPrefix string
 }
 
-// DatasetConfig defines config for dataset
+// Dataset defines config for dataset
 type Dataset struct {
 	APIVersion string       `json:"apiVersion"`
 	Kind       string       `json:"kind"`

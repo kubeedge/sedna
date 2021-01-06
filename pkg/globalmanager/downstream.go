@@ -151,6 +151,7 @@ func (dc *DownstreamController) Start() error {
 	return nil
 }
 
+// GetName returns the name of the downstream controller
 func (dc *DownstreamController) GetName() string {
 	return "DownstreamController"
 }

@@ -36,14 +36,14 @@ import (
 	"github.com/edgeai-neptune/neptune/pkg/globalmanager/utils"
 )
 
-type JointInferenceType string
+type jointInferenceType string
 
 const (
-	JointInferenceForEdge  JointInferenceType = "Edge"
-	JointInferenceForCloud JointInferenceType = "Cloud"
+	jointInferenceForEdge  jointInferenceType = "Edge"
+	jointInferenceForCloud jointInferenceType = "Cloud"
 )
 
-// controllerKind contains the schema.GroupVersionKind for this controller type.
+// jointServiceControllerKind contains the schema.GroupVersionKind for this controller type.
 var jointServiceControllerKind = neptunev1.SchemeGroupVersion.WithKind("JointInferenceService")
 
 // JointInferenceServiceController ensures that all JointInferenceService objects
@@ -70,7 +70,7 @@ type JointInferenceServiceController struct {
 	cfg *config.ControllerConfig
 }
 
-// Run the main goroutine responsible for watching and syncing services.
+// Start starts the main goroutine responsible for watching and syncing services.
 func (jc *JointInferenceServiceController) Start() error {
 	workers := 1
 	stopCh := messageContext.Done()
@@ -247,7 +247,7 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 	jointinferenceservice := *sharedJointinferenceservice
 
 	// if jointinferenceservice was finished previously, we don't want to redo the termination
-	if IsJointinferenceserviceFinished(&jointinferenceservice) {
+	if isJointinferenceserviceFinished(&jointinferenceservice) {
 		return true, nil
 	}
 
@@ -332,7 +332,7 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 			return forget, err
 		}
 
-		if serviceFailed && !IsJointinferenceserviceFinished(&jointinferenceservice) {
+		if serviceFailed && !isJointinferenceserviceFinished(&jointinferenceservice) {
 			// returning an error will re-enqueue jointinferenceservice after the backoff period
 			return forget, fmt.Errorf("failed pod(s) detected for jointinference service key %q", key)
 		}
@@ -343,6 +343,7 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 	return forget, manageServiceErr
 }
 
+// NewJointInferenceServiceCondition creates a new joint condition
 func NewJointInferenceServiceCondition(conditionType neptunev1.JointInferenceServiceConditionType, reason, message string) neptunev1.JointInferenceServiceCondition {
 	return neptunev1.JointInferenceServiceCondition{
 		Type:               conditionType,
@@ -371,7 +372,7 @@ func (jc *JointInferenceServiceController) updateStatus(jointinferenceservice *n
 	return nil
 }
 
-func IsJointinferenceserviceFinished(j *neptunev1.JointInferenceService) bool {
+func isJointinferenceserviceFinished(j *neptunev1.JointInferenceService) bool {
 	for _, c := range j.Status.Conditions {
 		if (c.Type == neptunev1.JointInferenceServiceCondFailed) && c.Status == v1.ConditionTrue {
 			return true
@@ -454,7 +455,7 @@ func (jc *JointInferenceServiceController) createCloudPod(service *neptunev1.Joi
 	}
 
 	// create cloud pod
-	err = jc.generatedPod(service, JointInferenceForCloud, cloudContainer, false)
+	err = jc.generatedPod(service, jointInferenceForCloud, cloudContainer, false)
 	if err != nil {
 		return err
 	}
@@ -474,6 +475,9 @@ func (jc *JointInferenceServiceController) createEdgePod(service *neptunev1.Join
 
 	// get bigModelIP from nodeName in cloudWorker
 	bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.NodeName)
+	if err != nil {
+		return fmt.Errorf("failed to get node ip: %w", err)
+	}
 
 	// convert crd to json, and put them into env of container
 	edgeModelJSON, _ := json.Marshal(edgeModel)
@@ -514,14 +518,14 @@ func (jc *JointInferenceServiceController) createEdgePod(service *neptunev1.Join
 	}
 
 	// create edge pod
-	err = jc.generatedPod(service, JointInferenceForEdge, edgeContainer, true)
+	err = jc.generatedPod(service, jointInferenceForEdge, edgeContainer, true)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (jc *JointInferenceServiceController) generatedPod(service *neptunev1.JointInferenceService, podtype JointInferenceType,
+func (jc *JointInferenceServiceController) generatedPod(service *neptunev1.JointInferenceService, podtype jointInferenceType,
 	containerPara *ContainerPara, hostNetwork bool) error {
 	var workerSpec neptunev1.CommonWorkerSpec
 	var volumeMounts []v1.VolumeMount
@@ -529,7 +533,7 @@ func (jc *JointInferenceServiceController) generatedPod(service *neptunev1.Joint
 	var envs []v1.EnvVar
 	var nodeName string
 	ctx := context.Background()
-	if podtype == JointInferenceForEdge {
+	if podtype == jointInferenceForEdge {
 		workerSpec = service.Spec.EdgeWorker.WorkerSpec
 		nodeName = service.Spec.EdgeWorker.NodeName
 	} else {
@@ -580,6 +584,7 @@ func (jc *JointInferenceServiceController) generatedPod(service *neptunev1.Joint
 	return nil
 }
 
+// GetName returns the name of the joint inference controller
 func (jc *JointInferenceServiceController) GetName() string {
 	return "JointInferenceServiceController"
 }
@@ -587,14 +592,15 @@ func (jc *JointInferenceServiceController) GetName() string {
 // NewJointController creates a new JointInferenceService controller that keeps the relevant pods
 // in sync with their corresponding JointInferenceService objects.
 func NewJointController(cfg *config.ControllerConfig) (FeatureControllerI, error) {
+	var err error
 	namespace := cfg.Namespace
 	if namespace == "" {
 		namespace = metav1.NamespaceAll
 	}
 
-	kubeClient, err := utils.KubeClient()
+	kubeClient, _ := utils.KubeClient()
 	kubecfg, _ := utils.KubeConfig()
-	crdclient, err := clientset.NewForConfig(kubecfg)
+	crdclient, _ := clientset.NewForConfig(kubecfg)
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, time.Second*30, kubeinformers.WithNamespace(namespace))
 
 	podInformer := kubeInformerFactory.Core().V1().Pods()

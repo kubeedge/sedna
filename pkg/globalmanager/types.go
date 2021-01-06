@@ -17,11 +17,13 @@ type ContainerPara struct {
 	nodeName        string
 }
 
+// CommonInterface describes the commom interface of CRs
 type CommonInterface interface {
 	metav1.Object
 	schema.ObjectKind
 }
 
+// FeatureControllerI defines the interface of an AI Feature controller
 type FeatureControllerI interface {
 	Start() error
 	GetName() string

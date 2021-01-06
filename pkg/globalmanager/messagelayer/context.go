@@ -24,6 +24,7 @@ type MessageLayer interface {
 type ContextMessageLayer struct {
 }
 
+// ResourceUpdateSpec describes the resource update from upstream
 type ResourceUpdateSpec struct {
 	Kind      string
 	Namespace string
@@ -75,6 +76,7 @@ func (cml *ContextMessageLayer) SendResourceObject(nodeName string, eventType wa
 	return wsContext.SendToEdge(nodeName, &msg)
 }
 
+// ReceiveResourceUpdate receives and handles the update
 func (cml *ContextMessageLayer) ReceiveResourceUpdate() (*ResourceUpdateSpec, error) {
 	nodeName, msg, err := wsContext.ReceiveFromEdge()
 	if err != nil {

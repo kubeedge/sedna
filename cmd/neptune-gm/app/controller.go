@@ -23,6 +23,7 @@ func PrintFlags(flags *pflag.FlagSet) {
 	})
 }
 
+// NewControllerCommand creates a new gm command
 func NewControllerCommand() *cobra.Command {
 	opts := options.NewControllerOptions()
 	cmd := &cobra.Command{

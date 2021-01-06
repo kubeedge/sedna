@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	// Options defines the lc options
 	Options *options.LocalControllerOptions
 )
 

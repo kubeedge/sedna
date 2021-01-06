@@ -7,6 +7,7 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // JointInferenceService describes the data that a jointinferenceservice resource should have
 type JointInferenceService struct {
 	metav1.TypeMeta `json:",inline"`
@@ -38,14 +39,17 @@ type CloudWorker struct {
 	WorkerSpec CommonWorkerSpec `json:"workerSpec"`
 }
 
+// SmallModel describes the small model
 type SmallModel struct {
 	Name string `json:"name"`
 }
 
+// BigModel describes the big model
 type BigModel struct {
 	Name string `json:"name"`
 }
 
+// HardExampleAlgorithm describes the hard example algorithm to be used
 type HardExampleAlgorithm struct {
 	Name       string     `json:"name"`
 	Parameters []ParaSpec `json:"parameters"`
@@ -85,6 +89,7 @@ type JointInferenceServiceStatus struct {
 	Metrics []Metric `json:"metrics,omitempty"`
 }
 
+// JointInferenceServiceConditionType defines the condition type
 type JointInferenceServiceConditionType string
 
 // These are valid conditions of a service.

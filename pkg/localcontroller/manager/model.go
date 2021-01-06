@@ -31,9 +31,9 @@ type ModelSpec struct {
 }
 
 const (
-	//ModelChannelCacheSize is size of channel cache
+	// ModelChannelCacheSize is size of channel cache
 	ModelChannelCacheSize = 100
-	// DatasetResourceKind is kind of dataset resource
+	// ModelResourceKind is kind of dataset resource
 	ModelResourceKind = "model"
 )
 

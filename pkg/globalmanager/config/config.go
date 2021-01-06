@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	DefaultKubeConfig       = ""
-	DefaultNamespace        = v1.NamespaceAll
-	DefaultWebsocketAddress = "0.0.0.0"
-	DefaultWebsocketPort    = 9000
-	DefaultLCServer         = "http://localhost:9100"
+	defaultKubeConfig       = ""
+	defaultNamespace        = v1.NamespaceAll
+	defaultWebsocketAddress = "0.0.0.0"
+	defaultWebsocketPort    = 9000
+	defaultLCServer         = "http://localhost:9100"
 )
 
 // ControllerConfig indicates the config of controller
@@ -43,18 +43,21 @@ type ControllerConfig struct {
 	LC LCConfig `json:"localController,omitempty"`
 }
 
+// WebSocket describes GM of websocket config
 type WebSocket struct {
-	// default DefaultWebsocketAddress
+	// default defaultWebsocketAddress
 	Address string `json:"address,omitempty"`
-	// default DefaultWebsocketPort
+	// default defaultWebsocketPort
 	Port int64 `json:"port,omitempty"`
 }
 
+// LCConfig describes LC config to inject the worker
 type LCConfig struct {
-	// default DefaultLCServer
+	// default defaultLCServer
 	Server string `json:"server"`
 }
 
+// Parse parses from filename
 func (c *ControllerConfig) Parse(filename string) error {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -69,6 +72,7 @@ func (c *ControllerConfig) Parse(filename string) error {
 	return nil
 }
 
+// Validate validate the config
 func (c *ControllerConfig) Validate() field.ErrorList {
 	allErrs := field.ErrorList{}
 	if c.KubeConfig != "" && !util.FileIsExist(c.KubeConfig) {
@@ -77,23 +81,26 @@ func (c *ControllerConfig) Validate() field.ErrorList {
 	return allErrs
 }
 
+// NewDefaultControllerConfig creates default config
 func NewDefaultControllerConfig() *ControllerConfig {
 	return &ControllerConfig{
-		KubeConfig: DefaultKubeConfig,
+		KubeConfig: defaultKubeConfig,
 		Master:     "",
-		Namespace:  DefaultNamespace,
+		Namespace:  defaultNamespace,
 		WebSocket: WebSocket{
-			Address: DefaultWebsocketAddress,
-			Port:    DefaultWebsocketPort,
+			Address: defaultWebsocketAddress,
+			Port:    defaultWebsocketPort,
 		},
 		LC: LCConfig{
-			Server: DefaultLCServer,
+			Server: defaultLCServer,
 		},
 	}
 }
 
+// Config singlton for GM
 var Config ControllerConfig
 
+// InitConfigure inits config
 func InitConfigure(cc *ControllerConfig) {
 	Config = *cc
 }

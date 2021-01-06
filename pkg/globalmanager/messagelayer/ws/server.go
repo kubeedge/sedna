@@ -10,11 +10,12 @@ import (
 	"github.com/edgeai-neptune/neptune/pkg/globalmanager/messagelayer/model"
 )
 
-// websocket protocol server
+// Server defines websocket protocol server
 type Server struct {
 	server *http.Server
 }
 
+// NewServer creates a websocket server
 func NewServer(address string) *Server {
 	server := http.Server{
 		Addr: address,
@@ -52,10 +53,12 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	go nodeClient.Serve()
 }
 
+// ListenAndServe listens and serves the server
 func (srv *Server) ListenAndServe() error {
 	return srv.server.ListenAndServe()
 }
 
+// Close closes the server
 func (srv *Server) Close() error {
 	if srv.server != nil {
 		return srv.server.Close()

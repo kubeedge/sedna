@@ -41,18 +41,16 @@ func init() {
 	context = NewChannelContext()
 }
 
+// NewChannelContext creates a ChannelContext
 func NewChannelContext() *ChannelContext {
 	upstreamSize := 1000
 	upstreamChannel := make(chan nodeMessage, upstreamSize)
-	//downstreamChannel := make(chan nodeMessage, bufferSize)
 
 	ctx, cancel := gocontext.WithCancel(gocontext.Background())
 	return &ChannelContext{
 		upstreamChannel: upstreamChannel,
-		//		downstreamChannel: downstreamChannel,
-		// nodeMessageChannelMap: make(map[string]chan model.Message),
-		ctx:    ctx,
-		cancel: cancel,
+		ctx:             ctx,
+		cancel:          cancel,
 	}
 }
 
@@ -65,7 +63,7 @@ func getMsgKey(obj interface{}) (string, error) {
 	return strings.Join([]string{kind, namespace, name}, "/"), nil
 }
 
-func GetNodeQueue(nodeName string) workqueue.RateLimitingInterface {
+func getNodeQueue(nodeName string) workqueue.RateLimitingInterface {
 	q, ok := context.nodeQueue.Load(nodeName)
 	if !ok {
 		newQ := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), nodeName)
@@ -74,7 +72,7 @@ func GetNodeQueue(nodeName string) workqueue.RateLimitingInterface {
 	return q.(workqueue.RateLimitingInterface)
 }
 
-func GetNodeStore(nodeName string) cache.Store {
+func getNodeStore(nodeName string) cache.Store {
 	s, ok := context.nodeStore.Load(nodeName)
 	if !ok {
 		newS := cache.NewStore(getMsgKey)
@@ -83,15 +81,17 @@ func GetNodeStore(nodeName string) cache.Store {
 	return s.(cache.Store)
 }
 
+// SendToEdge sends the msg to nodeName
 func SendToEdge(nodeName string, msg *model.Message) error {
-	q := GetNodeQueue(nodeName)
+	q := getNodeQueue(nodeName)
 	key, _ := getMsgKey(msg)
 	q.Add(key)
 
-	s := GetNodeStore(nodeName)
+	s := getNodeStore(nodeName)
 	return s.Add(msg)
 }
 
+// ReceiveFromEdge receives a message from edge
 func ReceiveFromEdge() (nodeName string, msg model.Message, err error) {
 	nodeMsg := <-context.upstreamChannel
 	nodeName = nodeMsg.nodeName
@@ -99,21 +99,27 @@ func ReceiveFromEdge() (nodeName string, msg model.Message, err error) {
 	return
 }
 
+// SendToCloud sends the message to cloud from specified node name
 func SendToCloud(nodeName string, msg model.Message) error {
 	context.upstreamChannel <- nodeMessage{nodeName, msg}
 	return nil
 }
 
+// Done returns a channel that's closed when done
 func Done() <-chan struct{} {
 	return context.ctx.Done()
 }
 
+// ReadMsgFunc defines read msg callback
 type ReadMsgFunc func() (model.Message, error)
+
+// WriteMsgFunc defines write msg callback
 type WriteMsgFunc func(model.Message) error
 
+// AddNode registers a node
 func AddNode(nodeName string, read ReadMsgFunc, write WriteMsgFunc, closeCh chan struct{}) {
-	GetNodeQueue(nodeName)
-	GetNodeStore(nodeName)
+	getNodeQueue(nodeName)
+	getNodeStore(nodeName)
 
 	go func() {
 		// read loop
@@ -133,8 +139,8 @@ func AddNode(nodeName string, read ReadMsgFunc, write WriteMsgFunc, closeCh chan
 
 	go func() {
 		// write loop
-		q := GetNodeQueue(nodeName)
-		s := GetNodeStore(nodeName)
+		q := getNodeQueue(nodeName)
+		s := getNodeStore(nodeName)
 		var err error
 		for {
 			key, shutdown := q.Get()

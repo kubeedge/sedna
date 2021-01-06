@@ -4,7 +4,9 @@ const (
 	// WorkerMessageChannelCacheSize is size of channel cache
 	WorkerMessageChannelCacheSize = 100
 
+	// InsertOperation is the insert value
 	InsertOperation = "insert"
+	// DeleteOperation is the delete value
 	DeleteOperation = "delete"
 )
 

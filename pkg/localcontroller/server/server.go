@@ -16,7 +16,7 @@ import (
 type Server struct {
 	Port            string
 	Resource        *Resource
-	FeatureManagers FeatureManagers
+	FeatureManagers featureManagerMap
 }
 
 // Resource defines resource
@@ -30,15 +30,15 @@ type ResponseMessage struct {
 	Message string
 }
 
-type FeatureManagers map[string]manager.FeatureManager
+type featureManagerMap map[string]manager.FeatureManager
 
-// NewServer create a Server
+// NewServer create a new LC server
 func NewServer(options *options.LocalControllerOptions, featureManagers ...manager.FeatureManager) *Server {
 	s := Server{
 		Port: options.BindPort,
 	}
 
-	fms := FeatureManagers{}
+	fms := featureManagerMap{}
 	for _, m := range featureManagers {
 		if err := m.Start(); err != nil {
 			klog.Errorf("start %s manager failed, error %v", m.GetKind(), err)

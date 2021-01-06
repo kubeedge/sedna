@@ -25,11 +25,11 @@ type JointInference struct {
 }
 
 const (
-	//JointInferenceServiceKind is kind of joint-inference-service resource
+	// JointInferenceServiceKind is kind of joint-inference-service resource
 	JointInferenceServiceKind = "jointinferenceservice"
 )
 
-// NewJointInference creates a JointInference object
+// NewJointInferenceManager creates a joint inference manager
 func NewJointInferenceManager(client *wsclient.Client) FeatureManager {
 	jm := &JointInferenceManager{
 		Client:               client,

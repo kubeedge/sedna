@@ -10,20 +10,21 @@ import (
 	websocket "github.com/edgeai-neptune/neptune/pkg/globalmanager/messagelayer/ws"
 )
 
-// NeptuneController
-type NeptuneController struct {
+// MainController defines the main controller
+type MainController struct {
 	Config *config.ControllerConfig
 }
 
-func NewController(cc *config.ControllerConfig) *NeptuneController {
+// NewController creates a new main controller
+func NewController(cc *config.ControllerConfig) *MainController {
 	config.InitConfigure(cc)
-	return &NeptuneController{
+	return &MainController{
 		Config: cc,
 	}
 }
 
-// Start controller
-func (c *NeptuneController) Start() {
+// Start starts the main controller
+func (c *MainController) Start() {
 	type newFunc func(cfg *config.ControllerConfig) (FeatureControllerI, error)
 
 	for _, featureFunc := range []newFunc{

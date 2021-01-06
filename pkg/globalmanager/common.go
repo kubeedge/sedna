@@ -28,8 +28,8 @@ const (
 	bigModelPort int32 = 5000
 )
 
-// CreateVolumeMap creates volumeMap for container
-// return volumeMounts and volumes for stage of creating pod
+// CreateVolumeMap creates volumeMap for container and
+// returns volumeMounts and volumes for stage of creating pod
 func CreateVolumeMap(containerPara *ContainerPara) ([]v1.VolumeMount, []v1.Volume) {
 	var volumeMounts []v1.VolumeMount
 	var volumes []v1.Volume
@@ -70,6 +70,7 @@ func CreateEnvVars(envMap map[string]string) []v1.EnvVar {
 	return envVars
 }
 
+// MatchContainerBaseImage searches the base image
 func MatchContainerBaseImage(imageHub map[string]string, frameName string, frameVersion string) (string, error) {
 	inputImageName := frameName + ":" + frameVersion
 	for imageName, imageURL := range imageHub {
@@ -80,6 +81,7 @@ func MatchContainerBaseImage(imageHub map[string]string, frameName string, frame
 	return "", fmt.Errorf("image %v not exists in imagehub", inputImageName)
 }
 
+// GetNodeIPByName get node ip by node name
 func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, error) {
 	n, err := kubeClient.CoreV1().Nodes().Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
@@ -102,6 +104,7 @@ func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, erro
 	return "", fmt.Errorf("can't found node ip for node %s", name)
 }
 
+// GenerateLabels generates labels for an object
 func GenerateLabels(object CommonInterface) map[string]string {
 	kind := object.GroupVersionKind().Kind
 	group := object.GroupVersionKind().Group
@@ -112,6 +115,7 @@ func GenerateLabels(object CommonInterface) map[string]string {
 	return labels
 }
 
+// GenerateSelector generates selector for an object
 func GenerateSelector(object CommonInterface) (labels.Selector, error) {
 	ls := &metav1.LabelSelector{
 		MatchLabels: GenerateLabels(object),
@@ -119,6 +123,7 @@ func GenerateSelector(object CommonInterface) (labels.Selector, error) {
 	return metav1.LabelSelectorAsSelector(ls)
 }
 
+// CreateKubernetesService creates a k8s service for an object given ip and port
 func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInterface, inputPort int32, inputIP string) (int32, error) {
 	ctx := context.Background()
 	name := object.GetName()

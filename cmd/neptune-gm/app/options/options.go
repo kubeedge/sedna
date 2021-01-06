@@ -11,24 +11,29 @@ import (
 	"github.com/edgeai-neptune/neptune/pkg/util"
 )
 
+// DefaultConfigDir default current working directory
 const DefaultConfigDir = "."
 
+// ControllerOptions describes gm options
 type ControllerOptions struct {
 	ConfigFile string
 }
 
+// NewControllerOptions creates a new gm options
 func NewControllerOptions() *ControllerOptions {
 	return &ControllerOptions{
 		ConfigFile: path.Join(DefaultConfigDir, "neptune-gm.yaml"),
 	}
 }
 
+// Flags returns flags of ControllerOptions
 func (o *ControllerOptions) Flags() (fss cliflag.NamedFlagSets) {
 	fs := fss.FlagSet("global")
 	fs.StringVar(&o.ConfigFile, "config", o.ConfigFile, "The path to the configuration file. Flags override values in this file.")
 	return
 }
 
+// Validate validates the ControllerOptions
 func (o *ControllerOptions) Validate() []error {
 	var errs []error
 	if !util.FileIsExist(o.ConfigFile) {
@@ -38,6 +43,7 @@ func (o *ControllerOptions) Validate() []error {
 	return errs
 }
 
+// Config returns a config.ControllerConfig
 func (o *ControllerOptions) Config() (*config.ControllerConfig, error) {
 	cfg := config.NewDefaultControllerConfig()
 	if err := cfg.Parse(o.ConfigFile); err != nil {

@@ -207,11 +207,12 @@ func (uc *UpstreamController) Start() error {
 	return nil
 }
 
+// GetName returns the name of the upstream controller
 func (uc *UpstreamController) GetName() string {
 	return "UpstreamController"
 }
 
-// NewUpstreamController create UpstreamController from config
+// NewUpstreamController creates a new Upstream controller from config
 func NewUpstreamController(cfg *config.ControllerConfig) (FeatureControllerI, error) {
 	client, err := utils.NewCRDClient()
 	if err != nil {
