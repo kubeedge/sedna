@@ -103,13 +103,13 @@ clean:
 endif
 
 
-IMAGE_REPO ?= edgeai-neptune/neptune/
+IMAGE_REPO ?= ghcr.io/edgeai-neptune/neptune
 IMAGE_TAG ?= v1alpha1
 GO_LDFLAGS ?=''
 
 .PHONY: gmimage lcimage
 gmimage:
-	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}gm:${IMAGE_TAG} -f build/gm/Dockerfile .
+	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/gm:${IMAGE_TAG} -f build/gm/Dockerfile .
 
 lcimage:
-	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}lc:${IMAGE_TAG} -f build/lc/Dockerfile .
+	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/lc:${IMAGE_TAG} -f build/lc/Dockerfile .

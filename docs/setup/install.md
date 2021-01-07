@@ -68,11 +68,12 @@ localController:
 
 Here build worker base image for tensorflow 1.15 for example:
 ```shell
-# edit it with the truly base repo by your choice.
-IMG_BASE_ADDR=docker.io/neptune
+# here using github container registry for example.
+# edit it with the truly container registry by your choice.
+IMAGE_REPO=ghcr.io/edgeai-neptune/neptune
 
 # build tensorflow image
-WORKER_TF1_IMAGE=$IMG_BASE_ADDR/worker-tensorflow:1.15
+WORKER_TF1_IMAGE=$IMAGE_REPO/worker-tensorflow:1.15
 
 docker build -f build/worker/base_images/tensorflow/tensorflow-1.15.Dockerfile -t $WORKER_TF1_IMAGE .
 
@@ -104,8 +105,10 @@ LC_PORT=9100
 # such as GM_IP=192.168.0.9
 GM_IP=<GM_NODE_NAME_IP_ADDRESS>
 
-# edit it with the truly base repo by your choice.
-IMG_BASE_ADDR=docker.io/neptune
+# here using github container registry for example
+# edit it with the truly container registry by your choice.
+IMAGE_REPO=ghcr.io/edgeai-neptune/neptune
+IMAGE_TAG=v1alpha1
 
 GM_ADDRESS=$GM_IP:$GM_PORT
 LC_SERVER="http://localhost:$LC_PORT"
@@ -137,10 +140,9 @@ sed -i "s@http://localhost:9100@$LC_SERVER@" $CONFIG_FILE
 # build image from source OR use the gm image previous built.
 
 # edit it with the truly base repo by your choice.
-GM_IMAGE=$IMG_BASE_ADDR/neptune-gm:v1alpha1
+GM_IMAGE=$IMAGE_REPO/gm:$IMAGE_TAG
 
-# build docker image
-docker build -f build/gm/Dockerfile --tag $GM_IMAGE .
+make gmimage IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
 
 # push image to registry, login to registry first if needed
 docker push $GM_IMAGE
@@ -205,9 +207,9 @@ go build cmd/neptune-gm/neptune-gm.go
 #### Run GM as docker container(alternative)
 1\. build GM image:
 ```shell
-GM_IMAGE=$IMG_BASE_ADDR/neptune-gm:v1alpha1
+GM_IMAGE=$IMAGE_REPO/gm:$IMAGE_TAG
 sed -i 's@kubeConfig.*@kubeConfig: /root/.kube/config@' build/gm/neptune-gm.yaml
-docker build -f build/gm/Dockerfile --tag $GM_IMAGE .
+make gmimage IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
 ```
 
 2\. run GM as container:
@@ -224,9 +226,9 @@ Steps:
 
 1\. Build LC image:
 ```shell
-LC_IMAGE=$IMG_BASE_ADDR/neptune-lc:v1alpha1
+LC_IMAGE=$IMAGE_REPO/lc:$IMAGE_TAG
 
-docker build -f build/lc/Dockerfile --tag $LC_IMAGE .
+make lcimage IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
 
 # push image to registry, login to registry first if needed
 docker push $LC_IMAGE
