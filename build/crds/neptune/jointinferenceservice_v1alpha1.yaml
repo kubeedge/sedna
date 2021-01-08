@@ -33,7 +33,7 @@ spec:
                   required:
                     - model
                     - nodeName
-                    - hardExampleAlgorithm
+                    - hardExampleMining
                     - workerSpec
                   properties:
                     model:
@@ -45,7 +45,7 @@ spec:
                           type: string
                     nodeName:
                       type: string
-                    hardExampleAlgorithm:
+                    hardExampleMining:
                       type: object
                       required:
                         - name

@@ -26,10 +26,10 @@ type JointInferenceServiceSpec struct {
 
 // EdgeWorker describes the data a edge worker should have
 type EdgeWorker struct {
-	Model                SmallModel           `json:"model"`
-	NodeName             string               `json:"nodeName"`
-	HardExampleAlgorithm HardExampleAlgorithm `json:"hardExampleAlgorithm"`
-	WorkerSpec           CommonWorkerSpec     `json:"workerSpec"`
+	Model             SmallModel        `json:"model"`
+	NodeName          string            `json:"nodeName"`
+	HardExampleMining HardExampleMining `json:"hardExampleMining"`
+	WorkerSpec        CommonWorkerSpec  `json:"workerSpec"`
 }
 
 // CloudWorker describes the data a cloud worker should have
@@ -49,8 +49,8 @@ type BigModel struct {
 	Name string `json:"name"`
 }
 
-// HardExampleAlgorithm describes the hard example algorithm to be used
-type HardExampleAlgorithm struct {
+// HardExampleMining describes the hard example algorithm to be used
+type HardExampleMining struct {
 	Name       string     `json:"name"`
 	Parameters []ParaSpec `json:"parameters"`
 }

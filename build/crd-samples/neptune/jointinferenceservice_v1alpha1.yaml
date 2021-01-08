@@ -7,7 +7,7 @@ spec:
     model:
       name: "small-model"
     nodeName: "edge0"
-    hardExampleAlgorithm:
+    hardExampleMining:
       name: "IBT"
     workerSpec:
       scriptDir: "/code"

@@ -488,8 +488,8 @@ func (jc *JointInferenceServiceController) createEdgePod(service *neptunev1.Join
 	edgeCodePath := edgeWorker.WorkerSpec.ScriptDir
 	edgeParameterJSON, _ := json.Marshal(edgeWorker.WorkerSpec.Parameters)
 	edgeParameterString := string(edgeParameterJSON)
-	HSAParameterJSON, _ := json.Marshal(edgeWorker.HardExampleAlgorithm.Parameters)
-	HSAParameterString := string(HSAParameterJSON)
+	HEMParameterJSON, _ := json.Marshal(edgeWorker.HardExampleMining.Parameters)
+	HEMParameterString := string(HEMParameterJSON)
 
 	// Container VolumeMounts parameters
 	edgeCodeConPath := codePrefix
@@ -504,17 +504,17 @@ func (jc *JointInferenceServiceController) createEdgePod(service *neptunev1.Join
 	edgeContainer.volumeList = []string{edgeCodePath, edgeModelParent}
 	edgeContainer.volumeMapName = []string{"code", "model"}
 	edgeContainer.env = map[string]string{
-		"MODEL":                 edgeModelString,
-		"WORKER_NAME":           "edgeworker-" + utilrand.String(5),
-		"SERVICE_NAME":          service.Name,
-		"BIG_MODEL_IP":          bigModelIP,
-		"BIG_MODEL_PORT":        strconv.Itoa(int(bigServicePort)),
-		"PARAMETERS":            edgeParameterString,
-		"HSA_PARAMETERS":        HSAParameterString,
-		"MODEL_URL":             edgeModelURL,
-		"NAMESPACE":             service.Namespace,
-		"HARD_SAMPLE_ALGORITHM": edgeWorker.HardExampleAlgorithm.Name,
-		"LC_SERVER":             jc.cfg.LC.Server,
+		"MODEL":          edgeModelString,
+		"WORKER_NAME":    "edgeworker-" + utilrand.String(5),
+		"SERVICE_NAME":   service.Name,
+		"BIG_MODEL_IP":   bigModelIP,
+		"BIG_MODEL_PORT": strconv.Itoa(int(bigServicePort)),
+		"PARAMETERS":     edgeParameterString,
+		"HEM_PARAMETERS": HEMParameterString,
+		"MODEL_URL":      edgeModelURL,
+		"NAMESPACE":      service.Namespace,
+		"HEM_NAME":       edgeWorker.HardExampleMining.Name,
+		"LC_SERVER":      jc.cfg.LC.Server,
 	}
 
 	// create edge pod
