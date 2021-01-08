@@ -1,24 +1,19 @@
 FROM golang:1.14-alpine3.11 AS builder
 
-ARG PROXY
+ARG GO_LDFLAGS
 
-COPY . /code
+# install build tools
+RUN apk update
+RUN apk add build-base bash
+
 WORKDIR /code
+# copy source
+COPY . .
+RUN make build WHAT=lc GO_LDFLAGS=$GO_LDFLAGS OUT_DIR=_output
 
-
-RUN if [ ! "$PROXY" = "" ]; then sed -i "s@http://dl-cdn.alpinelinux.org@$PROXY@g" /etc/apk/repositories ; fi
-
-RUN apk update 
-RUN apk add build-base
-
-RUN GOOS=linux go build -o /usr/local/bin/neptune-lc  cmd/neptune-lc/neptune-lc.go
 
 FROM alpine:3.11
 
-COPY --from=builder  /usr/local/bin/neptune-lc /usr/local/bin/neptune-lc
+COPY --from=builder /code/_output/bin/neptune-lc /usr/local/bin/neptune-lc
 
 CMD ["neptune-lc"]
-
-
-
-
