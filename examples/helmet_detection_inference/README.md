@@ -14,20 +14,20 @@ Follow the [Neptune installation document](docs/setup/install.md) to install Nep
  
 ### Prepare Data and Model
 
-* step1: download [video and little model](TOFILLED) to your edge node.
+* step1: download [little model](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/little-model.tar.gz) to your edge node.
 
 ```
 mkdir -p /data/little-model
 cd /data/little-model
-tar -zxvf helm_detection_inference_edge_part.tar.gz
+tar -zxvf little-model.tar.gz
 ```
 
-* step2: download [big model](TOFILLED) to your cloud node.
+* step2: download [big model](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/big-model.tar.gz) to your cloud node.
 
 ```
 mkdir -p /data/big-model
 cd /data/big-model
-tar -zxvf helm_detection_inference_cloud_part.tar.gz
+tar -zxvf big-model.tar.gz
 ```
 
 ### Prepare Script
@@ -47,7 +47,7 @@ metadata:
   name: helmet-detection-inference-big-model
   namespace: default
 spec:
-  url: "/data/big-model/yolov3_big_no_leaky_relu.pb"
+  url: "/data/big-model/yolov3_darknet.pb"
   format: "pb"
 EOF
 ```
@@ -62,7 +62,7 @@ metadata:
   name: helmet-detection-inference-little-model
   namespace: default
 spec:
-  url: "/data/little-model/yolo3_resnet18-helmet.pb"
+  url: "/data/little-model/yolov3_resnet18.pb"
   format: "pb"
 EOF
 ```
@@ -132,11 +132,12 @@ EOF
 kubectl get jointinferenceservice helmet-detection-inference-example
 ```
 
-### Mock Video Stream for Inference
+### Mock Video Stream for Inference in Edge Side
 
 * step1: install the open source video streaming server [EasyDarwin](https://github.com/EasyDarwin/EasyDarwin/tree/dev).
 * step2: start EasyDarwin server.
-* step3: push a video stream to the url (e.g., `rtsp://localhost/video`) that the inference service can connect.
+* step3: download [video](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/video.tar.gz).
+* step4: push a video stream to the url (e.g., `rtsp://localhost/video`) that the inference service can connect.
 
 ```
 wget https://github.com/EasyDarwin/EasyDarwin/releases/download/v8.1.0/EasyDarwin-linux-8.1.0-1901141151.tar.gz --no-check-certificate
@@ -144,7 +145,10 @@ tar -zxvf EasyDarwin-linux-8.1.0-1901141151.tar.gz
 cd EasyDarwin-linux-8.1.0-1901141151
 ./start.sh
 
-ffmpeg -re -i /data/videoplayback3_cut_2.mp4 -vcodec libx264 -f rtsp rtsp://localhost/video
+mkdir -p /data/video
+cd /data/video
+tar -zxvf video.tar.gz
+ffmpeg -re -i /data/video/helmet-detection.mp4 -vcodec libx264 -f rtsp rtsp://localhost/video
 ```
 
 ### Check Inference Result
