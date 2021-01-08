@@ -1,7 +1,3 @@
-DESTDIR ?=
-USR_DIR ?= /usr/local
-INSTALL_DIR ?= ${DESTDIR}${USR_DIR}
-INSTALL_BIN_DIR ?= ${INSTALL_DIR}/bin
 GOPATH ?= $(shell go env GOPATH)
 
 # make all builds both cloud and edge binaries
@@ -10,13 +6,14 @@ BINARIES=gm lc
 
 .EXPORT_ALL_VARIABLES:
 OUT_DIR ?= _output
+OUT_BINPATH := $(OUT_DIR)/bin
 
 define ALL_HELP_INFO
 # Build code.
 #
 # Args:
 #   WHAT: binary names to build. support: $(BINARIES)
-#         the build will produce executable files under $(OUT_DIR)
+#         the build will produce executable files under ./$(OUT_BINPATH)
 #         If not specified, "everything" will be built.
 #
 # Example:
@@ -36,7 +33,7 @@ ifeq ($(HELP),y)
 all:
 	@echo "$$ALL_HELP_INFO"
 else
-all: verify-golang
+all: verify
 	hack/make-rules/build.sh $(WHAT)
 endif
 
@@ -52,7 +49,7 @@ ifeq ($(HELP),y)
 verify:
 	@echo "$$VERIFY_HELP_INFO"
 else
-verify:verify-golang verify-vendor verify-codegen verify-vendor-licenses
+verify: verify-golang verify-vendor verify-codegen verify-vendor-licenses
 endif
 
 .PHONY: verify-golang
@@ -108,8 +105,5 @@ IMAGE_TAG ?= v1alpha1
 GO_LDFLAGS ?=''
 
 .PHONY: gmimage lcimage
-gmimage:
-	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/gm:${IMAGE_TAG} -f build/gm/Dockerfile .
-
-lcimage:
-	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/lc:${IMAGE_TAG} -f build/lc/Dockerfile .
+gmimage lcimage:
+	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/${@:image=}:${IMAGE_TAG} -f build/${@:image=}/Dockerfile .

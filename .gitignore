@@ -25,3 +25,6 @@
 # Python
 __pycache__/
 *.pyc
+
+# go build output
+/_output

@@ -207,12 +207,12 @@ neptune::golang::build_binaries() {
   goldflags="${GOLDFLAGS=-s -w -buildid=} $(neptune::version::ldflags)"
   gogcflags="${GOGCFLAGS:-}"
 
-  mkdir -p ${NEPTUNE_OUTPUT_BINPATH}
+  mkdir -p ${NEPTUNE_OUT_BINPATH}
   for bin in ${binaries[@]}; do
     echo "building $bin"
     local name="${bin##*/}"
     set -x
-    go build -o ${NEPTUNE_OUTPUT_BINPATH}/${name} -gcflags="${gogcflags:-}" -ldflags "${goldflags:-}" $bin
+    go build -o ${NEPTUNE_OUT_BINPATH}/${name} -gcflags="${gogcflags:-}" -ldflags "${goldflags:-}" $bin
     set +x
   done
 }

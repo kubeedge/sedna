@@ -7,9 +7,7 @@ set -o pipefail
 # The root of the neptune
 NEPTUNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
-NEPTUNE_OUTPUT_SUBPATH="${NEPTUNE_OUTPUT_SUBPATH:-_output/local}"
-NEPTUNE_OUTPUT="${NEPTUNE_ROOT}/${NEPTUNE_OUTPUT_SUBPATH}"
-NEPTUNE_OUTPUT_BINPATH="${NEPTUNE_OUTPUT}/bin"
+NEPTUNE_OUT_BINPATH="${NEPTUNE_ROOT}/${OUT_BINPATH:-_output/bin}"
 
 readonly NEPTUNE_GO_PACKAGE="github.com/edgeai-neptune/neptune"
 
