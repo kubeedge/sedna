@@ -82,7 +82,7 @@ def preprocess(image, input_shape):
     new_image.fill(128)
     bh, bw, _ = new_image.shape
     new_image[int((bh - nh) / 2):(nh + int((bh - nh) / 2)),
-    int((bw - nw) / 2):(nw + int((bw - nw) / 2)), :] = image
+              int((bw - nw) / 2):(nw + int((bw - nw) / 2)), :] = image
 
     new_image /= 255.
     new_image = np.expand_dims(new_image, 0)  # Add batch dimension.
@@ -112,7 +112,7 @@ def create_output_fetch(sess):
     return output_fetch
 
 
-def post_hook(model_output):
+def postprocess(model_output):
     all_classes, all_scores, all_bboxes = model_output
     bboxes = []
     for c, s, bbox in zip(all_classes, all_scores, all_bboxes):
@@ -171,7 +171,7 @@ def run():
     # create little model object
     model = neptune.joint_inference.TSLittleModel(
         preprocess=preprocess,
-        postprocess=None,
+        postprocess=postprocess,
         input_shape=input_shape,
         create_input_feed=create_input_feed,
         create_output_fetch=create_output_fetch
@@ -188,9 +188,7 @@ def run():
     # create joint inference object
     inference_instance = neptune.joint_inference.JointInference(
         little_model=model,
-        hard_example_mining_algorithm=hard_example_mining_algorithm,
-        pre_hook=None,
-        post_hook=post_hook,
+        hard_example_mining_algorithm=hard_example_mining_algorithm
     )
 
     # use video streams for testing
