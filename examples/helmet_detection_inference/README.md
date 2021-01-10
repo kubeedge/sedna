@@ -72,7 +72,7 @@ EOF
 Note the setting of the following parameters, which have to same as the script [little_model.py](/examples/helmet_detection_inference/little_model/little_model.py):
 - hardExampleMining: set hard example algorithm from {IBT, CrossEntropy} for inferring in edge side.
 - video_url: set the url for video streaming. 
-- all_sample_inference_output: set your output path for the inference results, and note that the root path has to be /home/data.
+- all_examples_inference_output: set your output path for the inference results, and note that the root path has to be /home/data.
 - hard_example_edge_inference_output: set your output path for results of inferring hard examples in edge side.
 - hard_example_cloud_inference_output: set your output path for results of inferring hard examples in cloud side.
 
@@ -105,7 +105,7 @@ spec:
           value: "416,736"
         - key: "video_url"
           value: "rtsp://localhost/video"
-        - key: "all_sample_inference_output"
+        - key: "all_examples_inference_output"
           value: "/home/data/output"
         - key: "hard_example_cloud_inference_output"
           value: "/home/data/hard_example_cloud_inference_output"

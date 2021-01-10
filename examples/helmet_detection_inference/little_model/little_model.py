@@ -16,12 +16,14 @@ LOG = logging.getLogger(__name__)
 colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255),
           (0, 255, 255), (255, 255, 255)]
 class_names = ['person', 'helmet', 'helmet_on', 'helmet_off']
-all_output_path = neptune.context.get_parameters('all_sample_inference_output')
-hard_sample_edge_output_path = neptune.context.get_parameters(
-    'hard_sample_edge_inference_output'
+all_output_path = neptune.context.get_parameters(
+    'all_examples_inference_output'
 )
-hard_sample_cloud_output_path = neptune.context.get_parameters(
-    'hard_sample_cloud_inference_output'
+hard_example_edge_output_path = neptune.context.get_parameters(
+    'hard_example_edge_inference_output'
+)
+hard_example_cloud_output_path = neptune.context.get_parameters(
+    'hard_example_cloud_inference_output'
 )
 
 
@@ -131,20 +133,20 @@ def output_deal(inference_result: InferenceResult, nframe, img_rgb):
 
     cv2.imwrite(f"{all_output_path}/{nframe}.jpeg", collaboration_frame)
 
-    # save hard sample image to dir
-    if not inference_result.is_hard_sample:
+    # save hard example image to dir
+    if not inference_result.is_hard_example:
         return
 
-    if inference_result.hard_sample_cloud_result is not None:
-        cv2.imwrite(f"{hard_sample_cloud_output_path}/{nframe}.jpeg",
+    if inference_result.hard_example_cloud_result is not None:
+        cv2.imwrite(f"{hard_example_cloud_output_path}/{nframe}.jpeg",
                     collaboration_frame)
     edge_collaboration_frame = draw_boxes(
         img_rgb,
-        inference_result.hard_sample_edge_result,
+        inference_result.hard_example_edge_result,
         colors="green,blue,yellow,red",
         text_thickness=None,
         box_thickness=None)
-    cv2.imwrite(f"{hard_sample_edge_output_path}/{nframe}.jpeg",
+    cv2.imwrite(f"{hard_example_edge_output_path}/{nframe}.jpeg",
                 edge_collaboration_frame)
 
 
@@ -163,8 +165,8 @@ def run():
     camera_address = neptune.context.get_parameters('video_url')
 
     mkdir(all_output_path)
-    mkdir(hard_sample_edge_output_path)
-    mkdir(hard_sample_cloud_output_path)
+    mkdir(hard_example_edge_output_path)
+    mkdir(hard_example_cloud_output_path)
 
     # create little model object
     model = neptune.joint_inference.TSLittleModel(
@@ -174,7 +176,7 @@ def run():
         create_input_feed=create_input_feed,
         create_output_fetch=create_output_fetch
     )
-    # create hard sample algorithm
+    # create hard example algorithm
     threshold_box = float(neptune.context.get_hem_parameters(
         "threshold_box", 0.5
     ))
