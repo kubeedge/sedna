@@ -39,6 +39,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=neptune.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("datasets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Neptune().V1alpha1().Datasets().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("federatedlearningjobs"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Neptune().V1alpha1().FederatedLearningJobs().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("jointinferenceservices"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Neptune().V1alpha1().JointInferenceServices().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("models"):

@@ -10,6 +10,8 @@ import (
 type Interface interface {
 	// Datasets returns a DatasetInformer.
 	Datasets() DatasetInformer
+	// FederatedLearningJobs returns a FederatedLearningJobInformer.
+	FederatedLearningJobs() FederatedLearningJobInformer
 	// JointInferenceServices returns a JointInferenceServiceInformer.
 	JointInferenceServices() JointInferenceServiceInformer
 	// Models returns a ModelInformer.
@@ -30,6 +32,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // Datasets returns a DatasetInformer.
 func (v *version) Datasets() DatasetInformer {
 	return &datasetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// FederatedLearningJobs returns a FederatedLearningJobInformer.
+func (v *version) FederatedLearningJobs() FederatedLearningJobInformer {
+	return &federatedLearningJobInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // JointInferenceServices returns a JointInferenceServiceInformer.
