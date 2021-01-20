@@ -1,9 +1,13 @@
 package app
 
 import (
+	"fmt"
 	"os"
+	"path"
 
 	"github.com/spf13/cobra"
+	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/cli/globalflag"
 	"k8s.io/klog/v2"
 
 	"github.com/edgeai-neptune/neptune/cmd/neptune-lc/app/options"
@@ -11,6 +15,7 @@ import (
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/manager"
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/server"
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/wsclient"
+	"github.com/edgeai-neptune/neptune/pkg/version/verflag"
 )
 
 var (
@@ -20,13 +25,23 @@ var (
 
 // NewLocalControllerCommand creates a command object
 func NewLocalControllerCommand() *cobra.Command {
+	cmdName := path.Base(os.Args[0])
 	cmd := &cobra.Command{
-		Use: "localcontroller",
-		Long: `LocalController is a local controller. It manages dataset and models.
-And it controls ai features in local nodes, like joint inference service.`,
+		Use: cmdName,
+		Long: fmt.Sprintf(`%s is the localcontroller.
+It manages dataset and models, and controls ai features in local nodes.`, cmdName),
 		Run: func(cmd *cobra.Command, args []string) {
 			runServer()
 		},
+	}
+
+	fs := cmd.Flags()
+	namedFs := cliflag.NamedFlagSets{}
+
+	verflag.AddFlags(namedFs.FlagSet("global"))
+	globalflag.AddGlobalFlags(namedFs.FlagSet("global"), cmd.Name())
+	for _, f := range namedFs.FlagSets {
+		fs.AddFlagSet(f)
 	}
 
 	Options = options.NewLocalControllerOptions()
@@ -65,8 +80,9 @@ func runServer() {
 	}
 
 	jm := manager.NewJointInferenceManager(c)
+	fm := manager.NewFederatedLearningManager(c)
 
-	s := server.NewServer(Options, jm)
+	s := server.NewServer(Options, jm, fm)
 
 	s.Start()
 }

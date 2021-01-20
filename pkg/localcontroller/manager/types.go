@@ -8,6 +8,8 @@ const (
 	InsertOperation = "insert"
 	// DeleteOperation is the delete value
 	DeleteOperation = "delete"
+	// StatusOperation is the status value
+	StatusOperation = "status"
 )
 
 // WorkerMessage defines message struct from worker

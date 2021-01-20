@@ -10,14 +10,14 @@ import (
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/wsclient"
 )
 
-// JointInferenceManager defines joint-inference-service manager
-type JointInferenceManager struct {
+// FederatedLearningManager defines federated-learning-job manager
+type FederatedLearningManager struct {
 	Client               *wsclient.Client
 	WorkerMessageChannel chan WorkerMessage
 }
 
-// JointInference defines config for joint-inference-service
-type JointInference struct {
+// FederatedLearning defines config for federated-learning-job
+type FederatedLearning struct {
 	APIVersion string                 `json:"apiVersion"`
 	Kind       string                 `json:"kind"`
 	MetaData   map[string]interface{} `json:"metadata"`
@@ -25,55 +25,54 @@ type JointInference struct {
 }
 
 const (
-	// JointInferenceServiceKind is kind of joint-inference-service resource
-	JointInferenceServiceKind = "jointinferenceservice"
+	//FederatedLearningJobKind is kind of federated-learning-job resource
+	FederatedLearningJobKind = "federatedlearningjob"
 )
 
-// NewJointInferenceManager creates a joint inference manager
-func NewJointInferenceManager(client *wsclient.Client) FeatureManager {
-	jm := &JointInferenceManager{
+// NewFederatedLearningManager creates a federated-learning-job manager
+func NewFederatedLearningManager(client *wsclient.Client) FeatureManager {
+	fm := &FederatedLearningManager{
 		Client:               client,
 		WorkerMessageChannel: make(chan WorkerMessage, WorkerMessageChannelCacheSize),
 	}
 
-	return jm
+	return fm
 }
 
-// Start starts joint-inference-service manager
-func (jm *JointInferenceManager) Start() error {
-	if err := jm.Client.Subscribe(JointInferenceServiceKind, jm.handleMessage); err != nil {
-		klog.Errorf("register joint-inference-service manager to the client failed, error: %v", err)
+// Start starts federated-learning-job manager
+func (fm *FederatedLearningManager) Start() error {
+	if err := fm.Client.Subscribe(FederatedLearningJobKind, fm.handleMessage); err != nil {
+		klog.Errorf("register federated-learning-job manager to the client failed, error: %v", err)
 		return err
 	}
 
-	go jm.monitorWorker()
+	go fm.monitorWorker()
 
-	klog.Infof("start joint-inference-service manager successfully")
+	klog.Infof("start federated-learning-job manager successfully")
 
 	return nil
 }
 
 // handleMessage handles the message from GlobalManager
-func (jm *JointInferenceManager) handleMessage(message *wsclient.Message) {
+func (fm *FederatedLearningManager) handleMessage(message *wsclient.Message) {
 	uniqueIdentifier := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
-
 	switch message.Header.Operation {
 	case InsertOperation:
-		if err := jm.insertService(uniqueIdentifier, message.Content); err != nil {
+		if err := fm.insertJob(uniqueIdentifier, message.Content); err != nil {
 			klog.Errorf("insert %s(name=%s) to db failed, error: %v", message.Header.ResourceKind, uniqueIdentifier, err)
 		}
 
 	case DeleteOperation:
-		if err := jm.deleteService(uniqueIdentifier); err != nil {
+		if err := fm.deleteJob(uniqueIdentifier); err != nil {
 			klog.Errorf("delete %s(name=%s) to db failed, error: %v", message.Header.ResourceKind, uniqueIdentifier, err)
 		}
 	}
 }
 
 // monitorWorker monitors message from worker
-func (jm *JointInferenceManager) monitorWorker() {
+func (fm *FederatedLearningManager) monitorWorker() {
 	for {
-		workerMessageChannel := jm.WorkerMessageChannel
+		workerMessageChannel := fm.WorkerMessageChannel
 		workerMessage, ok := <-workerMessageChannel
 		if !ok {
 			break
@@ -91,39 +90,40 @@ func (jm *JointInferenceManager) monitorWorker() {
 			Phase:  workerMessage.Kind,
 			Status: workerMessage.Status,
 			Output: &WorkerOutput{
+				Models:    workerMessage.Results,
 				OwnerInfo: workerMessage.OwnerInfo,
 			},
 		}
 
-		if err := jm.Client.WriteMessage(um, header); err != nil {
-			klog.Errorf("joint-inference-service(name=%s) uploads worker(name=%s) message failed, error: %v",
+		if err := fm.Client.WriteMessage(um, header); err != nil {
+			klog.Errorf("federated-learning-job(name=%s) uploads worker(name=%s) message failed, error: %v",
 				name, workerMessage.Name, err)
 		}
 	}
 }
 
-// insertService inserts joint-inference-service config in db
-func (jm *JointInferenceManager) insertService(name string, payload []byte) error {
-	jointInference := JointInference{}
+// insertJob inserts federated-learning-job config in db
+func (fm *FederatedLearningManager) insertJob(name string, payload []byte) error {
+	federatedLearning := FederatedLearning{}
 
-	if err := json.Unmarshal(payload, &jointInference); err != nil {
+	if err := json.Unmarshal(payload, &federatedLearning); err != nil {
 		return err
 	}
 
-	metaData, err := json.Marshal(jointInference.MetaData)
+	metaData, err := json.Marshal(federatedLearning.MetaData)
 	if err != nil {
 		return err
 	}
 
-	spec, err := json.Marshal(jointInference.Spec)
+	spec, err := json.Marshal(federatedLearning.Spec)
 	if err != nil {
 		return err
 	}
 
 	r := db.Resource{
 		Name:       name,
-		APIVersion: jointInference.APIVersion,
-		Kind:       jointInference.Kind,
+		APIVersion: federatedLearning.APIVersion,
+		Kind:       federatedLearning.Kind,
 		MetaData:   string(metaData),
 		Spec:       string(spec),
 	}
@@ -135,8 +135,8 @@ func (jm *JointInferenceManager) insertService(name string, payload []byte) erro
 	return nil
 }
 
-// deleteService deletes joint-inference-service config in db
-func (jm *JointInferenceManager) deleteService(name string) error {
+// deleteJob deletes federated-learning-job config in db
+func (fm *FederatedLearningManager) deleteJob(name string) error {
 	if err := db.DeleteResource(name); err != nil {
 		return err
 	}
@@ -145,11 +145,11 @@ func (jm *JointInferenceManager) deleteService(name string) error {
 }
 
 // AddWorkerMessageToChannel adds worker messages to the channel
-func (jm *JointInferenceManager) AddWorkerMessageToChannel(message WorkerMessage) {
-	jm.WorkerMessageChannel <- message
+func (fm *FederatedLearningManager) AddWorkerMessageToChannel(message WorkerMessage) {
+	fm.WorkerMessageChannel <- message
 }
 
 // GetKind gets kind of the manager
-func (jm *JointInferenceManager) GetKind() string {
-	return JointInferenceServiceKind
+func (fm *FederatedLearningManager) GetKind() string {
+	return FederatedLearningJobKind
 }
