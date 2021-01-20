@@ -4,6 +4,11 @@ from enum import Enum
 LOG = logging.getLogger(__name__)
 
 
+class ModelType(Enum):
+    GlobalModel = 1
+    PersonalizedModel = 2
+
+
 class Framework(Enum):
     Tensorflow = "tensorflow"
     Pytorch = "pytorch"
@@ -12,6 +17,7 @@ class Framework(Enum):
 
 class K8sResourceKind(Enum):
     JOINT_INFERENCE_SERVICE = "jointinferenceservice"
+    FEDERATED_LEARNING_JOB = "federatedlearningjob"
 
 
 class K8sResourceKindStatus(Enum):
