@@ -15,7 +15,6 @@ class AggregationData:
         self.task_id = ""
         self.worker_id = ""
         self.flatten_weights = None
-        self.model_json = None
         self.shapes = None
         self.sample_count = 0
         self.exit_flag = False  # if true, exit federated training.

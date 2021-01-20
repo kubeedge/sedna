@@ -110,8 +110,8 @@ class AggregationServer:
             LOG.info("websocket server close")
 
     async def _receive(self, websocket, path):
-        """Receive the data form worker and aggregate, then send the result
-            back to to worker
+        """Receive the data from worker and do aggregation operations,
+            then send the result back to to worker
         """
         async for json_data in websocket:
             agg = AggregationData.from_json(json_data)
@@ -166,8 +166,10 @@ class AggregationClient:
         self.agg_data = None
         self.ws_url = f"ws://{self.ip}:{self.port}"
 
-    async def _update_weights(self, agg_data):
+    async def _update_weights(self, agg_data: AggregationData):
         error = None
+        websocket = None
+        agg_data_json = agg_data.to_json()
         for i in range(AggregationClient._retry):
             try:
                 # TODO should not connect websocket each time, use long
@@ -176,7 +178,7 @@ class AggregationClient:
                     self.ws_url,
                     max_size=MAX_SIZE_BYTE
                 ), self._ws_timeout)
-                await websocket.send(agg_data.to_json())
+                await websocket.send(agg_data_json)
                 LOG.info(f"size of the message "
                          f"is {len(agg_data.to_json())}")
                 result = await websocket.recv()
@@ -184,7 +186,9 @@ class AggregationClient:
                 return result
             except Exception as e:
                 error = e
-                LOG.error(f"send data error: {error}, type: {type(error)}")
+                LOG.warning(f"send data error: {error}, type: {type(error)}")
+                if websocket is not None:
+                    await websocket.close()
                 time.sleep(AggregationClient._retry_interval_seconds)
 
         LOG.error(f"websocket error: {error}, "

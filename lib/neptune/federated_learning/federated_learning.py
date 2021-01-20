@@ -83,7 +83,6 @@ def train(model,
         data.task_id = fl_config.job_name
         data.worker_id = fl_config.worker_name
         data.sample_count = len(x)
-        # data.model_json = model.to_json()
         data.shapes = [tuple(layer.shape) for layer in model.get_weights()]
         data.flatten_weights = model_layer_flatten(model.get_weights())
 
