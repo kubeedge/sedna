@@ -218,7 +218,7 @@ func (in *EdgeWorker) DeepCopy() *EdgeWorker {
 func (in *FLJobCondition) DeepCopyInto(out *FLJobCondition) {
 	*out = *in
 	in.LastProbeTime.DeepCopyInto(&out.LastProbeTime)
-	in.LastTransitionTime.DeepCopyInto(&out.LastTransitionTime)
+	in.LastHeartbeatTime.DeepCopyInto(&out.LastHeartbeatTime)
 	return
 }
 

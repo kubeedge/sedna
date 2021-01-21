@@ -335,12 +335,12 @@ func (fc *FederatedController) syncFLJob(key string) (bool, error) {
 
 func NewFLJobCondition(conditionType neptunev1.FLJobConditionType, reason, message string) neptunev1.FLJobCondition {
 	return neptunev1.FLJobCondition{
-		Type:               conditionType,
-		Status:             v1.ConditionTrue,
-		LastProbeTime:      metav1.Now(),
-		LastTransitionTime: metav1.Now(),
-		Reason:             reason,
-		Message:            message,
+		Type:              conditionType,
+		Status:            v1.ConditionTrue,
+		LastProbeTime:     metav1.Now(),
+		LastHeartbeatTime: metav1.Now(),
+		Reason:            reason,
+		Message:           message,
 	}
 }
 

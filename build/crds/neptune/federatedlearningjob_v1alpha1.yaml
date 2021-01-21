@@ -9,7 +9,6 @@ spec:
     plural: federatedlearningjobs
     shortNames:
       - fl
-      - flj
   scope: Namespaced
   versions:
     - name: v1alpha1
