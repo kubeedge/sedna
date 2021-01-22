@@ -11,6 +11,7 @@ rules:
   - datasets
   - models
   - jointinferenceservices
+  - federatedlearningjobs
   verbs:
   - get
   - list
@@ -23,6 +24,7 @@ rules:
   - datasets/status
   - models/status
   - jointinferenceservices/status
+  - federatedlearningjobs/status
   verbs:
   - get
   - update

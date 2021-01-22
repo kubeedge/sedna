@@ -45,6 +45,14 @@ func newUnmarshalError(namespace, name, operation string, content []byte) error 
 	return fmt.Errorf("Unable to unmarshal content for (%s/%s) operation: '%s', content: '%+v'", namespace, name, operation, string(content))
 }
 
+func checkUpstreamOpeation(operation string) error {
+	// current only support the 'status' operation
+	if operation != "status" {
+		return fmt.Errorf("unknown operation %s", operation)
+	}
+	return nil
+}
+
 // updateDatasetStatus updates the dataset status
 func (uc *UpstreamController) updateDatasetStatus(name, namespace string, status neptunev1.DatasetStatus) error {
 	client := uc.client.Datasets(namespace)
@@ -67,12 +75,13 @@ func (uc *UpstreamController) updateDatasetStatus(name, namespace string, status
 
 // updateDatasetFromEdge syncs update from edge
 func (uc *UpstreamController) updateDatasetFromEdge(name, namespace, operation string, content []byte) error {
-	if operation != "status" {
-		return fmt.Errorf("unknown operation %s", operation)
+	err := checkUpstreamOpeation(operation)
+	if err != nil {
+		return err
 	}
 
 	status := neptunev1.DatasetStatus{}
-	err := json.Unmarshal(content, &status)
+	err = json.Unmarshal(content, &status)
 	if err != nil {
 		return newUnmarshalError(namespace, name, operation, content)
 	}
@@ -115,12 +124,10 @@ func (uc *UpstreamController) updateJointInferenceMetrics(name, namespace string
 
 // updateJointInferenceFromEdge syncs the edge updates to k8s
 func (uc *UpstreamController) updateJointInferenceFromEdge(name, namespace, operation string, content []byte) error {
-	// current only support the 'status' operation
-	if operation != "status" {
-		return fmt.Errorf("unknown operation %s", operation)
+	err := checkUpstreamOpeation(operation)
+	if err != nil {
+		return err
 	}
-
-	var err error
 
 	// Output defines owner output information
 	type Output struct {
@@ -163,6 +170,109 @@ func (uc *UpstreamController) updateJointInferenceFromEdge(name, namespace, oper
 	if err != nil {
 		return fmt.Errorf("failed to update metrics, err:%+w", err)
 	}
+	return nil
+}
+
+func (uc *UpstreamController) updateModelMetrics(name, namespace string, metrics []neptunev1.Metric) error {
+	client := uc.client.Models(namespace)
+
+	return retryUpdateStatus(name, namespace, (func() error {
+		model, err := client.Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		now := metav1.Now()
+		model.Status.UpdateTime = &now
+		model.Status.Metrics = metrics
+		_, err = client.UpdateStatus(context.TODO(), model, metav1.UpdateOptions{})
+		return err
+	}))
+}
+
+func (uc *UpstreamController) updateModelMetricsByFederatedName(name, namespace string, metrics []neptunev1.Metric) error {
+	client := uc.client.FederatedLearningJobs(namespace)
+	var err error
+	federatedLearningJob, err := client.Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		// federated crd not found
+		return err
+	}
+	modelName := federatedLearningJob.Spec.AggregationWorker.Model.Name
+	return uc.updateModelMetrics(modelName, namespace, metrics)
+}
+
+func (uc *UpstreamController) appendFederatedLearningJobStatusCondition(name, namespace string, cond neptunev1.FLJobCondition) error {
+	client := uc.client.FederatedLearningJobs(namespace)
+
+	return retryUpdateStatus(name, namespace, (func() error {
+		job, err := client.Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		job.Status.Conditions = append(job.Status.Conditions, cond)
+		_, err = client.UpdateStatus(context.TODO(), job, metav1.UpdateOptions{})
+		return err
+	}))
+}
+
+// updateFederatedLearningJobFromEdge updates the federated job's status
+func (uc *UpstreamController) updateFederatedLearningJobFromEdge(name, namespace, operation string, content []byte) (err error) {
+	err = checkUpstreamOpeation(operation)
+	if err != nil {
+		return err
+	}
+
+	// JobInfo defines the job information
+	type JobInfo struct {
+		// Current training round
+		CurrentRound int    `json:"currentRound"`
+		UpdateTime   string `json:"updateTime"`
+	}
+
+	// Output defines job output information
+	type Output struct {
+		Models  []Model  `json:"models"`
+		JobInfo *JobInfo `json:"ownerInfo"`
+	}
+
+	var status struct {
+		Phase  string  `json:"phase"`
+		Status string  `json:"status"`
+		Output *Output `json:"output"`
+	}
+
+	err = json.Unmarshal(content, &status)
+	if err != nil {
+		err = newUnmarshalError(namespace, name, operation, content)
+		return
+	}
+
+	output := status.Output
+
+	if output != nil {
+		// Update the model's metrics
+		if len(output.Models) > 0 {
+			// only one model
+			model := output.Models[0]
+			metrics := convertToMetrics(model.Metrics)
+			if len(metrics) > 0 {
+				uc.updateModelMetricsByFederatedName(name, namespace, metrics)
+			}
+		}
+
+		jobInfo := output.JobInfo
+		// update job info if having any info
+		if jobInfo != nil && jobInfo.CurrentRound > 0 {
+			// Find a good place to save the progress info
+			// TODO: more meaningful reason/message
+			reason := "DoTraining"
+			message := fmt.Sprintf("Round %v reaches at %s", jobInfo.CurrentRound, jobInfo.UpdateTime)
+			cond := NewFLJobCondition(neptunev1.FLJobCondTraining, reason, message)
+			uc.appendFederatedLearningJobStatusCondition(name, namespace, cond)
+		}
+	}
+
 	return nil
 }
 
@@ -228,6 +338,7 @@ func NewUpstreamController(cfg *config.ControllerConfig) (FeatureControllerI, er
 	uc.updateHandlers = map[string]updateHandler{
 		"dataset":               uc.updateDatasetFromEdge,
 		"jointinferenceservice": uc.updateJointInferenceFromEdge,
+		"federatedlearningjob":  uc.updateFederatedLearningJobFromEdge,
 	}
 
 	return uc, nil
