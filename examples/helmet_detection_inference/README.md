@@ -10,7 +10,7 @@ The joint inference service requires to detect the wearing of safety helmets in 
 
 ### Install Neptune
 
-Follow the [Neptune installation document](docs/setup/install.md) to install Neptune.
+Follow the [Neptune installation document](/docs/setup/install.md) to install Neptune.
  
 ### Prepare Data and Model
 
@@ -19,6 +19,7 @@ Follow the [Neptune installation document](docs/setup/install.md) to install Nep
 ```
 mkdir -p /data/little-model
 cd /data/little-model
+wget https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/little-model.tar.gz
 tar -zxvf little-model.tar.gz
 ```
 
@@ -27,13 +28,24 @@ tar -zxvf little-model.tar.gz
 ```
 mkdir -p /data/big-model
 cd /data/big-model
+wget https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/big-model.tar.gz
 tar -zxvf big-model.tar.gz
 ```
 
 ### Prepare Script
+* step1: download the script [little_model.py](/examples/helmet_detection_inference/little_model/little_model.py) to the path `/code/little_model` of edge node.
 
-* step1: download the script [little_model.py](/examples/helmet_detection_inference/little_model/little_model.py) to the path `/code/little_model` of edge node.  
+```
+mkdir -p /code/little_model
+curl -o little_model.py https://github.com/edgeai-neptune/neptune/blob/main/examples/helmet_detection_inference/little_model/little_model.py
+```
+
 * step2: download the script [big_model.py](/examples/helmet_detection_inference/big_model/big_model.py) to the path `/code/big_model` of cloud node.
+
+```
+mkdir -p /code/big_model
+curl -o big_model.py https://github.com/edgeai-neptune/neptune/blob/main/examples/helmet_detection_inference/big_model/big_model.py
+```
 
 ### Create Joint Inference Service 
 
@@ -140,14 +152,16 @@ kubectl get jointinferenceservice helmet-detection-inference-example
 * step4: push a video stream to the url (e.g., `rtsp://localhost/video`) that the inference service can connect.
 
 ```
-wget https://github.com/EasyDarwin/EasyDarwin/releases/download/v8.1.0/EasyDarwin-linux-8.1.0-1901141151.tar.gz --no-check-certificate
+wget https://github.com/EasyDarwin/EasyDarwin/releases/download/v8.1.0/EasyDarwin-linux-8.1.0-1901141151.tar.gz
 tar -zxvf EasyDarwin-linux-8.1.0-1901141151.tar.gz
 cd EasyDarwin-linux-8.1.0-1901141151
 ./start.sh
 
 mkdir -p /data/video
 cd /data/video
+wget https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/video.tar.gz
 tar -zxvf video.tar.gz
+
 ffmpeg -re -i /data/video/helmet-detection.mp4 -vcodec libx264 -f rtsp rtsp://localhost/video
 ```
 
