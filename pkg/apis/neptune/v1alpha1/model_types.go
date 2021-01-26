@@ -19,8 +19,8 @@ type Model struct {
 
 // ModelSpec is a description of a model
 type ModelSpec struct {
-	ModelURL string `json:"url"`
-	Format   string `json:"format"`
+	URL    string `json:"url"`
+	Format string `json:"format"`
 }
 
 // ModelStatus represents information about the status of a model

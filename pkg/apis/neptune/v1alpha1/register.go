@@ -39,6 +39,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&JointInferenceServiceList{},
 		&FederatedLearningJob{},
 		&FederatedLearningJobList{},
+		&IncrementalLearningJob{},
+		&IncrementalLearningJobList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

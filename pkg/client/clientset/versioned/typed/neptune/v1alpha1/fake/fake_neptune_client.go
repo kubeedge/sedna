@@ -20,6 +20,10 @@ func (c *FakeNeptuneV1alpha1) FederatedLearningJobs(namespace string) v1alpha1.F
 	return &FakeFederatedLearningJobs{c, namespace}
 }
 
+func (c *FakeNeptuneV1alpha1) IncrementalLearningJobs(namespace string) v1alpha1.IncrementalLearningJobInterface {
+	return &FakeIncrementalLearningJobs{c, namespace}
+}
+
 func (c *FakeNeptuneV1alpha1) JointInferenceServices(namespace string) v1alpha1.JointInferenceServiceInterface {
 	return &FakeJointInferenceServices{c, namespace}
 }

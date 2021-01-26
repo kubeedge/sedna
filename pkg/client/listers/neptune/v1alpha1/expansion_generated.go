@@ -18,6 +18,14 @@ type FederatedLearningJobListerExpansion interface{}
 // FederatedLearningJobNamespaceLister.
 type FederatedLearningJobNamespaceListerExpansion interface{}
 
+// IncrementalLearningJobListerExpansion allows custom methods to be added to
+// IncrementalLearningJobLister.
+type IncrementalLearningJobListerExpansion interface{}
+
+// IncrementalLearningJobNamespaceListerExpansion allows custom methods to be added to
+// IncrementalLearningJobNamespaceLister.
+type IncrementalLearningJobNamespaceListerExpansion interface{}
+
 // JointInferenceServiceListerExpansion allows custom methods to be added to
 // JointInferenceServiceLister.
 type JointInferenceServiceListerExpansion interface{}

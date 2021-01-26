@@ -420,7 +420,7 @@ func (jc *JointInferenceServiceController) createCloudPod(service *neptunev1.Joi
 			cloudModelName, err)
 	}
 
-	cloudModelPath = cloudModel.Spec.ModelURL
+	cloudModelPath = cloudModel.Spec.URL
 
 	// convert crd to json, and put them into env of container
 	cloudModelJSON, _ := json.Marshal(cloudModel)
@@ -471,7 +471,7 @@ func (jc *JointInferenceServiceController) createEdgePod(service *neptunev1.Join
 		return fmt.Errorf("failed to get edge model %s: %w",
 			edgeModelName, err)
 	}
-	edgeModelPath := edgeModel.Spec.ModelURL
+	edgeModelPath := edgeModel.Spec.URL
 
 	// get bigModelIP from nodeName in cloudWorker
 	bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.NodeName)

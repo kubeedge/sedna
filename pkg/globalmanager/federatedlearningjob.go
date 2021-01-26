@@ -398,7 +398,7 @@ func (fc *FederatedController) createPod(job *neptunev1.FederatedLearningJob) (a
 		return active, fmt.Errorf("failed to get model %s: %w",
 			modelName, err)
 	}
-	modelPath := model.Spec.ModelURL
+	modelPath := model.Spec.URL
 	participantsCount := strconv.Itoa(len(job.Spec.TrainingWorkers))
 
 	// convert crd to json, and put them into env of container

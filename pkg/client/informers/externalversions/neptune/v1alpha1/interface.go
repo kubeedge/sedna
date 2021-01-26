@@ -12,6 +12,8 @@ type Interface interface {
 	Datasets() DatasetInformer
 	// FederatedLearningJobs returns a FederatedLearningJobInformer.
 	FederatedLearningJobs() FederatedLearningJobInformer
+	// IncrementalLearningJobs returns a IncrementalLearningJobInformer.
+	IncrementalLearningJobs() IncrementalLearningJobInformer
 	// JointInferenceServices returns a JointInferenceServiceInformer.
 	JointInferenceServices() JointInferenceServiceInformer
 	// Models returns a ModelInformer.
@@ -37,6 +39,11 @@ func (v *version) Datasets() DatasetInformer {
 // FederatedLearningJobs returns a FederatedLearningJobInformer.
 func (v *version) FederatedLearningJobs() FederatedLearningJobInformer {
 	return &federatedLearningJobInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// IncrementalLearningJobs returns a IncrementalLearningJobInformer.
+func (v *version) IncrementalLearningJobs() IncrementalLearningJobInformer {
+	return &incrementalLearningJobInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // JointInferenceServices returns a JointInferenceServiceInformer.

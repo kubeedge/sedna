@@ -12,6 +12,7 @@ type NeptuneV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	DatasetsGetter
 	FederatedLearningJobsGetter
+	IncrementalLearningJobsGetter
 	JointInferenceServicesGetter
 	ModelsGetter
 }
@@ -27,6 +28,10 @@ func (c *NeptuneV1alpha1Client) Datasets(namespace string) DatasetInterface {
 
 func (c *NeptuneV1alpha1Client) FederatedLearningJobs(namespace string) FederatedLearningJobInterface {
 	return newFederatedLearningJobs(c, namespace)
+}
+
+func (c *NeptuneV1alpha1Client) IncrementalLearningJobs(namespace string) IncrementalLearningJobInterface {
+	return newIncrementalLearningJobs(c, namespace)
 }
 
 func (c *NeptuneV1alpha1Client) JointInferenceServices(namespace string) JointInferenceServiceInterface {
