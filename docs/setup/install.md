@@ -4,7 +4,7 @@
 * [Deploy GM](#deploy-gm)
  * [Prepare GM config](#prepare-gm-config)
  * [Build worker base images](#build-worker-base-images)
- * [Run GM as k8s pod(recommended)](#run-gm-as-k8s-podrecommended)
+ * [Run GM as k8s deployment(recommended)](#run-gm-as-k8s-deploymentrecommended)
  * [Run GM as a single process(alternative)](#run-gm-as-a-single-processalternative)
  * [Run GM as docker container(alternative)](#run-gm-as-docker-containeralternative)
 * [Deploy LC](#deploy-lc)
@@ -85,7 +85,7 @@ docker push $WORKER_TF1_IMAGE
 
 There are some methods to run gm, you can choose one method below:
 
-#### Run GM as k8s pod(**recommended**):
+#### Run GM as k8s deployment(**recommended**):
 
 We don't need to config the kubeconfig in this method said by [accessing the API from a Pod](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#accessing-the-api-from-a-pod).
 
@@ -101,16 +101,11 @@ kubectl create -f build/gm/rbac/
 GM_PORT=9000
 LC_PORT=9100
 
-# fill the GM_NODE_NAME's ip which edge node can access to.
-# such as GM_IP=192.168.0.9
-GM_IP=<GM_NODE_NAME_IP_ADDRESS>
-
 # here using github container registry for example
 # edit it with the truly container registry by your choice.
 IMAGE_REPO=ghcr.io/edgeai-neptune/neptune
 IMAGE_TAG=v1alpha1
 
-GM_ADDRESS=$GM_IP:$GM_PORT
 LC_SERVER="http://localhost:$LC_PORT"
 
 ```
@@ -151,43 +146,74 @@ docker push $GM_IMAGE
 4\. Create gm configmap:
 ```shell
 # create configmap from $CONFIG_FILE
-CONFIG_NAME=neptune-gm-config   # customize this configmap name
-kubectl create configmap $CONFIG_NAME --from-file=$CONFIG_FILE
+CONFIG_NAME=gm-config   # customize this configmap name
+kubectl create -n neptune configmap $CONFIG_NAME --from-file=$CONFIG_FILE
 ```
 
-5\. Deploy GM as pod:
+5\. Deploy GM as deployment:
 ```shell
 # we assign gm to the node which edge node can access to.
 # here current terminal node name, i.e. the k8s master node.
 # remember the GM_IP
 GM_NODE_NAME=$(hostname)
-GM_POD_NAME=gm-from-$CONFIG_NAME
+
 kubectl apply -f - <<EOF
 apiVersion: v1
-kind: Pod
+kind: Service
 metadata:
-  name: $GM_POD_NAME
+  name: gm
+  namespace: neptune
 spec:
-  restartPolicy: OnFailure
-  hostNetwork: true
-  nodeName: $GM_NODE_NAME
-  containers:
-  - name: gm
-    image: $GM_IMAGE
-    command: ["neptune-gm", "--config", "/config/$CONFIG_FILE", "-v2"]
-    volumeMounts:
-    - name: gm-config
-      mountPath: /config
-  volumes:
-    - name: gm-config
-      configMap:
-        name: $CONFIG_NAME
+  selector:
+    app: gm
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: $GM_PORT
+      targetPort: $GM_PORT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gm
+  labels:
+    app: gm
+  namespace: neptune
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gm
+  template:
+    metadata:
+      labels:
+        app: gm
+    spec:
+      nodeName: $GM_NODE_NAME
+      serviceAccountName: neptune
+      containers:
+      - name: gm
+        image: $GM_IMAGE
+        command: ["neptune-gm", "--config", "/config/$CONFIG_FILE", "-v2"]
+        volumeMounts:
+        - name: gm-config
+          mountPath: /config
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 100m
+          limits:
+            memory: 128Mi
+      volumes:
+        - name: gm-config
+          configMap:
+            name: $CONFIG_NAME
 EOF
 ```
 
 6\. Check the GM status:
 ```shell
-kubectl get pod $GM_POD_NAME
+kubectl get deploy -n neptune gm
 ```
 
 #### Run GM as a single process(alternative)
@@ -236,7 +262,16 @@ docker push $LC_IMAGE
 
 2\. Deploy LC as k8s daemonset:
 ```shell
-LC_DS_NAME=edge-lc
+gm_node_port=$(kubectl -n neptune get svc gm -ojsonpath='{.spec.ports[0].nodePort}')
+
+# fill the GM_NODE_NAME's ip which edge node can access to.
+# such as gm_node_ip=192.168.0.9
+# gm_node_ip=<GM_NODE_NAME_IP_ADDRESS>
+# here try to get node ip by kubectl
+gm_node_ip=$(kubectl get node $GM_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="ExternalIP")].address }')
+gm_node_internal_ip=$(kubectl get node $GM_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="InternalIP")].address }')
+
+GM_ADDRESS=${gm_node_ip:-$gm_node_internal_ip}:$gm_node_port
 
 kubectl create -f- <<EOF
 apiVersion: apps/v1
@@ -244,21 +279,20 @@ kind: DaemonSet
 metadata:
   labels:
     k8s-app: neptune-lc
-  name: $LC_DS_NAME
-  namespace: default
+  name: lc
+  namespace: neptune
 spec:
   selector:
     matchLabels:
-      k8s-app: $LC_DS_NAME
+      k8s-app: lc
   template:
     metadata:
       labels:
-        k8s-app: $LC_DS_NAME
+        k8s-app: lc
     spec:
       containers:
-        - name: $LC_DS_NAME
+        - name: lc
           image: $LC_IMAGE
-          imagePullPolicy: Always
           env:
             - name: GM_ADDRESS
               value: $GM_ADDRESS
@@ -271,6 +305,12 @@ spec:
             - name: ROOTFS_MOUNT_DIR
               # the value of ROOTFS_MOUNT_DIR is same with the mount path of volume
               value: /rootfs
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 100m
+            limits:
+              memory: 128Mi
           volumeMounts:
             - name: localcontroller
               mountPath: /rootfs
@@ -285,9 +325,9 @@ EOF
 
 3\. Check the LC status:
 ```shell
-kubectl get ds $LC_DS_NAME
+kubectl get ds lc -n neptune
 
-kubectl get pod |grep $LC_DS_NAME
+kubectl get pod -n neptune
 ```
 
 [git_tool]:https://git-scm.com/downloads

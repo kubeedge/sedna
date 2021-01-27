@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neptune
+---
+# cluster role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: neptune
+rules:
+  # list/watch these ai-feature crds
+  - apiGroups:
+    - neptune.io
+    resources:
+    - datasets
+    - models
+    - jointinferenceservices
+    - federatedlearningjobs
+    - incrementallearningjobs
+    verbs:
+    - get
+    - list
+    - watch
+
+  # update crd status
+  - apiGroups:
+    - neptune.io
+    resources:
+    - datasets/status
+    - models/status
+    - jointinferenceservices/status
+    - federatedlearningjobs/status
+    - incrementallearningjobs/status
+    verbs:
+    - get
+    - update
+
+  # current we implement ai features by k8s pods, services
+  - apiGroups:
+    - ""
+    resources:
+    - pods
+    verbs:
+    - create
+    - get
+    - list
+    - watch
+    - delete
+
+  - apiGroups:
+    - ""
+    resources:
+    - services
+    verbs:
+    - create
+    - list
+    - get
+
+  - apiGroups:
+    - ""
+    resources:
+    - nodes
+    verbs:
+    - get
+
+  - apiGroups:
+    - ""
+    resources:
+    - events
+    verbs:
+    - create
+    - list
+    - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: neptune
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: neptune
+subjects:
+- kind: ServiceAccount
+  name: neptune
+  namespace: neptune
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: neptune
+  namespace: neptune
