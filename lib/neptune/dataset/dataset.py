@@ -21,9 +21,12 @@ def _load_dataset(dataset_url, format, **kwargs):
         LOG.warning(f'dataset_url is None, please check the url.')
         return None
     if format == 'txt':
-        LOG.info("dataset format is txt, now loading txt from "
-                 f"[{dataset_url}]")
-        return _load_txt_dataset(dataset_url)
+        LOG.info(
+            f"dataset format is txt, now loading txt from [{dataset_url}]")
+        if kwargs.get('with_image'):
+            return _load_txt_dataset_with_image(dataset_url)
+        else:
+            return _load_txt_dataset(dataset_url)
 
 
 def load_train_dataset(data_format, **kwargs):
@@ -45,6 +48,15 @@ def load_test_dataset(data_format, **kwargs):
 
 
 def _load_txt_dataset(dataset_url):
+    LOG.info(f'dataset_url is {dataset_url}, now reading dataset_url')
+    root_path = BaseConfig.data_path_prefix
+    with open(dataset_url) as f:
+        lines = f.readlines()
+    new_lines = [root_path + os.path.sep + l for l in lines]
+    return new_lines
+
+
+def _load_txt_dataset_with_image(dataset_url):
     import keras.preprocessing.image as img_preprocessing
     root_path = os.path.dirname(dataset_url)
     img_data = []

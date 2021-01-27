@@ -8,7 +8,7 @@ from network import GlobalModelInspectionCNN
 
 def main():
     # load dataset.
-    train_data = neptune.load_train_dataset(data_format="txt")
+    train_data = neptune.load_train_dataset(data_format="txt", with_image=True)
 
     x = np.array([tup[0] for tup in train_data])
     y = np.array([tup[1] for tup in train_data])

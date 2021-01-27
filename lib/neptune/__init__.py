@@ -1,6 +1,6 @@
 import logging
 
-from . import joint_inference, federated_learning
+from . import joint_inference, federated_learning, incremental_learning
 from .context import context
 from .dataset.dataset import load_train_dataset, load_test_dataset
 

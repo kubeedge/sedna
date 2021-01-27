@@ -18,6 +18,7 @@ class Framework(Enum):
 class K8sResourceKind(Enum):
     JOINT_INFERENCE_SERVICE = "jointinferenceservice"
     FEDERATED_LEARNING_JOB = "federatedlearningjob"
+    INCREMENTAL_JOB = "incrementallearningjob"
 
 
 class K8sResourceKindStatus(Enum):
