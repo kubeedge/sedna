@@ -14,14 +14,14 @@ Follow the [Neptune installation document](/docs/setup/install.md) to install Ne
  
 ### Prepare Dataset
 
-Download [dataset](https://github.com/abin24/Magnetic-tile-defect-datasets.) and the [label file](/examples/surface_defect_detection/data/1.txt) to `/data` of edge1.  
-Download [dataset](https://github.com/abin24/Magnetic-tile-defect-datasets.) and the [label file](/examples/surface_defect_detection/data/2.txt) to `/data` of edge2.
+Download [dataset](https://github.com/abin24/Magnetic-tile-defect-datasets.) and the [label file](/examples/federated_learning/surface_defect_detection/data/1.txt) to `/data` of edge1.  
+Download [dataset](https://github.com/abin24/Magnetic-tile-defect-datasets.) and the [label file](/examples/federated_learning/surface_defect_detection/data/2.txt) to `/data` of edge2.
 
 ### Prepare Script
 
-Download the script [aggregate.py](/examples/surface_defect_detection/aggregation_worker/aggregate.py) to the `/code` of cloud node.
+Download the script [aggregate.py](/examples/federated_learning/surface_defect_detection/aggregation_worker/aggregate.py) to the `/code` of cloud node.
 
-Download the script [training_worker](/examples/surface_defect_detection/training_worker/train.py) to the `/code` of edge1 and edge2.
+Download the script [training_worker](/examples/federated_learning/surface_defect_detection/training_worker/train.py) to the `/code` of edge1 and edge2.
 
 
 ### Create Federated Learning Job 

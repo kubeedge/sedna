@@ -74,7 +74,7 @@ Neptune consists of the following components：
 Follow the [Neptune installation document](docs/setup/install.md) to install Neptune.
 
 ### Examples
-Example1：[Joint Inference Service in Helmet Detection Scenario](/examples/helmet_detection_inference/README.md).
+Example1：[Joint Inference Service in Helmet Detection Scenario](/examples/joint_inference/helmet_detection_inference/README.md).
 
 
 ## Roadmap

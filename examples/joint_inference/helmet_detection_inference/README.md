@@ -33,14 +33,14 @@ tar -zxvf big-model.tar.gz
 ```
 
 ### Prepare Script
-* step1: download the script [little_model.py](/examples/helmet_detection_inference/little_model/little_model.py) to the path `/code/little_model` of edge node.
+* step1: download the script [little_model.py](/examples/joint_inference/helmet_detection_inference/little_model/little_model.py) to the path `/code/little_model` of edge node.
 
 ```
 mkdir -p /code/little_model
 curl -o little_model.py https://github.com/edgeai-neptune/neptune/blob/main/examples/helmet_detection_inference/little_model/little_model.py
 ```
 
-* step2: download the script [big_model.py](/examples/helmet_detection_inference/big_model/big_model.py) to the path `/code/big_model` of cloud node.
+* step2: download the script [big_model.py](/examples/joint_inference/helmet_detection_inference/big_model/big_model.py) to the path `/code/big_model` of cloud node.
 
 ```
 mkdir -p /code/big_model
@@ -81,7 +81,7 @@ EOF
 
 #### Create JointInferenceService 
 
-Note the setting of the following parameters, which have to same as the script [little_model.py](/examples/helmet_detection_inference/little_model/little_model.py):
+Note the setting of the following parameters, which have to same as the script [little_model.py](/examples/joint_inference/helmet_detection_inference/little_model/little_model.py):
 - hardExampleMining: set hard example algorithm from {IBT, CrossEntropy} for inferring in edge side.
 - video_url: set the url for video streaming. 
 - all_examples_inference_output: set your output path for the inference results, and note that the root path has to be /home/data.

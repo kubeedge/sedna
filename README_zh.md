@@ -62,7 +62,7 @@ Neptune由以下组件构建：
 Neptune的安装文档请参考[这里](/docs/setup/install.md)。
 
 ### 样例
-样例1：[大小模型协同推理](/examples/helmet_detection_inference/README.md)。
+样例1：[大小模型协同推理](/examples/joint_inference/helmet_detection_inference/README.md)。
 
 
 ## 路标

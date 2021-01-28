@@ -39,7 +39,7 @@ wget https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-det
 tar -zxvf model.tar.gz
 ```
 ### Prepare Script
-Download the [scripts](/examples/helmet_detection_incremental_train/training) to the path `code` of your node
+Download the [scripts](/examples/incremental_learning/helmet_detection_incremental_train/training) to the path `code` of your node
 
 
 ### Create Incremental Job
