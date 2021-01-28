@@ -1,9 +1,11 @@
 package globalmanager
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -67,6 +69,58 @@ func (dc *DownstreamController) syncFederatedLearningJob(eventType watch.EventTy
 	return nil
 }
 
+// syncModelWithName will sync the model to the specified node.
+// Now called when creating the incrementaljob.
+func (dc *DownstreamController) syncModelWithName(nodeName, modelName, namespace string) error {
+	model, err := dc.client.Models(namespace).Get(context.TODO(), modelName, metav1.GetOptions{})
+	if err != nil {
+		// TODO: maybe use err.ErrStatus.Code == 404
+		return fmt.Errorf("model(%s/%s) not found", namespace, modelName)
+	}
+
+	// Since model.Kind may be empty,
+	// we need to fix the kind here if missing.
+	// more details at https://github.com/kubernetes/kubernetes/issues/3030
+	if len(model.Kind) == 0 {
+		model.Kind = "Model"
+	}
+
+	dc.messageLayer.SendResourceObject(nodeName, watch.Added, model)
+	return nil
+}
+
+// syncIncrementalJob syncs the incremental learning jobs
+func (dc *DownstreamController) syncIncrementalJob(eventType watch.EventType, job *neptunev1.IncrementalLearningJob) error {
+	// Here only propagate to the nodes with non empty name
+	nodeName := job.Spec.NodeName
+	if len(nodeName) == 0 {
+		return fmt.Errorf("empty node name")
+	}
+
+	// Sync the model info to edgenode when the job is created
+	if eventType == watch.Added {
+		models := make(map[string]bool)
+		for _, modelName := range []string{
+			job.Spec.InitialModel.Name,
+			job.Spec.DeploySpec.Model.Name,
+		} {
+			models[modelName] = true
+		}
+
+		for modelName := range models {
+			err := dc.syncModelWithName(nodeName, modelName, job.Namespace)
+			if err != nil {
+				klog.Warningf("Error to sync model %s when sync incremental learning job %s to node %s: %v", modelName, job.Name, nodeName, err)
+			}
+		}
+	} else if eventType == watch.Deleted {
+		// noop
+	}
+
+	dc.messageLayer.SendResourceObject(nodeName, eventType, job)
+	return nil
+}
+
 // sync defines the entrypoint of syncing all resources
 func (dc *DownstreamController) sync(stopCh <-chan struct{}) {
 	for {
@@ -111,6 +165,15 @@ func (dc *DownstreamController) sync(stopCh <-chan struct{}) {
 				name = t.Name
 				err = dc.syncFederatedLearningJob(e.Type, t)
 
+			case (*neptunev1.IncrementalLearningJob):
+				if len(t.Kind) == 0 {
+					t.Kind = "IncrementalLearningJob"
+				}
+				kind = t.Kind
+				namespace = t.Namespace
+				name = t.Name
+				err = dc.syncIncrementalJob(e.Type, t)
+
 			default:
 				klog.Warningf("object type: %T unsupported", e)
 				continue
@@ -153,10 +216,12 @@ func (dc *DownstreamController) watch(stopCh <-chan struct{}) {
 	resyncPeriod := time.Second * 60
 	namespace := dc.cfg.Namespace
 
+	// TODO: use the informer
 	for resourceName, object := range map[string]runtime.Object{
-		"datasets":               &neptunev1.Dataset{},
-		"jointinferenceservices": &neptunev1.JointInferenceService{},
-		"federatedlearningjobs":  &neptunev1.FederatedLearningJob{},
+		"datasets":                &neptunev1.Dataset{},
+		"jointinferenceservices":  &neptunev1.JointInferenceService{},
+		"federatedlearningjobs":   &neptunev1.FederatedLearningJob{},
+		"incrementallearningjobs": &neptunev1.IncrementalLearningJob{},
 	} {
 		lw := cache.NewListWatchFromClient(client, resourceName, namespace, fields.Everything())
 		si := cache.NewSharedInformer(lw, object, resyncPeriod)
