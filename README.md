@@ -11,8 +11,6 @@ Sedna is an edge-cloud synergy AI project incubated in KubeEdge SIG AI. Benefiti
 Sedna can simply enable edge-cloud synergy capabilities to existing training and inference scripts, bringing the benefits of reducing costs, improving model performance, and protecting data privacy.
 
 
-**Currently, this project is in the preview and being promoted to enter the KubeEdge community.**
-
 ## Features
     
 Sedna has the following features：  
