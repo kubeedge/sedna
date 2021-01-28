@@ -1,9 +1,9 @@
 import logging
+import os
 import time
 
 import cv2
 import numpy as np
-import os
 
 import neptune
 from neptune.incremental_learning import InferenceResult

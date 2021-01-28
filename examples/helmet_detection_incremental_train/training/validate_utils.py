@@ -1,18 +1,3 @@
-# -*- coding: utf-8 -*-
-# Copyright 2019 ModelArts Service of Huawei Cloud. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -40,14 +25,14 @@ def add_path(path):
 def init_yolo(model_path, input_shape):
     print('model_path : ', model_path)
 
-    # 初始化session，需绑定对应的Graph
+    # initialize the session and bind the corresponding graph
     yolo_graph = tf.Graph()
     config = tf.ConfigProto(allow_soft_placement=True)
     config.gpu_options.allow_growth = True
     config.gpu_options.per_process_gpu_memory_fraction = 0.1
     yolo_session = tf.Session(graph=yolo_graph, config=config)
 
-    # 初始化yoloInference对象
+    # initialize yoloInference object
     yolo_infer = YOLOInference(yolo_session, model_path, input_shape)
 
     return yolo_infer, yolo_session
@@ -148,8 +133,6 @@ def validate_img_file(yolo_infer, yolo_session, img_file, bbox_list_ground, fold
         img_file = img_file.split("/")[-1]
         cv2.imwrite(os.path.join(folder_out, img_file), img)
 
-    # print ('\tbbox_list_pred : ', bbox_list_pred)
-    # print ('\tbbox_list_ground : ', bbox_list_ground)
     count_correct = [0 for ix in range(class_num)]
     count_ground = [0 for ix in range(class_num)]
     count_pred = [0 for ix in range(class_num)]
@@ -163,15 +146,12 @@ def validate_img_file(yolo_infer, yolo_session, img_file, bbox_list_ground, fold
 
     for iy in range(count_pred_all):
         bbox_pred = [bbox_list_pred[iy][1], bbox_list_pred[iy][0], bbox_list_pred[iy][3], bbox_list_pred[iy][2]]
-        # bbox_draw_on_img_cv(img_data, bbox_pred, colors[labels[iy]])
 
-        # if bbox_pred[2]-bbox_pred[0] > 30 and bbox_pred[3]-bbox_pred[1] > 30:
         LOG.debug(f'count_pred={count_pred}, labels[iy]={labels[iy]}')
         count_pred[labels[iy]] += 1
         for ix in range(count_ground_all):
             bbox_ground = [int(x) for x in bbox_list_ground[ix].split(',')]
             class_ground = bbox_ground[4]
-            # bbox_draw_on_img_cv(img_data, bbox_ground, (40, 39, 214))
 
             if labels[iy] == class_ground:
                 iou = calc_iou(bbox_pred, bbox_ground)
@@ -225,8 +205,8 @@ def draw_boxes(img, labels, scores, bboxes, class_names, colors):
 
 
 def calc_iou(bbox_pred, bbox_ground):
-    """
-    自定义函数，计算两矩形 IOU，传入为均为矩形对角线，（x,y）  坐标。
+    """user-define function for calculating the IOU of two matrixes. The
+        input parameters are rectangle diagonals
     """
     x1 = bbox_pred[0]
     y1 = bbox_pred[1]
@@ -247,9 +227,9 @@ def calc_iou(bbox_pred, bbox_ground):
     height = height1 + height2 - (endy - starty)
 
     if width <= 0 or height <= 0:
-        iou = 0  # 重叠率为 0
+        iou = 0
     else:
-        area = width * height  # 两矩形相交面积
+        area = width * height
         area1 = width1 * height1
         area2 = width2 * height2
         iou = area * 1. / (area1 + area2 - area)

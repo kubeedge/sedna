@@ -4,5 +4,3 @@ opencv-python==4.4.0.44
 websockets==8.1
 Pillow==8.0.1
 requests==2.24.0
-tqdm==4.56.0
-matplotlib==3.3.3

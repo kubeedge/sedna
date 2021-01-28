@@ -14,13 +14,6 @@ flags = tf.flags.FLAGS
 class Yolo3:
 
     def __init__(self, sess, is_training, config):
-        """
-        Introduction
-        ------------
-            初始化函数
-        ----------
-        """
-
         LOG.info('is_training: %s' % is_training)
         LOG.info('model dir: %s' % flags.train_url)
         LOG.info('input_shape: (%d, %d)' % (flags.input_shape[0], flags.input_shape[1]))
@@ -112,8 +105,7 @@ class Yolo3:
             sess.run(v.assign(data[vname]))
 
     def step(self, sess, batch_data, is_training):
-        """
-        step, read one batch, generate gradients
+        """step, read one batch, generate gradients
         """
 
         # Input feed
@@ -132,21 +124,19 @@ class Yolo3:
         return outputs[0]  # loss
 
     def _batch_normalization_layer(self, input_layer, name=None, training=True, norm_decay=0.997, norm_epsilon=1e-5):
-        '''
-        Introduction
-        ------------
-            对卷积层提取的feature map使用batch normalization
-        Parameters
-        ----------
-            input_layer: 输入的四维tensor
-            name: batchnorm层的名字
-            trainging: 是否为训练过程
-            norm_decay: 在预测时计算moving average时的衰减率
-            norm_epsilon: 方差加上极小的数，防止除以0的情况
-        Returns
-        -------
-            bn_layer: batch normalization处理之后的feature map
-        '''
+        """Batch normalization is used for feature map extracted from
+            convolution layer
+
+        :param input_layer: four dimensional tensor of input
+        :param name: the name of batchnorm layer
+        :param training: is training or not
+        :param norm_decay: The decay rate of moving average is calculated
+            during prediction
+        :param norm_epsilon: Variance plus a minimal number to prevent
+            division by 0
+
+        :return bn_layer: batch normalization处理之后的feature map
+        """
         bn_layer = tf.layers.batch_normalization(inputs=input_layer,
                                                  momentum=norm_decay, epsilon=norm_epsilon, center=True,
                                                  scale=True, training=training, name=name, fused=True)
@@ -154,29 +144,20 @@ class Yolo3:
         # return tf.nn.leaky_relu(bn_layer, alpha = 0.1)
 
     def _conv2d_layer(self, inputs, filters_num, kernel_size, name, use_bias=False, strides=1):
-        """
-        Introduction
-        ------------
-            使用tf.layers.conv2d减少权重和偏置矩阵初始化过程，以及卷积后加上偏置项的操作
-            经过卷积之后需要进行batch norm，最后使用leaky ReLU激活函数
-            根据卷积时的步长，如果卷积的步长为2，则对图像进行降采样
-            比如，输入图片的大小为416*416，卷积核大小为3，若stride为2时，（416 - 3 + 2）/ 2 + 1， 计算结果为208，相当于做了池化层处理
-            因此需要对stride大于1的时候，先进行一个padding操作, 采用四周都padding一维代替'same'方式
-        Parameters
-        ----------
-            inputs: 输入变量
-            filters_num: 卷积核数量
-            strides: 卷积步长
-            name: 卷积层名字
-            trainging: 是否为训练过程
-            use_bias: 是否使用偏置项
-            kernel_size: 卷积核大小
-        Returns
-        -------
-            conv: 卷积之后的feature map
+        """Use tf.layers.conv2d Reduce the weight and bias matrix
+            initialization process, as well as convolution plus bias operation
+
+        :param inputs: Input variables
+        :param filters_num: Number of convolution kernels
+        :param strides: Convolution step
+        :param name: Convolution layer name
+        :param training: is a training process or not
+        :param use_bias: use bias or not
+        :param kernel_size: the kernels size
+
+        :return conv: Feature map after convolution
         """
         if strides > 1:  # modified 0327
-            # 在输入feature map的长宽维度进行padding
             inputs = tf.pad(inputs, paddings=[[0, 0], [1, 0], [1, 0], [0, 0]], mode='CONSTANT')
         conv = tf.layers.conv2d(inputs=inputs, filters=filters_num,
                                 kernel_size=kernel_size, strides=[strides, strides],
@@ -187,25 +168,6 @@ class Yolo3:
 
     def _Residual_block(self, inputs, filters_num, blocks_num, conv_index, training=True, norm_decay=0.997,
                         norm_epsilon=1e-5):
-        """
-        Introduction
-        ------------
-            Darknet的残差block，类似resnet的两层卷积结构，分别采用1x1和3x3的卷积核，使用1x1是为了减少channel的维度
-        Parameters
-        ----------
-            inputs: 输入变量
-            filters_num: 卷积核数量
-            trainging: 是否为训练过程
-            blocks_num: block的数量
-            conv_index: 为了方便加载预训练权重，统一命名序号
-            weights_dict: 加载预训练模型的权重
-            norm_decay: 在预测时计算moving average时的衰减率
-            norm_epsilon: 方差加上极小的数，防止除以0的情况
-        Returns
-        -------
-            inputs: 经过残差网络处理后的结果
-        """
-
         layer = self._conv2d_layer(inputs, filters_num, kernel_size=3, strides=2, name="conv2d_" + str(conv_index))
         layer = self._batch_normalization_layer(layer, name="batch_normalization_" + str(conv_index), training=training,
                                                 norm_decay=norm_decay, norm_epsilon=norm_epsilon)
@@ -237,25 +199,6 @@ class Yolo3:
 
     def _yolo_block(self, inputs, filters_num, out_filters, conv_index, training=True, norm_decay=0.997,
                     norm_epsilon=1e-5):
-        """
-        Introduction
-        ------------
-            yolo3在Darknet53提取的特征层基础上，又加了针对3种不同比例的feature map的block，这样来提高对小物体的检测率
-        Parameters
-        ----------
-            inputs: 输入特征
-            filters_num: 卷积核数量
-            out_filters: 最后输出层的卷积核数量
-            conv_index: 卷积层数序号，方便根据名字加载预训练权重
-            training: 是否为训练
-            norm_decay: 在预测时计算moving average时的衰减率
-            norm_epsilon: 方差加上极小的数，防止除以0的情况
-        Returns
-        -------
-            route: 返回最后一层卷积的前一层结果
-            conv: 返回最后一层卷积的结果
-            conv_index: conv层计数
-        """
         conv = self._conv2d_layer(inputs, filters_num=filters_num, kernel_size=1, strides=1,
                                   name="conv2d_" + str(conv_index))
         conv = self._batch_normalization_layer(conv, name="batch_normalization_" + str(conv_index), training=training,
@@ -293,18 +236,6 @@ class Yolo3:
         return route, conv, conv_index
 
     def yolo_inference(self, features_out, filters_yolo_block, conv_index, num_anchors, num_classes, training=True):
-        """
-        Introduction
-        ------------
-            构建yolo模型结构
-        Parameters
-        ----------
-            inputs:       模型的输入变量
-            num_anchors:  每个grid cell负责检测的anchor数量
-            num_classes:  类别数量
-            training:     是否为训练模式
-        """
-
         conv = features_out[0]
         conv2d_45 = features_out[1]
         conv2d_26 = features_out[2]
@@ -368,36 +299,15 @@ class Yolo3:
         return [conv2d_59, conv2d_67, conv2d_75]
 
     def yolo_head(self, feats, anchors, num_classes, input_shape, training=True):
-        """
-        Introduction
-        ------------
-            根据不同大小的feature map做多尺度的检测，三种feature map大小分别为13x13x1024, 26x26x512, 52x52x256
-        Parameters
-        ----------
-            feats: 输入的特征feature map
-            anchors: 针对不同大小的feature map的anchor
-            num_classes: 类别的数量
-            input_shape: 图像的输入大小，一般为416
-            trainging: 是否训练，用来控制返回不同的值
-        Returns
-        -------
-        """
-        print('feats : ', feats)
-        print('anchors : ', anchors)
-        print('input_shape : ', input_shape)
-
         num_anchors = len(anchors)
         anchors_tensor = tf.reshape(tf.constant(anchors, dtype=tf.float32), [1, 1, 1, num_anchors, 2])
         grid_size = tf.shape(feats)[1:3]
         predictions = tf.reshape(feats, [-1, grid_size[0], grid_size[1], num_anchors, num_classes + 5])
-        # 这里构建13*13*1*2的矩阵，对应每个格子加上对应的坐标
         grid_y = tf.tile(tf.reshape(tf.range(grid_size[0]), [-1, 1, 1, 1]), [1, grid_size[1], 1, 1])
         grid_x = tf.tile(tf.reshape(tf.range(grid_size[1]), [1, -1, 1, 1]), [grid_size[0], 1, 1, 1])
         grid = tf.concat([grid_x, grid_y], axis=-1)
         grid = tf.cast(grid, tf.float32)
-        # 将x,y坐标归一化为占416的比例
         box_xy = (tf.sigmoid(predictions[..., :2]) + grid) / tf.cast(grid_size[::-1], tf.float32)
-        # 将w,h也归一化为占416的比例
         box_wh = tf.exp(predictions[..., 2:4]) * anchors_tensor / input_shape[::-1]
         box_confidence = tf.sigmoid(predictions[..., 4:5])
         box_class_probs = tf.sigmoid(predictions[..., 5:])
@@ -406,18 +316,6 @@ class Yolo3:
         return box_xy, box_wh, box_confidence, box_class_probs
 
     def yolo_boxes_scores(self, feats, anchors, num_classes, input_shape, image_shape):
-        """
-        Introduction
-        ------------
-            该函数是将box的坐标修正，除去之前按照长宽比缩放填充的部分，最后将box的坐标还原成相对原始图片的
-        Parameters
-        ----------
-            feats: 模型输出feature map
-            anchors: 模型anchors
-            num_classes: 数据集类别数
-            input_shape: 训练输入图片大小
-            image_shape: 原始图片的大小
-        """
         input_shape = tf.cast(input_shape, tf.float32)
         image_shape = tf.cast(image_shape, tf.float32)
         box_xy, box_wh, box_confidence, box_class_probs = self.yolo_head(feats, anchors, num_classes, input_shape,
@@ -446,18 +344,6 @@ class Yolo3:
         return boxes, boxes_scores
 
     def box_iou(self, box1, box2):
-        """
-        Introduction
-        ------------
-            计算box tensor之间的iou
-        Parameters
-        ----------
-            box1: shape=[grid_size, grid_size, anchors, xywh]
-            box2: shape=[box_num, xywh]
-        Returns
-        -------
-            iou:
-        """
         box1 = tf.expand_dims(box1, -2)
         box1_xy = box1[..., :2]
         box1_wh = box1[..., 2:4]
@@ -480,35 +366,16 @@ class Yolo3:
         return iou
 
     def yolo_loss(self, yolo_output, y_true, anchors, num_classes, ignore_thresh=.5):
-        """
-        Introduction
-        ------------
-            yolo模型的损失函数
-        Parameters
-        ----------
-            yolo_output: yolo模型的输出
-            y_true: 经过预处理的真实标签，shape为[batch, grid_size, grid_size, 5 + num_classes]
-            anchors: yolo模型对应的anchors
-            num_classes: 类别数量
-            ignore_thresh: 小于该阈值的box我们认为没有物体
-        Returns
-        -------
-            loss: 每个batch的平均损失值
-            accuracy
-        """
         loss = 0.0
         anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
         input_shape = tf.shape(yolo_output[0])[1: 3] * 32
         input_shape = tf.cast(input_shape, tf.float32)
         grid_shapes = [tf.cast(tf.shape(yolo_output[l])[1:3], tf.float32) for l in range(3)]
         for index in range(3):
-            # 只有负责预测ground truth box的grid对应的为1, 才计算相对应的loss
-            # object_mask的shape为[batch_size, grid_size, grid_size, 3, 1]
             object_mask = y_true[index][..., 4:5]
             class_probs = y_true[index][..., 5:]
             grid, predictions, pred_xy, pred_wh = self.yolo_head(yolo_output[index], anchors[anchor_mask[index]],
                                                                  num_classes, input_shape, training=True)
-            # pred_box的shape为[batch, box_num, 4]
             pred_box = tf.concat([pred_xy, pred_wh], axis=-1)
             raw_true_xy = y_true[index][..., :2] * grid_shapes[index][::-1] - grid
             object_mask_bool = tf.cast(object_mask, dtype=tf.bool)
@@ -516,16 +383,13 @@ class Yolo3:
                 tf.where(tf.equal(y_true[index][..., 2:4] / anchors[anchor_mask[index]] * input_shape[::-1], 0),
                          tf.ones_like(y_true[index][..., 2:4]),
                          y_true[index][..., 2:4] / anchors[anchor_mask[index]] * input_shape[::-1]))
-            # 该系数是用来调整box坐标loss的系数
             box_loss_scale = 2 - y_true[index][..., 2:3] * y_true[index][..., 3:4]
             ignore_mask = tf.TensorArray(dtype=tf.float32, size=1, dynamic_size=True)
 
             def loop_body(internal_index, ignore_mask):
-                # true_box的shape为[box_num, 4]
                 true_box = tf.boolean_mask(y_true[index][internal_index, ..., 0:4],
                                            object_mask_bool[internal_index, ..., 0])
                 iou = self.box_iou(pred_box[internal_index], true_box)
-                # 计算每个true_box对应的预测的iou最大的box
                 best_iou = tf.reduce_max(iou, axis=-1)
                 ignore_mask = ignore_mask.write(internal_index, tf.cast(best_iou < ignore_thresh, tf.float32))
                 return internal_index + 1, ignore_mask
@@ -535,7 +399,6 @@ class Yolo3:
                 [0, ignore_mask])
             ignore_mask = ignore_mask.stack()
             ignore_mask = tf.expand_dims(ignore_mask, axis=-1)
-            # 计算四个部分的loss
             xy_loss = object_mask * box_loss_scale * tf.nn.sigmoid_cross_entropy_with_logits(
                 labels=raw_true_xy,
                 logits=predictions[..., 0:2])
@@ -557,27 +420,11 @@ class Yolo3:
         return loss
 
     def yolo_eval(self, yolo_outputs, image_shape, max_boxes=20):
-        """
-        Introduction
-        ------------
-            根据Yolo模型的输出进行非极大值抑制，获取最后的物体检测框和物体检测类别
-        Parameters
-        ----------
-            yolo_outputs: yolo模型输出
-            image_shape: 图片的大小
-            max_boxes:  最大box数量
-        Returns
-        -------
-            boxes_: 物体框的位置
-            scores_: 物体类别的概率
-            classes_: 物体类别
-        """
         with tf.variable_scope('boxes_scores'):
             anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
             boxes = []
             box_scores = []
             input_shape = tf.shape(yolo_outputs[0])[1: 3] * 32
-            # 对三个尺度的输出获取每个预测box坐标和box的分数，score计算为置信度x类别概率
             for i in range(len(yolo_outputs)):
                 _boxes, _box_scores = self.yolo_boxes_scores(yolo_outputs[i], self.anchors[anchor_mask[i]],
                                                              len(self.class_names), input_shape, image_shape)
@@ -627,9 +474,6 @@ class YoloConfig:
     norm_decay = 0.99
     norm_epsilon = 1e-5
     ignore_thresh = 0.5
-    # learning_rate = 1e-3
-    # obj_threshold = 0.3
-    # nms_threshold = 0.4
 
 
 class YOLOInference(object):

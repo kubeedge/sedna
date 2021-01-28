@@ -165,7 +165,7 @@ class Interface:
 
         logging.info("average checkpoints end .......")
 
-    def save_model_pb(self):
+    def save_model_pb(self, saved_model_name):
         """
         save model as a single pb file from checkpoint
         """
@@ -189,6 +189,6 @@ class Interface:
             print('output_tensors : ', output_tensors)
             output_tensors = [t.op.name for t in output_tensors]
             graph = tf.graph_util.convert_variables_to_constants(sess, input_graph_def, output_tensors)
-            tf.train.write_graph(graph, model.model_dir, 'model.pb', False)
+            tf.train.write_graph(graph, model.model_dir, saved_model_name, False)
 
         logging.info("save model as .pb end .......")

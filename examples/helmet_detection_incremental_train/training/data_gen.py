@@ -215,13 +215,10 @@ class DataGen(object):
         return image_data, box_data
 
     def preprocess_true_boxes(self, true_boxes, in_shape=416):
-        """
-        Introduction
-        ------------
-            对训练数据的ground truth box进行预处理
-        Parameters
-        ----------
-            true_boxes: ground truth box 形状为[boxes, 5], x_min, y_min, x_max, y_max, class_id
+        """Preprocesses the ground truth box of the training data
+
+        :param true_boxes: ground truth box shape is [boxes, 5], x_min, y_min,
+            x_max, y_max, class_id
         """
 
         num_layers = self.anchors.shape[0] // 3
@@ -238,20 +235,21 @@ class DataGen(object):
         grid_shapes = [input_shape // 32, input_shape // 16, input_shape // 8]
         y_true = [np.zeros((m, grid_shapes[l][0], grid_shapes[l][1], len(anchor_mask[l]), 5 + self.num_classes),
                            dtype='float32') for l in range(num_layers)]
-        # 这里扩充维度是为了后面应用广播计算每个图中所有box的anchor互相之间的iou
+        # The dimension is expanded to calculate the IOU between the
+        # anchors of all boxes in each graph by broadcasting
         anchors = np.expand_dims(self.anchors, 0)
         anchors_max = anchors / 2.
         anchors_min = -anchors_max
-        # 因为之前对box做了padding, 因此需要去除全0行
+        # Because we padded the box before, we need to remove all 0 lines
         valid_mask = boxes_wh[..., 0] > 0
 
         for b in range(m):
             wh = boxes_wh[b, valid_mask[b]]
             if len(wh) == 0: continue
 
-            # 为了应用广播扩充维度
+            # Expanding dimensions for broadcasting applications
             wh = np.expand_dims(wh, -2)
-            # wh 的shape为[box_num, 1, 2]
+            # wh shape is [box_num, 1, 2]
             boxes_max = wh / 2.
             boxes_min = -boxes_max
 
@@ -263,7 +261,10 @@ class DataGen(object):
             anchor_area = anchors[..., 0] * anchors[..., 1]
             iou = intersect_area / (box_area + anchor_area - intersect_area)
 
-            # 找出和ground truth box的iou最大的anchor box, 然后将对应不同比例的负责该ground turth box 的位置置为ground truth box坐标
+            # Find out the largest anchor box with the IOU of the ground truth
+            # box, and then set the corresponding positions of different
+            # proportions responsible for the ground turn box as the
+            # coordinates of the ground truth box
             best_anchor = np.argmax(iou, axis=-1)
             for t, n in enumerate(best_anchor):
                 for l in range(num_layers):

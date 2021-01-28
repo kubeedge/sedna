@@ -1,33 +1,50 @@
 # Using Incremental Learning Job in Helmet Detection Scenario
 
-This document introduces how to use incremental learning job in helmet detectioni scenario. Using the incremental learning job, our application can automatically retrains, evaluates, and updates models based on the data generated at the edge.
+This document introduces how to use incremental learning job in helmet detectioni scenario. 
+Using the incremental learning job, our application can automatically retrains, evaluates, 
+and updates models based on the data generated at the edge.
 
 ## Helmet Detection Experiment
 
+### Prepare Worker Image
+Build the worker image by referring to the [dockerfile](/build/worker/base_images/tensorflow/tensorflow-1.15.Dockerfile)
+and put the image to the `gm-config.yaml`'s  `imageHub` in [Install Neptune](#install-neptune)
+In this demo, we need to replace the requirement.txt to
+```
+flask==1.1.2
+keras==2.4.3
+opencv-python==4.4.0.44
+websockets==8.1
+Pillow==8.0.1
+requests==2.24.0
+tqdm==4.56.0
+matplotlib==3.3.3
+```
 ### Install Neptune
 
 Follow the [Neptune installation document](/docs/setup/install.md) to install Neptune.
 
 ### Prepare Data and Model
 
-Download dataset and model to your node:
-* step 1: download [dataset](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz)
+* step 1: create dataset directory:
 ```
 mkdir -p /data/helmet_detection
-cd /data/helmet_detection
-tar -zxvf dataset.tar.gz
 ```
+
 * step 2: download [base model](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/model.tar.gz)
 ```
 mkdir /model
 cd /model
+wget https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz
 tar -zxvf model.tar.gz
 ```
 ### Prepare Script
-Download the [scripts](/examples/helmet_detection/training) to the path `code` of your node
+Download the [scripts](/examples/helmet_detection_incremental_train/training) to the path `code` of your node
 
 
 ### Create Incremental Job
+
+Create Namespace `kubectl create ns neptune-test`
 
 Create Dataset
 
@@ -45,7 +62,7 @@ spec:
 EOF
 ```
 
-Create Initial Model
+Create Initial Model to simulate the initial model in incremental learning scenario.
 
 ```
 kubectl create -f - <<EOF
@@ -163,10 +180,10 @@ EOF
 
 ### Mock Video Stream for Inference in Edge Side
 
-* step1: install the open source video streaming server [EasyDarwin](https://github.com/EasyDarwin/EasyDarwin/tree/dev).
-* step2: start EasyDarwin server.
-* step3: download [video](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/video.tar.gz).
-* step4: push a video stream to the url (e.g., `rtsp://localhost/video`) that the inference service can connect.
+* step 1: install the open source video streaming server [EasyDarwin](https://github.com/EasyDarwin/EasyDarwin/tree/dev).
+* step 2: start EasyDarwin server.
+* step 3: download [video](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/video.tar.gz).
+* step 4: push a video stream to the url (e.g., `rtsp://localhost/video`) that the inference service can connect.
 
 ```
 wget https://github.com/EasyDarwin/EasyDarwin/releases/download/v8.1.0/EasyDarwin-linux-8.1.0-1901141151.tar.gz --no-check-certificate
@@ -180,13 +197,41 @@ tar -zxvf video.tar.gz
 ffmpeg -re -i /data/video/helmet-detection.mp4 -vcodec libx264 -f rtsp rtsp://localhost/video
 ```
 
-
-### Check Incremental Job Result
-
+### Check Incremental Learning Job
 query the service status
 ```
 kubectl get incrementallearningjob helmet-detection-demo -n neptune-test
 ```
+In the `IncrementalLearningJob` resource helmet-detection-demo, the following trigger is configured:
+```
+trigger:
+  checkPeriodSeconds: 60
+  timer:
+    start: 02:00
+    end: 04:00
+  condition:
+    operator: ">"
+    threshold: 500
+    metric: num_of_samples
+```
+In a real word, we need to label the hard examples in `HE_SAVED_URL`  with annotation tools and then put the examples to `Dataset`'s url.   
+Without annotation tools, we can simulate the condition of `num_of_samples` in the following ways:  
+Download [dataset](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz) to our cloud0 node.
+```
+cd /data/helmet_detection
+wget  https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz
+tar -zxvf dataset.tar.gz
+```
+The LocalController component will check the number of the sample, realize trigger conditions are met and notice the GlobalManager Component to start train worker.
+When the train worker finish, we can view the updated model in the `/output` directory in cloud0 node.
+Then the eval worker will start to evaluate the model that train worker generated.
 
-after the job completed, we can view the updated model in the /output directory in cloud0 node
-
+If the eval result satisfy the `deploySpec`'s trigger 
+```
+trigger:
+  condition:
+    operator: ">"
+    threshold: 0.1
+    metric: precision_delta
+```
+the deploy worker will load the new model and provide service.

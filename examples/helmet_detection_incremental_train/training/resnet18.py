@@ -19,7 +19,8 @@ def _residual_block_first(x, is_training, out_channel, strides, name="unit"):
             if strides == 1:
                 shortcut = tf.identity(x)
             else:
-                shortcut = tf.nn.max_pool(x, [1, strides, strides, 1], [1, strides, strides, 1], 'VALID')
+                shortcut = tf.nn.max_pool(x, [1, strides, strides, 1],
+                                          [1, strides, strides, 1], 'VALID')
         else:
             shortcut = _conv(x, 1, out_channel, strides, name='shortcut')
         # Residual
@@ -58,7 +59,6 @@ def _residual_block(x, is_training, name="unit"):
     return x
 
 
-#
 def _conv(x, filter_size, out_channel, strides, name="conv"):
     """
     Helper functions(counts FLOPs and number of weights)
@@ -66,20 +66,26 @@ def _conv(x, filter_size, out_channel, strides, name="conv"):
     in_shape = x.get_shape()
     with tf.variable_scope(name):
         # Main operation: conv2d
-        kernel = tf.get_variable('kernel', [filter_size, filter_size, in_shape[3], out_channel], tf.float32,
+        kernel = tf.get_variable('kernel',
+                                 [filter_size, filter_size, in_shape[3],
+                                  out_channel], tf.float32,
                                  initializer=tf.random_normal_initializer(
-                                     stddev=np.sqrt(2.0 / filter_size / filter_size / out_channel)))
+                                     stddev=np.sqrt(
+                                         2.0 / filter_size / filter_size / out_channel)))
         if kernel not in tf.get_collection(WEIGHT_DECAY_KEY):
             tf.add_to_collection(WEIGHT_DECAY_KEY, kernel)
         if strides == 1:
-            conv = tf.nn.conv2d(x, kernel, [1, strides, strides, 1], padding='SAME')
+            conv = tf.nn.conv2d(x, kernel, [1, strides, strides, 1],
+                                padding='SAME')
         else:
             kernel_size_effective = filter_size
             pad_total = kernel_size_effective - 1
             pad_beg = pad_total // 2
             pad_end = pad_total - pad_beg
-            x = tf.pad(x, [[0, 0], [pad_beg, pad_end], [pad_beg, pad_end], [0, 0]])
-            conv = tf.nn.conv2d(x, kernel, [1, strides, strides, 1], padding='VALID')
+            x = tf.pad(x, [[0, 0], [pad_beg, pad_end], [pad_beg, pad_end],
+                           [0, 0]])
+            conv = tf.nn.conv2d(x, kernel, [1, strides, strides, 1],
+                                padding='VALID')
     return conv
 
 
@@ -88,8 +94,9 @@ def _fc(x, out_dim, name="fc"):
         # Main operation: fc
         with tf.device('/CPU:0'):
             w = tf.get_variable('weights', [x.get_shape()[1], out_dim],
-                                tf.float32, initializer=tf.random_normal_initializer(
-                    stddev=np.sqrt(1.0 / out_dim)))
+                                tf.float32,
+                                initializer=tf.random_normal_initializer(
+                                    stddev=np.sqrt(1.0 / out_dim)))
             b = tf.get_variable('biases', [out_dim], tf.float32,
                                 initializer=tf.constant_initializer(0.0))
         if w not in tf.get_collection(WEIGHT_DECAY_KEY):
@@ -100,7 +107,9 @@ def _fc(x, out_dim, name="fc"):
 
 def _bn(x, is_training, name="bn"):
     bn = tf.layers.batch_normalization(inputs=x, momentum=0.99, epsilon=1e-5,
-                                       center=True, scale=True, training=is_training, name=name, fused=True)
+                                       center=True, scale=True,
+                                       training=is_training, name=name,
+                                       fused=True)
     return bn
 
 
@@ -140,17 +149,20 @@ class ResNet18(object):
         self.end_points['conv2_output'] = x
 
         # conv3_x
-        x = _residual_block_first(x, is_training, filters[2], strides[2], name='conv3_1')
+        x = _residual_block_first(x, is_training, filters[2], strides[2],
+                                  name='conv3_1')
         x = _residual_block(x, is_training, name='conv3_2')
         self.end_points['conv3_output'] = x
 
         # conv4_x
-        x = _residual_block_first(x, is_training, filters[3], strides[3], name='conv4_1')
+        x = _residual_block_first(x, is_training, filters[3], strides[3],
+                                  name='conv4_1')
         x = _residual_block(x, is_training, name='conv4_2')
         self.end_points['conv4_output'] = x
 
         # conv5_x
-        x = _residual_block_first(x, is_training, filters[4], strides[4], name='conv5_1')
+        x = _residual_block_first(x, is_training, filters[4], strides[4],
+                                  name='conv5_1')
         x = _residual_block(x, is_training, name='conv5_2')
         self.end_points['conv5_output'] = x
 

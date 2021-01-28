@@ -19,13 +19,10 @@ def main():
 
     model = validate
 
-    model = neptune.incremental_learning.evaluate(model=model,
-                                                  test_data=test_data,
-                                                  class_names=class_names,
-                                                  input_shape=input_shape)
-
-    # Save the model based on the config.
-    # kubeedge_ai.incremental_learning.save_model(model)
+    neptune.incremental_learning.evaluate(model=model,
+                                          test_data=test_data,
+                                          class_names=class_names,
+                                          input_shape=input_shape)
 
 
 if __name__ == '__main__':
