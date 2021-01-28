@@ -31,6 +31,7 @@ func (c *MainController) Start() {
 		NewUpstreamController,
 		NewDownstreamController,
 		NewJointController,
+		NewIncrementalJobController,
 	} {
 		f, _ := featureFunc(c.Config)
 		err := f.Start()

@@ -34,7 +34,14 @@ func CreateVolumeMap(containerPara *ContainerPara) ([]v1.VolumeMount, []v1.Volum
 	var volumeMounts []v1.VolumeMount
 	var volumes []v1.Volume
 	volumetype := v1.HostPathDirectory
+	mountPathMap := make(map[string]bool)
+	duplicateIdx := make(map[int]bool)
 	for i, v := range containerPara.volumeMountList {
+		if mountPathMap[v] {
+			duplicateIdx[i] = true
+			continue
+		}
+		mountPathMap[v] = true
 		tempVolumeMount := v1.VolumeMount{
 			MountPath: v,
 			Name:      containerPara.volumeMapName[i],
@@ -42,6 +49,9 @@ func CreateVolumeMap(containerPara *ContainerPara) ([]v1.VolumeMount, []v1.Volum
 		volumeMounts = append(volumeMounts, tempVolumeMount)
 	}
 	for i, v := range containerPara.volumeList {
+		if duplicateIdx[i] {
+			continue
+		}
 		tempVolume := v1.Volume{
 			Name: containerPara.volumeMapName[i],
 			VolumeSource: v1.VolumeSource{
