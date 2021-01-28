@@ -14,9 +14,9 @@ import (
 
 // Server defines server
 type Server struct {
-	Port            string
-	Resource        *Resource
-	FeatureManagers featureManagerMap
+	Port     string
+	Resource *Resource
+	fmm      featureManagerMap
 }
 
 // Resource defines resource
@@ -32,23 +32,19 @@ type ResponseMessage struct {
 
 type featureManagerMap map[string]manager.FeatureManager
 
-// NewServer create a new LC server
-func NewServer(options *options.LocalControllerOptions, featureManagers ...manager.FeatureManager) *Server {
+// New creates a new LC server
+func New(options *options.LocalControllerOptions) *Server {
 	s := Server{
 		Port: options.BindPort,
 	}
 
-	fms := featureManagerMap{}
-	for _, m := range featureManagers {
-		if err := m.Start(); err != nil {
-			klog.Errorf("start %s manager failed, error %v", m.GetKind(), err)
-		}
-		fms[m.GetKind()] = m
-	}
-
-	s.FeatureManagers = fms
+	s.fmm = featureManagerMap{}
 
 	return &s
+}
+
+func (s *Server) AddFeatureManager(m manager.FeatureManager) {
+	s.fmm[m.GetName()] = m
 }
 
 // register registers api
@@ -105,8 +101,8 @@ func (s *Server) messageHandler(request *restful.Request, response *restful.Resp
 		return
 	}
 
-	if m, ok := s.FeatureManagers[workerMessage.OwnerKind]; ok {
-		m.AddWorkerMessageToChannel(workerMessage)
+	if m, ok := s.fmm[workerMessage.OwnerKind]; ok {
+		m.AddWorkerMessage(workerMessage)
 	}
 
 	err = s.reply(response, http.StatusOK, "OK")
@@ -116,8 +112,8 @@ func (s *Server) messageHandler(request *restful.Request, response *restful.Resp
 	}
 }
 
-// Start starts server
-func (s *Server) Start() {
+// ListenAndServe starts server
+func (s *Server) ListenAndServe() {
 	wsContainer := restful.NewContainer()
 	resource := Resource{map[string]manager.WorkerMessage{}}
 	s.Resource = &resource

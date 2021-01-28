@@ -12,9 +12,9 @@ import (
 
 	"github.com/edgeai-neptune/neptune/cmd/neptune-lc/app/options"
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/common/constants"
+	"github.com/edgeai-neptune/neptune/pkg/localcontroller/gmclient"
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/manager"
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/server"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/wsclient"
 	"github.com/edgeai-neptune/neptune/pkg/version/verflag"
 )
 
@@ -64,25 +64,34 @@ It manages dataset and models, and controls ai features in local nodes.`, cmdNam
 
 // runServer runs server
 func runServer() {
-	c := wsclient.NewClient(Options)
+	c := gmclient.NewWebSocketClient(Options)
 	if err := c.Start(); err != nil {
 		return
 	}
 
-	_, err := manager.NewDatasetManager(c, Options)
-	if err != nil {
-		klog.Errorf("create dataset manager failed, error: %v", err)
-	}
+	dm := manager.NewDatasetManager(c, Options)
 
-	_, err = manager.NewModelManager(c)
-	if err != nil {
-		klog.Errorf("create model manager failed, error: %v", err)
-	}
+	mm := manager.NewModelManager(c)
 
 	jm := manager.NewJointInferenceManager(c)
+
 	fm := manager.NewFederatedLearningManager(c)
 
-	s := server.NewServer(Options, jm, fm)
+	s := server.New(Options)
 
-	s.Start()
+	for _, m := range []manager.FeatureManager{
+		dm, mm, jm, fm,
+	} {
+		s.AddFeatureManager(m)
+		c.Subscribe(m)
+		err := m.Start()
+		if err != nil {
+			klog.Errorf("failed to start manager %s: %v",
+				m.GetName(), err)
+			return
+		}
+		klog.Infof("manager %s is started", m.GetName())
+	}
+
+	s.ListenAndServe()
 }

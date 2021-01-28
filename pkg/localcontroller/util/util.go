@@ -87,5 +87,5 @@ func AddPrefixPath(prefix string, path string) string {
 
 // GetUniqueIdentifier get unique identifier
 func GetUniqueIdentifier(namespace string, name string, kind string) string {
-	return fmt.Sprintf("%s-%s-%s", namespace, name, kind)
+	return fmt.Sprintf("%s/%s/%s", namespace, kind, name)
 }

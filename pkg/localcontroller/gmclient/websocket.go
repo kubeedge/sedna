@@ -1,4 +1,4 @@
-package wsclient
+package gmclient
 
 import (
 	"encoding/json"
@@ -14,30 +14,13 @@ import (
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/common/constants"
 )
 
-// MessageHandler defines message handler function
-type MessageHandler func(*Message)
-
-// Client defines a client
-type Client struct {
+// wsClient defines a websocket client
+type wsClient struct {
 	Options             *options.LocalControllerOptions
 	WSConnection        *WSConnection
-	SubscribeMessageMap map[string]MessageHandler
+	SubscribeMessageMap map[string]MessageResourceHandler
 	SendMessageChannel  chan Message
 	ReconnectChannel    chan struct{}
-}
-
-// Message defines message
-type Message struct {
-	Header  MessageHeader `json:"header"`
-	Content []byte        `json:"content"`
-}
-
-// MessageHeader define header of message
-type MessageHeader struct {
-	Namespace    string `json:"namespace"`
-	ResourceKind string `json:"resourceKind"`
-	ResourceName string `json:"resourceName"`
-	Operation    string `json:"operation"`
 }
 
 // WSConnection defines conn
@@ -54,11 +37,11 @@ const (
 	MessageChannelCacheSize = 100
 )
 
-// NewClient creates client
-func NewClient(options *options.LocalControllerOptions) *Client {
-	c := Client{
+// NewWebSocketClient creates client
+func NewWebSocketClient(options *options.LocalControllerOptions) ClientI {
+	c := wsClient{
 		Options:             options,
-		SubscribeMessageMap: make(map[string]MessageHandler),
+		SubscribeMessageMap: make(map[string]MessageResourceHandler),
 		SendMessageChannel:  make(chan Message, MessageChannelCacheSize),
 	}
 
@@ -66,18 +49,19 @@ func NewClient(options *options.LocalControllerOptions) *Client {
 }
 
 // Subscribe registers in client
-func (c *Client) Subscribe(resource string, handler MessageHandler) error {
-	if c.SubscribeMessageMap[resource] == nil {
-		c.SubscribeMessageMap[resource] = handler
+func (c *wsClient) Subscribe(m MessageResourceHandler) error {
+	name := m.GetName()
+	if c.SubscribeMessageMap[name] == nil {
+		c.SubscribeMessageMap[name] = m
 	} else {
-		klog.Warningf("%s had been registered in websocket client", resource)
+		klog.Warningf("%s had been registered in websocket client", name)
 	}
 
 	return nil
 }
 
 // handleReceivedMessage handles received message
-func (c *Client) handleReceivedMessage(stop chan struct{}) {
+func (c *wsClient) handleReceivedMessage(stop chan struct{}) {
 	defer func() {
 		stop <- struct{}{}
 	}()
@@ -97,9 +81,23 @@ func (c *Client) handleReceivedMessage(stop chan struct{}) {
 		klog.V(4).Infof("client received message content: %s from global manager(address: %s)",
 			message.Content, c.Options.GMAddr)
 
-		handler := c.SubscribeMessageMap[message.Header.ResourceKind]
-		if handler != nil {
-			go handler(&message)
+		m := c.SubscribeMessageMap[message.Header.ResourceKind]
+		if m != nil {
+			go func() {
+				var err error
+				switch message.Header.Operation {
+				case InsertOperation:
+					err = m.Insert(&message)
+
+				case DeleteOperation:
+					err = m.Delete(&message)
+				default:
+					err = fmt.Errorf("unknown operation: %s", message.Header.Operation)
+				}
+				if err != nil {
+					klog.Errorf("failed to handle message(%+v): %v", message.Header, err)
+				}
+			}()
 		} else {
 			klog.Errorf("%s hadn't registered in websocket client", message.Header.ResourceKind)
 		}
@@ -107,7 +105,7 @@ func (c *Client) handleReceivedMessage(stop chan struct{}) {
 }
 
 // WriteMessage saves message in a queue
-func (c *Client) WriteMessage(messageBody interface{}, messageHeader MessageHeader) error {
+func (c *wsClient) WriteMessage(messageBody interface{}, messageHeader MessageHeader) error {
 	content, err := json.Marshal(&messageBody)
 	if err != nil {
 		return err
@@ -124,7 +122,7 @@ func (c *Client) WriteMessage(messageBody interface{}, messageHeader MessageHead
 }
 
 // sendMessage sends the message through the connection
-func (c *Client) sendMessage(stop chan struct{}) {
+func (c *wsClient) sendMessage(stop chan struct{}) {
 	defer func() {
 		stop <- struct{}{}
 	}()
@@ -155,7 +153,7 @@ func (c *Client) sendMessage(stop chan struct{}) {
 }
 
 // connect tries to connect remote server
-func (c *Client) connect() error {
+func (c *wsClient) connect() error {
 	header := http.Header{}
 	header.Add(constants.WSHeaderNodeName, c.Options.NodeName)
 	u := url.URL{Scheme: constants.WSScheme, Host: c.Options.GMAddr, Path: "/"}
@@ -190,14 +188,14 @@ func (c *Client) connect() error {
 }
 
 // Start starts websocket client
-func (c *Client) Start() error {
+func (c *wsClient) Start() error {
 	go c.reconnect()
 
 	return nil
 }
 
 // reconnect reconnects global manager
-func (c *Client) reconnect() {
+func (c *wsClient) reconnect() {
 	for {
 		if err := c.connect(); err != nil {
 			continue

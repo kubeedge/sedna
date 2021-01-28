@@ -11,27 +11,31 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/edgeai-neptune/neptune/cmd/neptune-lc/app/options"
+	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/db"
+	"github.com/edgeai-neptune/neptune/pkg/localcontroller/gmclient"
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/util"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/wsclient"
+)
+
+const (
+	// MonitorDataSourceIntervalSeconds is interval time of monitoring data source
+	MonitorDataSourceIntervalSeconds = 10
+	// DatasetResourceKind is kind of dataset resource
+	DatasetResourceKind = "dataset"
 )
 
 // DatasetManager defines dataset manager
 type DatasetManager struct {
-	Client            *wsclient.Client
-	DatasetChannelMap map[string]chan Dataset
+	Client            gmclient.ClientI
 	DatasetMap        map[string]*Dataset
-	DataSourcesSignal map[string]bool
 	VolumeMountPrefix string
 }
 
 // Dataset defines config for dataset
 type Dataset struct {
-	APIVersion string       `json:"apiVersion"`
-	Kind       string       `json:"kind"`
-	MetaData   *MetaData    `json:"metadata"`
-	Spec       *DatasetSpec `json:"spec"`
-	DataSource *DataSource  `json:"dataSource"`
+	*neptunev1.Dataset
+	DataSource *DataSource `json:"dataSource"`
+	Done       chan struct{}
 }
 
 // DatasetSpec defines dataset spec
@@ -47,190 +51,117 @@ type DataSource struct {
 	NumberOfSamples int      `json:"numberOfSamples"`
 }
 
-const (
-	// DatasetChannelCacheSize is size of channel cache
-	DatasetChannelCacheSize = 100
-	// MonitorDataSourceIntervalSeconds is interval time of monitoring data source
-	MonitorDataSourceIntervalSeconds = 10
-	// DatasetResourceKind is kind of dataset resource
-	DatasetResourceKind = "dataset"
-)
-
 // NewDatasetManager creates a dataset manager
-func NewDatasetManager(client *wsclient.Client, options *options.LocalControllerOptions) (*DatasetManager, error) {
+func NewDatasetManager(client gmclient.ClientI, options *options.LocalControllerOptions) *DatasetManager {
 	dm := DatasetManager{
 		Client:            client,
-		DataSourcesSignal: make(map[string]bool),
-		DatasetChannelMap: make(map[string]chan Dataset),
 		DatasetMap:        make(map[string]*Dataset),
 		VolumeMountPrefix: options.VolumeMountPrefix,
 	}
 
-	if err := dm.initDatasetManager(); err != nil {
-		klog.Errorf("init dataset manager failed, error: %v", err)
-		return nil, err
-	}
-
-	return &dm, nil
+	return &dm
 }
 
-// initDatasetManager inits dataset manager
-func (dm *DatasetManager) initDatasetManager() error {
-	if err := dm.Client.Subscribe(DatasetResourceKind, dm.handleMessage); err != nil {
-		klog.Errorf("register dataset manager to the client failed, error: %v", err)
-		return err
-	}
-	klog.Infof("init dataset manager successfully")
-
+// Start starts dataset manager
+func (dm *DatasetManager) Start() error {
 	return nil
 }
 
-// GetDatasetChannel gets dataset channel
-func (dm *DatasetManager) GetDatasetChannel(name string) chan Dataset {
-	ds, ok := dm.DatasetChannelMap[name]
+// GetDatasetChannel gets dataset
+func (dm *DatasetManager) GetDataset(name string) (*Dataset, bool) {
+	d, ok := dm.DatasetMap[name]
+	return d, ok
+}
+
+// Insert inserts dataset to db
+func (dm *DatasetManager) Insert(message *gmclient.Message) error {
+	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
+	first := false
+	dataset, ok := dm.DatasetMap[name]
 	if !ok {
-		return nil
+		dataset = &Dataset{}
+		dataset.Done = make(chan struct{})
+		dm.DatasetMap[name] = dataset
+		first = true
 	}
 
-	return ds
-}
-
-// addNewDataset adds dataset
-func (dm *DatasetManager) addNewDataset(name string, dataset Dataset) {
-	if _, ok := dm.DatasetChannelMap[name]; !ok {
-		dm.DatasetChannelMap[name] = make(chan Dataset, DatasetChannelCacheSize)
-	}
-
-	dm.DatasetChannelMap[name] <- dataset
-}
-
-// handleMessage handles the message from GlobalManager
-func (dm *DatasetManager) handleMessage(message *wsclient.Message) {
-	uniqueIdentifier := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
-	switch message.Header.Operation {
-	case InsertOperation:
-		{
-			if err := dm.insertDataset(uniqueIdentifier, message.Content); err != nil {
-				klog.Errorf("insert %s(name=%s) to db failed, error: %v", message.Header.ResourceKind, uniqueIdentifier, err)
-			}
-
-			if _, ok := dm.DataSourcesSignal[uniqueIdentifier]; !ok {
-				dm.DataSourcesSignal[uniqueIdentifier] = true
-				go dm.monitorDataSources(message, uniqueIdentifier)
-			}
-		}
-	case DeleteOperation:
-		{
-			if err := dm.deleteDataset(uniqueIdentifier); err != nil {
-				klog.Errorf("delete %s(name=%s) to db failed, error: %v", message.Header.ResourceKind, uniqueIdentifier, err)
-			}
-
-			if _, ok := dm.DataSourcesSignal[uniqueIdentifier]; ok {
-				dm.DataSourcesSignal[uniqueIdentifier] = false
-			}
-		}
-	}
-}
-
-// insertDataset inserts dataset to db
-func (dm *DatasetManager) insertDataset(name string, payload []byte) error {
-	if _, ok := dm.DatasetMap[name]; !ok {
-		dm.DatasetMap[name] = &Dataset{}
-	}
-
-	dataset := dm.DatasetMap[name]
-
-	if err := json.Unmarshal(payload, &dataset); err != nil {
+	if err := json.Unmarshal(message.Content, dataset); err != nil {
 		return err
 	}
 
-	metaData, err := json.Marshal(dataset.MetaData)
-	if err != nil {
-		return err
+	if first {
+		go dm.monitorDataSources(name)
 	}
 
-	spec, err := json.Marshal(dataset.Spec)
-	if err != nil {
-		return err
-	}
-
-	r := db.Resource{
-		Name:       name,
-		APIVersion: dataset.APIVersion,
-		Kind:       dataset.Kind,
-		MetaData:   string(metaData),
-		Spec:       string(spec),
-	}
-
-	if err = db.SaveResource(&r); err != nil {
+	if err := db.SaveResource(name, dataset.TypeMeta, dataset.ObjectMeta, dataset.Spec); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// deleteDataset deletes dataset config in db
-func (dm *DatasetManager) deleteDataset(name string) error {
-	if err := db.DeleteResource(name); err != nil {
-		return err
-	}
+// Delete deletes dataset config in db
+func (dm *DatasetManager) Delete(message *gmclient.Message) error {
+	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
-	if datasetChannel := dm.GetDatasetChannel(name); datasetChannel != nil {
-		close(datasetChannel)
-		delete(dm.DatasetChannelMap, name)
+	if ds, ok := dm.DatasetMap[name]; ok && ds.Done != nil {
+		close(ds.Done)
 	}
 
 	delete(dm.DatasetMap, name)
 
-	delete(dm.DataSourcesSignal, name)
+	if err := db.DeleteResource(name); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-// monitorDataSources monitors the data sources
-func (dm *DatasetManager) monitorDataSources(message *wsclient.Message, uniqueIdentifier string) {
-	for dm.DataSourcesSignal[uniqueIdentifier] {
-		time.Sleep(time.Duration(MonitorDataSourceIntervalSeconds) * time.Second)
+// monitorDataSources monitors the data url of specified dataset
+func (dm *DatasetManager) monitorDataSources(name string) {
+	ds, ok := dm.DatasetMap[name]
+	if !ok || ds == nil {
+		return
+	}
 
-		ds, ok := dm.DatasetMap[uniqueIdentifier]
-		if !ok {
-			break
+	if ds.Spec.URL == "" {
+		klog.Errorf("dataset(name=%s) empty data source url.", name)
+		return
+	}
+
+	for {
+		select {
+		case <-ds.Done:
+			return
+		default:
 		}
 
-		if ds.Spec == nil {
-			continue
-		}
-
-		if ds.Spec.DataURL == "" {
-			klog.Errorf("dataset(name=%s) not found valid data source url.", uniqueIdentifier)
-			break
-		}
-
-		dataURL := util.AddPrefixPath(dm.VolumeMountPrefix, filepath.Join(ds.Spec.DataURL))
+		dataURL := util.AddPrefixPath(dm.VolumeMountPrefix, filepath.Join(ds.Spec.URL))
 		dataSource, err := dm.getDataSource(dataURL, ds.Spec.Format)
 		if err != nil {
-			klog.Errorf("dataset(name=%s) get samples from %s failed", uniqueIdentifier, dataURL)
-			continue
+			klog.Errorf("dataset(name=%s) get samples from %s failed", name, dataURL)
+		} else {
+			ds.DataSource = dataSource
+
+			klog.Infof("dataset(name=%s) get samples from data source(url=%s) successfully. number of samples: %d",
+				name, dataURL, dataSource.NumberOfSamples)
+
+			header := gmclient.MessageHeader{
+				Namespace:    ds.Namespace,
+				ResourceKind: ds.Kind,
+				ResourceName: ds.Name,
+				Operation:    gmclient.StatusOperation,
+			}
+
+			if err := dm.Client.WriteMessage(struct {
+				NumberOfSamples int `json:"numberOfSamples"`
+			}{
+				dataSource.NumberOfSamples,
+			}, header); err != nil {
+				klog.Errorf("dataset(name=%s) publish samples info failed", name)
+			}
 		}
-		ds.DataSource = dataSource
-
-		klog.Infof("dataset(name=%s) get samples from data source(url=%s) successfully. number of samples: %d",
-			uniqueIdentifier, dataURL, dataSource.NumberOfSamples)
-
-		message.Header.Operation = StatusOperation
-		if err := dm.Client.WriteMessage(struct {
-			NameSpace       string `json:"namespace"`
-			Name            string `json:"name"`
-			NumberOfSamples int    `json:"numberOfSamples"`
-		}{
-			message.Header.ResourceName,
-			message.Header.ResourceName,
-			dataSource.NumberOfSamples,
-		}, message.Header); err != nil {
-			klog.Errorf("dataset(name=%s) publish samples info failed", uniqueIdentifier)
-		}
-
-		dm.addNewDataset(uniqueIdentifier, *ds)
+		<-time.After(MonitorDataSourceIntervalSeconds * time.Second)
 	}
 }
 
@@ -260,6 +191,14 @@ func (dm *DatasetManager) readByLine(url string) (*DataSource, error) {
 	}
 
 	return &dataSource, nil
+}
+
+func (dm *DatasetManager) GetName() string {
+	return DatasetResourceKind
+}
+
+func (dm *DatasetManager) AddWorkerMessage(message WorkerMessage) {
+	// dummy
 }
 
 // getSamples gets samples in a file

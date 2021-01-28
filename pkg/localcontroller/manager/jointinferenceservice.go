@@ -5,23 +5,16 @@ import (
 
 	"k8s.io/klog/v2"
 
+	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/db"
+	"github.com/edgeai-neptune/neptune/pkg/localcontroller/gmclient"
 	"github.com/edgeai-neptune/neptune/pkg/localcontroller/util"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/wsclient"
 )
 
 // JointInferenceManager defines joint-inference-service manager
 type JointInferenceManager struct {
-	Client               *wsclient.Client
+	Client               gmclient.ClientI
 	WorkerMessageChannel chan WorkerMessage
-}
-
-// JointInference defines config for joint-inference-service
-type JointInference struct {
-	APIVersion string                 `json:"apiVersion"`
-	Kind       string                 `json:"kind"`
-	MetaData   map[string]interface{} `json:"metadata"`
-	Spec       map[string]interface{} `json:"spec"`
 }
 
 const (
@@ -30,7 +23,7 @@ const (
 )
 
 // NewJointInferenceManager creates a joint inference manager
-func NewJointInferenceManager(client *wsclient.Client) FeatureManager {
+func NewJointInferenceManager(client gmclient.ClientI) FeatureManager {
 	jm := &JointInferenceManager{
 		Client:               client,
 		WorkerMessageChannel: make(chan WorkerMessage, WorkerMessageChannelCacheSize),
@@ -41,33 +34,9 @@ func NewJointInferenceManager(client *wsclient.Client) FeatureManager {
 
 // Start starts joint-inference-service manager
 func (jm *JointInferenceManager) Start() error {
-	if err := jm.Client.Subscribe(JointInferenceServiceKind, jm.handleMessage); err != nil {
-		klog.Errorf("register joint-inference-service manager to the client failed, error: %v", err)
-		return err
-	}
-
 	go jm.monitorWorker()
 
-	klog.Infof("start joint-inference-service manager successfully")
-
 	return nil
-}
-
-// handleMessage handles the message from GlobalManager
-func (jm *JointInferenceManager) handleMessage(message *wsclient.Message) {
-	uniqueIdentifier := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
-
-	switch message.Header.Operation {
-	case InsertOperation:
-		if err := jm.insertService(uniqueIdentifier, message.Content); err != nil {
-			klog.Errorf("insert %s(name=%s) to db failed, error: %v", message.Header.ResourceKind, uniqueIdentifier, err)
-		}
-
-	case DeleteOperation:
-		if err := jm.deleteService(uniqueIdentifier); err != nil {
-			klog.Errorf("delete %s(name=%s) to db failed, error: %v", message.Header.ResourceKind, uniqueIdentifier, err)
-		}
-	}
 }
 
 // monitorWorker monitors message from worker
@@ -80,11 +49,11 @@ func (jm *JointInferenceManager) monitorWorker() {
 		}
 
 		name := util.GetUniqueIdentifier(workerMessage.Namespace, workerMessage.OwnerName, workerMessage.OwnerKind)
-		header := wsclient.MessageHeader{
+		header := gmclient.MessageHeader{
 			Namespace:    workerMessage.Namespace,
 			ResourceKind: workerMessage.OwnerKind,
 			ResourceName: workerMessage.OwnerName,
-			Operation:    StatusOperation,
+			Operation:    gmclient.StatusOperation,
 		}
 
 		um := UpstreamMessage{
@@ -102,41 +71,26 @@ func (jm *JointInferenceManager) monitorWorker() {
 	}
 }
 
-// insertService inserts joint-inference-service config in db
-func (jm *JointInferenceManager) insertService(name string, payload []byte) error {
-	jointInference := JointInference{}
+// Insert inserts joint-inference-service config in db
+func (jm *JointInferenceManager) Insert(message *gmclient.Message) error {
+	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
-	if err := json.Unmarshal(payload, &jointInference); err != nil {
+	ji := neptunev1.JointInferenceService{}
+
+	if err := json.Unmarshal(message.Content, &ji); err != nil {
 		return err
 	}
 
-	metaData, err := json.Marshal(jointInference.MetaData)
-	if err != nil {
-		return err
-	}
-
-	spec, err := json.Marshal(jointInference.Spec)
-	if err != nil {
-		return err
-	}
-
-	r := db.Resource{
-		Name:       name,
-		APIVersion: jointInference.APIVersion,
-		Kind:       jointInference.Kind,
-		MetaData:   string(metaData),
-		Spec:       string(spec),
-	}
-
-	if err = db.SaveResource(&r); err != nil {
+	if err := db.SaveResource(name, ji.TypeMeta, ji.ObjectMeta, ji.Spec); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// deleteService deletes joint-inference-service config in db
-func (jm *JointInferenceManager) deleteService(name string) error {
+// Delete deletes joint-inference-service config in db
+func (jm *JointInferenceManager) Delete(message *gmclient.Message) error {
+	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 	if err := db.DeleteResource(name); err != nil {
 		return err
 	}
@@ -144,12 +98,12 @@ func (jm *JointInferenceManager) deleteService(name string) error {
 	return nil
 }
 
-// AddWorkerMessageToChannel adds worker messages to the channel
-func (jm *JointInferenceManager) AddWorkerMessageToChannel(message WorkerMessage) {
+// AddWorkerMessage adds worker messages
+func (jm *JointInferenceManager) AddWorkerMessage(message WorkerMessage) {
 	jm.WorkerMessageChannel <- message
 }
 
-// GetKind gets kind of the manager
-func (jm *JointInferenceManager) GetKind() string {
+// GetName gets kind of the manager
+func (jm *JointInferenceManager) GetName() string {
 	return JointInferenceServiceKind
 }
