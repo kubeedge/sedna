@@ -1,7 +1,7 @@
 package manager
 
 import (
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/gmclient"
+	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
 )
 
 const (

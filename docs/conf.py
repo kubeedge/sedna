@@ -15,11 +15,11 @@ import sys
 import sphinx_rtd_theme
 
 sys.path.insert(0, os.path.abspath('../lib'))
-sys.path.insert(0, os.path.abspath('../lib/neptune'))
+sys.path.insert(0, os.path.abspath('../lib/sedna'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Neptune'
+project = 'Sedna'
 copyright = '2020, Kubeedge'
 author = 'Kubeedge'
 

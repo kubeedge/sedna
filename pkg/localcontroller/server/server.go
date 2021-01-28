@@ -7,9 +7,9 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	"k8s.io/klog/v2"
 
-	"github.com/edgeai-neptune/neptune/cmd/neptune-lc/app/options"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/common/constants"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/manager"
+	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
+	"github.com/kubeedge/sedna/pkg/localcontroller/common/constants"
+	"github.com/kubeedge/sedna/pkg/localcontroller/manager"
 )
 
 // Server defines server

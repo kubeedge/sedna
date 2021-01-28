@@ -57,7 +57,7 @@ The tables below summarize the group, kind and API version details for the CRDs.
 
 | Field                 | Description             |
 |-----------------------|-------------------------|
-|Group                  | neptune.io     |
+|Group                  | sedna.io     |
 |APIVersion             | v1alpha1                |
 |Kind                   | Dataset             |
 
@@ -65,7 +65,7 @@ The tables below summarize the group, kind and API version details for the CRDs.
 
 | Field                 | Description             |
 |-----------------------|-------------------------|
-|Group                  | neptune.io     |
+|Group                  | sedna.io     |
 |APIVersion             | v1alpha1                |
 |Kind                   | Model             |
 
@@ -73,15 +73,15 @@ The tables below summarize the group, kind and API version details for the CRDs.
 
 #### `Dataset` CRD
 
-[crd source](/build/crds/neptune/dataset_v1alpha1.yaml)
+[crd source](/build/crds/sedna/dataset_v1alpha1.yaml)
 
 ```yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: datasets.neptune.io
+  name: datasets.sedna.io
 spec:
-  group: neptune.io
+  group: sedna.io
   names:
     kind: Dataset
     plural: datasets
@@ -144,14 +144,14 @@ Current we support these below formats:
 
 #### `Model` CRD
 
-[crd source](/build/crds/neptune/model_v1alpha1.yaml)
+[crd source](/build/crds/sedna/model_v1alpha1.yaml)
 ```yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: models.neptune.io
+  name: models.sedna.io
 spec:
-  group: neptune.io
+  group: sedna.io
   names:
     kind: Model
     plural: models
@@ -209,7 +209,7 @@ spec:
 ### CRD type definition
 - `Dataset`
 
-[go source](cloud/pkg/apis/neptune/v1alpha1/dataset_types.go)
+[go source](cloud/pkg/apis/sedna/v1alpha1/dataset_types.go)
 
 ```go
 package v1alpha1
@@ -259,7 +259,7 @@ type DatasetList struct {
 
 - `Model`
 
-[go source](cloud/pkg/apis/neptune/v1alpha1/model_types.go)
+[go source](cloud/pkg/apis/sedna/v1alpha1/model_types.go)
 ```go
 package v1alpha1
 
@@ -309,7 +309,7 @@ type ModelList struct {
 - `Dataset`
 
 ```yaml
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: Dataset
 metadata:
   name: "dataset-examp"
@@ -322,7 +322,7 @@ spec:
 - `Model`
 
 ```yaml
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
   name: model-examp

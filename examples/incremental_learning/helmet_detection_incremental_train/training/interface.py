@@ -7,7 +7,7 @@ import tensorflow as tf
 from tqdm import tqdm
 
 from data_gen import DataGen
-from neptune.incremental_learning.incremental_learning import IncrementalConfig
+from sedna.incremental_learning.incremental_learning import IncrementalConfig
 from yolo3_multiscale import Yolo3
 from yolo3_multiscale import YoloConfig
 

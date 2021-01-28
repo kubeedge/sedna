@@ -2,10 +2,10 @@ package constants
 
 const (
 	// ServerRootPath is the root path of server
-	ServerRootPath = "neptune"
+	ServerRootPath = "sedna"
 
 	// DataBaseURL is url of database
-	DataBaseURL = "/var/lib/neptune/database.db"
+	DataBaseURL = "/var/lib/sedna/database.db"
 
 	// WSScheme is the scheme of websocket
 	WSScheme = "ws"

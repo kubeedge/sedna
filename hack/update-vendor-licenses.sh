@@ -183,7 +183,7 @@ declare -Ag CONTENT
 if [ -f "${LICENSE_ROOT}/LICENSE" ]; then
   (
     echo "================================================================================"
-    echo "= Neptune licensed under: ="
+    echo "= Sedna licensed under: ="
     echo
     cat "${LICENSE_ROOT}/LICENSE"
     echo

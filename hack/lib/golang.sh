@@ -26,7 +26,7 @@ set -o pipefail
 YES="y"
 NO="n"
 
-neptune::version::get_version_info() {
+sedna::version::get_version_info() {
 
   GIT_COMMIT=$(git rev-parse "HEAD^{commit}" 2>/dev/null)
 
@@ -90,8 +90,8 @@ EOF
 }
 
 # Get the value that needs to be passed to the -ldflags parameter of go build
-neptune::version::ldflags() {
-  neptune::version::get_version_info > /dev/null
+sedna::version::ldflags() {
+  sedna::version::get_version_info > /dev/null
 
   local -a ldflags
   function add_ldflag() {
@@ -99,7 +99,7 @@ neptune::version::ldflags() {
     local val=${2}
     # If you update these, also update the list pkg/version/def.bzl.
     ldflags+=(
-      "-X ${NEPTUNE_GO_PACKAGE}/pkg/version.${key}=${val}"
+      "-X ${SEDNA_GO_PACKAGE}/pkg/version.${key}=${val}"
     )
   }
 
@@ -123,16 +123,16 @@ neptune::version::ldflags() {
 }
 
 
-# neptune::binaries_from_targets take a list of build targets and return the
+# sedna::binaries_from_targets take a list of build targets and return the
 # full go package to be built
-neptune::golang::binaries_from_targets() {
+sedna::golang::binaries_from_targets() {
   local target
   for target in "$@"; do
-    echo "${NEPTUNE_GO_PACKAGE}/${target}"
+    echo "${SEDNA_GO_PACKAGE}/${target}"
   done
 }
 
-neptune::check::env() {
+sedna::check::env() {
   errors=()
   if [ -z "$GOPATH" ]; then
     errors+="GOPATH environment value not set"
@@ -151,11 +151,11 @@ neptune::check::env() {
 }
 
 ALL_BINARIES_AND_TARGETS=(
-  gm:cmd/neptune-gm
-  lc:cmd/neptune-lc
+  gm:cmd/sedna-gm
+  lc:cmd/sedna-lc
 )
 
-neptune::golang::get_target_by_binary() {
+sedna::golang::get_target_by_binary() {
   local key=$1
   for bt in "${ALL_BINARIES_AND_TARGETS[@]}" ; do
     local binary="${bt%%:*}"
@@ -168,7 +168,7 @@ neptune::golang::get_target_by_binary() {
   exit 1
 }
 
-neptune::golang::get_all_targets() {
+sedna::golang::get_all_targets() {
   local -a targets
   for bt in "${ALL_BINARIES_AND_TARGETS[@]}" ; do
     targets+=("${bt##*:}")
@@ -176,7 +176,7 @@ neptune::golang::get_all_targets() {
   echo ${targets[@]}
 }
 
-neptune::golang::get_all_binares() {
+sedna::golang::get_all_binares() {
   local -a binares
   for bt in "${ALL_BINARIES_AND_TARGETS[@]}" ; do
     binares+=("${bt%%:*}")
@@ -184,35 +184,35 @@ neptune::golang::get_all_binares() {
   echo ${binares[@]}
 }
 
-IFS=" " read -ra NEPTUNE_ALL_TARGETS <<< "$(neptune::golang::get_all_targets)"
-IFS=" " read -ra NEPTUNE_ALL_BINARIES<<< "$(neptune::golang::get_all_binares)"
+IFS=" " read -ra SEDNA_ALL_TARGETS <<< "$(sedna::golang::get_all_targets)"
+IFS=" " read -ra SEDNA_ALL_BINARIES<<< "$(sedna::golang::get_all_binares)"
 
-neptune::golang::build_binaries() {
-  neptune::check::env
+sedna::golang::build_binaries() {
+  sedna::check::env
   local -a targets=()
   local binArg
   for binArg in "$@"; do
-    targets+=("$(neptune::golang::get_target_by_binary $binArg)")
+    targets+=("$(sedna::golang::get_target_by_binary $binArg)")
   done
 
   if [[ ${#targets[@]} -eq 0 ]]; then
-    targets=("${NEPTUNE_ALL_TARGETS[@]}")
+    targets=("${SEDNA_ALL_TARGETS[@]}")
   fi
 
   local -a binaries
-  while IFS="" read -r binary; do binaries+=("$binary"); done < <(neptune::golang::binaries_from_targets "${targets[@]}")
+  while IFS="" read -r binary; do binaries+=("$binary"); done < <(sedna::golang::binaries_from_targets "${targets[@]}")
 
   local goldflags gogcflags
   # If GOLDFLAGS is unset, then set it to the a default of "-s -w".
-  goldflags="${GOLDFLAGS=-s -w -buildid=} $(neptune::version::ldflags)"
+  goldflags="${GOLDFLAGS=-s -w -buildid=} $(sedna::version::ldflags)"
   gogcflags="${GOGCFLAGS:-}"
 
-  mkdir -p ${NEPTUNE_OUT_BINPATH}
+  mkdir -p ${SEDNA_OUT_BINPATH}
   for bin in ${binaries[@]}; do
     echo "building $bin"
     local name="${bin##*/}"
     set -x
-    go build -o ${NEPTUNE_OUT_BINPATH}/${name} -gcflags="${gogcflags:-}" -ldflags "${goldflags:-}" $bin
+    go build -o ${SEDNA_OUT_BINPATH}/${name} -gcflags="${gogcflags:-}" -ldflags "${goldflags:-}" $bin
     set +x
   done
 }

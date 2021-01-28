@@ -1,0 +1,31 @@
+apiVersion: sedna.io/v1alpha1
+kind: JointInferenceService
+metadata:
+  name: example
+spec:
+  edgeWorker:
+    model:
+      name: "small-model"
+    nodeName: "edge0"
+    hardExampleMining:
+      name: "IBT"
+    workerSpec:
+      scriptDir: "/code"
+      scriptBootFile: "edge_inference.py"
+      frameworkType: "tensorflow"
+      frameworkVersion: "1.18"
+      parameters:
+        - key: "nms_threshold"
+          value: "0.6"
+  cloudWorker:
+    model:
+      name: "big-model"
+    nodeName: "solar-corona-cloud"
+    workerSpec:
+      scriptDir: "/code"
+      scriptBootFile: "cloud_inference.py"
+      frameworkType: "tensorflow"
+      frameworkVersion: "1.18"
+      parameters:
+        - key: "nms_threshold"
+          value: "0.6"

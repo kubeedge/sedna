@@ -10,8 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 	"k8s.io/klog/v2"
 
-	"github.com/edgeai-neptune/neptune/cmd/neptune-lc/app/options"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/common/constants"
+	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
+	"github.com/kubeedge/sedna/pkg/localcontroller/common/constants"
 )
 
 // wsClient defines a websocket client

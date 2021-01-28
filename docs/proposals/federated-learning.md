@@ -65,7 +65,7 @@ The tables below summarize the group, kind and API version details for the CRD.
 
 | Field                 | Description             |
 |-----------------------|-------------------------|
-|Group                  | neptune.io     |
+|Group                  | sedna.io     |
 |APIVersion             | v1alpha1                |
 |Kind                   | FederatedLearningJob             |
 
@@ -80,15 +80,15 @@ We will extend it to the support with `pod template` like k8s deployment.
 1. We will add the [resources](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) support in the future.
 
 Below is the CustomResourceDefinition yaml for `FederatedLearningJob`:
-[crd source](/build/crds/neptune/federatedjob_v1alpha1.yaml)
+[crd source](/build/crds/sedna/federatedjob_v1alpha1.yaml)
 
 ```yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: federatedjobs.neptune.io
+  name: federatedjobs.sedna.io
 spec:
-  group: neptune.io
+  group: sedna.io
   names:
     kind: FederatedJob
     plural: federatedjobs
@@ -273,7 +273,7 @@ spec:
 
 ### Federated learning type definition
 
-[go source](cloud/pkg/apis/neptune/v1alpha1/federatedjob_types.go)
+[go source](cloud/pkg/apis/sedna/v1alpha1/federatedjob_types.go)
 
 ```go
 package v1alpha1
@@ -445,7 +445,7 @@ Here is a list of validations we need to support :
 
 ### federated learning sample
 ```yaml
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: FederatedLearningJob
 metadata:
   name: magnetic-tile-defect-detection

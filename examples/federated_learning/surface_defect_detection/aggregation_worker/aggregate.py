@@ -2,8 +2,8 @@ import logging
 
 import numpy as np
 
-from neptune.federated_learning.aggregator import AggregationServer
-from neptune.federated_learning.aggregator import Aggregator
+from sedna.federated_learning.aggregator import AggregationServer
+from sedna.federated_learning.aggregator import Aggregator
 
 LOG = logging.getLogger(__name__)
 

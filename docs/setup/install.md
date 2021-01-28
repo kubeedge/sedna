@@ -9,7 +9,7 @@
  * [Run GM as docker container(alternative)](#run-gm-as-docker-containeralternative)
 * [Deploy LC](#deploy-lc)
 
-## Deploy Neptune
+## Deploy Sedna
 
 ### Prerequisites
 
@@ -28,8 +28,8 @@ The shell commands below should to be executed in this node and **one terminal s
 
 ### Download source
 ```shell
-git clone http://github.com/edgeai-neptune/neptune.git
-cd neptune
+git clone http://github.com/kubeedge/sedna.git
+cd sedna
 git checkout master
 ```
 
@@ -37,7 +37,7 @@ git checkout master
 
 ```shell
 # create these crds including dataset, model, joint-inference
-kubectl apply -f build/crds/neptune/
+kubectl apply -f build/crds/sedna/
 ```
 
 ### Deploy GM
@@ -49,7 +49,7 @@ kubeConfig: ""
 master: ""
 namespace: ""
 imageHub:
- "tensorflow:1.15": "docker.io/neptune/tensorflow-base-image-to-filled:1.15"
+ "tensorflow:1.15": "docker.io/sedna/tensorflow-base-image-to-filled:1.15"
 websocket:
   address: 0.0.0.0
   port: 9000
@@ -70,7 +70,7 @@ Here build worker base image for tensorflow 1.15 for example:
 ```shell
 # here using github container registry for example.
 # edit it with the truly container registry by your choice.
-IMAGE_REPO=ghcr.io/edgeai-neptune/neptune
+IMAGE_REPO=ghcr.io/kubeedge/sedna
 
 # build tensorflow image
 WORKER_TF1_IMAGE=$IMAGE_REPO/worker-tensorflow:1.15
@@ -103,7 +103,7 @@ LC_PORT=9100
 
 # here using github container registry for example
 # edit it with the truly container registry by your choice.
-IMAGE_REPO=ghcr.io/edgeai-neptune/neptune
+IMAGE_REPO=ghcr.io/kubeedge/sedna
 IMAGE_TAG=v1alpha1
 
 LC_SERVER="http://localhost:$LC_PORT"
@@ -147,7 +147,7 @@ docker push $GM_IMAGE
 ```shell
 # create configmap from $CONFIG_FILE
 CONFIG_NAME=gm-config   # customize this configmap name
-kubectl create -n neptune configmap $CONFIG_NAME --from-file=$CONFIG_FILE
+kubectl create -n sedna configmap $CONFIG_NAME --from-file=$CONFIG_FILE
 ```
 
 5\. Deploy GM as deployment:
@@ -162,7 +162,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gm
-  namespace: neptune
+  namespace: sedna
 spec:
   selector:
     app: gm
@@ -178,7 +178,7 @@ metadata:
   name: gm
   labels:
     app: gm
-  namespace: neptune
+  namespace: sedna
 spec:
   replicas: 1
   selector:
@@ -190,11 +190,11 @@ spec:
         app: gm
     spec:
       nodeName: $GM_NODE_NAME
-      serviceAccountName: neptune
+      serviceAccountName: sedna
       containers:
       - name: gm
         image: $GM_IMAGE
-        command: ["neptune-gm", "--config", "/config/$CONFIG_FILE", "-v2"]
+        command: ["sedna-gm", "--config", "/config/$CONFIG_FILE", "-v2"]
         volumeMounts:
         - name: gm-config
           mountPath: /config
@@ -213,28 +213,28 @@ EOF
 
 6\. Check the GM status:
 ```shell
-kubectl get deploy -n neptune gm
+kubectl get deploy -n sedna gm
 ```
 
 #### Run GM as a single process(alternative)
 1\. config GM:
 ```shell
-cp build/gm/neptune-gm.yaml gm.yaml
+cp build/gm/sedna-gm.yaml gm.yaml
 # make sure /root/.kube/config exists
 sed -i 's@kubeConfig.*@kubeConfig: /root/.kube/config@' gm.yaml
 ```
 
 2\. compile and run GM direct:
 ```shell
-go build cmd/neptune-gm/neptune-gm.go
-./neptune-gm --config gm.yaml -v2
+go build cmd/sedna-gm/sedna-gm.go
+./sedna-gm --config gm.yaml -v2
 ```
 
 #### Run GM as docker container(alternative)
 1\. build GM image:
 ```shell
 GM_IMAGE=$IMAGE_REPO/gm:$IMAGE_TAG
-sed -i 's@kubeConfig.*@kubeConfig: /root/.kube/config@' build/gm/neptune-gm.yaml
+sed -i 's@kubeConfig.*@kubeConfig: /root/.kube/config@' build/gm/sedna-gm.yaml
 make gmimage IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
 ```
 
@@ -262,7 +262,7 @@ docker push $LC_IMAGE
 
 2\. Deploy LC as k8s daemonset:
 ```shell
-gm_node_port=$(kubectl -n neptune get svc gm -ojsonpath='{.spec.ports[0].nodePort}')
+gm_node_port=$(kubectl -n sedna get svc gm -ojsonpath='{.spec.ports[0].nodePort}')
 
 # fill the GM_NODE_NAME's ip which edge node can access to.
 # such as gm_node_ip=192.168.0.9
@@ -278,9 +278,9 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    k8s-app: neptune-lc
+    k8s-app: sedna-lc
   name: lc
-  namespace: neptune
+  namespace: sedna
 spec:
   selector:
     matchLabels:
@@ -325,9 +325,9 @@ EOF
 
 3\. Check the LC status:
 ```shell
-kubectl get ds lc -n neptune
+kubectl get ds lc -n sedna
 
-kubectl get pod -n neptune
+kubectl get pod -n sedna
 ```
 
 [git_tool]:https://git-scm.com/downloads

@@ -2,9 +2,9 @@ import logging
 
 import tensorflow as tf
 
-import neptune
+import sedna
 from interface import Interface
-from neptune.incremental_learning import IncrementalConfig
+from sedna.incremental_learning import IncrementalConfig
 
 LOG = logging.getLogger(__name__)
 MODEL_URL = IncrementalConfig().model_url
@@ -13,18 +13,18 @@ MODEL_URL = IncrementalConfig().model_url
 def main():
     tf.set_random_seed(22)
 
-    class_names = neptune.context.get_parameters("class_names")
+    class_names = sedna.context.get_parameters("class_names")
 
     # load dataset.
-    train_data = neptune.load_train_dataset(data_format='txt',
+    train_data = sedna.load_train_dataset(data_format='txt',
                                             with_image=False)
 
     # read parameters from deployment config.
-    obj_threshold = neptune.context.get_parameters("obj_threshold")
-    nms_threshold = neptune.context.get_parameters("nms_threshold")
-    input_shape = neptune.context.get_parameters("input_shape")
-    epochs = neptune.context.get_parameters('epochs')
-    batch_size = neptune.context.get_parameters('batch_size')
+    obj_threshold = sedna.context.get_parameters("obj_threshold")
+    nms_threshold = sedna.context.get_parameters("nms_threshold")
+    input_shape = sedna.context.get_parameters("input_shape")
+    epochs = sedna.context.get_parameters('epochs')
+    batch_size = sedna.context.get_parameters('batch_size')
 
     tf.flags.DEFINE_string('train_url', default=MODEL_URL,
                            help='train url for model')
@@ -73,7 +73,7 @@ def main():
 
     model = Interface()
 
-    neptune.incremental_learning.train(model=model,
+    sedna.incremental_learning.train(model=model,
                                        train_data=train_data,
                                        epochs=epochs,
                                        batch_size=batch_size,

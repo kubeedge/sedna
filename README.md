@@ -1,21 +1,21 @@
 English | [简体中文](./README_zh.md)
-# Neptune
-[![CI](https://github.com/edgeai-neptune/neptune/workflows/CI/badge.svg?branch=main)](https://github.com/edgeai-neptune/neptune/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/edgeai-neptune/neptune)](https://goreportcard.com/report/github.com/edgeai-neptune/neptune)
-[![LICENSE](https://img.shields.io/github/license/edgeai-neptune/neptune.svg?style=flat-square)](/LICENSE)
+# Sedna
+[![CI](https://github.com/kubeedge/sedna/workflows/CI/badge.svg?branch=main)](https://github.com/kubeedge/sedna/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kubeedge/sedna)](https://goreportcard.com/report/github.com/kubeedge/sedna)
+[![LICENSE](https://img.shields.io/github/license/kubeedge/sedna.svg?style=flat-square)](/LICENSE)
 
-## What is Neptune?
+## What is Sedna?
 
-Neptune is an edge-cloud synergy AI project incubated in KubeEdge SIG AI. Benefiting from the edge-cloud synergy capabilities provided by KubeEdge, Neptune can implement across edge-cloud collaborative training and collaborative inference capabilities, such as joint inference, incremental learning, and federated learning. Neptune supports popular AI frameworks, such as TensorFlow, Pytorch, PaddlePaddle, MindSpore. 
+Sedna is an edge-cloud synergy AI project incubated in KubeEdge SIG AI. Benefiting from the edge-cloud synergy capabilities provided by KubeEdge, Sedna can implement across edge-cloud collaborative training and collaborative inference capabilities, such as joint inference, incremental learning, and federated learning. Sedna supports popular AI frameworks, such as TensorFlow, Pytorch, PaddlePaddle, MindSpore. 
 
-Neptune can simply enable edge-cloud synergy capabilities to existing training and inference scripts, bringing the benefits of reducing costs, improving model performance, and protecting data privacy.
+Sedna can simply enable edge-cloud synergy capabilities to existing training and inference scripts, bringing the benefits of reducing costs, improving model performance, and protecting data privacy.
 
 
 **Currently, this project is in the preview and being promoted to enter the KubeEdge community.**
 
 ## Features
     
-Neptune has the following features：  
+Sedna has the following features：  
  
 * Provide the edge-cloud synergy AI framework.
     * Provide dataset and model management across edge-cloud, helping developers quickly implement synergy AI applications.
@@ -32,7 +32,7 @@ Neptune has the following features：
 
 
 ## Architecture
-#### Neptune's edge-cloud synergy is implemented based on the following capabilities provided by KubeEdge:
+#### Sedna's edge-cloud synergy is implemented based on the following capabilities provided by KubeEdge:
 * Unified orchestration of across edge-cloud applications.
 * Router: across edge-cloud message channel in management plane.
 * EdgeMesh: across edge-cloud microservice discovery and traffic governance in data plane.
@@ -45,7 +45,7 @@ Neptune has the following features：
 
 
 ### Component
-Neptune consists of the following components：
+Sedna consists of the following components：
 
 #### GlobalManager
 * Unified edge-cloud synergy AI task management
@@ -71,7 +71,7 @@ Neptune consists of the following components：
 
 ## Guides
 ### Installation
-Follow the [Neptune installation document](docs/setup/install.md) to install Neptune.
+Follow the [Sedna installation document](docs/setup/install.md) to install Sedna.
 
 ### Examples
 Example1：[Joint Inference Service in Helmet Detection Scenario](/examples/joint_inference/helmet_detection_inference/README.md).
@@ -105,9 +105,10 @@ If you have questions, feel free to reach out to us in the following ways:
 <!--
 ## Contributing
 
-If you're interested in being a contributor and want to get involved in developing the Neptune code, please see [CONTRIBUTING](CONTRIBUTING.md) for details on submitting patches and the contribution workflow.
+If you're interested in being a contributor and want to get involved in developing the Sedna code, please see [CONTRIBUTING](CONTRIBUTING.md) for details on submitting patches and the contribution workflow.
 -->
 
 ## License
 
-Neptune is under the Apache 2.0 license. See the [LICENSE](LICENSE) file for details.
+Sedna is under the Apache 2.0 license. See the [LICENSE](LICENSE) file for details.
+

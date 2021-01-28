@@ -6,8 +6,8 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/config"
-	websocket "github.com/edgeai-neptune/neptune/pkg/globalmanager/messagelayer/ws"
+	"github.com/kubeedge/sedna/pkg/globalmanager/config"
+	websocket "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/ws"
 )
 
 // MainController defines the main controller

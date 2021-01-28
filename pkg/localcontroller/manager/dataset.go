@@ -10,11 +10,11 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/edgeai-neptune/neptune/cmd/neptune-lc/app/options"
-	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/db"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/gmclient"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/util"
+	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/localcontroller/db"
+	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	"github.com/kubeedge/sedna/pkg/localcontroller/util"
 )
 
 const (
@@ -33,7 +33,7 @@ type DatasetManager struct {
 
 // Dataset defines config for dataset
 type Dataset struct {
-	*neptunev1.Dataset
+	*sednav1.Dataset
 	DataSource *DataSource `json:"dataSource"`
 	Done       chan struct{}
 }

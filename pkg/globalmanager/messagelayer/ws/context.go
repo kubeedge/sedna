@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/messagelayer/model"
+	"github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/model"
 )
 
 type nodeMessage struct {

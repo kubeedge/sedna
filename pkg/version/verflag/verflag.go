@@ -23,7 +23,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/edgeai-neptune/neptune/pkg/version"
+	"github.com/kubeedge/sedna/pkg/version"
 
 	flag "github.com/spf13/pflag"
 )
@@ -104,7 +104,7 @@ func PrintAndExitIfRequested() {
 		fmt.Printf("%#v\n", version.Get())
 		os.Exit(0)
 	} else if *versionFlag == VersionTrue {
-		fmt.Printf("Neptune %s\n", version.Get())
+		fmt.Printf("Sedna %s\n", version.Get())
 		os.Exit(0)
 	}
 }

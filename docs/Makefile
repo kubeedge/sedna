@@ -26,7 +26,7 @@ clean:
 
 api:
 	rm -rf ./source/api/*
-	@$(SPHINXAPIDOC) -M -o ./lib-api/joint_inference ../lib/neptune/joint_inference
+	@$(SPHINXAPIDOC) -M -o ./lib-api/joint_inference ../lib/sedna/joint_inference
 
 html:
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

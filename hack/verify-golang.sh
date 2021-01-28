@@ -5,9 +5,9 @@ set -o nounset
 set -o pipefail
 
 # The root of the build/dist directory
-NEPTUNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+SEDNA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-source "${NEPTUNE_ROOT}/hack/lib/init.sh"
+source "${SEDNA_ROOT}/hack/lib/init.sh"
 
 if ! command -v go 2>/dev/null; then
   cat >&2 <<EOF

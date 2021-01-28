@@ -12,17 +12,17 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/edgeai-neptune/neptune/cmd/neptune-lc/app/options"
-	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/db"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/gmclient"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/trigger"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/util"
+	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/localcontroller/db"
+	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	"github.com/kubeedge/sedna/pkg/localcontroller/trigger"
+	"github.com/kubeedge/sedna/pkg/localcontroller/util"
 )
 
 // IncrementalLearningJob defines config for incremental-learning-job
 type IncrementalLearningJob struct {
-	neptunev1.IncrementalLearningJob
+	sednav1.IncrementalLearningJob
 	JobConfig *JobConfig
 	Dataset   *Dataset
 	Done      chan struct{}
@@ -380,7 +380,7 @@ func (im *IncrementalJobManager) initJob(job *IncrementalLearningJob) error {
 	return nil
 }
 
-func newTrigger(t neptunev1.Trigger) (trigger.Base, error) {
+func newTrigger(t sednav1.Trigger) (trigger.Base, error) {
 	// convert trigger to map
 	triggerMap := make(map[string]interface{})
 	c, err := json.Marshal(t)
@@ -589,7 +589,7 @@ func createOutputDir(jobConfig *JobConfig) error {
 // incremental job is synced to LC.
 func (im *IncrementalJobManager) loadModels(job *IncrementalLearningJob) error {
 	jobConfig := job.JobConfig
-	getModel := func(name string) (neptunev1.Model, error) {
+	getModel := func(name string) (sednav1.Model, error) {
 		modelName := util.GetUniqueIdentifier(
 			job.Namespace,
 			name, ModelResourceKind)

@@ -58,7 +58,7 @@ The tables below summarize the group, kind and API version details for the CRD.
 
 | Field                 | Description             |
 |-----------------------|-------------------------|
-|Group                  | neptune.io     |
+|Group                  | sedna.io     |
 |APIVersion             | v1alpha1                |
 |Kind                   | JointInferenceService             |
 
@@ -67,15 +67,15 @@ The tables below summarize the group, kind and API version details for the CRD.
 
 Below is the CustomResourceDefinition yaml for `JointInferenceService`:
 
-[crd source](/build/crds/neptune/jointinferenceservice_v1alpha1.yaml)
+[crd source](/build/crds/sedna/jointinferenceservice_v1alpha1.yaml)
 
 ```yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: jointinferenceservices.neptune.io
+  name: jointinferenceservices.sedna.io
 spec:
-  group: neptune.io
+  group: sedna.io
   names:
     kind: JointInferenceService
     plural: jointinferenceservices
@@ -263,7 +263,7 @@ spec:
 
 ### Joint inference type definition
 
-[go source](cloud/pkg/apis/neptune/v1alpha1/jointinferenceservice_types.go)
+[go source](cloud/pkg/apis/sedna/v1alpha1/jointinferenceservice_types.go)
 
 ```go
 package v1alpha1
@@ -400,7 +400,7 @@ Here is a list of validations we need to support :
 
 ### joint inference sample
 ```yaml
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: JointInferenceService
 metadata:
   name: helmet-detection-demo
@@ -479,13 +479,13 @@ Updates are categorized below along with the possible actions that the upstream 
 ### Details of api between GM(cloud) and LC(edge)
 1. GM(downstream controller) syncs the task info to LC:
     ```go
-    // POST <namespace>/neptune/downstream/jointinferenceservices/<name>/insert
+    // POST <namespace>/sedna/downstream/jointinferenceservices/<name>/insert
     // body same to the task crd of k8s api, omitted here.
     ```
 
 1. LC uploads the task status which reported by the worker to GM(upstream controller):
     ```go
-    // POST <namespace>/neptune/upstream/jointinferenceservices/<name>/status
+    // POST <namespace>/sedna/upstream/jointinferenceservices/<name>/status
        
     // JoinInferenceServiceStatus defines status that send to GlobalManager
     type JoinInferenceServiceStatus struct {
@@ -521,7 +521,7 @@ Updates are categorized below along with the possible actions that the upstream 
 1. Worker sends inference info to LC in same edge node:
 
     ```
-    // POST /neptune/workers/<worker-name>/info
+    // POST /sedna/workers/<worker-name>/info
     ```
  
     ```json

@@ -26,14 +26,14 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	k8scontroller "k8s.io/kubernetes/pkg/controller"
 
-	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
-	clientset "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned"
-	neptuneclientset "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned/typed/neptune/v1alpha1"
-	informers "github.com/edgeai-neptune/neptune/pkg/client/informers/externalversions"
-	neptunev1listers "github.com/edgeai-neptune/neptune/pkg/client/listers/neptune/v1alpha1"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/config"
-	messageContext "github.com/edgeai-neptune/neptune/pkg/globalmanager/messagelayer/ws"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/utils"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned"
+	sednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
+	informers "github.com/kubeedge/sedna/pkg/client/informers/externalversions"
+	sednav1listers "github.com/kubeedge/sedna/pkg/client/listers/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/globalmanager/config"
+	messageContext "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/ws"
+	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
 type FLJobStage string
@@ -44,13 +44,13 @@ const (
 )
 
 // flJobControllerKind contains the schema.GroupVersionKind for this controller type.
-var flJobControllerKind = neptunev1.SchemeGroupVersion.WithKind("FederatedLearningJob")
+var flJobControllerKind = sednav1.SchemeGroupVersion.WithKind("FederatedLearningJob")
 
 // FederatedController ensures that all FLJob objects have corresponding pods to
 // run their configured workload.
 type FederatedController struct {
 	kubeClient kubernetes.Interface
-	client     neptuneclientset.NeptuneV1alpha1Interface
+	client     sednaclientset.SednaV1alpha1Interface
 	podControl k8scontroller.PodControlInterface
 
 	// podStoreSynced returns true if the pod store has been synced at least once.
@@ -61,7 +61,7 @@ type FederatedController struct {
 	jobStoreSynced cache.InformerSynced
 
 	// A store of jobs
-	jobLister neptunev1listers.FederatedLearningJobLister
+	jobLister sednav1listers.FederatedLearningJobLister
 
 	// A store of pods, populated by the podController
 	podStore corelisters.PodLister
@@ -179,7 +179,7 @@ func (fc *FederatedController) deletePod(obj interface{}) {
 	fc.enqueueByPod(pod, true)
 }
 
-// obj could be an *neptunev1.FederatedLearningJob, or a DeletionFinalStateUnknown marker item,
+// obj could be an *sednav1.FederatedLearningJob, or a DeletionFinalStateUnknown marker item,
 // immediate tells the controller to update the status right away, and should
 // happen ONLY when there was a successful pod run.
 func (fc *FederatedController) enqueueController(obj interface{}, immediate bool) {
@@ -250,7 +250,7 @@ func (fc *FederatedController) syncFLJob(key string) (bool, error) {
 	}
 	flJob := *sharedFLJob
 	// set kind for flJob in case that the kind is None
-	flJob.SetGroupVersionKind(neptunev1.SchemeGroupVersion.WithKind("FederatedLearningJob"))
+	flJob.SetGroupVersionKind(sednav1.SchemeGroupVersion.WithKind("FederatedLearningJob"))
 	// if flJob was finished previously, we don't want to redo the termination
 	if IsFLJobFinished(&flJob) {
 		return true, nil
@@ -284,8 +284,8 @@ func (fc *FederatedController) syncFLJob(key string) (bool, error) {
 	}
 
 	if jobFailed {
-		flJob.Status.Conditions = append(flJob.Status.Conditions, NewFLJobCondition(neptunev1.FLJobCondFailed, failureReason, failureMessage))
-		flJob.Status.Phase = neptunev1.FLJobFailed
+		flJob.Status.Conditions = append(flJob.Status.Conditions, NewFLJobCondition(sednav1.FLJobCondFailed, failureReason, failureMessage))
+		flJob.Status.Phase = sednav1.FLJobFailed
 		fc.recorder.Event(&flJob, v1.EventTypeWarning, failureReason, failureMessage)
 	} else {
 		// in the First time, we create the pods
@@ -297,13 +297,13 @@ func (fc *FederatedController) syncFLJob(key string) (bool, error) {
 			complete = true
 		}
 		if complete {
-			flJob.Status.Conditions = append(flJob.Status.Conditions, NewFLJobCondition(neptunev1.FLJobCondComplete, "", ""))
+			flJob.Status.Conditions = append(flJob.Status.Conditions, NewFLJobCondition(sednav1.FLJobCondComplete, "", ""))
 			now := metav1.Now()
 			flJob.Status.CompletionTime = &now
 			fc.recorder.Event(&flJob, v1.EventTypeNormal, "Completed", "FLJob completed")
-			flJob.Status.Phase = neptunev1.FLJobSucceeded
+			flJob.Status.Phase = sednav1.FLJobSucceeded
 		} else {
-			flJob.Status.Phase = neptunev1.FLJobRunning
+			flJob.Status.Phase = sednav1.FLJobRunning
 		}
 	}
 
@@ -333,8 +333,8 @@ func (fc *FederatedController) syncFLJob(key string) (bool, error) {
 	return forget, manageJobErr
 }
 
-func NewFLJobCondition(conditionType neptunev1.FLJobConditionType, reason, message string) neptunev1.FLJobCondition {
-	return neptunev1.FLJobCondition{
+func NewFLJobCondition(conditionType sednav1.FLJobConditionType, reason, message string) sednav1.FLJobCondition {
+	return sednav1.FLJobCondition{
 		Type:              conditionType,
 		Status:            v1.ConditionTrue,
 		LastProbeTime:     metav1.Now(),
@@ -351,11 +351,11 @@ func getStatus(pods []*v1.Pod) (succeeded, failed int32) {
 	return
 }
 
-func (fc *FederatedController) updateFLJobStatus(flJob *neptunev1.FederatedLearningJob) error {
+func (fc *FederatedController) updateFLJobStatus(flJob *sednav1.FederatedLearningJob) error {
 	jobClient := fc.client.FederatedLearningJobs(flJob.Namespace)
 	var err error
 	for i := 0; i <= statusUpdateRetries; i = i + 1 {
-		var newFLJob *neptunev1.FederatedLearningJob
+		var newFLJob *sednav1.FederatedLearningJob
 		newFLJob, err = jobClient.Get(context.TODO(), flJob.Name, metav1.GetOptions{})
 		if err != nil {
 			break
@@ -379,16 +379,16 @@ func filterPods(pods []*v1.Pod, phase v1.PodPhase) int {
 	return result
 }
 
-func IsFLJobFinished(j *neptunev1.FederatedLearningJob) bool {
+func IsFLJobFinished(j *sednav1.FederatedLearningJob) bool {
 	for _, c := range j.Status.Conditions {
-		if (c.Type == neptunev1.FLJobCondComplete || c.Type == neptunev1.FLJobCondFailed) && c.Status == v1.ConditionTrue {
+		if (c.Type == sednav1.FLJobCondComplete || c.Type == sednav1.FLJobCondFailed) && c.Status == v1.ConditionTrue {
 			return true
 		}
 	}
 	return false
 }
 
-func (fc *FederatedController) createPod(job *neptunev1.FederatedLearningJob) (active int32, err error) {
+func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (active int32, err error) {
 	active = 0
 	ctx := context.Background()
 
@@ -510,7 +510,7 @@ func (fc *FederatedController) createPod(job *neptunev1.FederatedLearningJob) (a
 	return
 }
 
-func (fc *FederatedController) generatedPod(job *neptunev1.FederatedLearningJob, podtype FLJobStage, containerPara *ContainerPara, active *int32, hostNetwork bool) error {
+func (fc *FederatedController) generatedPod(job *sednav1.FederatedLearningJob, podtype FLJobStage, containerPara *ContainerPara, active *int32, hostNetwork bool) error {
 	var volumeMounts []v1.VolumeMount
 	var volumes []v1.Volume
 	var envs []v1.EnvVar
@@ -531,7 +531,7 @@ func (fc *FederatedController) generatedPod(job *neptunev1.FederatedLearningJob,
 			Namespace:    job.Namespace,
 			GenerateName: job.Name + "-" + strings.ToLower(string(podtype)) + "-",
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(job, neptunev1.SchemeGroupVersion.WithKind("FederatedLearningJob")),
+				*metav1.NewControllerRef(job, sednav1.SchemeGroupVersion.WithKind("FederatedLearningJob")),
 			},
 			Labels: GenerateLabels(job),
 		},
@@ -579,14 +579,14 @@ func NewFederatedController(cfg *config.ControllerConfig) (FeatureControllerI, e
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	jobInformerFactory := informers.NewSharedInformerFactoryWithOptions(crdclient, time.Second*30, informers.WithNamespace(namespace))
-	jobInformer := jobInformerFactory.Neptune().V1alpha1().FederatedLearningJobs()
+	jobInformer := jobInformerFactory.Sedna().V1alpha1().FederatedLearningJobs()
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
 
 	fc := &FederatedController{
 		kubeClient: kubeClient,
-		client:     crdclient.NeptuneV1alpha1(),
+		client:     crdclient.SednaV1alpha1(),
 		podControl: k8scontroller.RealPodControl{
 			KubeClient: kubeClient,
 			Recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "flJob-controller"}),

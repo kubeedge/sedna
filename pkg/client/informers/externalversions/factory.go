@@ -7,9 +7,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned"
-	internalinterfaces "github.com/edgeai-neptune/neptune/pkg/client/informers/externalversions/internalinterfaces"
-	neptune "github.com/edgeai-neptune/neptune/pkg/client/informers/externalversions/neptune"
+	versioned "github.com/kubeedge/sedna/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/kubeedge/sedna/pkg/client/informers/externalversions/internalinterfaces"
+	sedna "github.com/kubeedge/sedna/pkg/client/informers/externalversions/sedna"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -156,9 +156,9 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Neptune() neptune.Interface
+	Sedna() sedna.Interface
 }
 
-func (f *sharedInformerFactory) Neptune() neptune.Interface {
-	return neptune.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Sedna() sedna.Interface {
+	return sedna.New(f, f.namespace, f.tweakListOptions)
 }

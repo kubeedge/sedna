@@ -1,0 +1,178 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: federatedlearningjobs.sedna.io
+spec:
+  group: sedna.io
+  names:
+    kind: FederatedLearningJob
+    plural: federatedlearningjobs
+    shortNames:
+      - fl
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      subresources:
+        # status enables the status subresource.
+        status: {}
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - aggregationWorker
+                - trainingWorkers
+              properties:
+                aggregationWorker:
+                  type: object
+                  required:
+                    - model
+                    - nodeName
+                    - workerSpec
+                  properties:
+                    model:
+                      type: object
+                      required:
+                        - name
+                      properties:
+                        name:
+                          type: string
+                    nodeName:
+                      type: string
+                    workerSpec:
+                      type: object
+                      required:
+                        - scriptDir
+                        - scriptBootFile
+                        - frameworkType
+                        - frameworkVersion
+                      properties:
+                        scriptDir:
+                          type: string
+                        scriptBootFile:
+                          type: string
+                        frameworkType:
+                          type: string
+                        frameworkVersion:
+                          type: string
+                        parameters:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                              - key
+                              - value
+                            properties:
+                              key:
+                                type: string
+                              value:
+                                type: string
+                trainingWorkers:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - nodeName
+                      - workerSpec
+                      - dataset
+                    properties:
+                      model:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                      nodeName:
+                        type: string
+                      dataset:
+                        type: object
+                        required:
+                          - name
+                        properties:
+                          name:
+                            type: string
+                      workerSpec:
+                        type: object
+                        required:
+                          - scriptDir
+                          - scriptBootFile
+                          - frameworkType
+                          - frameworkVersion
+                        properties:
+                          scriptDir:
+                            type: string
+                          scriptBootFile:
+                            type: string
+                          frameworkType:
+                            type: string
+                          frameworkVersion:
+                            type: string
+                          parameters:
+                            type: array
+                            items:
+                              type: object
+                              required:
+                                - key
+                                - value
+                              properties:
+                                key:
+                                  type: string
+                                value:
+                                  type: string
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      lastProbeTime:
+                        type: string
+                        format: date-time
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                startTime:
+                  type: string
+                  format: date-time
+                completionTime:
+                  type: string
+                  format: date-time
+                active:
+                  type: integer
+                succeeded:
+                  type: integer
+                failed:
+                  type: integer
+                phase:
+                  type: string
+
+
+      additionalPrinterColumns:
+        - name: status
+          type: string
+          description: The status of the federated task
+          jsonPath: ".status.phase"
+        - name: active
+          type: integer
+          description: The number of active worker
+          jsonPath: ".status.active"
+        - name: failed
+          type: integer
+          description: The number of failed worker
+          jsonPath: ".status.failed"
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

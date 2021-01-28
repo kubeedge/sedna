@@ -6,9 +6,9 @@ import cv2
 import numpy as np
 import os
 
-import neptune
-from neptune.hard_example_mining import IBTFilter
-from neptune.joint_inference.joint_inference import InferenceResult
+import sedna
+from sedna.hard_example_mining import IBTFilter
+from sedna.joint_inference.joint_inference import InferenceResult
 
 LOG = logging.getLogger(__name__)
 
@@ -16,13 +16,13 @@ LOG = logging.getLogger(__name__)
 colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255),
           (0, 255, 255), (255, 255, 255)]
 class_names = ['person', 'helmet', 'helmet_on', 'helmet_off']
-all_output_path = neptune.context.get_parameters(
+all_output_path = sedna.context.get_parameters(
     'all_examples_inference_output'
 )
-hard_example_edge_output_path = neptune.context.get_parameters(
+hard_example_edge_output_path = sedna.context.get_parameters(
     'hard_example_edge_inference_output'
 )
-hard_example_cloud_output_path = neptune.context.get_parameters(
+hard_example_cloud_output_path = sedna.context.get_parameters(
     'hard_example_cloud_inference_output'
 )
 
@@ -160,16 +160,16 @@ def mkdir(path):
 
 
 def run():
-    input_shape_str = neptune.context.get_parameters("input_shape")
+    input_shape_str = sedna.context.get_parameters("input_shape")
     input_shape = tuple(int(v) for v in input_shape_str.split(","))
-    camera_address = neptune.context.get_parameters('video_url')
+    camera_address = sedna.context.get_parameters('video_url')
 
     mkdir(all_output_path)
     mkdir(hard_example_edge_output_path)
     mkdir(hard_example_cloud_output_path)
 
     # create little model object
-    model = neptune.joint_inference.TSLittleModel(
+    model = sedna.joint_inference.TSLittleModel(
         preprocess=preprocess,
         postprocess=postprocess,
         input_shape=input_shape,
@@ -177,16 +177,16 @@ def run():
         create_output_fetch=create_output_fetch
     )
     # create hard example algorithm
-    threshold_box = float(neptune.context.get_hem_parameters(
+    threshold_box = float(sedna.context.get_hem_parameters(
         "threshold_box", 0.5
     ))
-    threshold_img = float(neptune.context.get_hem_parameters(
+    threshold_img = float(sedna.context.get_hem_parameters(
         "threshold_img", 0.5
     ))
     hard_example_mining_algorithm = IBTFilter(threshold_img, threshold_box)
 
     # create joint inference object
-    inference_instance = neptune.joint_inference.JointInference(
+    inference_instance = sedna.joint_inference.JointInference(
         little_model=model,
         hard_example_mining_algorithm=hard_example_mining_algorithm
     )

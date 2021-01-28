@@ -5,7 +5,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
+	v1alpha1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -36,17 +36,17 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=neptune.io, Version=v1alpha1
+	// Group=sedna.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("datasets"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Neptune().V1alpha1().Datasets().Informer()}, nil
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().Datasets().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("federatedlearningjobs"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Neptune().V1alpha1().FederatedLearningJobs().Informer()}, nil
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().FederatedLearningJobs().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("incrementallearningjobs"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Neptune().V1alpha1().IncrementalLearningJobs().Informer()}, nil
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().IncrementalLearningJobs().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("jointinferenceservices"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Neptune().V1alpha1().JointInferenceServices().Informer()}, nil
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().JointInferenceServices().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("models"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Neptune().V1alpha1().Models().Informer()}, nil
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().Models().Informer()}, nil
 
 	}
 

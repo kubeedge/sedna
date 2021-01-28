@@ -3,16 +3,16 @@ package manager
 import (
 	"encoding/json"
 
-	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/db"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/gmclient"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/util"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/localcontroller/db"
+	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	"github.com/kubeedge/sedna/pkg/localcontroller/util"
 )
 
 // ModelManager defines model manager
 type ModelManager struct {
 	Client   gmclient.ClientI
-	ModelMap map[string]neptunev1.Model
+	ModelMap map[string]sednav1.Model
 }
 
 const (
@@ -25,7 +25,7 @@ const (
 // NewModelManager creates a model manager
 func NewModelManager(client gmclient.ClientI) *ModelManager {
 	mm := ModelManager{
-		ModelMap: make(map[string]neptunev1.Model),
+		ModelMap: make(map[string]sednav1.Model),
 		Client:   client,
 	}
 
@@ -38,19 +38,19 @@ func (mm *ModelManager) Start() error {
 }
 
 // GetModel gets model
-func (mm *ModelManager) GetModel(name string) (neptunev1.Model, bool) {
+func (mm *ModelManager) GetModel(name string) (sednav1.Model, bool) {
 	model, ok := mm.ModelMap[name]
 	return model, ok
 }
 
 // addNewModel adds model
-func (mm *ModelManager) addNewModel(name string, model neptunev1.Model) {
+func (mm *ModelManager) addNewModel(name string, model sednav1.Model) {
 	mm.ModelMap[name] = model
 }
 
 // insertModel inserts model config to db
 func (mm *ModelManager) Insert(message *gmclient.Message) error {
-	model := neptunev1.Model{}
+	model := sednav1.Model{}
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
 	if err := json.Unmarshal(message.Content, &model); err != nil {

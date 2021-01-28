@@ -1,4 +1,4 @@
-module github.com/edgeai-neptune/neptune
+module github.com/kubeedge/sedna
 
 go 1.14
 

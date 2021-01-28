@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 	"k8s.io/klog/v2"
 
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/common/constants"
+	"github.com/kubeedge/sedna/pkg/localcontroller/common/constants"
 )
 
 // Resource defines resource (e.g., dataset, model, jointinferenceservice) table

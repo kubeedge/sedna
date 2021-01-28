@@ -5,12 +5,12 @@ import time
 import cv2
 import numpy as np
 
-import neptune
-from neptune.incremental_learning import InferenceResult
+import sedna
+from sedna.incremental_learning import InferenceResult
 
 LOG = logging.getLogger(__name__)
 
-he_saved_url = neptune.context.get_parameters('HE_SAVED_URL')
+he_saved_url = sedna.context.get_parameters('HE_SAVED_URL')
 
 class_names = ['person', 'helmet', 'helmet_on', 'helmet_off']
 
@@ -124,14 +124,14 @@ def mkdir(path):
 
 
 def run():
-    input_shape_str = neptune.context.get_parameters("input_shape")
+    input_shape_str = sedna.context.get_parameters("input_shape")
     input_shape = tuple(int(v) for v in input_shape_str.split(","))
-    camera_address = neptune.context.get_parameters('video_url')
+    camera_address = sedna.context.get_parameters('video_url')
 
     mkdir(he_saved_url)
 
     # create little model object
-    model = neptune.incremental_learning.TSModel(
+    model = sedna.incremental_learning.TSModel(
         preprocess=preprocess,
         input_shape=input_shape,
         create_input_feed=create_input_feed,
@@ -139,7 +139,7 @@ def run():
     )
 
     # create inference object
-    inference_instance = neptune.incremental_learning.Inference(model)
+    inference_instance = sedna.incremental_learning.Inference(model)
 
     # use video streams for testing
     camera = cv2.VideoCapture(camera_address)

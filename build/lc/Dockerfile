@@ -14,6 +14,6 @@ RUN make build WHAT=lc GO_LDFLAGS=$GO_LDFLAGS OUT_DIR=_output
 
 FROM alpine:3.11
 
-COPY --from=builder /code/_output/bin/neptune-lc /usr/local/bin/neptune-lc
+COPY --from=builder /code/_output/bin/sedna-lc /usr/local/bin/sedna-lc
 
-CMD ["neptune-lc"]
+CMD ["sedna-lc"]

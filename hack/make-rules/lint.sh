@@ -18,9 +18,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-NEPTUNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+SEDNA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
-source "${NEPTUNE_ROOT}/hack/lib/init.sh"
+source "${SEDNA_ROOT}/hack/lib/init.sh"
 
 export PATH=$PATH:$(go env GOPATH)/bin
 

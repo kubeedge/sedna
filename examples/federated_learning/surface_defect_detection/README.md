@@ -8,9 +8,9 @@ Using Federated Learning, we can solve the problem. Each place uses its own data
 > Assume that there are two edge nodes (edge1 and edge2) and a cloud node. Data on the edge nodes cannot be migrated to the cloud due to privacy issues.
 > Base on this scenario, we will demonstrate the surface inspection.
 
-### Install Neptune
+### Install Sedna
 
-Follow the [Neptune installation document](/docs/setup/install.md) to install Neptune.
+Follow the [Sedna installation document](/docs/setup/install.md) to install Sedna.
  
 ### Prepare Dataset
 
@@ -31,7 +31,7 @@ Download the script [training_worker](/examples/federated_learning/surface_defec
 ```
 # create dataset for edge1
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: Dataset
 metadata:
   name: "edge1-surface-defect-detection-dataset"
@@ -43,7 +43,7 @@ EOF
 
 # create dataset for edge2
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: Dataset
 metadata:
   name: "edge2-surface-defect-detection-dataset"
@@ -58,7 +58,7 @@ EOF
 
 ```
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
   name: "surface-defect-detection-model"
@@ -72,7 +72,7 @@ EOF
 
 ```
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: FederatedLearningJob
 metadata:
   name: surface-defect-detection

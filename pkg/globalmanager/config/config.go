@@ -8,7 +8,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 
-	"github.com/edgeai-neptune/neptune/pkg/util"
+	"github.com/kubeedge/sedna/pkg/util"
 )
 
 const (

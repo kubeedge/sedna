@@ -5,10 +5,10 @@ import (
 
 	"k8s.io/klog/v2"
 
-	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/db"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/gmclient"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/util"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/localcontroller/db"
+	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	"github.com/kubeedge/sedna/pkg/localcontroller/util"
 )
 
 // JointInferenceManager defines joint-inference-service manager
@@ -75,7 +75,7 @@ func (jm *JointInferenceManager) monitorWorker() {
 func (jm *JointInferenceManager) Insert(message *gmclient.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
-	ji := neptunev1.JointInferenceService{}
+	ji := sednav1.JointInferenceService{}
 
 	if err := json.Unmarshal(message.Content, &ji); err != nil {
 		return err

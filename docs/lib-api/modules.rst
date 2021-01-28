@@ -1,7 +1,7 @@
-neptune
+sedna
 =======
 
 .. toctree::
    :maxdepth: 4
 
-   neptune
+   sedna

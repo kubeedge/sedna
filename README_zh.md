@@ -1,16 +1,16 @@
 简体中文 | [English](./README.md)
-# Neptune
-[![CI](https://github.com/edgeai-neptune/neptune/workflows/CI/badge.svg?branch=main)](https://github.com/edgeai-neptune/neptune/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/edgeai-neptune/neptune)](https://goreportcard.com/report/github.com/edgeai-neptune/neptune)
-[![LICENSE](https://img.shields.io/github/license/edgeai-neptune/neptune.svg?style=flat-square)](/LICENSE)
+# Sedna
+[![CI](https://github.com/kubeedge/sedna/workflows/CI/badge.svg?branch=main)](https://github.com/kubeedge/sedna/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kubeedge/sedna)](https://goreportcard.com/report/github.com/kubeedge/sedna)
+[![LICENSE](https://img.shields.io/github/license/kubeedge/sedna.svg?style=flat-square)](/LICENSE)
 
-## 什么是Neptune?
-Neptune是在KubeEdge SIG AI中孵化的一个边云协同AI项目。得益于KubeEdge提供的边云协同能力，Neptune可以实现跨边云的协同训练和协同推理能力，如联合推理、增量学习、联邦学习等。Neptune支持目前广泛使用的AI框架，如TensorFlow/Pytorch/PaddlePaddle/MindSpore等，现有AI类应用可以无缝迁移到Neptune, 快速实现边云协同的训练和推理，可在降低成本、提升模型性能、保护数据隐私等方面获得提升。
+## 什么是Sedna?
+Sedna是在KubeEdge SIG AI中孵化的一个边云协同AI项目。得益于KubeEdge提供的边云协同能力，Sedna可以实现跨边云的协同训练和协同推理能力，如联合推理、增量学习、联邦学习等。Sedna支持目前广泛使用的AI框架，如TensorFlow/Pytorch/PaddlePaddle/MindSpore等，现有AI类应用可以无缝迁移到Sedna, 快速实现边云协同的训练和推理，可在降低成本、提升模型性能、保护数据隐私等方面获得提升。
 
 **目前项目处于preview状态，正在推动进入KubeEdge社区**
 
 ## 项目特性
-Neptune具有如下特性：
+Sedna具有如下特性：
 * 提供边云协同AI基础框架
     * 提供基础的边云协同数据集管理、模型管理，方便开发者快速开发边云协同AI应用
 * 提供边云协同训练和推理框架
@@ -24,7 +24,7 @@ Neptune具有如下特性：
 
 
 ## 架构
-Neptune的边云协同基于KubeEdge提供的如下能力实现
+Sedna的边云协同基于KubeEdge提供的如下能力实现
 * 跨边云应用统一编排
 * Router: 管理面云边高可靠消息通道
 * EdgeMesh: 数据面跨边云微服务发现和流量治理
@@ -35,7 +35,7 @@ Neptune的边云协同基于KubeEdge提供的如下能力实现
 
 
 ### 组件
-Neptune由以下组件构建：
+Sedna由以下组件构建：
 
 
 #### GlobalManager
@@ -59,7 +59,7 @@ Neptune由以下组件构建：
 
 ## 文档
 ### 安装
-Neptune的安装文档请参考[这里](/docs/setup/install.md)。
+Sedna的安装文档请参考[这里](/docs/setup/install.md)。
 
 ### 样例
 样例1：[大小模型协同推理](/examples/joint_inference/helmet_detection_inference/README.md)。
@@ -92,10 +92,10 @@ Neptune的安装文档请参考[这里](/docs/setup/install.md)。
 <!--
 ## 贡献
 
-如果您有兴趣成为一个贡献者，也想参与到Neptune的代码开发中，
+如果您有兴趣成为一个贡献者，也想参与到Sedna的代码开发中，
 请查看[CONTRIBUTING](CONTRIBUTING.md)获取更多关于如何提交Patch和贡献的流程。
 -->
 
 ## 许可证
 
-Neptune基于Apache 2.0许可证，查看[LICENSE](LICENSE)获取更多信息。
+Sedna基于Apache 2.0许可证，查看[LICENSE](LICENSE)获取更多信息。

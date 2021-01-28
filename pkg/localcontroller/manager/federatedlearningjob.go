@@ -5,10 +5,10 @@ import (
 
 	"k8s.io/klog/v2"
 
-	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/db"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/gmclient"
-	"github.com/edgeai-neptune/neptune/pkg/localcontroller/util"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/localcontroller/db"
+	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	"github.com/kubeedge/sedna/pkg/localcontroller/util"
 )
 
 // FederatedLearningManager defines federated-learning-job manager
@@ -19,7 +19,7 @@ type FederatedLearningManager struct {
 
 // FederatedLearning defines config for federated-learning-job
 type FederatedLearning struct {
-	*neptunev1.FederatedLearningJob
+	*sednav1.FederatedLearningJob
 }
 
 const (

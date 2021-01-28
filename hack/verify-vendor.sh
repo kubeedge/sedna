@@ -4,10 +4,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-NEPTUNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+SEDNA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 UPDATE_SCRIPT=hack/update-vendor.sh
-${NEPTUNE_ROOT}/${UPDATE_SCRIPT}
+${SEDNA_ROOT}/${UPDATE_SCRIPT}
  
 if git status --short 2>/dev/null | grep -qE 'go\.mod|go\.sum|vendor/'; then
   echo "FAILED: vendor verify failed." >&2

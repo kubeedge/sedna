@@ -8,27 +8,27 @@ The joint inference service requires to detect the wearing of safety helmets in 
 
 ## Helmet Detection Experiment
 
-### Install Neptune
+### Install Sedna
 
-Follow the [Neptune installation document](/docs/setup/install.md) to install Neptune.
+Follow the [Sedna installation document](/docs/setup/install.md) to install Sedna.
  
 ### Prepare Data and Model
 
-* step1: download [little model](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/little-model.tar.gz) to your edge node.
+* step1: download [little model](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/little-model.tar.gz) to your edge node.
 
 ```
 mkdir -p /data/little-model
 cd /data/little-model
-wget https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/little-model.tar.gz
+wget https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/little-model.tar.gz
 tar -zxvf little-model.tar.gz
 ```
 
-* step2: download [big model](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/big-model.tar.gz) to your cloud node.
+* step2: download [big model](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/big-model.tar.gz) to your cloud node.
 
 ```
 mkdir -p /data/big-model
 cd /data/big-model
-wget https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/big-model.tar.gz
+wget https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/big-model.tar.gz
 tar -zxvf big-model.tar.gz
 ```
 
@@ -37,14 +37,14 @@ tar -zxvf big-model.tar.gz
 
 ```
 mkdir -p /code/little_model
-curl -o little_model.py https://github.com/edgeai-neptune/neptune/blob/main/examples/helmet_detection_inference/little_model/little_model.py
+curl -o little_model.py https://github.com/kubeedge/sedna/blob/main/examples/helmet_detection_inference/little_model/little_model.py
 ```
 
 * step2: download the script [big_model.py](/examples/joint_inference/helmet_detection_inference/big_model/big_model.py) to the path `/code/big_model` of cloud node.
 
 ```
 mkdir -p /code/big_model
-curl -o big_model.py https://github.com/edgeai-neptune/neptune/blob/main/examples/helmet_detection_inference/big_model/big_model.py
+curl -o big_model.py https://github.com/kubeedge/sedna/blob/main/examples/helmet_detection_inference/big_model/big_model.py
 ```
 
 ### Create Joint Inference Service 
@@ -53,7 +53,7 @@ curl -o big_model.py https://github.com/edgeai-neptune/neptune/blob/main/example
 
 ```
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind:  Model
 metadata:
   name: helmet-detection-inference-big-model
@@ -68,7 +68,7 @@ EOF
 
 ```
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
   name: helmet-detection-inference-little-model
@@ -90,7 +90,7 @@ Note the setting of the following parameters, which have to same as the script [
 
 ```
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: JointInferenceService
 metadata:
   name: helmet-detection-inference-example
@@ -148,7 +148,7 @@ kubectl get jointinferenceservice helmet-detection-inference-example
 
 * step1: install the open source video streaming server [EasyDarwin](https://github.com/EasyDarwin/EasyDarwin/tree/dev).
 * step2: start EasyDarwin server.
-* step3: download [video](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/video.tar.gz).
+* step3: download [video](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/video.tar.gz).
 * step4: push a video stream to the url (e.g., `rtsp://localhost/video`) that the inference service can connect.
 
 ```
@@ -159,7 +159,7 @@ cd EasyDarwin-linux-8.1.0-1901141151
 
 mkdir -p /data/video
 cd /data/video
-wget https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/video.tar.gz
+wget https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/video.tar.gz
 tar -zxvf video.tar.gz
 
 ffmpeg -re -i /data/video/helmet-detection.mp4 -vcodec libx264 -f rtsp rtsp://localhost/video

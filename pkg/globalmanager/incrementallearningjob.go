@@ -25,24 +25,24 @@ import (
 	"k8s.io/klog/v2"
 	k8scontroller "k8s.io/kubernetes/pkg/controller"
 
-	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
-	clientset "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned"
-	neptuneclientset "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned/typed/neptune/v1alpha1"
-	informers "github.com/edgeai-neptune/neptune/pkg/client/informers/externalversions"
-	neptunev1listers "github.com/edgeai-neptune/neptune/pkg/client/listers/neptune/v1alpha1"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/config"
-	messageContext "github.com/edgeai-neptune/neptune/pkg/globalmanager/messagelayer/ws"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/utils"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned"
+	sednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
+	informers "github.com/kubeedge/sedna/pkg/client/informers/externalversions"
+	sednav1listers "github.com/kubeedge/sedna/pkg/client/listers/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/globalmanager/config"
+	messageContext "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/ws"
+	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
 // ijControllerKind contains the schema.GroupVersionKind for this controller type.
-var ijControllerKind = neptunev1.SchemeGroupVersion.WithKind("IncrementalLearningJob")
+var ijControllerKind = sednav1.SchemeGroupVersion.WithKind("IncrementalLearningJob")
 
 // IncrementalJobController ensures that all IncrementalLearningJob objects have corresponding pods to
 // run their configured workload.
 type IncrementalJobController struct {
 	kubeClient kubernetes.Interface
-	client     neptuneclientset.NeptuneV1alpha1Interface
+	client     sednaclientset.SednaV1alpha1Interface
 	podControl k8scontroller.PodControlInterface
 
 	// podStoreSynced returns true if the pod store has been synced at least once.
@@ -53,7 +53,7 @@ type IncrementalJobController struct {
 	jobStoreSynced cache.InformerSynced
 
 	// A store of jobs
-	jobLister neptunev1listers.IncrementalLearningJobLister
+	jobLister sednav1listers.IncrementalLearningJobLister
 
 	// A store of pods, populated by the podController
 	podStore corelisters.PodLister
@@ -170,7 +170,7 @@ func (jc *IncrementalJobController) deletePod(obj interface{}) {
 	jc.enqueueByPod(pod, true)
 }
 
-// obj could be an *neptune.IncrementalLearningJob, or a DeletionFinalStateUnknown marker item,
+// obj could be an *sedna.IncrementalLearningJob, or a DeletionFinalStateUnknown marker item,
 // immediate tells the controller to update the status right away, and should
 // happen ONLY when there was a successful pod run.
 func (jc *IncrementalJobController) enqueueController(obj interface{}, immediate bool) {
@@ -242,7 +242,7 @@ func (jc *IncrementalJobController) sync(key string) (bool, error) {
 	}
 	incrementaljob := *sharedIncrementalJob
 	// set kind for incrementaljob in case that the kind is None
-	incrementaljob.SetGroupVersionKind(neptunev1.SchemeGroupVersion.WithKind("IncrementalLearningJob"))
+	incrementaljob.SetGroupVersionKind(sednav1.SchemeGroupVersion.WithKind("IncrementalLearningJob"))
 	// incrementaljob first start, create pod for inference
 	if incrementaljob.Status.StartTime == nil {
 		now := metav1.Now()
@@ -292,14 +292,14 @@ func (jc *IncrementalJobController) sync(key string) (bool, error) {
 }
 
 // updateIncrementalJobConditions ensures that conditions of incrementallearning job can be changed by podstatus
-func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljob *neptunev1.IncrementalLearningJob) (bool, error) {
-	var initialType neptunev1.ILJobStageConditionType
-	var latestCondition neptunev1.ILJobCondition = neptunev1.ILJobCondition{
-		Stage: neptunev1.ILJobTrain,
+func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljob *sednav1.IncrementalLearningJob) (bool, error) {
+	var initialType sednav1.ILJobStageConditionType
+	var latestCondition sednav1.ILJobCondition = sednav1.ILJobCondition{
+		Stage: sednav1.ILJobTrain,
 		Type:  initialType,
 	}
-	var newConditionType neptunev1.ILJobStageConditionType
-	latestCondition.Stage = neptunev1.ILJobTrain
+	var newConditionType sednav1.ILJobStageConditionType
+	latestCondition.Stage = sednav1.ILJobTrain
 	var needUpdated = false
 	jobConditions := incrementaljob.Status.Conditions
 	var podStatus v1.PodPhase = v1.PodUnknown
@@ -320,16 +320,16 @@ func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljo
 
 	switch currentType {
 	case initialType:
-		newConditionType = neptunev1.ILJobStageCondWaiting
+		newConditionType = sednav1.ILJobStageCondWaiting
 
-	case neptunev1.ILJobStageCondWaiting:
+	case sednav1.ILJobStageCondWaiting:
 		// do nothing, waiting for LC to set type from waiting to ready
 
-	case neptunev1.ILJobStageCondReady:
+	case sednav1.ILJobStageCondReady:
 		// create a pod, and set type from ready to starting
 		// include train, eval, deploy pod
 		var err error
-		if jobStage == neptunev1.ILJobDeploy {
+		if jobStage == sednav1.ILJobDeploy {
 			err = jc.restartInferPod(incrementaljob)
 			if err != nil {
 				klog.V(2).Infof("incrementallearning job %v/%v inference pod failed to restart, err:%s", incrementaljob.Namespace, incrementaljob.Name, err)
@@ -342,31 +342,31 @@ func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljo
 		if err != nil {
 			return needUpdated, err
 		}
-		newConditionType = neptunev1.ILJobStageCondStarting
+		newConditionType = sednav1.ILJobStageCondStarting
 
-	case neptunev1.ILJobStageCondStarting, neptunev1.ILJobStageCondRunning:
+	case sednav1.ILJobStageCondStarting, sednav1.ILJobStageCondRunning:
 		if podStatus == v1.PodRunning {
-			if jobStage == neptunev1.ILJobDeploy {
-				newConditionType = neptunev1.ILJobStageCondCompleted
+			if jobStage == sednav1.ILJobDeploy {
+				newConditionType = sednav1.ILJobStageCondCompleted
 			} else {
 				// watch pod status, if pod running, set type running
-				newConditionType = neptunev1.ILJobStageCondRunning
+				newConditionType = sednav1.ILJobStageCondRunning
 			}
 		} else if podStatus == v1.PodSucceeded {
 			// watch pod status, if pod completed, set type completed
-			newConditionType = neptunev1.ILJobStageCondCompleted
+			newConditionType = sednav1.ILJobStageCondCompleted
 			klog.V(2).Infof("incrementallearning job %v/%v %v stage completed!", incrementaljob.Namespace, incrementaljob.Name, jobStage)
 		} else if podStatus == v1.PodFailed {
-			newConditionType = neptunev1.ILJobStageCondFailed
+			newConditionType = sednav1.ILJobStageCondFailed
 			klog.V(2).Infof("incrementallearning job %v/%v %v stage failed!", incrementaljob.Namespace, incrementaljob.Name, jobStage)
 		}
-	case neptunev1.ILJobStageCondCompleted:
+	case sednav1.ILJobStageCondCompleted:
 		jobStage = getNextStage(jobStage)
-		newConditionType = neptunev1.ILJobStageCondWaiting
+		newConditionType = sednav1.ILJobStageCondWaiting
 
-	case neptunev1.ILJobStageCondFailed:
-		jobStage = neptunev1.ILJobTrain
-		newConditionType = neptunev1.ILJobStageCondWaiting
+	case sednav1.ILJobStageCondFailed:
+		jobStage = sednav1.ILJobTrain
+		newConditionType = sednav1.ILJobStageCondWaiting
 
 	default:
 		// do nothing when given other type out of cases
@@ -381,11 +381,11 @@ func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljo
 }
 
 // updateIncrementalJobStatus ensures that jobstatus can be updated rightly
-func (jc *IncrementalJobController) updateIncrementalJobStatus(incrementaljob *neptunev1.IncrementalLearningJob) error {
+func (jc *IncrementalJobController) updateIncrementalJobStatus(incrementaljob *sednav1.IncrementalLearningJob) error {
 	jobClient := jc.client.IncrementalLearningJobs(incrementaljob.Namespace)
 	var err error
 	for i := 0; i <= statusUpdateRetries; i = i + 1 {
-		var newIncrementalJob *neptunev1.IncrementalLearningJob
+		var newIncrementalJob *sednav1.IncrementalLearningJob
 		newIncrementalJob, err = jobClient.Get(context.TODO(), incrementaljob.Name, metav1.GetOptions{})
 		if err != nil {
 			break
@@ -398,8 +398,8 @@ func (jc *IncrementalJobController) updateIncrementalJobStatus(incrementaljob *n
 	return err
 }
 
-func NewIncrementalJobCondition(conditionType neptunev1.ILJobStageConditionType, jobStage neptunev1.ILJobStage) neptunev1.ILJobCondition {
-	return neptunev1.ILJobCondition{
+func NewIncrementalJobCondition(conditionType sednav1.ILJobStageConditionType, jobStage sednav1.ILJobStage) sednav1.ILJobCondition {
+	return sednav1.ILJobCondition{
 		Type:               conditionType,
 		Status:             v1.ConditionTrue,
 		LastHeartbeatTime:  metav1.Now(),
@@ -414,7 +414,7 @@ func (jc *IncrementalJobController) generatePodName(jobName string, workerType s
 	return jobName + "-" + strings.ToLower(workerType) + "-" + utilrand.String(5)
 }
 
-func (jc *IncrementalJobController) getSpecifiedPods(job *neptunev1.IncrementalLearningJob, podType string) *v1.Pod {
+func (jc *IncrementalJobController) getSpecifiedPods(job *sednav1.IncrementalLearningJob, podType string) *v1.Pod {
 	if podType == "Deploy" {
 		podType = "inference"
 	}
@@ -440,7 +440,7 @@ func (jc *IncrementalJobController) getSpecifiedPods(job *neptunev1.IncrementalL
 	return latestPod
 }
 
-func (jc *IncrementalJobController) restartInferPod(job *neptunev1.IncrementalLearningJob) error {
+func (jc *IncrementalJobController) restartInferPod(job *sednav1.IncrementalLearningJob) error {
 	inferPod := jc.getSpecifiedPods(job, "inference")
 	if inferPod == nil {
 		klog.V(2).Infof("No inferpod is running in incrementallearning job %v/%v", job.Namespace, job.Name)
@@ -461,28 +461,28 @@ func (jc *IncrementalJobController) restartInferPod(job *neptunev1.IncrementalLe
 	return nil
 }
 
-func getNextStage(currentStage neptunev1.ILJobStage) neptunev1.ILJobStage {
+func getNextStage(currentStage sednav1.ILJobStage) sednav1.ILJobStage {
 	switch currentStage {
-	case neptunev1.ILJobTrain:
-		return neptunev1.ILJobEval
-	case neptunev1.ILJobEval:
-		return neptunev1.ILJobDeploy
-	case neptunev1.ILJobDeploy:
-		return neptunev1.ILJobTrain
+	case sednav1.ILJobTrain:
+		return sednav1.ILJobEval
+	case sednav1.ILJobEval:
+		return sednav1.ILJobDeploy
+	case sednav1.ILJobDeploy:
+		return sednav1.ILJobTrain
 	default:
-		return neptunev1.ILJobTrain
+		return sednav1.ILJobTrain
 	}
 }
 
-func IsIncrementalJobFinished(j *neptunev1.IncrementalLearningJob) bool {
+func IsIncrementalJobFinished(j *sednav1.IncrementalLearningJob) bool {
 	// TODO
 	return false
 }
 
-func (jc *IncrementalJobController) createPod(job *neptunev1.IncrementalLearningJob, podtype neptunev1.ILJobStage) (err error) {
+func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJob, podtype sednav1.ILJobStage) (err error) {
 	ctx := context.Background()
 	var workerName string
-	var workerSpec neptunev1.CommonWorkerSpec
+	var workerSpec sednav1.CommonWorkerSpec
 	trainworkerspec := job.Spec.TrainSpec
 	evalworkerspec := job.Spec.EvalSpec
 
@@ -566,7 +566,7 @@ func (jc *IncrementalJobController) createPod(job *neptunev1.IncrementalLearning
 	deploymodelConPath := dataPrefix + deploymodelPath
 	outputConPath := dataPrefix + outputDir
 	var containerPara *ContainerPara = new(ContainerPara)
-	if podtype == neptunev1.ILJobTrain {
+	if podtype == sednav1.ILJobTrain {
 		workerName = "Train"
 		workerSpec = trainworkerspec.WorkerSpec
 		// Env parameters for train
@@ -617,7 +617,7 @@ func (jc *IncrementalJobController) createPod(job *neptunev1.IncrementalLearning
 	return
 }
 
-func (jc *IncrementalJobController) createInferPod(job *neptunev1.IncrementalLearningJob) error {
+func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearningJob) error {
 	ctx := context.Background()
 	infermodelName := job.Spec.DeploySpec.Model.Name
 	inferModel, err := jc.client.Models(job.Namespace).Get(ctx, infermodelName, metav1.GetOptions{})
@@ -662,7 +662,7 @@ func (jc *IncrementalJobController) createInferPod(job *neptunev1.IncrementalLea
 }
 
 // generatePod forms a pod for train and eval for incrementaljob
-func (jc *IncrementalJobController) generatePod(job *neptunev1.IncrementalLearningJob, workerSpec neptunev1.CommonWorkerSpec, workerType string, containerPara *ContainerPara) error {
+func (jc *IncrementalJobController) generatePod(job *sednav1.IncrementalLearningJob, workerSpec sednav1.CommonWorkerSpec, workerType string, containerPara *ContainerPara) error {
 	var volumeMounts []v1.VolumeMount
 	var volumes []v1.Volume
 	var envs []v1.EnvVar
@@ -689,7 +689,7 @@ func (jc *IncrementalJobController) generatePod(job *neptunev1.IncrementalLearni
 			Namespace: job.Namespace,
 			Name:      jc.generatePodName(job.Name, workerType),
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(job, neptunev1.SchemeGroupVersion.WithKind("IncrementalLearningJob")),
+				*metav1.NewControllerRef(job, sednav1.SchemeGroupVersion.WithKind("IncrementalLearningJob")),
 			},
 			Labels: GenerateLabels(job),
 		},
@@ -747,14 +747,14 @@ func NewIncrementalJobController(cfg *config.ControllerConfig) (FeatureControlle
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	jobInformerFactory := informers.NewSharedInformerFactoryWithOptions(crdclient, time.Second*30, informers.WithNamespace(namespace))
-	jobInformer := jobInformerFactory.Neptune().V1alpha1().IncrementalLearningJobs()
+	jobInformer := jobInformerFactory.Sedna().V1alpha1().IncrementalLearningJobs()
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
 
 	jc := &IncrementalJobController{
 		kubeClient: kubeClient,
-		client:     crdclient.NeptuneV1alpha1(),
+		client:     crdclient.SednaV1alpha1(),
 		podControl: k8scontroller.RealPodControl{
 			KubeClient: kubeClient,
 			Recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "incrementallearningjob-controller"}),

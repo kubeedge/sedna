@@ -1,12 +1,12 @@
 from setuptools import setup
 
 setup(
-    name='neptune',
+    name='sedna',
     version='0.0.1',
-    description="The neptune package is designed to help developers \
+    description="The sedna package is designed to help developers \
                 better use open source frameworks such as tensorflow \
-                on Neptune project",
-    packages=['neptune'],
+                on Sedna project",
+    packages=['sedna'],
     python_requires='>=3.6',
     install_requires=[
         'flask>=1.1.2',

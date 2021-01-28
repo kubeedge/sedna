@@ -3,9 +3,9 @@
 package fake
 
 import (
-	clientset "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned"
-	neptunev1alpha1 "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned/typed/neptune/v1alpha1"
-	fakeneptunev1alpha1 "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned/typed/neptune/v1alpha1/fake"
+	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned"
+	sednav1alpha1 "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
+	fakesednav1alpha1 "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -60,7 +60,7 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 
 var _ clientset.Interface = &Clientset{}
 
-// NeptuneV1alpha1 retrieves the NeptuneV1alpha1Client
-func (c *Clientset) NeptuneV1alpha1() neptunev1alpha1.NeptuneV1alpha1Interface {
-	return &fakeneptunev1alpha1.FakeNeptuneV1alpha1{Fake: &c.Fake}
+// SednaV1alpha1 retrieves the SednaV1alpha1Client
+func (c *Clientset) SednaV1alpha1() sednav1alpha1.SednaV1alpha1Interface {
+	return &fakesednav1alpha1.FakeSednaV1alpha1{Fake: &c.Fake}
 }

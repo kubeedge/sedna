@@ -26,14 +26,14 @@ import (
 	"k8s.io/klog/v2"
 	k8scontroller "k8s.io/kubernetes/pkg/controller"
 
-	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
-	clientset "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned"
-	neptuneclientset "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned/typed/neptune/v1alpha1"
-	informers "github.com/edgeai-neptune/neptune/pkg/client/informers/externalversions"
-	neptunev1listers "github.com/edgeai-neptune/neptune/pkg/client/listers/neptune/v1alpha1"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/config"
-	messageContext "github.com/edgeai-neptune/neptune/pkg/globalmanager/messagelayer/ws"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/utils"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned"
+	sednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
+	informers "github.com/kubeedge/sedna/pkg/client/informers/externalversions"
+	sednav1listers "github.com/kubeedge/sedna/pkg/client/listers/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/globalmanager/config"
+	messageContext "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/ws"
+	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
 type jointInferenceType string
@@ -44,13 +44,13 @@ const (
 )
 
 // jointServiceControllerKind contains the schema.GroupVersionKind for this controller type.
-var jointServiceControllerKind = neptunev1.SchemeGroupVersion.WithKind("JointInferenceService")
+var jointServiceControllerKind = sednav1.SchemeGroupVersion.WithKind("JointInferenceService")
 
 // JointInferenceServiceController ensures that all JointInferenceService objects
 // have corresponding pods to run their configured workload.
 type JointInferenceServiceController struct {
 	kubeClient kubernetes.Interface
-	client     neptuneclientset.NeptuneV1alpha1Interface
+	client     sednaclientset.SednaV1alpha1Interface
 
 	// podStoreSynced returns true if the pod store has been synced at least once.
 	podStoreSynced cache.InformerSynced
@@ -60,7 +60,7 @@ type JointInferenceServiceController struct {
 	// serviceStoreSynced returns true if the jointinferenceservice store has been synced at least once.
 	serviceStoreSynced cache.InformerSynced
 	// A store of service
-	serviceLister neptunev1listers.JointInferenceServiceLister
+	serviceLister sednav1listers.JointInferenceServiceLister
 
 	// JointInferenceServices that need to be updated
 	queue workqueue.RateLimitingInterface
@@ -175,7 +175,7 @@ func (jc *JointInferenceServiceController) deletePod(obj interface{}) {
 	jc.enqueueByPod(pod, true)
 }
 
-// obj could be an *neptunev1.JointInferenceService, or a DeletionFinalStateUnknown marker item,
+// obj could be an *sednav1.JointInferenceService, or a DeletionFinalStateUnknown marker item,
 // immediate tells the controller to update the status right away, and should
 // happen ONLY when there was a successful pod run.
 func (jc *JointInferenceServiceController) enqueueController(obj interface{}, immediate bool) {
@@ -282,7 +282,7 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 	var manageServiceErr error
 	serviceFailed := false
 
-	var latestConditionType neptunev1.JointInferenceServiceConditionType = ""
+	var latestConditionType sednav1.JointInferenceServiceConditionType = ""
 
 	// get the latest condition type
 	// based on that condition updated is appended, not inserted.
@@ -291,7 +291,7 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 		latestConditionType = (jobConditions)[len(jobConditions)-1].Type
 	}
 
-	var newCondtionType neptunev1.JointInferenceServiceConditionType
+	var newCondtionType sednav1.JointInferenceServiceConditionType
 	var reason string
 	var message string
 
@@ -300,7 +300,7 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 		// TODO: get the failed worker, and knows that which worker fails, edge inference worker or cloud inference worker
 		reason = "workerFailed"
 		message = "the worker of Jointinferenceservice failed"
-		newCondtionType = neptunev1.JointInferenceServiceCondFailed
+		newCondtionType = sednav1.JointInferenceServiceCondFailed
 		jc.recorder.Event(&jointinferenceservice, v1.EventTypeWarning, reason, message)
 	} else {
 		if len(pods) == 0 {
@@ -309,11 +309,11 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 		if manageServiceErr != nil {
 			serviceFailed = true
 			message = error.Error(manageServiceErr)
-			newCondtionType = neptunev1.JointInferenceServiceCondFailed
+			newCondtionType = sednav1.JointInferenceServiceCondFailed
 			failed = neededCounts - active
 		} else {
 			// TODO: handle the case that the pod phase is PodSucceeded
-			newCondtionType = neptunev1.JointInferenceServiceCondRunning
+			newCondtionType = sednav1.JointInferenceServiceCondRunning
 		}
 	}
 
@@ -344,8 +344,8 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 }
 
 // NewJointInferenceServiceCondition creates a new joint condition
-func NewJointInferenceServiceCondition(conditionType neptunev1.JointInferenceServiceConditionType, reason, message string) neptunev1.JointInferenceServiceCondition {
-	return neptunev1.JointInferenceServiceCondition{
+func NewJointInferenceServiceCondition(conditionType sednav1.JointInferenceServiceConditionType, reason, message string) sednav1.JointInferenceServiceCondition {
+	return sednav1.JointInferenceServiceCondition{
 		Type:               conditionType,
 		Status:             v1.ConditionTrue,
 		LastHeartbeatTime:  metav1.Now(),
@@ -355,11 +355,11 @@ func NewJointInferenceServiceCondition(conditionType neptunev1.JointInferenceSer
 	}
 }
 
-func (jc *JointInferenceServiceController) updateStatus(jointinferenceservice *neptunev1.JointInferenceService) error {
+func (jc *JointInferenceServiceController) updateStatus(jointinferenceservice *sednav1.JointInferenceService) error {
 	serviceClient := jc.client.JointInferenceServices(jointinferenceservice.Namespace)
 	var err error
 	for i := 0; i <= statusUpdateRetries; i = i + 1 {
-		var newJointinferenceservice *neptunev1.JointInferenceService
+		var newJointinferenceservice *sednav1.JointInferenceService
 		newJointinferenceservice, err = serviceClient.Get(context.TODO(), jointinferenceservice.Name, metav1.GetOptions{})
 		if err != nil {
 			break
@@ -372,16 +372,16 @@ func (jc *JointInferenceServiceController) updateStatus(jointinferenceservice *n
 	return nil
 }
 
-func isJointinferenceserviceFinished(j *neptunev1.JointInferenceService) bool {
+func isJointinferenceserviceFinished(j *sednav1.JointInferenceService) bool {
 	for _, c := range j.Status.Conditions {
-		if (c.Type == neptunev1.JointInferenceServiceCondFailed) && c.Status == v1.ConditionTrue {
+		if (c.Type == sednav1.JointInferenceServiceCondFailed) && c.Status == v1.ConditionTrue {
 			return true
 		}
 	}
 	return false
 }
 
-func (jc *JointInferenceServiceController) createPod(service *neptunev1.JointInferenceService) (active int32, err error) {
+func (jc *JointInferenceServiceController) createPod(service *sednav1.JointInferenceService) (active int32, err error) {
 	active = 0
 
 	// create pod for cloudPod
@@ -409,7 +409,7 @@ func (jc *JointInferenceServiceController) createPod(service *neptunev1.JointInf
 	return active, err
 }
 
-func (jc *JointInferenceServiceController) createCloudPod(service *neptunev1.JointInferenceService) error {
+func (jc *JointInferenceServiceController) createCloudPod(service *sednav1.JointInferenceService) error {
 	// deliver pod for cloudworker
 	ctx := context.Background()
 	var cloudModelPath string
@@ -462,7 +462,7 @@ func (jc *JointInferenceServiceController) createCloudPod(service *neptunev1.Joi
 	return nil
 }
 
-func (jc *JointInferenceServiceController) createEdgePod(service *neptunev1.JointInferenceService, bigServicePort int32) error {
+func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointInferenceService, bigServicePort int32) error {
 	// deliver pod for edgeworker
 	ctx := context.Background()
 	edgeModelName := service.Spec.EdgeWorker.Model.Name
@@ -525,9 +525,9 @@ func (jc *JointInferenceServiceController) createEdgePod(service *neptunev1.Join
 	return nil
 }
 
-func (jc *JointInferenceServiceController) generatedPod(service *neptunev1.JointInferenceService, podtype jointInferenceType,
+func (jc *JointInferenceServiceController) generatedPod(service *sednav1.JointInferenceService, podtype jointInferenceType,
 	containerPara *ContainerPara, hostNetwork bool) error {
-	var workerSpec neptunev1.CommonWorkerSpec
+	var workerSpec sednav1.CommonWorkerSpec
 	var volumeMounts []v1.VolumeMount
 	var volumes []v1.Volume
 	var envs []v1.EnvVar
@@ -606,14 +606,14 @@ func NewJointController(cfg *config.ControllerConfig) (FeatureControllerI, error
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	serviceInformerFactory := informers.NewSharedInformerFactoryWithOptions(crdclient, time.Second*30, informers.WithNamespace(namespace))
-	serviceInformer := serviceInformerFactory.Neptune().V1alpha1().JointInferenceServices()
+	serviceInformer := serviceInformerFactory.Sedna().V1alpha1().JointInferenceServices()
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
 
 	jc := &JointInferenceServiceController{
 		kubeClient: kubeClient,
-		client:     crdclient.NeptuneV1alpha1(),
+		client:     crdclient.SednaV1alpha1(),
 
 		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(DefaultBackOff, MaxBackOff), "jointinferenceservice"),
 		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "jointinferenceservice-controller"}),

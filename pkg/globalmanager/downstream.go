@@ -12,11 +12,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
-	clientset "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned/typed/neptune/v1alpha1"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/config"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/messagelayer"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/utils"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/globalmanager/config"
+	"github.com/kubeedge/sedna/pkg/globalmanager/messagelayer"
+	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
 // DownstreamController watch kubernetes api server and send the controller resource change to edge
@@ -26,12 +26,12 @@ type DownstreamController struct {
 
 	cfg *config.ControllerConfig
 
-	client       *clientset.NeptuneV1alpha1Client
+	client       *clientset.SednaV1alpha1Client
 	messageLayer messagelayer.MessageLayer
 }
 
 // syncDataset syncs the dataset resources
-func (dc *DownstreamController) syncDataset(eventType watch.EventType, dataset *neptunev1.Dataset) error {
+func (dc *DownstreamController) syncDataset(eventType watch.EventType, dataset *sednav1.Dataset) error {
 	// Here only propagate to the nodes with non empty name
 	nodeName := dataset.Spec.NodeName
 	if len(nodeName) == 0 {
@@ -42,7 +42,7 @@ func (dc *DownstreamController) syncDataset(eventType watch.EventType, dataset *
 }
 
 // syncJointInferenceService syncs the joint-inference-service resources
-func (dc *DownstreamController) syncJointInferenceService(eventType watch.EventType, joint *neptunev1.JointInferenceService) error {
+func (dc *DownstreamController) syncJointInferenceService(eventType watch.EventType, joint *sednav1.JointInferenceService) error {
 	// Here only propagate to the nodes with non empty name
 	nodeName := joint.Spec.EdgeWorker.NodeName
 	if len(nodeName) == 0 {
@@ -53,7 +53,7 @@ func (dc *DownstreamController) syncJointInferenceService(eventType watch.EventT
 }
 
 // syncFederatedLearningJob syncs the federated resources
-func (dc *DownstreamController) syncFederatedLearningJob(eventType watch.EventType, job *neptunev1.FederatedLearningJob) error {
+func (dc *DownstreamController) syncFederatedLearningJob(eventType watch.EventType, job *sednav1.FederatedLearningJob) error {
 	// broadcast to all nodes specified in spec
 	nodeset := make(map[string]bool)
 	for _, trainingWorker := range job.Spec.TrainingWorkers {
@@ -90,7 +90,7 @@ func (dc *DownstreamController) syncModelWithName(nodeName, modelName, namespace
 }
 
 // syncIncrementalJob syncs the incremental learning jobs
-func (dc *DownstreamController) syncIncrementalJob(eventType watch.EventType, job *neptunev1.IncrementalLearningJob) error {
+func (dc *DownstreamController) syncIncrementalJob(eventType watch.EventType, job *sednav1.IncrementalLearningJob) error {
 	// Here only propagate to the nodes with non empty name
 	nodeName := job.Spec.NodeName
 	if len(nodeName) == 0 {
@@ -134,7 +134,7 @@ func (dc *DownstreamController) sync(stopCh <-chan struct{}) {
 			var err error
 			var kind, namespace, name string
 			switch t := e.Object.(type) {
-			case (*neptunev1.Dataset):
+			case (*sednav1.Dataset):
 				// Since t.Kind may be empty,
 				// we need to fix the kind here if missing.
 				// more details at https://github.com/kubernetes/kubernetes/issues/3030
@@ -146,7 +146,7 @@ func (dc *DownstreamController) sync(stopCh <-chan struct{}) {
 				name = t.Name
 				err = dc.syncDataset(e.Type, t)
 
-			case (*neptunev1.JointInferenceService):
+			case (*sednav1.JointInferenceService):
 				// TODO: find a good way to avoid these duplicate codes
 				if len(t.Kind) == 0 {
 					t.Kind = "JointInferenceService"
@@ -156,7 +156,7 @@ func (dc *DownstreamController) sync(stopCh <-chan struct{}) {
 				name = t.Name
 				err = dc.syncJointInferenceService(e.Type, t)
 
-			case (*neptunev1.FederatedLearningJob):
+			case (*sednav1.FederatedLearningJob):
 				if len(t.Kind) == 0 {
 					t.Kind = "FederatedLearningJob"
 				}
@@ -165,7 +165,7 @@ func (dc *DownstreamController) sync(stopCh <-chan struct{}) {
 				name = t.Name
 				err = dc.syncFederatedLearningJob(e.Type, t)
 
-			case (*neptunev1.IncrementalLearningJob):
+			case (*sednav1.IncrementalLearningJob):
 				if len(t.Kind) == 0 {
 					t.Kind = "IncrementalLearningJob"
 				}
@@ -218,10 +218,10 @@ func (dc *DownstreamController) watch(stopCh <-chan struct{}) {
 
 	// TODO: use the informer
 	for resourceName, object := range map[string]runtime.Object{
-		"datasets":                &neptunev1.Dataset{},
-		"jointinferenceservices":  &neptunev1.JointInferenceService{},
-		"federatedlearningjobs":   &neptunev1.FederatedLearningJob{},
-		"incrementallearningjobs": &neptunev1.IncrementalLearningJob{},
+		"datasets":                &sednav1.Dataset{},
+		"jointinferenceservices":  &sednav1.JointInferenceService{},
+		"federatedlearningjobs":   &sednav1.FederatedLearningJob{},
+		"incrementallearningjobs": &sednav1.IncrementalLearningJob{},
 	} {
 		lw := cache.NewListWatchFromClient(client, resourceName, namespace, fields.Everything())
 		si := cache.NewSharedInformer(lw, object, resyncPeriod)

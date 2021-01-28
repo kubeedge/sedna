@@ -24,20 +24,20 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-NEPTUNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+SEDNA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-cd "$NEPTUNE_ROOT"
+cd "$SEDNA_ROOT"
 
 NO_CLEANUP=${NO_CLEANUP:-false}
 
-IMAGE_REPO=localhost/edgeai-neptune/neptune
+IMAGE_REPO=localhost/kubeedge/sedna
 IMAGE_TAG=localup
 
 # local k8s cluster name for local-up-kubeedge.sh
-CLUSTER_NAME=neptune
+CLUSTER_NAME=sedna
 MASTER_NODENAME=${CLUSTER_NAME}-control-plane
 EDGE_NODENAME=edge-node
-NAMESPACE=neptune
+NAMESPACE=sedna
 
 KUBEEDGE_VERSION=master
 TMP_DIR="$(realpath local-up-tmp)"
@@ -148,7 +148,7 @@ build_component_image() {
   local bin
   for bin; do
     echo "building $bin image"
-    make -C "${NEPTUNE_ROOT}" ${bin}image IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
+    make -C "${SEDNA_ROOT}" ${bin}image IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
     eval ${bin^^}_IMAGE="'${IMAGE_REPO}/${bin}:${IMAGE_TAG}'"
   done
   # no clean up for images
@@ -178,7 +178,7 @@ prepare_k8s_env() {
   export KUBECONFIG=$(realpath $TMP_DIR/kubeconfig)
   # prepare our k8s environment
   # create these crds including dataset, model, joint-inference etc.
-  kubectl apply -f build/crds/neptune/
+  kubectl apply -f build/crds/sedna/
 
   # gm, lc will be created in this namespace
   kubectl create namespace $NAMESPACE
@@ -187,7 +187,7 @@ prepare_k8s_env() {
   kubectl apply -f build/gm/rbac/
 
   add_cleanup "
-    kubectl delete -f build/crds/neptune/
+    kubectl delete -f build/crds/sedna/
     kubectl delete namespace $NAMESPACE --timeout=5s
   "
   load_images_to_master
@@ -230,7 +230,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gm
-  namespace: neptune
+  namespace: sedna
 spec:
   selector:
     app: gm
@@ -246,7 +246,7 @@ metadata:
   name: gm
   labels:
     app: gm
-  namespace: neptune
+  namespace: sedna
 spec:
   replicas: 1
   selector:
@@ -258,11 +258,11 @@ spec:
         app: gm
     spec:
       nodeName: $gm_node_name
-      serviceAccountName: neptune
+      serviceAccountName: sedna
       containers:
       - name: gm
         image: $GM_IMAGE
-        command: ["neptune-gm", "--config", "/config/gmconfig", "-v2"]
+        command: ["sedna-gm", "--config", "/config/gmconfig", "-v2"]
         resources:
           requests:
             memory: 32Mi
@@ -292,7 +292,7 @@ start_lc() {
 
   add_cleanup "
   # so here give a timeout in case edgecore is exited unexpectedly
-  kubectl delete --timeout=5s ds lc -n neptune
+  kubectl delete --timeout=5s ds lc -n sedna
 
   # if edgecore exited unexpectedly, we need to clean lc manually
   [ -z \"\$(get_kubeedge_pid edgecore)\" ] && {
@@ -318,7 +318,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    k8s-app: neptune-lc
+    k8s-app: sedna-lc
   name: $lc_ds_name
   namespace: $NAMESPACE
 spec:
@@ -380,7 +380,7 @@ cleanup() {
 
   set +o errexit
 
-  echo "Cleaning up neptune..."
+  echo "Cleaning up sedna..."
 
   local idx=${#CLEANUP_CMDS[@]} cmd
   # reverse call cleanup
@@ -439,7 +439,7 @@ prepare_k8s_env
 start_gm
 start_lc
 
-echo "Local Neptune cluster is $(green_text running).
+echo "Local Sedna cluster is $(green_text running).
 Currently local-up script only support foreground running.
 Press $(red_text Ctrl-C) to shut it down!
 

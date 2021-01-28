@@ -4,13 +4,13 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-NEPTUNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+SEDNA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-CLIENT_ROOT="${NEPTUNE_ROOT}/pkg/client"
+CLIENT_ROOT="${SEDNA_ROOT}/pkg/client"
 ZZ_FILE="zz_generated.deepcopy.go"
 
 UPDATE_SCRIPT="hack/update-codegen.sh"
-"${NEPTUNE_ROOT}/$UPDATE_SCRIPT"
+"${SEDNA_ROOT}/$UPDATE_SCRIPT"
 
 if git status --short 2>/dev/null | grep -qE "${CLIENT_ROOT}|${ZZ_FILE}"; then
   echo "FAILED: codegen verify failed." >&2

@@ -8,7 +8,7 @@ and updates models based on the data generated at the edge.
 
 ### Prepare Worker Image
 Build the worker image by referring to the [dockerfile](/build/worker/base_images/tensorflow/tensorflow-1.15.Dockerfile)
-and put the image to the `gm-config.yaml`'s  `imageHub` in [Install Neptune](#install-neptune)
+and put the image to the `gm-config.yaml`'s  `imageHub` in [Install Sedna](#install-sedna)
 In this demo, we need to replace the requirement.txt to
 ```
 flask==1.1.2
@@ -20,9 +20,9 @@ requests==2.24.0
 tqdm==4.56.0
 matplotlib==3.3.3
 ```
-### Install Neptune
+### Install Sedna
 
-Follow the [Neptune installation document](/docs/setup/install.md) to install Neptune.
+Follow the [Sedna installation document](/docs/setup/install.md) to install Sedna.
 
 ### Prepare Data and Model
 
@@ -31,11 +31,11 @@ Follow the [Neptune installation document](/docs/setup/install.md) to install Ne
 mkdir -p /data/helmet_detection
 ```
 
-* step 2: download [base model](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/model.tar.gz)
+* step 2: download [base model](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/model.tar.gz)
 ```
 mkdir /model
 cd /model
-wget https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz
+wget https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz
 tar -zxvf model.tar.gz
 ```
 ### Prepare Script
@@ -44,17 +44,17 @@ Download the [scripts](/examples/incremental_learning/helmet_detection_increment
 
 ### Create Incremental Job
 
-Create Namespace `kubectl create ns neptune-test`
+Create Namespace `kubectl create ns sedna-test`
 
 Create Dataset
 
 ```
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: Dataset
 metadata:
   name: incremental-dataset
-  namespace: neptune-test
+  namespace: sedna-test
 spec:
   url: "/data/helmet_detection/dataset/data.txt"
   format: "txt"
@@ -66,11 +66,11 @@ Create Initial Model to simulate the initial model in incremental learning scena
 
 ```
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
   name: initial-model
-  namespace: neptune-test
+  namespace: sedna-test
 spec:
   url : "/model/base_model"
   format: "ckpt"
@@ -81,11 +81,11 @@ Create Deploy Model
 
 ```
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
   name: deploy-model
-  namespace: neptune-test
+  namespace: sedna-test
 spec:
   url : "/deploy/model.pb"
   format: "pb"
@@ -96,11 +96,11 @@ Start The Incremental Learning Job
 
 ```
 kubectl create -f - <<EOF
-apiVersion: neptune.io/v1alpha1
+apiVersion: sedna.io/v1alpha1
 kind: IncrementalLearningJob
 metadata:
   name: helmet-detection-demo
-  namespace: neptune-test
+  namespace: sedna-test
 spec:
   initialModel:
     name: "initial-model"
@@ -182,7 +182,7 @@ EOF
 
 * step 1: install the open source video streaming server [EasyDarwin](https://github.com/EasyDarwin/EasyDarwin/tree/dev).
 * step 2: start EasyDarwin server.
-* step 3: download [video](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/video.tar.gz).
+* step 3: download [video](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/video.tar.gz).
 * step 4: push a video stream to the url (e.g., `rtsp://localhost/video`) that the inference service can connect.
 
 ```
@@ -200,7 +200,7 @@ ffmpeg -re -i /data/video/helmet-detection.mp4 -vcodec libx264 -f rtsp rtsp://lo
 ### Check Incremental Learning Job
 query the service status
 ```
-kubectl get incrementallearningjob helmet-detection-demo -n neptune-test
+kubectl get incrementallearningjob helmet-detection-demo -n sedna-test
 ```
 In the `IncrementalLearningJob` resource helmet-detection-demo, the following trigger is configured:
 ```
@@ -216,10 +216,10 @@ trigger:
 ```
 In a real word, we need to label the hard examples in `HE_SAVED_URL`  with annotation tools and then put the examples to `Dataset`'s url.   
 Without annotation tools, we can simulate the condition of `num_of_samples` in the following ways:  
-Download [dataset](https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz) to our cloud0 node.
+Download [dataset](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz) to our cloud0 node.
 ```
 cd /data/helmet_detection
-wget  https://edgeai-neptune.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz
+wget  https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz
 tar -zxvf dataset.tar.gz
 ```
 The LocalController component will check the number of the sample, realize trigger conditions are met and notice the GlobalManager Component to start train worker.

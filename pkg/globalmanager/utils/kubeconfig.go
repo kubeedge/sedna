@@ -4,7 +4,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/config"
+	"github.com/kubeedge/sedna/pkg/globalmanager/config"
 )
 
 // KubeConfig from flags

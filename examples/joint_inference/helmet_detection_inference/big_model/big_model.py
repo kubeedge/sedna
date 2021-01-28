@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-import neptune
+import sedna
 
 LOG = logging.getLogger(__name__)
 
@@ -170,10 +170,10 @@ def create_output_fetch(sess):
 
 
 def run():
-    input_shape_str = neptune.context.get_parameters("input_shape")
+    input_shape_str = sedna.context.get_parameters("input_shape")
     input_shape = tuple(int(v) for v in input_shape_str.split(","))
 
-    neptune.joint_inference.TSBigModelService(
+    sedna.joint_inference.TSBigModelService(
         preprocess=preprocess,
         postprocess=postprocess,
         input_shape=input_shape,

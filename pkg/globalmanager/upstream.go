@@ -10,11 +10,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	neptunev1 "github.com/edgeai-neptune/neptune/pkg/apis/neptune/v1alpha1"
-	clientset "github.com/edgeai-neptune/neptune/pkg/client/clientset/versioned/typed/neptune/v1alpha1"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/config"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/messagelayer"
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/utils"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/globalmanager/config"
+	"github.com/kubeedge/sedna/pkg/globalmanager/messagelayer"
+	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
 // updateHandler handles the updates from LC(running at edge) to update the
@@ -23,7 +23,7 @@ type updateHandler func(namespace, name, operation string, content []byte) error
 
 // UpstreamController subscribes the updates from edge and syncs to k8s api server
 type UpstreamController struct {
-	client         *clientset.NeptuneV1alpha1Client
+	client         *clientset.SednaV1alpha1Client
 	messageLayer   messagelayer.MessageLayer
 	updateHandlers map[string]updateHandler
 }
@@ -56,7 +56,7 @@ func checkUpstreamOperation(operation string) error {
 }
 
 // updateDatasetStatus updates the dataset status
-func (uc *UpstreamController) updateDatasetStatus(name, namespace string, status neptunev1.DatasetStatus) error {
+func (uc *UpstreamController) updateDatasetStatus(name, namespace string, status sednav1.DatasetStatus) error {
 	client := uc.client.Datasets(namespace)
 
 	if status.UpdateTime == nil {
@@ -82,7 +82,7 @@ func (uc *UpstreamController) updateDatasetFromEdge(name, namespace, operation s
 		return err
 	}
 
-	status := neptunev1.DatasetStatus{}
+	status := sednav1.DatasetStatus{}
 	err = json.Unmarshal(content, &status)
 	if err != nil {
 		return newUnmarshalError(namespace, name, operation, content)
@@ -92,8 +92,8 @@ func (uc *UpstreamController) updateDatasetFromEdge(name, namespace, operation s
 }
 
 // convertToMetrics converts the metrics from LCs to resource metrics
-func convertToMetrics(m map[string]interface{}) []neptunev1.Metric {
-	var l []neptunev1.Metric
+func convertToMetrics(m map[string]interface{}) []sednav1.Metric {
+	var l []sednav1.Metric
 	for k, v := range m {
 		var displayValue string
 		switch t := v.(type) {
@@ -105,12 +105,12 @@ func convertToMetrics(m map[string]interface{}) []neptunev1.Metric {
 			displayValue = string(b)
 		}
 
-		l = append(l, neptunev1.Metric{Key: k, Value: displayValue})
+		l = append(l, sednav1.Metric{Key: k, Value: displayValue})
 	}
 	return l
 }
 
-func (uc *UpstreamController) updateJointInferenceMetrics(name, namespace string, metrics []neptunev1.Metric) error {
+func (uc *UpstreamController) updateJointInferenceMetrics(name, namespace string, metrics []sednav1.Metric) error {
 	client := uc.client.JointInferenceServices(namespace)
 
 	return retryUpdateStatus(name, namespace, func() error {
@@ -175,7 +175,7 @@ func (uc *UpstreamController) updateJointInferenceFromEdge(name, namespace, oper
 	return nil
 }
 
-func (uc *UpstreamController) updateModelMetrics(name, namespace string, metrics []neptunev1.Metric) error {
+func (uc *UpstreamController) updateModelMetrics(name, namespace string, metrics []sednav1.Metric) error {
 	client := uc.client.Models(namespace)
 
 	return retryUpdateStatus(name, namespace, (func() error {
@@ -192,7 +192,7 @@ func (uc *UpstreamController) updateModelMetrics(name, namespace string, metrics
 	}))
 }
 
-func (uc *UpstreamController) updateModelMetricsByFederatedName(name, namespace string, metrics []neptunev1.Metric) error {
+func (uc *UpstreamController) updateModelMetricsByFederatedName(name, namespace string, metrics []sednav1.Metric) error {
 	client := uc.client.FederatedLearningJobs(namespace)
 	var err error
 	federatedLearningJob, err := client.Get(context.TODO(), name, metav1.GetOptions{})
@@ -204,7 +204,7 @@ func (uc *UpstreamController) updateModelMetricsByFederatedName(name, namespace 
 	return uc.updateModelMetrics(modelName, namespace, metrics)
 }
 
-func (uc *UpstreamController) appendFederatedLearningJobStatusCondition(name, namespace string, cond neptunev1.FLJobCondition) error {
+func (uc *UpstreamController) appendFederatedLearningJobStatusCondition(name, namespace string, cond sednav1.FLJobCondition) error {
 	client := uc.client.FederatedLearningJobs(namespace)
 
 	return retryUpdateStatus(name, namespace, (func() error {
@@ -270,7 +270,7 @@ func (uc *UpstreamController) updateFederatedLearningJobFromEdge(name, namespace
 			// TODO: more meaningful reason/message
 			reason := "DoTraining"
 			message := fmt.Sprintf("Round %v reaches at %s", jobInfo.CurrentRound, jobInfo.UpdateTime)
-			cond := NewFLJobCondition(neptunev1.FLJobCondTraining, reason, message)
+			cond := NewFLJobCondition(sednav1.FLJobCondTraining, reason, message)
 			uc.appendFederatedLearningJobStatusCondition(name, namespace, cond)
 		}
 	}
@@ -278,7 +278,7 @@ func (uc *UpstreamController) updateFederatedLearningJobFromEdge(name, namespace
 	return nil
 }
 
-func (uc *UpstreamController) appendIncrementalLearningJobStatusCondition(name, namespace string, cond neptunev1.ILJobCondition) error {
+func (uc *UpstreamController) appendIncrementalLearningJobStatusCondition(name, namespace string, cond sednav1.ILJobCondition) error {
 	client := uc.client.IncrementalLearningJobs(namespace)
 	return retryUpdateStatus(name, namespace, (func() error {
 		job, err := client.Get(context.TODO(), name, metav1.GetOptions{})
@@ -316,7 +316,7 @@ func (uc *UpstreamController) updateIncrementalLearningFromEdge(name, namespace,
 	}
 	condDataBytes, _ := json.Marshal(&condData)
 
-	cond := neptunev1.ILJobCondition{
+	cond := sednav1.ILJobCondition{
 		Status:             v1.ConditionTrue,
 		LastHeartbeatTime:  metav1.Now(),
 		LastTransitionTime: metav1.Now(),
@@ -326,24 +326,24 @@ func (uc *UpstreamController) updateIncrementalLearningFromEdge(name, namespace,
 
 	switch strings.ToLower(jobStatus.Phase) {
 	case "train":
-		cond.Stage = neptunev1.ILJobTrain
+		cond.Stage = sednav1.ILJobTrain
 	case "eval":
-		cond.Stage = neptunev1.ILJobEval
+		cond.Stage = sednav1.ILJobEval
 	case "deploy":
-		cond.Stage = neptunev1.ILJobDeploy
+		cond.Stage = sednav1.ILJobDeploy
 	default:
 		return fmt.Errorf("invalid condition stage: %v", jobStatus.Phase)
 	}
 
 	switch strings.ToLower(jobStatus.Status) {
 	case "ready":
-		cond.Type = neptunev1.ILJobStageCondReady
+		cond.Type = sednav1.ILJobStageCondReady
 	case "completed":
-		cond.Type = neptunev1.ILJobStageCondCompleted
+		cond.Type = sednav1.ILJobStageCondCompleted
 	case "failed":
-		cond.Type = neptunev1.ILJobStageCondFailed
+		cond.Type = sednav1.ILJobStageCondFailed
 	case "waiting":
-		cond.Type = neptunev1.ILJobStageCondWaiting
+		cond.Type = sednav1.ILJobStageCondWaiting
 	default:
 		return fmt.Errorf("invalid condition type: %v", jobStatus.Status)
 	}
@@ -360,7 +360,7 @@ func (uc *UpstreamController) syncEdgeUpdate() {
 	for {
 		select {
 		case <-uc.messageLayer.Done():
-			klog.Info("Stop neptune upstream loop")
+			klog.Info("Stop sedna upstream loop")
 			return
 		default:
 		}
@@ -390,7 +390,7 @@ func (uc *UpstreamController) syncEdgeUpdate() {
 
 // Start the upstream controller
 func (uc *UpstreamController) Start() error {
-	klog.Info("Start the neptune upstream controller")
+	klog.Info("Start the sedna upstream controller")
 
 	go uc.syncEdgeUpdate()
 	return nil

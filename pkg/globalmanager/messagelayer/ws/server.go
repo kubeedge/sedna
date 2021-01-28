@@ -7,7 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/edgeai-neptune/neptune/pkg/globalmanager/messagelayer/model"
+	"github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/model"
 )
 
 // Server defines websocket protocol server

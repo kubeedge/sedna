@@ -1,8 +1,0 @@
-apiVersion: neptune.io/v1alpha1
-kind: Dataset
-metadata:
-  name: "dataset-demo0"
-spec:
-  url: "/code/data/train.txt"
-  format: "txt"
-  nodeName: "edge0"

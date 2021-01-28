@@ -105,7 +105,7 @@ clean:
 endif
 
 
-IMAGE_REPO ?= ghcr.io/edgeai-neptune/neptune
+IMAGE_REPO ?= ghcr.io/kubeedge/sedna
 IMAGE_TAG ?= v1alpha1
 GO_LDFLAGS ?=''
 
