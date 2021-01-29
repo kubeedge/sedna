@@ -1,0 +1,7 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: model-demo1
+spec:
+  url: "/model/frozen.pb"
+  format: "ckpt"
