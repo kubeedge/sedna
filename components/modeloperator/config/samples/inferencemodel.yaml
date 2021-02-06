@@ -1,0 +1,22 @@
+apiVersion: sedna.io/v1alpha1
+kind: InferenceModel
+metadata:
+  name: facialexpression
+spec:
+  modelName: facialexpression
+  deployToLayer: edge
+  frameworkType: tensorflow
+  image: ''
+  nodeSelector:
+    kubernetes.io/hostname: precision-5820
+  nodeName: precision-5820
+  manifest:
+    - version: '3'
+      downloadURL: http://192.168.1.15/model_emotion_3.tar.gz
+      sha256sum: dec87e2f3c06e60e554acac0b2b80e394c616b0ecdf878fab7f04fd414a66eff
+    - version: '4'
+      downloadURL: http://192.168.1.15/model_emotion_4.tar.gz
+      sha256sum: 108a433a941411217e5d4bf9f43a262d0247a14c35ccbf677f63ba3b46ae6285
+  targetVersion: '4'
+  servingPort: 8501
+  replicas: 1

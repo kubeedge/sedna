@@ -1,0 +1,105 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: inferencemodels.sedna.io
+spec:
+  group: sedna.io
+  names:
+    kind: InferenceModel
+    listKind: InferenceModelList
+    plural: inferencemodels
+    singular: inferencemodel
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: InferenceModel is the Schema for the inferencemodels API. For cloud,
+        it deploys a single deployment and a service. For edge, it deploys a single
+        pod.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: InferenceModelSpec defines the desired state of an InferenceModel.
+            Two ways of deployment are provided. The first is through a docker image.
+            The second is through a data store, with a manifest of model files. If
+            image is provided, manifest and targetVersion will be ignored.
+          properties:
+            deployToLayer:
+              type: string
+            frameworkType:
+              type: string
+            image:
+              type: string
+            manifest:
+              items:
+                description: InferenceModelFile defines an archive file for a single
+                  version of the model
+                properties:
+                  downloadURL:
+                    type: string
+                  sha256sum:
+                    type: string
+                  version:
+                    type: string
+                type: object
+              type: array
+            modelName:
+              type: string
+            nodeName:
+              type: string
+            nodeSelector:
+              additionalProperties:
+                type: string
+              type: object
+            replicas:
+              format: int32
+              minimum: 0
+              type: integer
+            servingPort:
+              format: int32
+              minimum: 0
+              type: integer
+            targetVersion:
+              type: string
+          required:
+          - deployToLayer
+          - frameworkType
+          - modelName
+          type: object
+        status:
+          description: InferenceModelStatus defines the observed state of InferenceModel
+          properties:
+            servingVersion:
+              type: string
+            url:
+              type: string
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

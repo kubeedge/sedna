@@ -1,0 +1,7 @@
+domain: sedna.io
+repo: modeloperator
+resources:
+- group: 
+  kind: InferenceModel
+  version: v1alpha1
+version: "2"
