@@ -26,16 +26,18 @@ Follow the [Sedna installation document](/docs/setup/install.md) to install Sedn
 
 ### Prepare Data and Model
 
-* step 1: create dataset directory:
+* step 1: download [dataset](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz)
 ```
 mkdir -p /data/helmet_detection
+wget https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz
+tar -zxvf dataset.tar.gz
 ```
 
 * step 2: download [base model](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/model.tar.gz)
 ```
 mkdir /model
 cd /model
-wget https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz
+wget https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/model.tar.gz
 tar -zxvf model.tar.gz
 ```
 ### Prepare Script
@@ -56,7 +58,7 @@ metadata:
   name: incremental-dataset
   namespace: sedna-test
 spec:
-  url: "/data/helmet_detection/dataset/data.txt"
+  url: "/data/helmet_detection/train_data/train_data.txt"
   format: "txt"
   nodeName: "cloud0"
 EOF
@@ -87,7 +89,7 @@ metadata:
   name: deploy-model
   namespace: sedna-test
 spec:
-  url : "/deploy/model.pb"
+  url : "/model/deploy_model/saved_model.pb"
   format: "pb"
 EOF
 ```
