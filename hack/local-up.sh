@@ -192,7 +192,7 @@ prepare_k8s_env() {
   export KUBECONFIG=$(realpath $TMP_DIR/kubeconfig)
   # prepare our k8s environment
   # create these crds including dataset, model, joint-inference etc.
-  kubectl apply -f build/crds/sedna/
+  kubectl apply -f build/crds/
 
   # gm, lc will be created in this namespace
   kubectl create namespace $NAMESPACE
@@ -201,7 +201,7 @@ prepare_k8s_env() {
   kubectl apply -f build/gm/rbac/
 
   add_cleanup "
-    kubectl delete -f build/crds/sedna/
+    kubectl delete -f build/crds/
     kubectl delete namespace $NAMESPACE --timeout=5s
   "
   load_images_to_master

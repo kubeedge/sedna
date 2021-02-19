@@ -1,0 +1,357 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: incrementallearningjobs.sedna.io
+spec:
+  group: sedna.io
+  names:
+    kind: IncrementalLearningJob
+    listKind: IncrementalLearningJobList
+    plural: incrementallearningjobs
+    shortNames:
+    - il
+    singular: incrementallearningjob
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: IncrementalLearningJob describes the data that a incrementallearningjob
+          resource should have
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ILJobSpec is a description of a incrementallearningjob
+            properties:
+              dataset:
+                properties:
+                  name:
+                    type: string
+                  trainProb:
+                    type: number
+                required:
+                - name
+                - trainProb
+                type: object
+              deploySpec:
+                description: DeploySpec describes the deploy model to be updated
+                properties:
+                  hardExampleMining:
+                    description: HardExampleMining describes the hard example algorithm
+                      to be used
+                    properties:
+                      name:
+                        type: string
+                      parameters:
+                        items:
+                          description: ParaSpec is a description of a parameter
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - key
+                          - value
+                          type: object
+                        type: array
+                    required:
+                    - name
+                    - parameters
+                    type: object
+                  model:
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  nodeName:
+                    type: string
+                  trigger:
+                    properties:
+                      checkPeriodSeconds:
+                        type: integer
+                      condition:
+                        properties:
+                          metric:
+                            type: string
+                          operator:
+                            type: string
+                          threshold:
+                            type: number
+                        required:
+                        - metric
+                        - operator
+                        - threshold
+                        type: object
+                      timer:
+                        properties:
+                          end:
+                            type: string
+                          start:
+                            type: string
+                        required:
+                        - end
+                        - start
+                        type: object
+                    required:
+                    - condition
+                    type: object
+                  workerSpec:
+                    description: CommonWorkerSpec is a description of a worker both
+                      for edge and cloud
+                    properties:
+                      frameworkType:
+                        type: string
+                      frameworkVersion:
+                        type: string
+                      parameters:
+                        items:
+                          description: ParaSpec is a description of a parameter
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - key
+                          - value
+                          type: object
+                        type: array
+                      scriptBootFile:
+                        type: string
+                      scriptDir:
+                        type: string
+                    required:
+                    - frameworkType
+                    - frameworkVersion
+                    - parameters
+                    - scriptBootFile
+                    - scriptDir
+                    type: object
+                required:
+                - hardExampleMining
+                - model
+                - nodeName
+                - trigger
+                - workerSpec
+                type: object
+              evalSpec:
+                description: EvalSpec describes the data an eval worker should have
+                properties:
+                  workerSpec:
+                    description: CommonWorkerSpec is a description of a worker both
+                      for edge and cloud
+                    properties:
+                      frameworkType:
+                        type: string
+                      frameworkVersion:
+                        type: string
+                      parameters:
+                        items:
+                          description: ParaSpec is a description of a parameter
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - key
+                          - value
+                          type: object
+                        type: array
+                      scriptBootFile:
+                        type: string
+                      scriptDir:
+                        type: string
+                    required:
+                    - frameworkType
+                    - frameworkVersion
+                    - parameters
+                    - scriptBootFile
+                    - scriptDir
+                    type: object
+                required:
+                - workerSpec
+                type: object
+              initialModel:
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+              nodeName:
+                type: string
+              outputDir:
+                type: string
+              trainSpec:
+                description: TrainSpec describes the data an train worker should have
+                properties:
+                  trigger:
+                    properties:
+                      checkPeriodSeconds:
+                        type: integer
+                      condition:
+                        properties:
+                          metric:
+                            type: string
+                          operator:
+                            type: string
+                          threshold:
+                            type: number
+                        required:
+                        - metric
+                        - operator
+                        - threshold
+                        type: object
+                      timer:
+                        properties:
+                          end:
+                            type: string
+                          start:
+                            type: string
+                        required:
+                        - end
+                        - start
+                        type: object
+                    required:
+                    - condition
+                    type: object
+                  workerSpec:
+                    description: CommonWorkerSpec is a description of a worker both
+                      for edge and cloud
+                    properties:
+                      frameworkType:
+                        type: string
+                      frameworkVersion:
+                        type: string
+                      parameters:
+                        items:
+                          description: ParaSpec is a description of a parameter
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - key
+                          - value
+                          type: object
+                        type: array
+                      scriptBootFile:
+                        type: string
+                      scriptDir:
+                        type: string
+                    required:
+                    - frameworkType
+                    - frameworkVersion
+                    - parameters
+                    - scriptBootFile
+                    - scriptDir
+                    type: object
+                required:
+                - trigger
+                - workerSpec
+                type: object
+            required:
+            - dataset
+            - deploySpec
+            - evalSpec
+            - initialModel
+            - nodeName
+            - outputDir
+            - trainSpec
+            type: object
+          status:
+            description: ILJobStatus represents the current state of a incrementallearning
+              job
+            properties:
+              completionTime:
+                description: Represents time when the job was completed. It is not
+                  guaranteed to be set in happens-before order across separate operations.
+                  It is represented in RFC3339 form and is in UTC.
+                format: date-time
+                type: string
+              conditions:
+                description: The latest available observations of a incrementllearning
+                  job's current state.
+                items:
+                  description: ILJobCondition describes current state of a job. see
+                    https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
+                    for details.
+                  properties:
+                    data:
+                      description: The json data related to this condition
+                      type: string
+                    lastHeartbeatTime:
+                      description: last time we got an update on a given condition
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      description: Last time the condition transit from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Human readable message indicating details about
+                        last transition.
+                      type: string
+                    reason:
+                      description: (brief) reason for the condition's last transition.
+                      type: string
+                    stage:
+                      description: Stage of the condition
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of job condition, Complete or Failed.
+                      type: string
+                  required:
+                  - stage
+                  - status
+                  - type
+                  type: object
+                type: array
+              startTime:
+                description: Represents time when the job was acknowledged by the
+                  job controller. It is not guaranteed to be set in happens-before
+                  order across separate operations. It is represented in RFC3339 form
+                  and is in UTC.
+                format: date-time
+                type: string
+            type: object
+        required:
+        - metadata
+        - spec
+        - status
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

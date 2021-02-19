@@ -23,6 +23,9 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:shortName=fl
+// +kubebuilder:subresource:status
+
 // FederatedLearningJob describes the data that a FederatedLearningJob resource should have
 type FederatedLearningJob struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -54,12 +57,12 @@ type TrainingWorker struct {
 
 // AggregationWorkerSpec is a description of a aggregationworker
 type AggregationWorkerSpec struct {
-	CommonWorkerSpec
+	CommonWorkerSpec `json:",inline"`
 }
 
 // TrainingWorkerSpec is a description of a trainingworker
 type TrainingWorkerSpec struct {
-	CommonWorkerSpec
+	CommonWorkerSpec `json:",inline"`
 }
 
 type datasetRefer struct {

@@ -1,0 +1,255 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: jointinferenceservices.sedna.io
+spec:
+  group: sedna.io
+  names:
+    kind: JointInferenceService
+    listKind: JointInferenceServiceList
+    plural: jointinferenceservices
+    shortNames:
+    - ji
+    singular: jointinferenceservice
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: JointInferenceService describes the data that a jointinferenceservice
+          resource should have
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: JointInferenceServiceSpec is a description of a jointinferenceservice
+            properties:
+              cloudWorker:
+                description: CloudWorker describes the data a cloud worker should
+                  have
+                properties:
+                  model:
+                    description: BigModel describes the big model
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  nodeName:
+                    type: string
+                  workerSpec:
+                    description: CommonWorkerSpec is a description of a worker both
+                      for edge and cloud
+                    properties:
+                      frameworkType:
+                        type: string
+                      frameworkVersion:
+                        type: string
+                      parameters:
+                        items:
+                          description: ParaSpec is a description of a parameter
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - key
+                          - value
+                          type: object
+                        type: array
+                      scriptBootFile:
+                        type: string
+                      scriptDir:
+                        type: string
+                    required:
+                    - frameworkType
+                    - frameworkVersion
+                    - parameters
+                    - scriptBootFile
+                    - scriptDir
+                    type: object
+                required:
+                - model
+                - nodeName
+                - workerSpec
+                type: object
+              edgeWorker:
+                description: EdgeWorker describes the data a edge worker should have
+                properties:
+                  hardExampleMining:
+                    description: HardExampleMining describes the hard example algorithm
+                      to be used
+                    properties:
+                      name:
+                        type: string
+                      parameters:
+                        items:
+                          description: ParaSpec is a description of a parameter
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - key
+                          - value
+                          type: object
+                        type: array
+                    required:
+                    - name
+                    - parameters
+                    type: object
+                  model:
+                    description: SmallModel describes the small model
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  nodeName:
+                    type: string
+                  workerSpec:
+                    description: CommonWorkerSpec is a description of a worker both
+                      for edge and cloud
+                    properties:
+                      frameworkType:
+                        type: string
+                      frameworkVersion:
+                        type: string
+                      parameters:
+                        items:
+                          description: ParaSpec is a description of a parameter
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - key
+                          - value
+                          type: object
+                        type: array
+                      scriptBootFile:
+                        type: string
+                      scriptDir:
+                        type: string
+                    required:
+                    - frameworkType
+                    - frameworkVersion
+                    - parameters
+                    - scriptBootFile
+                    - scriptDir
+                    type: object
+                required:
+                - hardExampleMining
+                - model
+                - nodeName
+                - workerSpec
+                type: object
+            required:
+            - cloudWorker
+            - edgeWorker
+            type: object
+          status:
+            description: JointInferenceServiceStatus represents the current state
+              of a joint inference service.
+            properties:
+              active:
+                description: The number of actively running workers.
+                format: int32
+                type: integer
+              conditions:
+                description: The latest available observations of a joint inference
+                  service's current state.
+                items:
+                  description: JointInferenceServiceCondition describes current state
+                    of a service. see https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
+                    for details.
+                  properties:
+                    lastHeartbeatTime:
+                      description: last time we got an update on a given condition
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      description: Last time the condition transit from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Human readable message indicating details about
+                        last transition.
+                      type: string
+                    reason:
+                      description: (brief) reason for the condition's last transition,
+                        one-word CamelCase reason for the condition's last transition.
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of service condition, Complete or Failed.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              failed:
+                description: The number of workers which reached to Failed.
+                format: int32
+                type: integer
+              metrics:
+                description: Metrics of the joint inference service.
+                items:
+                  description: Metric describes the data that a resource model metric
+                    should have
+                  properties:
+                    key:
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - key
+                  - value
+                  type: object
+                type: array
+              startTime:
+                description: Represents time when the service was acknowledged by
+                  the service controller. It is not guaranteed to be set in happens-before
+                  order across separate operations. It is represented in RFC3339 form
+                  and is in UTC.
+                format: date-time
+                type: string
+            type: object
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
