@@ -46,6 +46,7 @@ func (c *MainController) Start() {
 	for _, featureFunc := range []newFunc{
 		NewUpstreamController,
 		NewDownstreamController,
+		NewFederatedController,
 		NewJointController,
 		NewIncrementalJobController,
 	} {
