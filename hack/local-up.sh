@@ -95,11 +95,15 @@ localup_kubeedge() {
   # before cleanup called.
   # but we need cloudcore/edgecore alive to clean our container(mainly lc),
   # so here new a session to run local-up-kubeedge.sh
-  setsid  bash -c "
+  setsid bash -c "
     cd kubeedge
 
     # no use ENABLE_DAEMON=true since it has not-fully-cleanup problem.
     TIMEOUT=90 CLUSTER_NAME=$CLUSTER_NAME ENABLE_DAEMON=false
+    # 
+    # here unset OUT_DIR
+    # since local-up-kubeedge.sh needs default coded OUT_DIR
+    unset OUT_DIR
     source hack/local-up-kubeedge.sh
    " &
   KUBEEDGE_ROOT_PID=$!
@@ -121,9 +125,10 @@ localup_kubeedge() {
     for bin in cloudcore edgecore; do
       pid=$(get_kubeedge_pid $bin)
       if [ -n "$pid" ]; then
-        echo "found $bin: $pid, kill it"
-        kill $pid
-        kill $pid
+        echo "found $bin: $pid, try to kill it"
+        # cloudcore/edgecore is started by sudo
+        sudo kill $pid
+        sudo kill $pid
       fi
     done
   '
@@ -220,7 +225,7 @@ start_gm() {
 kubeConfig: ""
 namespace: ""
 imageHub:
-  $WORKER_IMAGE_HUB
+  ${WORKER_IMAGE_HUB:-}
 websocket:
   port: $GM_BIND_PORT
 localController:
@@ -434,32 +439,50 @@ red_text() {
   echo -ne "$RED$@$NO_COLOR"
 }
 
-trap cleanup EXIT
+do_up() {
+  cleanup
 
-cleanup
+  mkdir -p "$TMP_DIR"
+  add_cleanup 'rm -rf "$TMP_DIR"'
 
-mkdir -p "$TMP_DIR"
-add_cleanup 'rm -rf "$TMP_DIR"'
+  build_component_image gm lc
+  build_worker_base_images
 
-build_component_image gm lc
-build_worker_base_images
+  check_prerequisites
 
-check_prerequisites
+  localup_kubeedge
 
-localup_kubeedge
+  prepare_k8s_env
 
-prepare_k8s_env
+  start_gm
+  start_lc
 
-start_gm
-start_lc
+}
 
-echo "Local Sedna cluster is $(green_text running).
-Currently local-up script only support foreground running.
-Press $(red_text Ctrl-C) to shut it down!
+do_up_fg() {
+  trap cleanup EXIT
 
-You can use it with: kind export kubeconfig --name ${CLUSTER_NAME}
+  do_up
 
-$debug_infos
-"
+  echo "Local Sedna cluster is $(green_text running).
+  Currently local-up script only support foreground running.
+  Press $(red_text Ctrl-C) to shut it down!
 
-while check_healthy; do sleep 5; done
+  You can use it with: kind export kubeconfig --name ${CLUSTER_NAME}
+
+  $debug_infos
+  "
+  while check_healthy; do sleep 5; done
+}
+
+main() {
+
+if [ -z "${__WITH_SOURCE__:-}" ]; then
+  do_up_fg
+else  # __WITH_SOURCE__ mode, for run-e2e.sh
+  do_up
+fi
+
+}
+
+main

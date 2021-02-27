@@ -91,7 +91,7 @@ jobs:
 
   e2e_test:
     runs-on: ubuntu-latest
-    name: 'E2e test (noop now)'
+    name: 'E2e test'
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
@@ -104,14 +104,26 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
       - name: Install dependences
-        run: ': to be added'
+        run: |
+          # since this ubuntu-latest os has already kind/kubectl/jq(see https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md),
+          # this just makes it sure
+          type kind || {
+            sudo apt-get install -y jq
+            go get sigs.k8s.io/kind@$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/latest | jq -r .tag_name)
+          }
+          type kubectl || {
+            curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+            chmod +x ./kubectl
+            sudo mv ./kubectl /usr/local/bin/kubectl
+          }
+
 
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
-      - run: ': to be added'
+      - run: make e2e
 
   docker_build:
     runs-on: ubuntu-latest
