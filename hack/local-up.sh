@@ -455,6 +455,8 @@ do_up() {
 
   build_component_image gm lc
   build_worker_base_images
+  # remove stage builder image
+  docker image prune --filter=stage=builder
 
   check_prerequisites
 
