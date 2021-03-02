@@ -53,7 +53,6 @@ MASTER_NODENAME=${CLUSTER_NAME}-control-plane
 EDGE_NODENAME=edge-node
 NAMESPACE=sedna
 
-KUBEEDGE_VERSION=master
 TMP_DIR="$(realpath local-up-tmp)"
 
 GM_BIND_PORT=9000
@@ -68,13 +67,22 @@ arch() {
   echo "$arch"
 }
 
+get_latest_version() {
+  # get the latest version of specified gh repo
+  local repo=${1}
+  # output of this latest page:
+  # ...
+  # "tag_name": "v1.0.0",
+  # ...
+  curl -s https://api.github.com/repos/$repo/releases/latest | awk '/"tag_name":/&&$0=$2' | sed 's/[",]//g'
+}
+
 download_and_extract_kubeedge() {
 
   [ -d kubeedge ] && return
-  local version=${1:-$KUBEEDGE_VERSION}
+  local version=${KUBEEDGE_VERSION:-$(get_latest_version kubeedge/kubeedge)}
 
-  # master branch can't works with git clone --depth 1
-  git clone -b $version https://github.com/kubeedge/kubeedge
+  git clone -b $version --depth 1 https://github.com/kubeedge/kubeedge
   return
 
   # the archive file can't works since local-up-kubeedge.sh depends git tag
