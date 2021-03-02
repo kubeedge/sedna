@@ -193,6 +193,7 @@ build_worker_base_images() {
 
 load_images_to_master() {
   local image
+
   for image in $GM_IMAGE; do
     # just use the docker-image command of kind instead of ctr
     # docker save $image | docker exec -i $MASTER_NODENAME ctr --namespace k8s.io image import -
@@ -454,8 +455,16 @@ do_up() {
   add_cleanup 'rm -rf "$TMP_DIR"'
 
   build_component_image gm lc
+  # on github ci action, sometimes kind-load reported the error that gm/lc
+  # image not present locally, here for debug.
+  # TODO: remove these docker-images
+  docker images
+
   build_worker_base_images
-  # remove stage builder image
+
+  docker images
+
+  # remove stage builder images
   docker image prune --filter=stage=builder
 
   check_prerequisites
