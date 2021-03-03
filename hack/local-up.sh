@@ -448,11 +448,19 @@ red_text() {
   echo -ne "$RED$@$NO_COLOR"
 }
 
+fix_path() {
+  # since we depends some tools in $GOPATH/bin,
+  # fix the case the user don't add $GOPATH/bin to PATH.
+  export PATH="$PATH:${GOPATH:-$(go env GOPATH)}/bin"
+}
+
 do_up() {
   cleanup
 
   mkdir -p "$TMP_DIR"
   add_cleanup 'rm -rf "$TMP_DIR"'
+
+  fix_path
 
   build_component_image gm lc
   # on github ci action, sometimes kind-load reported the error that gm/lc
