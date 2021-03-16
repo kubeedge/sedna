@@ -53,7 +53,6 @@ MASTER_NODENAME=${CLUSTER_NAME}-control-plane
 EDGE_NODENAME=edge-node
 NAMESPACE=sedna
 
-KUBEEDGE_VERSION=master
 TMP_DIR="$(realpath local-up-tmp)"
 
 GM_BIND_PORT=9000
@@ -68,13 +67,22 @@ arch() {
   echo "$arch"
 }
 
+get_latest_version() {
+  # get the latest version of specified gh repo
+  local repo=${1}
+  # output of this latest page:
+  # ...
+  # "tag_name": "v1.0.0",
+  # ...
+  curl -s https://api.github.com/repos/$repo/releases/latest | awk '/"tag_name":/&&$0=$2' | sed 's/[",]//g'
+}
+
 download_and_extract_kubeedge() {
 
   [ -d kubeedge ] && return
-  local version=${1:-$KUBEEDGE_VERSION}
+  local version=${KUBEEDGE_VERSION:-$(get_latest_version kubeedge/kubeedge)}
 
-  # master branch can't works with git clone --depth 1
-  git clone -b $version https://github.com/kubeedge/kubeedge
+  git clone -b $version --depth 1 https://github.com/kubeedge/kubeedge
   return
 
   # the archive file can't works since local-up-kubeedge.sh depends git tag
@@ -95,11 +103,15 @@ localup_kubeedge() {
   # before cleanup called.
   # but we need cloudcore/edgecore alive to clean our container(mainly lc),
   # so here new a session to run local-up-kubeedge.sh
-  setsid  bash -c "
+  setsid bash -c "
     cd kubeedge
 
     # no use ENABLE_DAEMON=true since it has not-fully-cleanup problem.
     TIMEOUT=90 CLUSTER_NAME=$CLUSTER_NAME ENABLE_DAEMON=false
+    # 
+    # here unset OUT_DIR
+    # since local-up-kubeedge.sh needs default coded OUT_DIR
+    unset OUT_DIR
     source hack/local-up-kubeedge.sh
    " &
   KUBEEDGE_ROOT_PID=$!
@@ -121,9 +133,10 @@ localup_kubeedge() {
     for bin in cloudcore edgecore; do
       pid=$(get_kubeedge_pid $bin)
       if [ -n "$pid" ]; then
-        echo "found $bin: $pid, kill it"
-        kill $pid
-        kill $pid
+        echo "found $bin: $pid, try to kill it"
+        # cloudcore/edgecore is started by sudo
+        sudo kill $pid
+        sudo kill $pid
       fi
     done
   '
@@ -180,6 +193,7 @@ build_worker_base_images() {
 
 load_images_to_master() {
   local image
+
   for image in $GM_IMAGE; do
     # just use the docker-image command of kind instead of ctr
     # docker save $image | docker exec -i $MASTER_NODENAME ctr --namespace k8s.io image import -
@@ -220,7 +234,7 @@ start_gm() {
 kubeConfig: ""
 namespace: ""
 imageHub:
-  $WORKER_IMAGE_HUB
+  ${WORKER_IMAGE_HUB:-}
 websocket:
   port: $GM_BIND_PORT
 localController:
@@ -434,32 +448,68 @@ red_text() {
   echo -ne "$RED$@$NO_COLOR"
 }
 
-trap cleanup EXIT
+fix_path() {
+  # since we depends some tools in $GOPATH/bin,
+  # fix the case the user don't add $GOPATH/bin to PATH.
+  export PATH="$PATH:${GOPATH:-$(go env GOPATH)}/bin"
+}
 
-cleanup
+do_up() {
+  cleanup
 
-mkdir -p "$TMP_DIR"
-add_cleanup 'rm -rf "$TMP_DIR"'
+  mkdir -p "$TMP_DIR"
+  add_cleanup 'rm -rf "$TMP_DIR"'
 
-build_component_image gm lc
-build_worker_base_images
+  fix_path
 
-check_prerequisites
+  build_component_image gm lc
+  # on github ci action, sometimes kind-load reported the error that gm/lc
+  # image not present locally, here for debug.
+  # TODO: remove these docker-images
+  docker images
 
-localup_kubeedge
+  build_worker_base_images
 
-prepare_k8s_env
+  docker images
 
-start_gm
-start_lc
+  # remove stage builder images
+  docker image prune --filter=stage=builder
 
-echo "Local Sedna cluster is $(green_text running).
-Currently local-up script only support foreground running.
-Press $(red_text Ctrl-C) to shut it down!
+  check_prerequisites
 
-You can use it with: kind export kubeconfig --name ${CLUSTER_NAME}
+  localup_kubeedge
 
-$debug_infos
-"
+  prepare_k8s_env
 
-while check_healthy; do sleep 5; done
+  start_gm
+  start_lc
+
+}
+
+do_up_fg() {
+  trap cleanup EXIT
+
+  do_up
+
+  echo "Local Sedna cluster is $(green_text running).
+  Currently local-up script only support foreground running.
+  Press $(red_text Ctrl-C) to shut it down!
+
+  You can use it with: kind export kubeconfig --name ${CLUSTER_NAME}
+
+  $debug_infos
+  "
+  while check_healthy; do sleep 5; done
+}
+
+main() {
+
+if [ -z "${__WITH_SOURCE__:-}" ]; then
+  do_up_fg
+else  # __WITH_SOURCE__ mode, for run-e2e.sh
+  do_up
+fi
+
+}
+
+main

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 FROM golang:1.14-alpine3.11 AS builder
+LABEL stage=builder
 
 ARG GO_LDFLAGS
 
