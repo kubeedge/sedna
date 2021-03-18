@@ -472,9 +472,6 @@ do_up() {
 
   docker images
 
-  # remove stage builder images
-  docker image prune --filter=stage=builder
-
   check_prerequisites
 
   localup_kubeedge
