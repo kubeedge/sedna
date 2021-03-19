@@ -23,6 +23,8 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:shortName=ji
+// +kubebuilder:subresource:status
 
 // JointInferenceService describes the data that a jointinferenceservice resource should have
 type JointInferenceService struct {

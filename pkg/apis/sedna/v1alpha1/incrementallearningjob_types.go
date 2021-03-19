@@ -23,6 +23,9 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:shortName=il
+// +kubebuilder:subresource:status
+
 // IncrementalLearningJob describes the data that a incrementallearningjob resource should have
 type IncrementalLearningJob struct {
 	metav1.TypeMeta `json:",inline"`

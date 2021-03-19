@@ -37,7 +37,7 @@ git checkout master
 
 ```shell
 # create these crds including dataset, model, joint-inference
-kubectl apply -f build/crds/sedna/
+kubectl apply -f build/crds/
 ```
 
 ### Deploy GM
