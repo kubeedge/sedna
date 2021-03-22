@@ -60,7 +60,8 @@ func (dc *DownstreamController) syncDataset(eventType watch.EventType, dataset *
 // syncJointInferenceService syncs the joint-inference-service resources
 func (dc *DownstreamController) syncJointInferenceService(eventType watch.EventType, joint *sednav1.JointInferenceService) error {
 	// Here only propagate to the nodes with non empty name
-	nodeName := joint.Spec.EdgeWorker.NodeName
+	// FIXME: only the case that Spec.NodeName specified is support
+	nodeName := joint.Spec.EdgeWorker.Template.Spec.NodeName
 	if len(nodeName) == 0 {
 		return fmt.Errorf("empty node name")
 	}
@@ -229,7 +230,7 @@ func (dc *DownstreamController) watch(stopCh <-chan struct{}) {
 	client := dc.client.RESTClient()
 
 	// make this option configurable
-	resyncPeriod := time.Second * 60
+	resyncPeriod := time.Second * 600
 	namespace := dc.cfg.Namespace
 
 	// TODO: use the informer

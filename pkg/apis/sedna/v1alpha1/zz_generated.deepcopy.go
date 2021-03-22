@@ -79,7 +79,7 @@ func (in *BigModel) DeepCopy() *BigModel {
 func (in *CloudWorker) DeepCopyInto(out *CloudWorker) {
 	*out = *in
 	out.Model = in.Model
-	in.WorkerSpec.DeepCopyInto(&out.WorkerSpec)
+	in.Template.DeepCopyInto(&out.Template)
 	return
 }
 
@@ -268,7 +268,7 @@ func (in *EdgeWorker) DeepCopyInto(out *EdgeWorker) {
 	*out = *in
 	out.Model = in.Model
 	in.HardExampleMining.DeepCopyInto(&out.HardExampleMining)
-	in.WorkerSpec.DeepCopyInto(&out.WorkerSpec)
+	in.Template.DeepCopyInto(&out.Template)
 	return
 }
 

@@ -223,3 +223,26 @@ func calcActivePodCount(pods []*v1.Pod) int32 {
 	}
 	return result
 }
+
+func InjectContainerPara(pod *v1.Pod, containerPara *ContainerPara, object CommonInterface) {
+
+	// inject our predefined volumes/envs
+	volumeMounts, volumes := CreateVolumeMap(containerPara)
+	envs := CreateEnvVars(containerPara.env)
+	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
+	for idx := range pod.Spec.Containers {
+		pod.Spec.Containers[idx].Env = append(
+			pod.Spec.Containers[idx].Env, envs...,
+		)
+		pod.Spec.Containers[idx].VolumeMounts = append(
+			pod.Spec.Containers[idx].VolumeMounts, volumeMounts...,
+		)
+	}
+
+	if pod.Labels == nil {
+		pod.Labels = make(map[string]string)
+	}
+	for k, v := range GenerateLabels(object) {
+		pod.Labels[k] = v
+	}
+}
