@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	k8scontroller "k8s.io/kubernetes/pkg/controller"
 )
 
 const (
@@ -224,7 +225,7 @@ func calcActivePodCount(pods []*v1.Pod) int32 {
 	return result
 }
 
-func InjectContainerPara(pod *v1.Pod, containerPara *ContainerPara, object CommonInterface) {
+func injectContainerPara(pod *v1.Pod, containerPara *ContainerPara, object CommonInterface) {
 
 	// inject our predefined volumes/envs
 	volumeMounts, volumes := CreateVolumeMap(containerPara)
@@ -245,4 +246,21 @@ func InjectContainerPara(pod *v1.Pod, containerPara *ContainerPara, object Commo
 	for k, v := range GenerateLabels(object) {
 		pod.Labels[k] = v
 	}
+
+	pod.GenerateName = object.GetName() + "-" + strings.ToLower(containerPara.workerType) + "-"
+
+	pod.Namespace = object.GetNamespace()
+
+	if containerPara.hostNetwork {
+		// FIXME
+		// force to set hostnetwork
+		pod.Spec.HostNetwork = true
+	}
+}
+
+func getPodFromTemplate(object CommonInterface, spec *v1.PodTemplateSpec, containerPara *ContainerPara) *v1.Pod {
+
+	pod, _ := k8scontroller.GetPodFromTemplate(spec, object, metav1.NewControllerRef(object, object.GroupVersionKind()))
+	injectContainerPara(pod, containerPara, object)
+	return pod
 }

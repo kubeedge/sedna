@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -33,12 +34,16 @@ type ContainerPara struct {
 	frameVersion    string
 	scriptBootFile  string
 	nodeName        string
+	workerType      string
+	// if true, force to use hostNetwork
+	hostNetwork bool
 }
 
 // CommonInterface describes the commom interface of CRs
 type CommonInterface interface {
 	metav1.Object
 	schema.ObjectKind
+	runtime.Object
 }
 
 // FeatureControllerI defines the interface of an AI Feature controller

@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -52,11 +51,9 @@ import (
 	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
-type jointInferenceType string
-
 const (
-	jointInferenceForEdge  jointInferenceType = "Edge"
-	jointInferenceForCloud jointInferenceType = "Cloud"
+	jointInferenceForEdge  = "Edge"
+	jointInferenceForCloud = "Cloud"
 )
 
 // jointServiceControllerKind contains the schema.GroupVersionKind for this controller type.
@@ -465,8 +462,12 @@ func (jc *JointInferenceServiceController) createCloudPod(service *sednav1.Joint
 		"BIG_MODEL_BIND_PORT": strconv.Itoa(int(bigModelPort)),
 	}
 
+	cloudContainer.workerType = jointInferenceForCloud
+
 	// create cloud pod
-	err = jc.generatedPod(service, jointInferenceForCloud, cloudContainer, false)
+	err = jc.generatedPod(service,
+		&service.Spec.CloudWorker.Template,
+		cloudContainer)
 	if err != nil {
 		return err
 	}
@@ -525,41 +526,33 @@ func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointI
 		"LC_SERVER":      jc.cfg.LC.Server,
 	}
 
+	edgeContainer.workerType = jointInferenceForEdge
+	edgeContainer.hostNetwork = true
+
 	// create edge pod
-	err = jc.generatedPod(service, jointInferenceForEdge, edgeContainer, true)
+	err = jc.generatedPod(service,
+
+		&service.Spec.EdgeWorker.Template,
+		edgeContainer)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (jc *JointInferenceServiceController) generatedPod(service *sednav1.JointInferenceService, podtype jointInferenceType,
-	containerPara *ContainerPara, hostNetwork bool) error {
+func (jc *JointInferenceServiceController) generatedPod(service *sednav1.JointInferenceService,
 
-	var podTemplate *v1.PodTemplateSpec
-	ctx := context.Background()
-	if podtype == jointInferenceForEdge {
-		podTemplate = &service.Spec.EdgeWorker.Template
-	} else {
-		podTemplate = &service.Spec.CloudWorker.Template
-	}
+	podTemplate *v1.PodTemplateSpec,
+	containerPara *ContainerPara) error {
 
-	pod, _ := k8scontroller.GetPodFromTemplate(podTemplate, service, metav1.NewControllerRef(service, jointServiceControllerKind))
-	InjectContainerPara(pod, containerPara, service)
+	pod := getPodFromTemplate(service, podTemplate, containerPara)
 
-	pod.Namespace = service.Namespace
-	pod.GenerateName = service.Name + "-" + strings.ToLower(string(podtype)) + "-"
-
-	if hostNetwork {
-		// force to set hostnetwork
-		pod.Spec.HostNetwork = true
-	}
-	createdPod, err := jc.kubeClient.CoreV1().Pods(service.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+	createdPod, err := jc.kubeClient.CoreV1().Pods(service.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
-		klog.Warningf("failed to create %s pod %s for jointinference service %v/%v, err:%s", string(podtype), pod.Name, service.Namespace, service.Name, err)
+		klog.Warningf("failed to create pod %s for jointinference service %v/%v, err:%s", pod.Name, service.Namespace, service.Name, err)
 		return err
 	}
-	klog.V(2).Infof("%s pod %s is created successfully for jointinference service %v/%v", string(podtype), createdPod.Name, service.Namespace, service.Name)
+	klog.V(2).Infof("pod %s is created successfully for jointinference service %v/%v", createdPod.Name, service.Namespace, service.Name)
 	return nil
 }
 

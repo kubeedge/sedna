@@ -20,11 +20,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/klog/v2"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -52,11 +53,9 @@ import (
 	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
-type FLJobStage string
-
 const (
-	FLJobStageAgg   FLJobStage = "Aggregation"
-	FLJobStageTrain FLJobStage = "Training"
+	FLJobStageAgg   = "Aggregation"
+	FLJobStageTrain = "Training"
 )
 
 // flJobControllerKind contains the schema.GroupVersionKind for this controller type.
@@ -454,9 +453,15 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 	aggContainer.nodeName = aggWorker.NodeName
 	aggContainer.frameName = aggWorker.WorkerSpec.FrameworkType
 	aggContainer.frameVersion = aggWorker.WorkerSpec.FrameworkVersion
+	aggContainer.workType = FLJobStageAgg
 
 	// create aggpod based on configured parameters
-	fc.generatedPod(job, FLJobStageAgg, aggContainer, &active, false)
+	err = fc.generatedPod(job, aggContainer)
+	if err != nil {
+		return active, err
+	}
+	active++
+
 	var appIP string
 	var aggServicePort int32
 
@@ -516,63 +521,29 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 		trainContainer.nodeName = trainingWorker.NodeName
 		trainContainer.frameName = trainingWorker.WorkerSpec.FrameworkType
 		trainContainer.frameVersion = trainingWorker.WorkerSpec.FrameworkVersion
+		trainContainer.workerType = FLJobStageTrain
+		trainContainer.hostNetwork = true
 
 		// create trainpod based on configured parameters
-		err = fc.generatedPod(job, FLJobStageTrain, trainContainer, &active, true)
+		err = fc.generatedPod(job, trainContainer)
 		if err != nil {
 			return active, err
 		}
+		active++
 	}
 	return
 }
 
-func (fc *FederatedController) generatedPod(job *sednav1.FederatedLearningJob, podtype FLJobStage, containerPara *ContainerPara, active *int32, hostNetwork bool) error {
-	var volumeMounts []v1.VolumeMount
-	var volumes []v1.Volume
-	var envs []v1.EnvVar
-	ctx := context.Background()
-	command := []string{"python"}
-	// get baseImgURL from imageHub based on user's configuration in job CRD
-	baseImgURL, err := MatchContainerBaseImage(fc.cfg.ImageHub, containerPara.frameName, containerPara.frameVersion)
-	// TODO: if matched image is empty, the pod creation process will not proceed, return error directly.
+func (fc *FederatedController) generatedPod(job *sednav1.FederatedLearningJob, podTemplate *v1.PodTemplateSpec, containerPara *ContainerPara) error {
+
+	pod := getPodFromTemplate(job, podTemplate, containerPara)
+
+	createdPod, err := fc.kubeClient.CoreV1().Pods(job.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
-		klog.Warningf("federatedlearning job %v/%v %v worker matching container base image occurs error:%v", job.Namespace, job.Name, podtype, err)
-		return fmt.Errorf("%s pod occurs error: %w",
-			podtype, err)
-	}
-	volumeMounts, volumes = CreateVolumeMap(containerPara)
-	envs = CreateEnvVars(containerPara.env)
-	podSpec := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:    job.Namespace,
-			GenerateName: job.Name + "-" + strings.ToLower(string(podtype)) + "-",
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(job, sednav1.SchemeGroupVersion.WithKind("FederatedLearningJob")),
-			},
-			Labels: GenerateLabels(job),
-		},
-		Spec: v1.PodSpec{
-			RestartPolicy: v1.RestartPolicyNever,
-			NodeName:      containerPara.nodeName,
-			Containers: []v1.Container{
-				{Name: "container-" + job.Name + "-" + strings.ToLower(string(podtype)) + "-" + utilrand.String(5),
-					Image:        baseImgURL,
-					Command:      command,
-					Args:         []string{containerPara.scriptBootFile},
-					Env:          envs,
-					VolumeMounts: volumeMounts,
-				}},
-			Volumes:     volumes,
-			HostNetwork: hostNetwork,
-		},
-	}
-	pod, err := fc.kubeClient.CoreV1().Pods(job.Namespace).Create(ctx, podSpec, metav1.CreateOptions{})
-	if err != nil {
-		klog.Warningf("failed to create %s pod %s for federatedlearning job %v/%v, err:%s", string(podtype), pod.Name, job.Namespace, job.Name, err)
+		klog.Errorf("failed to create pod %s for federatedlearning job %v/%v, err:%s", pod.Name, job.Namespace, job.Name, err)
 		return err
 	}
-	klog.V(2).Infof("%s pod %s is created successfully for federatedlearning job %v/%v", string(podtype), pod.Name, job.Namespace, job.Name)
-	*active++
+	klog.V(2).Infof("pod %s is created successfully for federatedlearning job %v/%v", pod.Name, job.Namespace, job.Name)
 	return nil
 }
 
