@@ -6647,7 +6647,6 @@ spec:
                         type: array
                     required:
                     - name
-                    - parameters
                     type: object
                   model:
                     description: SmallModel describes the small model

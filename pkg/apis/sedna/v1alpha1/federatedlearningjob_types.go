@@ -43,26 +43,14 @@ type FLJobSpec struct {
 
 // AggregationWorker describes the data an aggregation worker should have
 type AggregationWorker struct {
-	Model      modelRefer            `json:"model"`
-	NodeName   string                `json:"nodeName"`
-	WorkerSpec AggregationWorkerSpec `json:"workerSpec"`
+	Model    modelRefer         `json:"model"`
+	Template v1.PodTemplateSpec `json:"template"`
 }
 
 // TrrainingWorker describes the data a training worker should have
 type TrainingWorker struct {
-	NodeName   string             `json:"nodeName"`
-	WorkerSpec TrainingWorkerSpec `json:"workerSpec"`
-	Dataset    datasetRefer       `json:"dataset"`
-}
-
-// AggregationWorkerSpec is a description of a aggregationworker
-type AggregationWorkerSpec struct {
-	CommonWorkerSpec `json:",inline"`
-}
-
-// TrainingWorkerSpec is a description of a trainingworker
-type TrainingWorkerSpec struct {
-	CommonWorkerSpec `json:",inline"`
+	Dataset  datasetRefer       `json:"dataset"`
+	Template v1.PodTemplateSpec `json:"template"`
 }
 
 type datasetRefer struct {

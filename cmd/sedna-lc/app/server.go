@@ -67,7 +67,8 @@ It manages dataset and models, and controls ai features in local nodes.`, cmdNam
 		Options.NodeName = os.Getenv(constants.HostNameENV)
 	}
 
-	if Options.VolumeMountPrefix = os.Getenv(constants.RootFSMountDirENV); Options.VolumeMountPrefix == "" {
+	var ok bool
+	if Options.VolumeMountPrefix, ok = os.LookupEnv(constants.RootFSMountDirENV); !ok {
 		Options.VolumeMountPrefix = "/rootfs"
 	}
 

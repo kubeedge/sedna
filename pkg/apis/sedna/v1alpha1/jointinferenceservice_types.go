@@ -68,7 +68,7 @@ type BigModel struct {
 // HardExampleMining describes the hard example algorithm to be used
 type HardExampleMining struct {
 	Name       string     `json:"name"`
-	Parameters []ParaSpec `json:"parameters"`
+	Parameters []ParaSpec `json:"parameters,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

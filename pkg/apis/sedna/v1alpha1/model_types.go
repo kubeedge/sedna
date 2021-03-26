@@ -31,7 +31,7 @@ type Model struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   ModelSpec   `json:"spec"`
-	Status ModelStatus `json:"status"`
+	Status ModelStatus `json:"status,omitempty"`
 }
 
 // ModelSpec is a description of a model

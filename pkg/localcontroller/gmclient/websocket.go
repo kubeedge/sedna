@@ -143,11 +143,10 @@ func (c *wsClient) sendMessage(stop chan struct{}) {
 		stop <- struct{}{}
 	}()
 
-	messageChannel := c.SendMessageChannel
 	ws := c.WSConnection.WSConn
 
 	for {
-		message, ok := <-messageChannel
+		message, ok := <-c.SendMessageChannel
 		if !ok {
 			return
 		}

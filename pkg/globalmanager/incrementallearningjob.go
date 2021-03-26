@@ -18,7 +18,6 @@ package globalmanager
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -497,10 +496,7 @@ func IsIncrementalJobFinished(j *sednav1.IncrementalLearningJob) bool {
 
 func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJob, podtype sednav1.ILJobStage) (err error) {
 	ctx := context.Background()
-	var workerName string
-	var workerSpec sednav1.CommonWorkerSpec
-	trainworkerspec := job.Spec.TrainSpec
-	evalworkerspec := job.Spec.EvalSpec
+	var podTemplate *v1.PodTemplateSpec
 
 	incrementalDatasetName := job.Spec.Dataset.Name
 	initialModelName := job.Spec.InitialModel.Name
@@ -534,18 +530,6 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 
 	outputDir := job.Spec.OutputDir
 	datasetParent := filepath.Dir(datasetPath)
-	var trainCodePath string
-	var evalCodePath string
-	trainCodePath = trainworkerspec.WorkerSpec.ScriptDir
-	evalCodePath = evalworkerspec.WorkerSpec.ScriptDir
-
-	trainParameterJSON, _ := json.Marshal(trainworkerspec.WorkerSpec.Parameters)
-	evalParameterJSON, _ := json.Marshal(evalworkerspec.WorkerSpec.Parameters)
-	trainParameterString := string(trainParameterJSON)
-	evalParameterString := string(evalParameterJSON)
-
-	klog.V(2).Infof("incrementallearning job %v/%v train parameters:%s", job.Namespace, job.Name, trainParameterString)
-	klog.V(2).Infof("incrementallearning job %v/%v eval parameters:%s", job.Namespace, job.Name, evalParameterString)
 
 	// get all url for train and eval from data in condition
 	condDataStr := job.Status.Conditions[len(job.Status.Conditions)-1].Data
@@ -576,24 +560,24 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 	dataURLContain = dataPrefix + dataURL
 
 	// Container VolumeMounts parameters
-	codeConPath := codePrefix
 	dataConPath := dataPrefix + datasetParent
 	basemodelConPath := dataPrefix + basemodelPath
 	deploymodelConPath := dataPrefix + deploymodelPath
 	outputConPath := dataPrefix + outputDir
 	var containerPara *ContainerPara = new(ContainerPara)
 	if podtype == sednav1.ILJobTrain {
-		workerName = "Train"
-		workerSpec = trainworkerspec.WorkerSpec
+		containerPara.workerType = "Train"
+
+		podTemplate = &job.Spec.TrainSpec.Template
 		// Env parameters for train
 		preModelURL := inputmodelURLContain     // premodel savepath before increase
 		outputModelURL := outputmodelURLContain // outputmodel savepath after increase, should be under outputdir
 		trainDataURL := dataURLContain
 
 		// Configure container mounting and Env information for train by initial ContainerPara
-		containerPara.volumeMountList = []string{codeConPath, dataConPath, basemodelConPath, deploymodelConPath, outputConPath}
-		containerPara.volumeList = []string{trainCodePath, datasetParent, basemodelPath, deploymodelPath, outputDir}
-		containerPara.volumeMapName = []string{"code", "data", "base-model", "deploy-model", "output-dir"}
+		containerPara.volumeMountList = []string{dataConPath, basemodelConPath, deploymodelConPath, outputConPath}
+		containerPara.volumeList = []string{datasetParent, basemodelPath, deploymodelPath, outputDir}
+		containerPara.volumeMapName = []string{"data", "base-model", "deploy-model", "output-dir"}
 		containerPara.env = map[string]string{
 			"TRAIN_DATASET_URL": trainDataURL,
 			"MODEL_URL":         outputModelURL,
@@ -601,32 +585,31 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 			"NAMESPACE":         job.Namespace,
 			"JOB_NAME":          job.Name,
 			"WORKER_NAME":       "train-worker-" + utilrand.String(5),
-			"PARAMETERS":        trainParameterString,
 			"LC_SERVER":         jc.cfg.LC.Server,
 		}
 	} else {
-		workerName = "Eval"
-		workerSpec = evalworkerspec.WorkerSpec
+		podTemplate = &job.Spec.EvalSpec.Template
+		containerPara.workerType = "Eval"
+
 		// Env parameters for eval
 		evalDataURL := dataURLContain
 		modelForEval := inputmodelURLContain // can be single or multi models
 
 		// Configure container mounting and Env information for eval by initial ContainerPara
-		containerPara.volumeMountList = []string{codeConPath, dataConPath, basemodelConPath, deploymodelConPath, outputConPath}
-		containerPara.volumeList = []string{evalCodePath, datasetParent, basemodelPath, deploymodelPath, outputDir}
-		containerPara.volumeMapName = []string{"code", "data", "base-model", "deploy-model", "output-dir"}
+		containerPara.volumeMountList = []string{dataConPath, basemodelConPath, deploymodelConPath, outputConPath}
+		containerPara.volumeList = []string{datasetParent, basemodelPath, deploymodelPath, outputDir}
+		containerPara.volumeMapName = []string{"data", "base-model", "deploy-model", "output-dir"}
 		containerPara.env = map[string]string{
 			"TEST_DATASET_URL": evalDataURL,
 			"MODEL_URLS":       modelForEval,
 			"NAMESPACE":        job.Namespace,
 			"JOB_NAME":         job.Name,
 			"WORKER_NAME":      "eval-worker-" + utilrand.String(5),
-			"PARAMETERS":       evalParameterString,
 			"LC_SERVER":        jc.cfg.LC.Server,
 		}
 	}
 	// create pod based on podtype
-	err = jc.generatePod(job, workerSpec, workerName, containerPara)
+	err = jc.generatePod(job, podTemplate, containerPara)
 	if err != nil {
 		return err
 	}
@@ -634,9 +617,8 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 }
 
 func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearningJob) error {
-	ctx := context.Background()
 	infermodelName := job.Spec.DeploySpec.Model.Name
-	inferModel, err := jc.client.Models(job.Namespace).Get(ctx, infermodelName, metav1.GetOptions{})
+	inferModel, err := jc.client.Models(job.Namespace).Get(context.TODO(), infermodelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get infer model %s: %w",
 			infermodelName, err)
@@ -646,13 +628,7 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 	// convert crd to JSON, and put them into env of container
 	inferModelParent := filepath.Dir(inferModelPath)
 
-	inferWorkerSpec := job.Spec.DeploySpec.WorkerSpec
-	inferCodePath := inferWorkerSpec.ScriptDir
-	inferParameterJSON, _ := json.Marshal(inferWorkerSpec.Parameters)
-	inferParameterString := string(inferParameterJSON)
-
 	// Container VolumeMounts parameters
-	inferCodeConPath := codePrefix
 	inferModelConPath := dataPrefix + inferModelParent
 
 	// Env parameters for edge
@@ -660,75 +636,37 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 
 	// Configure container mounting and Env information by initial ContainerPara
 	var inferContainer *ContainerPara = new(ContainerPara)
-	inferContainer.volumeMountList = []string{inferCodeConPath, inferModelConPath}
-	inferContainer.volumeList = []string{inferCodePath, inferModelParent}
-	inferContainer.volumeMapName = []string{"code", "model"}
+	inferContainer.volumeMountList = []string{inferModelConPath}
+	inferContainer.volumeList = []string{inferModelParent}
+	inferContainer.volumeMapName = []string{"model"}
 	inferContainer.env = map[string]string{
 		"WORKER_NAME":           "inferworker-" + utilrand.String(5),
-		"PARAMETERS":            inferParameterString,
 		"MODEL_URL":             inferModelURL,
 		"NAMESPACE":             job.Namespace,
 		"HARD_SAMPLE_ALGORITHM": job.Spec.DeploySpec.HardExampleMining.Name,
 		"LC_SERVER":             jc.cfg.LC.Server,
 	}
 
+	inferContainer.workerType = "inference"
+	inferContainer.hostNetwork = true
+
 	// create edge pod
-	err = jc.generatePod(job, inferWorkerSpec, "inference", inferContainer)
+	err = jc.generatePod(job, &job.Spec.DeploySpec.Template, inferContainer)
 	return err
 }
 
 // generatePod forms a pod for train and eval for incrementaljob
-func (jc *IncrementalJobController) generatePod(job *sednav1.IncrementalLearningJob, workerSpec sednav1.CommonWorkerSpec, workerType string, containerPara *ContainerPara) error {
-	var volumeMounts []v1.VolumeMount
-	var volumes []v1.Volume
-	var envs []v1.EnvVar
-	var nodeName string
-	if workerType == "inference" {
-		nodeName = job.Spec.DeploySpec.NodeName
-	} else {
-		nodeName = job.Spec.NodeName
-	}
-	ctx := context.Background()
-	// get baseImgURL from imageHub based on user's configuration in job CRD
-	frameName := workerSpec.FrameworkType
-	frameVersion := workerSpec.FrameworkVersion
-	baseImgURL, err := MatchContainerBaseImage(jc.cfg.ImageHub, frameName, frameVersion)
-	// TODO: if matched image is empty, the pod creation process will not proceed, return error directly.
+func (jc *IncrementalJobController) generatePod(job *sednav1.IncrementalLearningJob,
+	podTemplate *v1.PodTemplateSpec,
+	containerPara *ContainerPara) error {
+
+	pod := getPodFromTemplate(job, podTemplate, containerPara)
+	createdPod, err := jc.kubeClient.CoreV1().Pods(job.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
-		klog.Warningf("incrementallearning job %v/%v %v worker matching container base image occurs error:%v", job.Namespace, job.Name, workerType, err)
+		klog.Warningf("failed to create pod %s for incrementallearning job %v/%v, err:%s", pod.Name, job.Namespace, job.Name, err)
 		return err
 	}
-	volumeMounts, volumes = CreateVolumeMap(containerPara)
-	envs = CreateEnvVars(containerPara.env)
-	podSpec := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: job.Namespace,
-			Name:      jc.generatePodName(job.Name, workerType),
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(job, sednav1.SchemeGroupVersion.WithKind("IncrementalLearningJob")),
-			},
-			Labels: GenerateLabels(job),
-		},
-		Spec: v1.PodSpec{
-			RestartPolicy: v1.RestartPolicyNever,
-			HostNetwork:   true,
-			NodeName:      nodeName,
-			Containers: []v1.Container{
-				{Name: "container-" + job.Name + "-" + strings.ToLower(workerType) + "-" + utilrand.String(5),
-					Image:        baseImgURL,
-					Args:         []string{workerSpec.ScriptBootFile},
-					Env:          envs,
-					VolumeMounts: volumeMounts,
-				}},
-			Volumes: volumes,
-		},
-	}
-	pod, err := jc.kubeClient.CoreV1().Pods(job.Namespace).Create(ctx, podSpec, metav1.CreateOptions{})
-	if err != nil {
-		klog.Warningf("failed to create %s pod %s for incrementallearning job %v/%v, err:%s", workerType, pod.Name, job.Namespace, job.Name, err)
-		return err
-	}
-	klog.V(2).Infof("%s pod %s is created successfully for incrementallearning job %v/%v", workerType, pod.Name, job.Namespace, job.Name)
+	klog.V(2).Infof("pod %s is created successfully for incrementallearning job %v/%v", createdPod.Name, job.Namespace, job.Name)
 	return nil
 }
 
