@@ -33,18 +33,20 @@ tar -zxvf big-model.tar.gz
 ```
 
 ### Prepare Script
-* step1: download the script [little_model.py](/examples/joint_inference/helmet_detection_inference/little_model/little_model.py) to the path `/code/little_model` of edge node.
+* step1: download the script [little_model.py](/examples/joint_inference/helmet_detection_inference/little_model/little_model.py) to the path `/code/little-model` of edge node.
 
 ```
-mkdir -p /code/little_model
-curl -o little_model.py https://github.com/kubeedge/sedna/blob/main/examples/helmet_detection_inference/little_model/little_model.py
+mkdir -p /code/little-model
+cd /code/little-model
+curl -o little_model.py https://raw.githubusercontent.com/kubeedge/sedna/main/examples/joint_inference/helmet_detection_inference/little_model/little_model.py
 ```
 
-* step2: download the script [big_model.py](/examples/joint_inference/helmet_detection_inference/big_model/big_model.py) to the path `/code/big_model` of cloud node.
+* step2: download the script [big_model.py](/examples/joint_inference/helmet_detection_inference/big_model/big_model.py) to the path `/code/big-model` of cloud node.
 
 ```
-mkdir -p /code/big_model
-curl -o big_model.py https://github.com/kubeedge/sedna/blob/main/examples/helmet_detection_inference/big_model/big_model.py
+mkdir -p /code/big-model
+cd /code/big-model
+curl -o big_model.py https://raw.githubusercontent.com/kubeedge/sedna/main/examples/joint_inference/helmet_detection_inference/big_model/big_model.py
 ```
 
 ### Create Joint Inference Service 
@@ -89,6 +91,10 @@ Note the setting of the following parameters, which have to same as the script [
 - hard_example_cloud_inference_output: set your output path for results of inferring hard examples in cloud side.
 
 ```
+CLOUD_NODE="cloud-node-name"
+EDGE_NODE="edge-node-name"
+
+
 kubectl create -f - <<EOF
 apiVersion: sedna.io/v1alpha1
 kind: JointInferenceService
@@ -99,7 +105,7 @@ spec:
   edgeWorker:
     model:
       name: "helmet-detection-inference-little-model"
-    nodeName: "edge-node"
+    nodeName: $EDGE_NODE
     hardExampleMining:
       name: "IBT"
       parameters:
@@ -118,15 +124,15 @@ spec:
         - key: "video_url"
           value: "rtsp://localhost/video"
         - key: "all_examples_inference_output"
-          value: "/home/data/output"
+          value: "/home/data/model/little-model/output"
         - key: "hard_example_cloud_inference_output"
-          value: "/home/data/hard_example_cloud_inference_output"
+          value: "/home/data/model/little-model/hard_example_cloud_inference_output"
         - key: "hard_example_edge_inference_output"
-          value: "/home/data/hard_example_edge_inference_output"
+          value: "/home/data/model/little-model/hard_example_edge_inference_output"
   cloudWorker:
     model:
       name: "helmet-detection-inference-big-model"
-    nodeName: "cloud-node"
+    nodeName: $CLOUD_NODE
     workerSpec:
       scriptDir: "/code/big-model"
       scriptBootFile: "big_model.py"
@@ -141,7 +147,7 @@ EOF
 ### Check Joint Inference Status
 
 ```
-kubectl get jointinferenceservice helmet-detection-inference-example
+kubectl get jointinferenceservices.sedna.io
 ```
 
 ### Mock Video Stream for Inference in Edge Side
@@ -162,7 +168,7 @@ cd /data/video
 wget https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection-inference/video.tar.gz
 tar -zxvf video.tar.gz
 
-ffmpeg -re -i /data/video/helmet-detection.mp4 -vcodec libx264 -f rtsp rtsp://localhost/video
+ffmpeg -re -i /data/video/video.mp4 -vcodec libx264 -f rtsp rtsp://localhost/video
 ```
 
 ### Check Inference Result
