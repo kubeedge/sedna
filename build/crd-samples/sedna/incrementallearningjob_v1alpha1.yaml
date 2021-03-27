@@ -9,59 +9,90 @@ spec:
     name: "incremental-dataset"
     trainProb: 0.8
   trainSpec:
-    workerSpec:
-      scriptDir: "/code_il"
-      scriptBootFile: "train.py"
-      frameworkType: "tensorflow"
-      frameworkVersion: "1.15"
-      parameters:
-        - key: "batch_size"
-          value: "32"
-        - key: "learning_rate"
-          value: "0.001"
-        - key: "max_epochs"
-          value: "100"
-
+    template:
+      spec:
+        nodeName: "edge-node"
+        containers:
+          - image: kubeedge/sedna-example-il:v0.1.0
+            name:  train-worker
+            imagePullPolicy: IfNotPresent
+            args: ["train.py"]
+            env:
+              - name: "batch_size"
+                value: "32"
+              - name: "epochs"
+                value: "1"
+              - name: "input_shape"
+                value: "352,640"
+              - name: "class_names"
+                value: "person,helmet,helmet-on,helmet-off"
+              - name: "nms_threshold"
+                value: "0.4"
+              - name: "obj_threshold"
+                value: "0.3"
     trigger:
       checkPeriodSeconds: 60
       timer:
         start: 02:00
-        end: 04:00
+        end: 24:00
       condition:
         operator: ">"
         threshold: 500
         metric: num_of_samples
   evalSpec:
-    workerSpec:
-      scriptDir: "/code_il"
-      scriptBootFile: "eval.py"
-      frameworkType: "tensorflow"
-      frameworkVersion: "1.15"
-      parameters:
-        - key: "input_shape"
-          value: "352,640"
-        - key: "class_names"
-          value: "helmet,helmet-on,person,helmet-off"
-
+    template:
+      spec:
+        nodeName: "edge-node"
+        containers:
+          - image: kubeedge/sedna-example-il:v0.1.0
+            name:  eval-worker
+            imagePullPolicy: IfNotPresent
+            args: ["eval.py"]
+            env:
+              - name: "input_shape"
+                value: "352,640"
+              - name: "class_names"
+                value: "person,helmet,helmet-on,helmet-off"
   deploySpec:
     model:
-      name: "inference-model"
+      name: "deploy-model"
     trigger:
       condition:
         operator: ">"
         threshold: 0.1
         metric: precision_delta
-    nodeName: "edge0"
     hardExampleMining:
       name: "IBT"
-    workerSpec:
-      scriptDir: "/code_il"
-      scriptBootFile: "eval.py"
-      frameworkType: "tensorflow"
-      frameworkVersion: "1.15"
-      parameters:
-        - key: "nms_threshold"
-          value: "0.6"
-
-  nodeName: "cloud0"
+    template:
+      spec:
+        nodeName: "edge-node"
+        containers:
+        - image: kubeedge/sedna-example-il:v0.1.0
+          name:  infer-worker
+          imagePullPolicy: IfNotPresent
+          args: ["inference.py"]
+          env:
+          - name: "input_shape"
+            value: "352,640"
+          - name: "video_url"
+            value: "file://video/video.mp4"
+          - name: "HE_SAVED_URL" 
+            value: "/he_saved_url"
+          volumeMounts:
+          - name: localvideo
+            mountPath: /video/
+          - name: hedir
+            mountPath: /he_saved_url
+          resources:  # user defined resources
+            limits:
+              memory: 2Gi
+        volumes:   # user defined volumes
+          - name: localvideo
+            hostPath:
+              path: /incremental_learning/video/
+              type: Directory
+          - name: hedir
+            hostPath:
+              path:  /incremental_learning/he/
+              type: Directory
   outputDir: "/output"
