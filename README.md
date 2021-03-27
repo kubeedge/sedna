@@ -72,9 +72,9 @@ Sedna consists of the following components：
 Follow the [Sedna installation document](docs/setup/install.md) to install Sedna.
 
 ### Examples
-Example1：[Joint Inference Service in Helmet Detection Scenario](/examples/joint_inference/helmet_detection_inference/README.md).
-
-
+Example1：[Using Joint Inference Service in Helmet Detection Scenario](/examples/joint_inference/helmet_detection_inference/README.md).  
+Example2：[Using Incremental Learning Job in Helmet Detection Scenario](/examples/incremental_learning/helmet_detection_incremental_train/README.md).  
+Example3：[Using Federated Learning Job in Surface Defect Detection Scenario](/examples/federated_learning/surface_defect_detection/README.md).  
 ## Roadmap
 
 * [2021 Q1 Roadmap](./docs/roadmap.md#2021-q1-roadmap)
