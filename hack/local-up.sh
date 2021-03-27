@@ -44,7 +44,7 @@ cd "$SEDNA_ROOT"
 
 NO_CLEANUP=${NO_CLEANUP:-false}
 
-IMAGE_REPO=localhost/kubeedge/sedna
+IMAGE_REPO=localhost/sedna
 IMAGE_TAG=localup
 
 # local k8s cluster name for local-up-kubeedge.sh
@@ -176,7 +176,7 @@ build_component_image() {
   for bin; do
     echo "building $bin image"
     make -C "${SEDNA_ROOT}" ${bin}image IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
-    eval ${bin^^}_IMAGE="'${IMAGE_REPO}/${bin}:${IMAGE_TAG}'"
+    eval ${bin^^}_IMAGE="'${IMAGE_REPO}/sedna-${bin}:${IMAGE_TAG}'"
   done
   # no clean up for images
 }
