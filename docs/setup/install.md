@@ -34,7 +34,7 @@ git checkout main
 
 ```shell
 # create these crds including dataset, model, joint-inference
-kubectl apply -f build/crds/
+kubectl create -f build/crds/
 ```
 
 ### Deploy GM
