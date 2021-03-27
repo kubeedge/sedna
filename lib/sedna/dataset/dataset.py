@@ -63,7 +63,7 @@ def load_test_dataset(data_format, **kwargs):
 
 def _load_txt_dataset(dataset_url):
     LOG.info(f'dataset_url is {dataset_url}, now reading dataset_url')
-    root_path = BaseConfig.data_path_prefix
+    root_path = os.path.dirname(dataset_url)
     with open(dataset_url) as f:
         lines = f.readlines()
     new_lines = [root_path + os.path.sep + l for l in lines]
