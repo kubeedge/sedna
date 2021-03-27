@@ -181,16 +181,6 @@ build_component_image() {
   # no clean up for images
 }
 
-build_worker_base_images() {
-  echo "building worker base images"
-  # build tensorflow1.15 image
-  WORKER_TF1_IMAGE=$IMAGE_REPO/worker-tensorflow:1.15
-  docker build -f build/worker/base_images/tensorflow/tensorflow-1.15.Dockerfile -t $WORKER_TF1_IMAGE .
-
-  WORKER_IMAGE_HUB="'tensorflow:1.15': $WORKER_TF1_IMAGE"
-  # add more base images
-}
-
 load_images_to_master() {
   local image
 
@@ -233,8 +223,6 @@ start_gm() {
   cat > gmconfig <<EOF
 kubeConfig: ""
 namespace: ""
-imageHub:
-  ${WORKER_IMAGE_HUB:-}
 websocket:
   port: $GM_BIND_PORT
 localController:
@@ -469,8 +457,6 @@ do_up() {
   localup_kubeedge
 
   build_component_image gm lc
-
-  build_worker_base_images
 
   check_prerequisites
 

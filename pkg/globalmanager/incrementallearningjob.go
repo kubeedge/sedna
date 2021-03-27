@@ -564,9 +564,9 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 	basemodelConPath := dataPrefix + basemodelPath
 	deploymodelConPath := dataPrefix + deploymodelPath
 	outputConPath := dataPrefix + outputDir
-	var containerPara *ContainerPara = new(ContainerPara)
+	var workerPara *WorkerPara = new(WorkerPara)
 	if podtype == sednav1.ILJobTrain {
-		containerPara.workerType = "Train"
+		workerPara.workerType = "Train"
 
 		podTemplate = &job.Spec.TrainSpec.Template
 		// Env parameters for train
@@ -574,11 +574,11 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 		outputModelURL := outputmodelURLContain // outputmodel savepath after increase, should be under outputdir
 		trainDataURL := dataURLContain
 
-		// Configure container mounting and Env information for train by initial ContainerPara
-		containerPara.volumeMountList = []string{dataConPath, basemodelConPath, deploymodelConPath, outputConPath}
-		containerPara.volumeList = []string{datasetParent, basemodelPath, deploymodelPath, outputDir}
-		containerPara.volumeMapName = []string{"data", "base-model", "deploy-model", "output-dir"}
-		containerPara.env = map[string]string{
+		// Configure container mounting and Env information for train by initial WorkerPara
+		workerPara.volumeMountList = []string{dataConPath, basemodelConPath, deploymodelConPath, outputConPath}
+		workerPara.volumeList = []string{datasetParent, basemodelPath, deploymodelPath, outputDir}
+		workerPara.volumeMapName = []string{"data", "base-model", "deploy-model", "output-dir"}
+		workerPara.env = map[string]string{
 			"TRAIN_DATASET_URL": trainDataURL,
 			"MODEL_URL":         outputModelURL,
 			"BASE_MODEL_URL":    preModelURL,
@@ -589,17 +589,17 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 		}
 	} else {
 		podTemplate = &job.Spec.EvalSpec.Template
-		containerPara.workerType = "Eval"
+		workerPara.workerType = "Eval"
 
 		// Env parameters for eval
 		evalDataURL := dataURLContain
 		modelForEval := inputmodelURLContain // can be single or multi models
 
-		// Configure container mounting and Env information for eval by initial ContainerPara
-		containerPara.volumeMountList = []string{dataConPath, basemodelConPath, deploymodelConPath, outputConPath}
-		containerPara.volumeList = []string{datasetParent, basemodelPath, deploymodelPath, outputDir}
-		containerPara.volumeMapName = []string{"data", "base-model", "deploy-model", "output-dir"}
-		containerPara.env = map[string]string{
+		// Configure container mounting and Env information for eval by initial WorkerPara
+		workerPara.volumeMountList = []string{dataConPath, basemodelConPath, deploymodelConPath, outputConPath}
+		workerPara.volumeList = []string{datasetParent, basemodelPath, deploymodelPath, outputDir}
+		workerPara.volumeMapName = []string{"data", "base-model", "deploy-model", "output-dir"}
+		workerPara.env = map[string]string{
 			"TEST_DATASET_URL": evalDataURL,
 			"MODEL_URLS":       modelForEval,
 			"NAMESPACE":        job.Namespace,
@@ -609,7 +609,7 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 		}
 	}
 	// create pod based on podtype
-	err = jc.generatePod(job, podTemplate, containerPara)
+	_, err = createPodWithTemplate(jc.kubeClient, job, podTemplate, workerPara)
 	if err != nil {
 		return err
 	}
@@ -634,8 +634,8 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 	// Env parameters for edge
 	inferModelURL := dataPrefix + inferModelPath
 
-	// Configure container mounting and Env information by initial ContainerPara
-	var inferContainer *ContainerPara = new(ContainerPara)
+	// Configure container mounting and Env information by initial WorkerPara
+	var inferContainer *WorkerPara = new(WorkerPara)
 	inferContainer.volumeMountList = []string{inferModelConPath}
 	inferContainer.volumeList = []string{inferModelParent}
 	inferContainer.volumeMapName = []string{"model"}
@@ -651,23 +651,8 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 	inferContainer.hostNetwork = true
 
 	// create edge pod
-	err = jc.generatePod(job, &job.Spec.DeploySpec.Template, inferContainer)
+	_, err = createPodWithTemplate(jc.kubeClient, job, &job.Spec.DeploySpec.Template, inferContainer)
 	return err
-}
-
-// generatePod forms a pod for train and eval for incrementaljob
-func (jc *IncrementalJobController) generatePod(job *sednav1.IncrementalLearningJob,
-	podTemplate *v1.PodTemplateSpec,
-	containerPara *ContainerPara) error {
-
-	pod := getPodFromTemplate(job, podTemplate, containerPara)
-	createdPod, err := jc.kubeClient.CoreV1().Pods(job.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
-	if err != nil {
-		klog.Warningf("failed to create pod %s for incrementallearning job %v/%v, err:%s", pod.Name, job.Namespace, job.Name, err)
-		return err
-	}
-	klog.V(2).Infof("pod %s is created successfully for incrementallearning job %v/%v", createdPod.Name, job.Namespace, job.Name)
-	return nil
 }
 
 // GetName returns the name of the incrementallearning job controller

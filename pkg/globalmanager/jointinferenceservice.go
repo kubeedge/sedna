@@ -448,8 +448,8 @@ func (jc *JointInferenceServiceController) createCloudPod(service *sednav1.Joint
 	// Env parameters for cloud
 	cloudModelURL := dataPrefix + cloudModelPath
 
-	// Configure container mounting and Env information by initial ContainerPara
-	var cloudContainer *ContainerPara = new(ContainerPara)
+	// Configure container mounting and Env information by initial WorkerPara
+	var cloudContainer *WorkerPara = new(WorkerPara)
 	cloudContainer.volumeMountList = []string{cloudModelConPath}
 	cloudContainer.volumeList = []string{cloudModelParent}
 	cloudContainer.volumeMapName = []string{"code", "model"}
@@ -465,7 +465,8 @@ func (jc *JointInferenceServiceController) createCloudPod(service *sednav1.Joint
 	cloudContainer.workerType = jointInferenceForCloud
 
 	// create cloud pod
-	err = jc.generatedPod(service,
+	_, err = createPodWithTemplate(jc.kubeClient,
+		service,
 		&service.Spec.CloudWorker.Template,
 		cloudContainer)
 	if err != nil {
@@ -508,8 +509,8 @@ func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointI
 	// Env parameters for edge
 	edgeModelURL := dataPrefix + edgeModelPath
 
-	// Configure container mounting and Env information by initial ContainerPara
-	var edgeContainer *ContainerPara = new(ContainerPara)
+	// Configure container mounting and Env information by initial WorkerPara
+	var edgeContainer *WorkerPara = new(WorkerPara)
 	edgeContainer.volumeMountList = []string{edgeModelConPath}
 	edgeContainer.volumeList = []string{edgeModelParent}
 	edgeContainer.volumeMapName = []string{"code", "model"}
@@ -530,29 +531,13 @@ func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointI
 	edgeContainer.hostNetwork = true
 
 	// create edge pod
-	err = jc.generatedPod(service,
-
+	_, err = createPodWithTemplate(jc.kubeClient,
+		service,
 		&service.Spec.EdgeWorker.Template,
 		edgeContainer)
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (jc *JointInferenceServiceController) generatedPod(service *sednav1.JointInferenceService,
-
-	podTemplate *v1.PodTemplateSpec,
-	containerPara *ContainerPara) error {
-
-	pod := getPodFromTemplate(service, podTemplate, containerPara)
-
-	createdPod, err := jc.kubeClient.CoreV1().Pods(service.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
-	if err != nil {
-		klog.Warningf("failed to create pod %s for jointinference service %v/%v, err:%s", pod.Name, service.Namespace, service.Name, err)
-		return err
-	}
-	klog.V(2).Infof("pod %s is created successfully for jointinference service %v/%v", createdPod.Name, service.Namespace, service.Name)
 	return nil
 }
 

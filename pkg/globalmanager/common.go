@@ -40,20 +40,19 @@ const (
 	MaxBackOff          = 360 * time.Second
 	statusUpdateRetries = 3
 	// setting some prefix for container path, include data and code prefix
-	codePrefix         = "/home/work"
 	dataPrefix         = "/home/data"
 	bigModelPort int32 = 5000
 )
 
 // CreateVolumeMap creates volumeMap for container and
 // returns volumeMounts and volumes for stage of creating pod
-func CreateVolumeMap(containerPara *ContainerPara) ([]v1.VolumeMount, []v1.Volume) {
+func CreateVolumeMap(workerPara *WorkerPara) ([]v1.VolumeMount, []v1.Volume) {
 	var volumeMounts []v1.VolumeMount
 	var volumes []v1.Volume
 	volumetype := v1.HostPathDirectory
 	mountPathMap := make(map[string]bool)
 	duplicateIdx := make(map[int]bool)
-	for i, v := range containerPara.volumeMountList {
+	for i, v := range workerPara.volumeMountList {
 		if mountPathMap[v] {
 			duplicateIdx[i] = true
 			continue
@@ -61,16 +60,16 @@ func CreateVolumeMap(containerPara *ContainerPara) ([]v1.VolumeMount, []v1.Volum
 		mountPathMap[v] = true
 		tempVolumeMount := v1.VolumeMount{
 			MountPath: v,
-			Name:      containerPara.volumeMapName[i],
+			Name:      workerPara.volumeMapName[i],
 		}
 		volumeMounts = append(volumeMounts, tempVolumeMount)
 	}
-	for i, v := range containerPara.volumeList {
+	for i, v := range workerPara.volumeList {
 		if duplicateIdx[i] {
 			continue
 		}
 		tempVolume := v1.Volume{
-			Name: containerPara.volumeMapName[i],
+			Name: workerPara.volumeMapName[i],
 			VolumeSource: v1.VolumeSource{
 				HostPath: &v1.HostPathVolumeSource{
 					Path: v,
@@ -95,17 +94,6 @@ func CreateEnvVars(envMap map[string]string) []v1.EnvVar {
 		envVars = append(envVars, Env)
 	}
 	return envVars
-}
-
-// MatchContainerBaseImage searches the base image
-func MatchContainerBaseImage(imageHub map[string]string, frameName string, frameVersion string) (string, error) {
-	inputImageName := frameName + ":" + frameVersion
-	for imageName, imageURL := range imageHub {
-		if inputImageName == imageName {
-			return imageURL, nil
-		}
-	}
-	return "", fmt.Errorf("image %v not exists in imagehub", inputImageName)
 }
 
 // GetNodeIPByName get node ip by node name
@@ -225,11 +213,11 @@ func calcActivePodCount(pods []*v1.Pod) int32 {
 	return result
 }
 
-func injectContainerPara(pod *v1.Pod, containerPara *ContainerPara, object CommonInterface) {
-
+// injectWorkerPara modifies pod in-place
+func injectWorkerPara(pod *v1.Pod, workerPara *WorkerPara, object CommonInterface) {
 	// inject our predefined volumes/envs
-	volumeMounts, volumes := CreateVolumeMap(containerPara)
-	envs := CreateEnvVars(containerPara.env)
+	volumeMounts, volumes := CreateVolumeMap(workerPara)
+	envs := CreateEnvVars(workerPara.env)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
 	for idx := range pod.Spec.Containers {
 		pod.Spec.Containers[idx].Env = append(
@@ -240,6 +228,7 @@ func injectContainerPara(pod *v1.Pod, containerPara *ContainerPara, object Commo
 		)
 	}
 
+	// inject our labels
 	if pod.Labels == nil {
 		pod.Labels = make(map[string]string)
 	}
@@ -247,20 +236,29 @@ func injectContainerPara(pod *v1.Pod, containerPara *ContainerPara, object Commo
 		pod.Labels[k] = v
 	}
 
-	pod.GenerateName = object.GetName() + "-" + strings.ToLower(containerPara.workerType) + "-"
+	pod.GenerateName = object.GetName() + "-" + strings.ToLower(workerPara.workerType) + "-"
 
 	pod.Namespace = object.GetNamespace()
 
-	if containerPara.hostNetwork {
+	if workerPara.hostNetwork {
 		// FIXME
 		// force to set hostnetwork
 		pod.Spec.HostNetwork = true
 	}
 }
 
-func getPodFromTemplate(object CommonInterface, spec *v1.PodTemplateSpec, containerPara *ContainerPara) *v1.Pod {
+// createPodWithTemplate creates and returns a pod object given a crd object, pod template, and workerPara
+func createPodWithTemplate(client kubernetes.Interface, object CommonInterface, spec *v1.PodTemplateSpec, workerPara *WorkerPara) (*v1.Pod, error) {
+	objectKind := object.GroupVersionKind()
+	pod, _ := k8scontroller.GetPodFromTemplate(spec, object, metav1.NewControllerRef(object, objectKind))
+	injectWorkerPara(pod, workerPara, object)
 
-	pod, _ := k8scontroller.GetPodFromTemplate(spec, object, metav1.NewControllerRef(object, object.GroupVersionKind()))
-	injectContainerPara(pod, containerPara, object)
-	return pod
+	createdPod, err := client.CoreV1().Pods(object.GetNamespace()).Create(context.TODO(), pod, metav1.CreateOptions{})
+	objectName := object.GetNamespace() + "/" + object.GetName()
+	if err != nil {
+		klog.Warningf("failed to create pod(type=%s) for %s %s, err:%s", workerPara.workerType, objectKind, objectName, err)
+		return nil, err
+	}
+	klog.V(2).Infof("pod %s is created successfully for %s %s", createdPod.Name, objectKind, objectName)
+	return createdPod, nil
 }

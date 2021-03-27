@@ -129,7 +129,7 @@ endif
 .PHONY: images gmimage lcimage
 images: gmimage lcimage
 gmimage lcimage:
-	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/${@:image=}:${IMAGE_TAG} -f build/${@:image=}/Dockerfile .
+	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/sedna-${@:image=}:${IMAGE_TAG} -f build/${@:image=}/Dockerfile .
 
 
 .PHONE: e2e
