@@ -462,19 +462,17 @@ do_up() {
 
   fix_path
 
+  # here local up kubeedge before building our images, this could avoid our
+  # images be removed since edgecore image gc would be triggered when high
+  # image usage(>=80%), see https://github.com/kubeedge/sedna/issues/26 for
+  # more details.
+  localup_kubeedge
+
   build_component_image gm lc
-  # on github ci action, sometimes kind-load reported the error that gm/lc
-  # image not present locally, here for debug.
-  # TODO: remove these docker-images
-  docker images
 
   build_worker_base_images
 
-  docker images
-
   check_prerequisites
-
-  localup_kubeedge
 
   prepare_k8s_env
 
