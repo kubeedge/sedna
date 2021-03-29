@@ -24,16 +24,12 @@ matplotlib==3.3.3
 
 Follow the [Sedna installation document](/docs/setup/install.md) to install Sedna.
 
-### Prepare Data and Model
+### Prepare Data
+In this example, we need to prepare base model in advance.
 
-* step 1: download [dataset](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz)
-```
-mkdir -p /data/helmet_detection
-wget https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz
-tar -zxvf dataset.tar.gz
-```
 
-* step 2: download [base model](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/model.tar.gz)
+
+download [base model](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/model.tar.gz)
 ```
 mkdir /model
 cd /model
@@ -46,7 +42,6 @@ Download the [scripts](/examples/incremental_learning/helmet_detection_increment
 
 ### Create Incremental Job
 
-Create Namespace `kubectl create ns sedna-test`
 
 Create Dataset
 
@@ -56,7 +51,6 @@ apiVersion: sedna.io/v1alpha1
 kind: Dataset
 metadata:
   name: incremental-dataset
-  namespace: sedna-test
 spec:
   url: "/data/helmet_detection/train_data/train_data.txt"
   format: "txt"
@@ -72,7 +66,6 @@ apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
   name: initial-model
-  namespace: sedna-test
 spec:
   url : "/model/base_model"
   format: "ckpt"
@@ -110,24 +103,27 @@ spec:
     name: "incremental-dataset"
     trainProb: 0.8
   trainSpec:
-    workerSpec:
-      scriptDir: "/code"
-      scriptBootFile: "train.py"
-      frameworkType: "tensorflow"
-      frameworkVersion: "1.15"
-      parameters:
-        - key: "batch_size"
-          value: "32"
-        - key: "epochs"
-          value: "1"
-        - key: "input_shape"
-          value: "352,640"
-        - key: "class_names"
-          value: "person,helmet,helmet-on,helmet-off"
-        - key: "nms_threshold"
-          value: "0.4"
-        - key: "obj_threshold"
-          value: "0.3"
+    template:
+      spec:
+        nodeName: "cloud0"
+        containers:
+          - image: kubeedge/sedna-example-incremental-learning-helmet-detection:v0.1.0
+            name:  train-worker
+            imagePullPolicy: IfNotPresent
+            args: ["train.py"]
+            env:
+              - name: "batch_size"
+                value: "32"
+              - name: "epochs"
+                value: "1"
+              - name: "input_shape"
+                value: "352,640"
+              - name: "class_names"
+                value: "person,helmet,helmet-on,helmet-off"
+              - name: "nms_threshold"
+                value: "0.4"
+              - name: "obj_threshold"
+                value: "0.3"
     trigger:
       checkPeriodSeconds: 60
       timer:
@@ -138,16 +134,19 @@ spec:
         threshold: 500
         metric: num_of_samples
   evalSpec:
-    workerSpec:
-      scriptDir: "/code"
-      scriptBootFile: "eval.py"
-      frameworkType: "tensorflow"
-      frameworkVersion: "1.15"
-      parameters:
-        - key: "input_shape"
-          value: "352,640"
-        - key: "class_names"
-          value: "person,helmet,helmet-on,helmet-off"
+      template:
+      spec:
+        nodeName: "cloud0"
+        containers:
+          - image: kubeedge/sedna-example-incremental-learning-helmet-detection:v0.1.0
+            name:  eval-worker
+            imagePullPolicy: IfNotPresent
+            args: ["eval.py"]
+            env:
+              - name: "input_shape"
+                value: "352,640"
+              - name: "class_names"
+                value: "person,helmet,helmet-on,helmet-off"                    
   deploySpec:
     model:
       name: "deploy-model"
@@ -159,18 +158,21 @@ spec:
     nodeName: "cloud0"
     hardExampleMining:
       name: "IBT"
-    workerSpec:
-      scriptDir: "/code"
-      scriptBootFile: "inference.py"
-      frameworkType: "tensorflow"
-      frameworkVersion: "1.15"
-      parameters:
-        - key: "input_shape"
-          value: "352,640"
-        - key: "video_url"
-          value: "rtsp://localhost/video"
-        - key: "HE_SAVED_URL" 
-          value: "/he_saved_url"
+    template:
+      spec:
+        nodeName: "cloud0"
+        containers:
+        - image: kubeedge/sedna-example-incremental-learning-helmet-detection:v0.1.0
+          name:  infer-worker
+          imagePullPolicy: IfNotPresent
+          args: ["inference.py"]
+          env:
+            - name: "input_shape"
+              value: "352,640"
+            - name: "video_url"
+              value: "rtsp://localhost/video"
+            - name: "HE_SAVED_URL" 
+              value: "/he_saved_url"
   nodeName: "cloud0"
   outputDir: "/output"
 EOF
@@ -216,7 +218,27 @@ trigger:
     threshold: 500
     metric: num_of_samples
 ```
-In a real word, we need to label the hard examples in `HE_SAVED_URL`  with annotation tools and then put the examples to `Dataset`'s url.   
+
+### Hard Example Labeling
+In a real word, we need to label the hard examples in `HE_SAVED_URL`  with annotation tools and then put the examples to `Dataset`'s url.  
+
+you can use Open-Source annotation tools to label hard examples, such as [MAKE SENSE](https://www.makesense.ai), which has following main advantages:  
+* Open source and free to use under GPLv3 license   
+* Support outputfile formats like YOLO, VOC XML, VGG JSON, CSV
+* No advanced installation required, just open up your browser
+* Use AI to make your work more productive
+* Offline running as a container, ensuring data security  
+
+![img.png](image/make-sense.png)  
+
+the details labeling are not described here, main steps in this demo are as follows:
+* import unlabeled hard example to anonotation tools 
+![img_1.png](image/label-interface.png)
+* label and export annotations, and convert type of them to what you need by your self  
+![img_2.png](image/export-label.png)![img_3.png](image/label-result.png)
+  
+* put these labeled examples to `Dataset`'s url  
+
 Without annotation tools, we can simulate the condition of `num_of_samples` in the following ways:  
 Download [dataset](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz) to our cloud0 node.
 ```
