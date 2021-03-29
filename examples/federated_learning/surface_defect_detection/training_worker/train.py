@@ -16,13 +16,25 @@ import numpy as np
 from tensorflow import keras
 
 import sedna
-from sedna.ml_model import save_model
 from network import GlobalModelInspectionCNN
+from sedna.ml_model import save_model
+
+
+def image_process(line):
+    import keras.preprocessing.image as img_preprocessing
+    file_path, label = line.split(',')
+    img = img_preprocessing.load_img(file_path).resize((128, 128))
+    data = img_preprocessing.img_to_array(img) / 255.0
+    label = [0, 1] if int(label) == 0 else [1, 0]
+    data = np.array(data)
+    label = np.array(label)
+    return [data, label]
 
 
 def main():
     # load dataset.
-    train_data = sedna.load_train_dataset(data_format="txt", with_image=True)
+    train_data = sedna.load_train_dataset(data_format="txt",
+                                          preprocess_fun=image_process)
 
     x = np.array([tup[0] for tup in train_data])
     y = np.array([tup[1] for tup in train_data])

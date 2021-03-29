@@ -30,8 +30,7 @@ def main():
     class_names = sedna.context.get_parameters("class_names")
 
     # load dataset.
-    train_data = sedna.load_train_dataset(data_format='txt',
-                                            with_image=False)
+    train_data = sedna.load_train_dataset(data_format='txt')
 
     # read parameters from deployment config.
     obj_threshold = sedna.context.get_parameters("obj_threshold")
@@ -88,13 +87,13 @@ def main():
     model = Interface()
 
     sedna.incremental_learning.train(model=model,
-                                       train_data=train_data,
-                                       epochs=epochs,
-                                       batch_size=batch_size,
-                                       class_names=class_names,
-                                       input_shape=input_shape,
-                                       obj_threshold=obj_threshold,
-                                       nms_threshold=nms_threshold)
+                                     train_data=train_data,
+                                     epochs=epochs,
+                                     batch_size=batch_size,
+                                     class_names=class_names,
+                                     input_shape=input_shape,
+                                     obj_threshold=obj_threshold,
+                                     nms_threshold=nms_threshold)
 
 
 if __name__ == '__main__':
