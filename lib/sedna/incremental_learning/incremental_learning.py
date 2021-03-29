@@ -13,20 +13,22 @@
 # limitations under the License.
 
 import logging
-
 import os
+from shutil import copyfile
+
 import tensorflow as tf
 
 import sedna
 from sedna.common.config import BaseConfig
-from sedna.common.constant import K8sResourceKindStatus, K8sResourceKind
-from sedna.common.utils import clean_folder, remove_path_prefix
+from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
+from sedna.common.utils import remove_path_prefix
 from sedna.hard_example_mining import CrossEntropyFilter, IBTFilter, \
     ThresholdFilter
 from sedna.joint_inference import TSLittleModel
 from sedna.lc_client import LCClient
 
 LOG = logging.getLogger(__name__)
+TRAINING_TMP_DIR = '/tmp/il/training'
 
 
 class IncrementalConfig(BaseConfig):
@@ -51,17 +53,23 @@ def train(model, train_data, epochs, batch_size, class_names, input_shape,
     :param nms_threshold:
     """
     il_config = IncrementalConfig()
+    pb_model_url_with_prefix = os.path.join(il_config.model_url,
+                                            il_config.saved_model_name)
 
-    clean_folder(il_config.model_url)
     model.train(train_data, [])  # validation data is empty.
     tf.reset_default_graph()
-    model.save_model_pb(il_config.saved_model_name)
+    LOG.info(f'starting to save model to {TRAINING_TMP_DIR}, '
+             f'model name is {il_config.saved_model_name}')
+    model.save_model_pb(TRAINING_TMP_DIR, il_config.saved_model_name)
+    tmp_model_url = os.path.join(TRAINING_TMP_DIR, il_config.saved_model_name)
+    LOG.info(f'starting to cp model from {tmp_model_url} '
+             f'to {pb_model_url_with_prefix}')
+    copyfile(tmp_model_url, pb_model_url_with_prefix)
 
     ckpt_model_url = remove_path_prefix(il_config.model_url,
                                         il_config.data_path_prefix)
-    pb_model_url = remove_path_prefix(
-        os.path.join(il_config.model_url, il_config.saved_model_name),
-        il_config.data_path_prefix)
+    pb_model_url = remove_path_prefix(pb_model_url_with_prefix,
+                                      il_config.data_path_prefix)
 
     # TODO delete metrics whether affect lc
     ckpt_result = {

@@ -13,17 +13,16 @@
 # limitations under the License.
 
 import logging
+import os
 
 import numpy as np
-import os
 import six
 import tensorflow as tf
 from tqdm import tqdm
 
 from data_gen import DataGen
 from sedna.incremental_learning.incremental_learning import IncrementalConfig
-from yolo3_multiscale import Yolo3
-from yolo3_multiscale import YoloConfig
+from yolo3_multiscale import Yolo3, YoloConfig
 
 LOG = logging.getLogger(__name__)
 BASE_MODEL_URL = IncrementalConfig().base_model_url
@@ -179,7 +178,7 @@ class Interface:
 
         logging.info("average checkpoints end .......")
 
-    def save_model_pb(self, saved_model_name):
+    def save_model_pb(self, model_dir, model_name):
         """
         save model as a single pb file from checkpoint
         """
@@ -190,19 +189,12 @@ class Interface:
         config.gpu_options.allow_growth = True
 
         with tf.Session(config=config) as sess:
-
             yolo_config = YoloConfig()
-
             model = Yolo3(sess, False, yolo_config)
-
             input_graph_def = sess.graph.as_graph_def()
-            if flags.inference_device == '310D':
-                output_tensors = model.output
-            else:
-                output_tensors = [model.boxes, model.scores, model.classes]
-            print('output_tensors : ', output_tensors)
+            output_tensors = [model.boxes, model.scores, model.classes]
             output_tensors = [t.op.name for t in output_tensors]
             graph = tf.graph_util.convert_variables_to_constants(sess, input_graph_def, output_tensors)
-            tf.train.write_graph(graph, model.model_dir, saved_model_name, False)
+            tf.train.write_graph(graph, model_dir, model_name, False)
 
         logging.info("save model as .pb end .......")
