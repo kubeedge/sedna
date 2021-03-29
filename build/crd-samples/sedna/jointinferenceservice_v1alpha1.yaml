@@ -18,7 +18,7 @@ spec:
       spec:
         nodeName: "edge-node"
         containers:
-        - image: kubeedge/sedna-example-ji-little:v0.1.0
+        - image: kubeedge/sedna-example-joint-inference-helmet-detection-little:v0.1.0
           imagePullPolicy: IfNotPresent
           name:  little-model
           env:  # user defined environments
@@ -63,7 +63,7 @@ spec:
       spec:
         nodeName: "edge-node"
         containers:
-          - image: kubeedge/sedna-example-ji-big:v0.1.0
+          - image: kubeedge/sedna-example-joint-inference-helmet-detection-big:v0.1.0
             name:  big-model
             imagePullPolicy: IfNotPresent
             env:  # user defined environments

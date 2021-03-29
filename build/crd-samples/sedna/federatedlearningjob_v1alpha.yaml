@@ -10,7 +10,7 @@ spec:
       spec:
         nodeName: "cloud"
         containers:
-          - image: kubeedge/sedna-example-fl-agg:v0.1.0
+          - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-aggregation:v0.1.0
             name:  agg-worker
             imagePullPolicy: IfNotPresent
             env: # user defined environments
@@ -26,7 +26,7 @@ spec:
         spec:
           nodeName: "edge1"
           containers:
-            - image: kubeedge/sedna-example-fl-train:v0.1.0
+            - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-train:v0.1.0
               name:  train-worker
               imagePullPolicy: IfNotPresent
               env:  # user defined environments
@@ -45,7 +45,7 @@ spec:
         spec:
           nodeName: "edge2"
           containers:
-            - image: kubeedge/sedna-example-fl-train:v0.1.0
+            - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-train:v0.1.0
               name:  train-worker
               imagePullPolicy: IfNotPresent
               env:  # user defined environments
