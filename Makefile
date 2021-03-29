@@ -17,8 +17,8 @@ GOPATH ?= $(shell go env GOPATH)
 OUT_DIR ?= _output
 OUT_BINPATH := $(OUT_DIR)/bin
 
-IMAGE_REPO ?= ghcr.io/kubeedge/sedna
-IMAGE_TAG ?= v1alpha1
+IMAGE_REPO ?= kubeedge
+IMAGE_TAG ?= v0.1.0
 GO_LDFLAGS ?=''
 
 # set allowDangerousTypes for allowing float
