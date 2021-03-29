@@ -429,11 +429,11 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 
 	// Configure container mounting and Env information by initial WorkerPara
 	var aggPort int32 = 7363
-	var aggContainer *WorkerPara = new(WorkerPara)
-	aggContainer.volumeMountList = []string{aggModelConPath}
-	aggContainer.volumeList = []string{modelPath}
-	aggContainer.volumeMapName = []string{"model"}
-	aggContainer.env = map[string]string{
+	var aggWorkerPara *WorkerPara = new(WorkerPara)
+	aggWorkerPara.volumeMountList = []string{aggModelConPath}
+	aggWorkerPara.volumeList = []string{modelPath}
+	aggWorkerPara.volumeMapName = []string{"model"}
+	aggWorkerPara.env = map[string]string{
 		"MODEL":              modelstring,
 		"WORKER_NAME":        "aggworker-" + utilrand.String(5),
 		"JOB_NAME":           job.Name,
@@ -443,10 +443,11 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 		"AGG_BIND_PORT":      strconv.Itoa(int(aggPort)),
 	}
 
-	aggContainer.workerType = FLJobStageAgg
+	aggWorkerPara.workerType = FLJobStageAgg
+	aggWorkerPara.restartPolicy = v1.RestartPolicyOnFailure
 
 	// create aggpod based on configured parameters
-	_, err = createPodWithTemplate(fc.kubeClient, job, &aggWorker.Template, aggContainer)
+	_, err = createPodWithTemplate(fc.kubeClient, job, &aggWorker.Template, aggWorkerPara)
 	if err != nil {
 		return active, err
 	}
@@ -485,11 +486,11 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 		trainModelURL := trainModelConPath
 
 		// Configure container mounting and Env information by initial WorkerPara
-		var trainContainer *WorkerPara = new(WorkerPara)
-		trainContainer.volumeMountList = []string{trainDataConPath, trainModelConPath}
-		trainContainer.volumeList = []string{datasetParent, modelPath}
-		trainContainer.volumeMapName = []string{"data", "model"}
-		trainContainer.env = map[string]string{
+		var workerPara *WorkerPara = new(WorkerPara)
+		workerPara.volumeMountList = []string{trainDataConPath, trainModelConPath}
+		workerPara.volumeList = []string{datasetParent, modelPath}
+		workerPara.volumeMapName = []string{"data", "model"}
+		workerPara.env = map[string]string{
 			"DATASET":            datasetstring,
 			"AGG_PORT":           strconv.Itoa(int(aggServicePort)),
 			"AGG_IP":             appIP,
@@ -503,9 +504,11 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 			"DATASET_NAME":       datasetName,
 			"LC_SERVER":          fc.cfg.LC.Server,
 		}
-		// create trainpod based on configured parameters
-		trainContainer.workerType = "train"
-		_, err = createPodWithTemplate(fc.kubeClient, job, &trainingWorker.Template, trainContainer)
+		workerPara.workerType = "train"
+		workerPara.hostNetwork = true
+		workerPara.restartPolicy = v1.RestartPolicyOnFailure
+		// create train pod based on configured parameters
+		_, err = createPodWithTemplate(fc.kubeClient, job, &trainingWorker.Template, workerPara)
 		if err != nil {
 			return active, err
 		}

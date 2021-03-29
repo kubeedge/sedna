@@ -19,6 +19,7 @@ package globalmanager
 import (
 	"encoding/json"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -33,6 +34,8 @@ type WorkerPara struct {
 	workerType      string
 	// if true, force to use hostNetwork
 	hostNetwork bool
+
+	restartPolicy v1.RestartPolicy
 }
 
 // CommonInterface describes the commom interface of CRs

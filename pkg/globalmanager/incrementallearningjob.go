@@ -612,6 +612,11 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 			"LC_SERVER":            jc.cfg.LC.Server,
 		}
 	}
+
+	// set the default policy instead of Always policy
+	workerPara.restartPolicy = v1.RestartPolicyOnFailure
+	workerPara.hostNetwork = true
+
 	// create pod based on podtype
 	_, err = createPodWithTemplate(jc.kubeClient, job, podTemplate, workerPara)
 	if err != nil {
@@ -639,11 +644,11 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 	inferModelURL := dataPrefix + inferModelPath
 
 	// Configure container mounting and Env information by initial WorkerPara
-	var inferContainer *WorkerPara = new(WorkerPara)
-	inferContainer.volumeMountList = []string{inferModelConPath}
-	inferContainer.volumeList = []string{inferModelParent}
-	inferContainer.volumeMapName = []string{"model"}
-	inferContainer.env = map[string]string{
+	var workerParam *WorkerPara = new(WorkerPara)
+	workerParam.volumeMountList = []string{inferModelConPath}
+	workerParam.volumeList = []string{inferModelParent}
+	workerParam.volumeMapName = []string{"model"}
+	workerParam.env = map[string]string{
 		"WORKER_NAME":           "inferworker-" + utilrand.String(5),
 		"MODEL_URL":             inferModelURL,
 		"NAMESPACE":             job.Namespace,
@@ -651,11 +656,11 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 		"LC_SERVER":             jc.cfg.LC.Server,
 	}
 
-	inferContainer.workerType = "inference"
-	inferContainer.hostNetwork = true
+	workerParam.workerType = "inference"
+	workerParam.hostNetwork = true
 
 	// create edge pod
-	_, err = createPodWithTemplate(jc.kubeClient, job, &job.Spec.DeploySpec.Template, inferContainer)
+	_, err = createPodWithTemplate(jc.kubeClient, job, &job.Spec.DeploySpec.Template, workerParam)
 	return err
 }
 

@@ -245,6 +245,10 @@ func injectWorkerPara(pod *v1.Pod, workerPara *WorkerPara, object CommonInterfac
 		// force to set hostnetwork
 		pod.Spec.HostNetwork = true
 	}
+
+	if pod.Spec.RestartPolicy == "" {
+		pod.Spec.RestartPolicy = workerPara.restartPolicy
+	}
 }
 
 // createPodWithTemplate creates and returns a pod object given a crd object, pod template, and workerPara
