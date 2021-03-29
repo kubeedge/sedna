@@ -564,6 +564,7 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 	basemodelConPath := dataPrefix + basemodelPath
 	deploymodelConPath := dataPrefix + deploymodelPath
 	outputConPath := dataPrefix + outputDir
+	originalDatasetPathInContainer := dataPrefix + datasetPath
 	var workerPara *WorkerPara = new(WorkerPara)
 	if podtype == sednav1.ILJobTrain {
 		workerPara.workerType = "Train"
@@ -579,13 +580,15 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 		workerPara.volumeList = []string{datasetParent, basemodelPath, deploymodelPath, outputDir}
 		workerPara.volumeMapName = []string{"data", "base-model", "deploy-model", "output-dir"}
 		workerPara.env = map[string]string{
-			"TRAIN_DATASET_URL": trainDataURL,
-			"MODEL_URL":         outputModelURL,
-			"BASE_MODEL_URL":    preModelURL,
-			"NAMESPACE":         job.Namespace,
-			"JOB_NAME":          job.Name,
-			"WORKER_NAME":       "train-worker-" + utilrand.String(5),
-			"LC_SERVER":         jc.cfg.LC.Server,
+			// see https://github.com/kubeedge/sedna/issues/35
+			"ORIGINAL_DATASET_URL": originalDatasetPathInContainer,
+			"TRAIN_DATASET_URL":    trainDataURL,
+			"MODEL_URL":            outputModelURL,
+			"BASE_MODEL_URL":       preModelURL,
+			"NAMESPACE":            job.Namespace,
+			"JOB_NAME":             job.Name,
+			"WORKER_NAME":          "train-worker-" + utilrand.String(5),
+			"LC_SERVER":            jc.cfg.LC.Server,
 		}
 	} else {
 		podTemplate = &job.Spec.EvalSpec.Template
@@ -600,12 +603,13 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 		workerPara.volumeList = []string{datasetParent, basemodelPath, deploymodelPath, outputDir}
 		workerPara.volumeMapName = []string{"data", "base-model", "deploy-model", "output-dir"}
 		workerPara.env = map[string]string{
-			"TEST_DATASET_URL": evalDataURL,
-			"MODEL_URLS":       modelForEval,
-			"NAMESPACE":        job.Namespace,
-			"JOB_NAME":         job.Name,
-			"WORKER_NAME":      "eval-worker-" + utilrand.String(5),
-			"LC_SERVER":        jc.cfg.LC.Server,
+			"ORIGINAL_DATASET_URL": originalDatasetPathInContainer,
+			"TEST_DATASET_URL":     evalDataURL,
+			"MODEL_URLS":           modelForEval,
+			"NAMESPACE":            job.Namespace,
+			"JOB_NAME":             job.Name,
+			"WORKER_NAME":          "eval-worker-" + utilrand.String(5),
+			"LC_SERVER":            jc.cfg.LC.Server,
 		}
 	}
 	// create pod based on podtype
