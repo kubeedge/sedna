@@ -16,20 +16,20 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-IMAGE_REPO=${IMAGE_REPO:-kubeedge}
-IMAGE_TAG=${IMAGE_TAG:-v0.1.0}
+export IMAGE_REPO=${IMAGE_REPO:-kubeedge}
+export IMAGE_TAG=${IMAGE_TAG:-v0.1.0}
 
-EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
+bash build_image.sh
 
-dockerfiles=(
-federated-learning-surface-defect-detection-aggregation.Dockerfile
-federated-learning-surface-defect-detection-train.Dockerfile
-incremental-learning-helmet-detection.Dockerfile
-joint-inference-helmet-detection-big.Dockerfile
-joint-inference-helmet-detection-little.Dockerfile
-)
-
-for dockerfile in ${dockerfiles[@]}; do
-  example_name=${dockerfile/.Dockerfile}
-  docker build -f $dockerfile -t ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} --label sedna=examples ..
+for i in $(
+    docker images --filter label=sedna=examples |
+    grep $IMAGE_REPO |
+    grep $IMAGE_TAG |
+    awk 'a++&&$0=$1":"$2'
+ ); do
+ docker push $i && {
+   echo done docker push $i
+ } || {
+   echo failed to docker push $i
+ }
 done
