@@ -14,13 +14,21 @@
 
 GOPATH ?= $(shell go env GOPATH)
 
+OUT_DIR ?= _output
+OUT_BINPATH := $(OUT_DIR)/bin
+
+IMAGE_REPO ?= kubeedge
+IMAGE_TAG ?= v0.1.0
+GO_LDFLAGS ?=''
+
+# set allowDangerousTypes for allowing float
+CRD_OPTIONS ?= "crd:crdVersions=v1,allowDangerousTypes=true"
+
 # make all builds both gm and lc binaries
 BINARIES=gm lc
 SHELL=/bin/bash
 
 .EXPORT_ALL_VARIABLES:
-OUT_DIR ?= _output
-OUT_BINPATH := $(OUT_DIR)/bin
 
 define BUILD_HELP_INFO
 # Build code with verifying or not.
@@ -118,16 +126,51 @@ clean:
 	hack/make-rules/clean.sh
 endif
 
-
-IMAGE_REPO ?= ghcr.io/kubeedge/sedna
-IMAGE_TAG ?= v1alpha1
-GO_LDFLAGS ?=''
-
 .PHONY: images gmimage lcimage
 images: gmimage lcimage
 gmimage lcimage:
-	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/${@:image=}:${IMAGE_TAG} -f build/${@:image=}/Dockerfile .
+	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/sedna-${@:image=}:${IMAGE_TAG} -f build/${@:image=}/Dockerfile .
+
+.PHONY: push push-examples push-all
+push-all: push push-examples
+push: images
+	docker push ${IMAGE_REPO}/sedna-gm:${IMAGE_TAG} 
+	docker push ${IMAGE_REPO}/sedna-lc:${IMAGE_TAG} 
+
+push-examples:
+	bash examples/push_image.sh
+
+
 
 .PHONE: e2e
 e2e:
 	hack/run-e2e.sh
+
+# Generate CRDs by kubebuilder
+.PHONY: crds controller-gen
+crds: controller-gen
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/apis/sedna/v1alpha1" output:crd:artifacts:config=build/crds
+
+# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
+
+# find or download controller-gen
+# download controller-gen if necessary
+controller-gen:
+ifeq (, $(shell which controller-gen))
+	@{ \
+	set -e ;\
+	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$CONTROLLER_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1 ;\
+	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
+	}
+CONTROLLER_GEN=$(GOBIN)/controller-gen
+else
+CONTROLLER_GEN=$(shell which controller-gen)
+endif

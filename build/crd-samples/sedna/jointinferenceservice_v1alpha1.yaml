@@ -1,31 +1,74 @@
 apiVersion: sedna.io/v1alpha1
 kind: JointInferenceService
 metadata:
-  name: example
+  name: helmet-detection-inference-example
+  namespace: default
 spec:
   edgeWorker:
     model:
-      name: "small-model"
-    nodeName: "edge0"
+      name: "helmet-detection-inference-little-model"
     hardExampleMining:
       name: "IBT"
-    workerSpec:
-      scriptDir: "/code"
-      scriptBootFile: "edge_inference.py"
-      frameworkType: "tensorflow"
-      frameworkVersion: "1.18"
       parameters:
-        - key: "nms_threshold"
-          value: "0.6"
+        - key: "threshold_img"
+          value: "0.5"
+        - key: "threshold_box"
+          value: "0.5"
+    template:
+      spec:
+        nodeName: "edge-node"
+        containers:
+        - image: kubeedge/sedna-example-joint-inference-helmet-detection-little:v0.1.0
+          imagePullPolicy: IfNotPresent
+          name:  little-model
+          env:  # user defined environments
+          - name: input_shape
+            value: "416,736"
+          - name: "video_url"
+            value: "file://video/video.mp4"
+          - name: "all_examples_inference_output"
+            value: "/data/output"
+          - name: "hard_example_cloud_inference_output"
+            value: "/data/hard_example_cloud_inference_output"
+          - name: "hard_example_edge_inference_output"
+            value: "/data/hard_example_edge_inference_output"
+          ports:  # user defined ports
+            - containerPort: 80
+              protocol: TCP
+          resources:  # user defined resources
+            requests:
+              memory: 64Mi
+              cpu: 100m
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: localvideo
+              mountPath: /video/
+            - name: outputdir
+              mountPath: /data/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              path: /joint_inference/output
+              type: Directory
+          - name: localvideo
+            hostPath:
+              path:  /joint_inference/video/
+              type: Directory
+
   cloudWorker:
     model:
-      name: "big-model"
-    nodeName: "solar-corona-cloud"
-    workerSpec:
-      scriptDir: "/code"
-      scriptBootFile: "cloud_inference.py"
-      frameworkType: "tensorflow"
-      frameworkVersion: "1.18"
-      parameters:
-        - key: "nms_threshold"
-          value: "0.6"
+      name: "helmet-detection-inference-big-model"
+    template:
+      spec:
+        nodeName: "edge-node"
+        containers:
+          - image: kubeedge/sedna-example-joint-inference-helmet-detection-big:v0.1.0
+            name:  big-model
+            imagePullPolicy: IfNotPresent
+            env:  # user defined environments
+              - name: "input_shape"
+                value: "544,544"
+            resources:  # user defined resources
+              limits:
+                memory: 2Gi

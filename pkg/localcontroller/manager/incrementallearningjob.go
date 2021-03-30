@@ -150,6 +150,8 @@ func (im *IncrementalJobManager) trainTask(job *IncrementalLearningJob) error {
 
 		err = im.Client.WriteMessage(payload, job.getHeader())
 		if err != nil {
+			klog.Errorf("job(name=%s) failed to write message: %v",
+				jobConfig.UniqueIdentifier, err)
 			return err
 		}
 
@@ -281,6 +283,7 @@ func (im *IncrementalJobManager) startJob(name string) {
 	defer klog.Infof("incremental learning job(name=%s) is stopped", name)
 	go im.handleData(job)
 
+	tick := time.NewTicker(JobIterationIntervalSeconds * time.Second)
 	for {
 		select {
 		case <-job.Done:
@@ -295,7 +298,15 @@ func (im *IncrementalJobManager) startJob(name string) {
 			klog.Warningf("job(name=%s) failed to load models, and waiting it: %v",
 				jobConfig.UniqueIdentifier,
 				err)
-			<-time.After(100 * time.Millisecond)
+			<-tick.C
+			continue
+		}
+
+		if job.Dataset == nil {
+			klog.V(3).Infof("job(name=%s) dataset not ready",
+				jobConfig.UniqueIdentifier)
+
+			<-tick.C
 			continue
 		}
 
@@ -316,7 +327,7 @@ func (im *IncrementalJobManager) startJob(name string) {
 				jobConfig.UniqueIdentifier, jobConfig.Phase, err)
 		}
 
-		<-time.After(JobIterationIntervalSeconds * time.Second)
+		<-tick.C
 	}
 }
 
@@ -673,6 +684,7 @@ func (im *IncrementalJobManager) handleData(job *IncrementalLearningJob) {
 	tick := time.NewTicker(DatasetHandlerIntervalSeconds * time.Second)
 
 	jobConfig := job.JobConfig
+	iterCount := 0
 	for {
 		select {
 		case <-job.Done:
@@ -683,11 +695,15 @@ func (im *IncrementalJobManager) handleData(job *IncrementalLearningJob) {
 		// in case dataset is not synced to LC before job synced to LC
 		// here call loadDataset in each period
 		err := im.loadDataset(job)
+		if iterCount%100 == 0 {
+			klog.Infof("job(name=%s) handling dataset", jobConfig.UniqueIdentifier)
+		}
+		iterCount++
 		if err != nil {
 			klog.Warningf("job(name=%s) failed to load dataset, and waiting it: %v",
 				jobConfig.UniqueIdentifier,
 				err)
-			<-time.After(100 * time.Millisecond)
+			<-tick.C
 			continue
 		}
 
@@ -714,9 +730,6 @@ func (im *IncrementalJobManager) handleData(job *IncrementalLearningJob) {
 				jobConfig.UniqueIdentifier, len(jobConfig.DataSamples.EvalSamples))
 
 			jobConfig.DataSamples.Numbers = len(samples)
-		} else {
-			klog.Warningf("job(name=%s) didn't get new data from dataset(name=%s)",
-				jobConfig.UniqueIdentifier, job.Spec.Dataset.Name)
 		}
 		<-tick.C
 	}

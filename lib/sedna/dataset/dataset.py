@@ -63,7 +63,10 @@ def load_test_dataset(data_format, preprocess_fun=None, **kwargs):
 
 def _load_txt_dataset(dataset_url):
     LOG.info(f'dataset_url is {dataset_url}, now reading dataset_url')
-    root_path = os.path.dirname(dataset_url)
+
+    # use original dataset url,
+    # see https://github.com/kubeedge/sedna/issues/35
+    root_path = os.path.dirname(BaseConfig.original_dataset_url or dataset_url)
     with open(dataset_url) as f:
         lines = f.readlines()
     new_lines = [root_path + os.path.sep + l for l in lines]

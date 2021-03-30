@@ -20,10 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/klog/v2"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -40,6 +38,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
 	k8scontroller "k8s.io/kubernetes/pkg/controller"
 
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
@@ -52,11 +51,9 @@ import (
 	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
-type FLJobStage string
-
 const (
-	FLJobStageAgg   FLJobStage = "Aggregation"
-	FLJobStageTrain FLJobStage = "Training"
+	FLJobStageAgg   = "Aggregation"
+	FLJobStageTrain = "Training"
 )
 
 // flJobControllerKind contains the schema.GroupVersionKind for this controller type.
@@ -423,44 +420,45 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 
 	// deliver pod for aggregation worker
 	aggWorker := job.Spec.AggregationWorker
-	aggCodePath := aggWorker.WorkerSpec.ScriptDir
-	parameterJSON, _ := json.Marshal(aggWorker.WorkerSpec.Parameters)
-	parameterString := string(parameterJSON)
 
 	// Container VolumeMounts parameters
-	aggCodeConPath := codePrefix
 	aggModelConPath := dataPrefix + modelPath
 
 	// Env parameters for agg
 	aggModelURL := aggModelConPath
 
-	// Configure container mounting and Env information by initial ContainerPara
+	// Configure container mounting and Env information by initial WorkerPara
 	var aggPort int32 = 7363
-	var aggContainer *ContainerPara = new(ContainerPara)
-	aggContainer.volumeMountList = []string{aggCodeConPath, aggModelConPath}
-	aggContainer.volumeList = []string{aggCodePath, modelPath}
-	aggContainer.volumeMapName = []string{"code", "model"}
-	aggContainer.env = map[string]string{
+	var aggWorkerPara *WorkerPara = new(WorkerPara)
+	aggWorkerPara.volumeMountList = []string{aggModelConPath}
+	aggWorkerPara.volumeList = []string{modelPath}
+	aggWorkerPara.volumeMapName = []string{"model"}
+	aggWorkerPara.env = map[string]string{
 		"MODEL":              modelstring,
 		"WORKER_NAME":        "aggworker-" + utilrand.String(5),
 		"JOB_NAME":           job.Name,
 		"PARTICIPANTS_COUNT": participantsCount,
-		"PARAMETERS":         parameterString,
 		"MODEL_URL":          aggModelURL,
 		"NAMESPACE":          job.Namespace,
 		"AGG_BIND_PORT":      strconv.Itoa(int(aggPort)),
 	}
-	aggContainer.scriptBootFile = aggWorker.WorkerSpec.ScriptBootFile
-	aggContainer.nodeName = aggWorker.NodeName
-	aggContainer.frameName = aggWorker.WorkerSpec.FrameworkType
-	aggContainer.frameVersion = aggWorker.WorkerSpec.FrameworkVersion
+
+	aggWorkerPara.workerType = FLJobStageAgg
+	aggWorkerPara.restartPolicy = v1.RestartPolicyOnFailure
 
 	// create aggpod based on configured parameters
-	fc.generatedPod(job, FLJobStageAgg, aggContainer, &active, false)
+	_, err = createPodWithTemplate(fc.kubeClient, job, &aggWorker.Template, aggWorkerPara)
+	if err != nil {
+		return active, err
+	}
+	active++
+
 	var appIP string
 	var aggServicePort int32
 
-	appIP, err = GetNodeIPByName(fc.kubeClient, job.Spec.AggregationWorker.NodeName)
+	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
+	// will support Spec.NodeSelector.
+	appIP, err = GetNodeIPByName(fc.kubeClient, job.Spec.AggregationWorker.Template.Spec.NodeName)
 	aggServicePort, err = CreateKubernetesService(fc.kubeClient, job, aggPort, appIP)
 	if err != nil {
 		return active, err
@@ -468,8 +466,6 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 	// deliver pod for training worker
 	for _, trainingWorker := range job.Spec.TrainingWorkers {
 		// get dataseturl through parsing crd of dataset
-		parameterJSON, _ = json.Marshal(trainingWorker.WorkerSpec.Parameters)
-		parameterString = string(parameterJSON)
 		datasetName := trainingWorker.Dataset.Name
 		dataset, err := fc.client.Datasets(job.Namespace).Get(ctx, datasetName, metav1.GetOptions{})
 		datasetjson, _ := json.Marshal(dataset)
@@ -481,10 +477,7 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 		}
 		trainDatasetPath = dataset.Spec.URL
 		datasetParent := filepath.Dir(trainDatasetPath)
-		trainCodePath := trainingWorker.WorkerSpec.ScriptDir
-
 		// Container VolumeMounts parameters
-		trainCodeConPath := codePrefix
 		trainDataConPath := dataPrefix + datasetParent
 		trainModelConPath := dataPrefix + modelPath
 
@@ -492,12 +485,12 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 		trainDatasetURL := dataPrefix + trainDatasetPath
 		trainModelURL := trainModelConPath
 
-		// Configure container mounting and Env information by initial ContainerPara
-		var trainContainer *ContainerPara = new(ContainerPara)
-		trainContainer.volumeMountList = []string{trainCodeConPath, trainDataConPath, trainModelConPath}
-		trainContainer.volumeList = []string{trainCodePath, datasetParent, modelPath}
-		trainContainer.volumeMapName = []string{"code", "data", "model"}
-		trainContainer.env = map[string]string{
+		// Configure container mounting and Env information by initial WorkerPara
+		var workerPara *WorkerPara = new(WorkerPara)
+		workerPara.volumeMountList = []string{trainDataConPath, trainModelConPath}
+		workerPara.volumeList = []string{datasetParent, modelPath}
+		workerPara.volumeMapName = []string{"data", "model"}
+		workerPara.env = map[string]string{
 			"DATASET":            datasetstring,
 			"AGG_PORT":           strconv.Itoa(int(aggServicePort)),
 			"AGG_IP":             appIP,
@@ -505,75 +498,23 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 			"TRAIN_DATASET_URL":  trainDatasetURL,
 			"WORKER_NAME":        "trainworker-" + utilrand.String(5),
 			"JOB_NAME":           job.Name,
-			"PARAMETERS":         parameterString,
 			"PARTICIPANTS_COUNT": participantsCount,
 			"NAMESPACE":          job.Namespace,
 			"MODEL_NAME":         modelName,
 			"DATASET_NAME":       datasetName,
 			"LC_SERVER":          fc.cfg.LC.Server,
 		}
-		trainContainer.scriptBootFile = trainingWorker.WorkerSpec.ScriptBootFile
-		trainContainer.nodeName = trainingWorker.NodeName
-		trainContainer.frameName = trainingWorker.WorkerSpec.FrameworkType
-		trainContainer.frameVersion = trainingWorker.WorkerSpec.FrameworkVersion
-
-		// create trainpod based on configured parameters
-		err = fc.generatedPod(job, FLJobStageTrain, trainContainer, &active, true)
+		workerPara.workerType = "train"
+		workerPara.hostNetwork = true
+		workerPara.restartPolicy = v1.RestartPolicyOnFailure
+		// create train pod based on configured parameters
+		_, err = createPodWithTemplate(fc.kubeClient, job, &trainingWorker.Template, workerPara)
 		if err != nil {
 			return active, err
 		}
+		active++
 	}
 	return
-}
-
-func (fc *FederatedController) generatedPod(job *sednav1.FederatedLearningJob, podtype FLJobStage, containerPara *ContainerPara, active *int32, hostNetwork bool) error {
-	var volumeMounts []v1.VolumeMount
-	var volumes []v1.Volume
-	var envs []v1.EnvVar
-	ctx := context.Background()
-	command := []string{"python"}
-	// get baseImgURL from imageHub based on user's configuration in job CRD
-	baseImgURL, err := MatchContainerBaseImage(fc.cfg.ImageHub, containerPara.frameName, containerPara.frameVersion)
-	// TODO: if matched image is empty, the pod creation process will not proceed, return error directly.
-	if err != nil {
-		klog.Warningf("federatedlearning job %v/%v %v worker matching container base image occurs error:%v", job.Namespace, job.Name, podtype, err)
-		return fmt.Errorf("%s pod occurs error: %w",
-			podtype, err)
-	}
-	volumeMounts, volumes = CreateVolumeMap(containerPara)
-	envs = CreateEnvVars(containerPara.env)
-	podSpec := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:    job.Namespace,
-			GenerateName: job.Name + "-" + strings.ToLower(string(podtype)) + "-",
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(job, sednav1.SchemeGroupVersion.WithKind("FederatedLearningJob")),
-			},
-			Labels: GenerateLabels(job),
-		},
-		Spec: v1.PodSpec{
-			RestartPolicy: v1.RestartPolicyNever,
-			NodeName:      containerPara.nodeName,
-			Containers: []v1.Container{
-				{Name: "container-" + job.Name + "-" + strings.ToLower(string(podtype)) + "-" + utilrand.String(5),
-					Image:        baseImgURL,
-					Command:      command,
-					Args:         []string{containerPara.scriptBootFile},
-					Env:          envs,
-					VolumeMounts: volumeMounts,
-				}},
-			Volumes:     volumes,
-			HostNetwork: hostNetwork,
-		},
-	}
-	pod, err := fc.kubeClient.CoreV1().Pods(job.Namespace).Create(ctx, podSpec, metav1.CreateOptions{})
-	if err != nil {
-		klog.Warningf("failed to create %s pod %s for federatedlearning job %v/%v, err:%s", string(podtype), pod.Name, job.Namespace, job.Name, err)
-		return err
-	}
-	klog.V(2).Infof("%s pod %s is created successfully for federatedlearning job %v/%v", string(podtype), pod.Name, job.Namespace, job.Name)
-	*active++
-	return nil
 }
 
 func (fc *FederatedController) GetName() string {

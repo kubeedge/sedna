@@ -14,6 +14,7 @@
 
 import json
 import logging
+import os
 
 from sedna.common.config import BaseConfig
 
@@ -45,7 +46,7 @@ class Context:
     `PARAMETERS` and `HEM_PARAMETERS` field"""
 
     def __init__(self):
-        self.parameters = parse_parameters(BaseConfig.parameters)
+        self.parameters = os.environ
         self.hem_parameters = parse_parameters(BaseConfig.hem_parameters)
 
     def get_context(self):

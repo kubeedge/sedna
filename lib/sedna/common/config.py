@@ -18,6 +18,7 @@ import os
 class BaseConfig:
     """The base config, the value can not be changed."""
     # dataset
+    original_dataset_url = os.getenv("ORIGINAL_DATASET_URL")
     train_dataset_url = os.getenv("TRAIN_DATASET_URL")
     test_dataset_url = os.getenv("TEST_DATASET_URL")
     data_path_prefix = os.getenv("DATA_PATH_PREFIX", "/home/data")

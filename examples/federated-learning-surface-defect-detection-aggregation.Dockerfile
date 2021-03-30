@@ -7,7 +7,8 @@ RUN pip install -r /home/requirements.txt
 
 ENV PYTHONPATH "/home/lib"
 
-WORKDIR /home/work
 COPY ./lib /home/lib
+WORKDIR /home/work
+COPY examples/federated_learning/surface_defect_detection/aggregation_worker/  /home/work/
 
-ENTRYPOINT ["python"]
+ENTRYPOINT ["python", "aggregate.py"]

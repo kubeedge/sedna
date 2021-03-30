@@ -47,9 +47,6 @@ type ControllerConfig struct {
 	// Namespace indicates which namespace the controller listening to.
 	// default ""
 	Namespace string `json:"namespace,omitempty"`
-	// ImageHub indicates the image which the framework/version mapping to
-	// +Required
-	ImageHub map[string]string `json:"imageHub,omitempty"`
 
 	// websocket server config
 	// Since the current limit of kubeedge(1.5), GM needs to build the websocket channel for communicating between GM and LCs.

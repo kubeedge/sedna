@@ -22,6 +22,7 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 
 // Model describes the data that a model resource should have
 type Model struct {
@@ -30,7 +31,7 @@ type Model struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   ModelSpec   `json:"spec"`
-	Status ModelStatus `json:"status"`
+	Status ModelStatus `json:"status,omitempty"`
 }
 
 // ModelSpec is a description of a model

@@ -11,3 +11,6 @@ WORKDIR /home/work
 COPY ./lib /home/lib
 
 ENTRYPOINT ["python"]
+COPY examples/joint_inference/helmet_detection_inference/little_model/little_model.py  /home/work/infer.py
+
+CMD ["infer.py"]  

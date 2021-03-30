@@ -23,6 +23,9 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:shortName=il
+// +kubebuilder:subresource:status
+
 // IncrementalLearningJob describes the data that a incrementallearningjob resource should have
 type IncrementalLearningJob struct {
 	metav1.TypeMeta `json:",inline"`
@@ -30,14 +33,13 @@ type IncrementalLearningJob struct {
 	metav1.ObjectMeta `json:"metadata"`
 
 	Spec   ILJobSpec   `json:"spec"`
-	Status ILJobStatus `json:"status"`
+	Status ILJobStatus `json:"status,omitempty"`
 }
 
 // ILJobSpec is a description of a incrementallearningjob
 type ILJobSpec struct {
 	Dataset      ILDataset    `json:"dataset"`
 	OutputDir    string       `json:"outputDir"`
-	NodeName     string       `json:"nodeName"`
 	InitialModel InitialModel `json:"initialModel"`
 	TrainSpec    TrainSpec    `json:"trainSpec"`
 	EvalSpec     EvalSpec     `json:"evalSpec"`
@@ -46,22 +48,21 @@ type ILJobSpec struct {
 
 // TrainSpec describes the data an train worker should have
 type TrainSpec struct {
-	WorkerSpec CommonWorkerSpec `json:"workerSpec"`
-	Trigger    Trigger          `json:"trigger"`
+	Template v1.PodTemplateSpec `json:"template"`
+	Trigger  Trigger            `json:"trigger"`
 }
 
 // EvalSpec describes the data an eval worker should have
 type EvalSpec struct {
-	WorkerSpec CommonWorkerSpec `json:"workerSpec"`
+	Template v1.PodTemplateSpec `json:"template"`
 }
 
 // DeploySpec describes the deploy model to be updated
 type DeploySpec struct {
-	Model             DeployModel       `json:"model"`
-	Trigger           Trigger           `json:"trigger"`
-	NodeName          string            `json:"nodeName"`
-	WorkerSpec        CommonWorkerSpec  `json:"workerSpec"`
-	HardExampleMining HardExampleMining `json:"hardExampleMining"`
+	Model             DeployModel        `json:"model"`
+	Trigger           Trigger            `json:"trigger"`
+	HardExampleMining HardExampleMining  `json:"hardExampleMining"`
+	Template          v1.PodTemplateSpec `json:"template"`
 }
 
 type Trigger struct {

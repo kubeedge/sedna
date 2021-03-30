@@ -60,7 +60,8 @@ func (dc *DownstreamController) syncDataset(eventType watch.EventType, dataset *
 // syncJointInferenceService syncs the joint-inference-service resources
 func (dc *DownstreamController) syncJointInferenceService(eventType watch.EventType, joint *sednav1.JointInferenceService) error {
 	// Here only propagate to the nodes with non empty name
-	nodeName := joint.Spec.EdgeWorker.NodeName
+	// FIXME: only the case that Spec.NodeName specified is support
+	nodeName := joint.Spec.EdgeWorker.Template.Spec.NodeName
 	if len(nodeName) == 0 {
 		return fmt.Errorf("empty node name")
 	}
@@ -74,8 +75,8 @@ func (dc *DownstreamController) syncFederatedLearningJob(eventType watch.EventTy
 	nodeset := make(map[string]bool)
 	for _, trainingWorker := range job.Spec.TrainingWorkers {
 		// Here only propagate to the nodes with non empty name
-		if len(trainingWorker.NodeName) > 0 {
-			nodeset[trainingWorker.NodeName] = true
+		if len(trainingWorker.Template.Spec.NodeName) > 0 {
+			nodeset[trainingWorker.Template.Spec.NodeName] = true
 		}
 	}
 
@@ -108,7 +109,10 @@ func (dc *DownstreamController) syncModelWithName(nodeName, modelName, namespace
 // syncIncrementalJob syncs the incremental learning jobs
 func (dc *DownstreamController) syncIncrementalJob(eventType watch.EventType, job *sednav1.IncrementalLearningJob) error {
 	// Here only propagate to the nodes with non empty name
-	nodeName := job.Spec.NodeName
+
+	// FIXME(llhuii): only the case that all workers having the same nodeName are support,
+	// will support Spec.NodeSelector and differenect nodeName.
+	nodeName := job.Spec.TrainSpec.Template.Spec.NodeName
 	if len(nodeName) == 0 {
 		return fmt.Errorf("empty node name")
 	}

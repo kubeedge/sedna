@@ -44,7 +44,7 @@ cd "$SEDNA_ROOT"
 
 NO_CLEANUP=${NO_CLEANUP:-false}
 
-IMAGE_REPO=localhost/kubeedge/sedna
+IMAGE_REPO=localhost/sedna
 IMAGE_TAG=localup
 
 # local k8s cluster name for local-up-kubeedge.sh
@@ -176,19 +176,9 @@ build_component_image() {
   for bin; do
     echo "building $bin image"
     make -C "${SEDNA_ROOT}" ${bin}image IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
-    eval ${bin^^}_IMAGE="'${IMAGE_REPO}/${bin}:${IMAGE_TAG}'"
+    eval ${bin^^}_IMAGE="'${IMAGE_REPO}/sedna-${bin}:${IMAGE_TAG}'"
   done
   # no clean up for images
-}
-
-build_worker_base_images() {
-  echo "building worker base images"
-  # build tensorflow1.15 image
-  WORKER_TF1_IMAGE=$IMAGE_REPO/worker-tensorflow:1.15
-  docker build -f build/worker/base_images/tensorflow/tensorflow-1.15.Dockerfile -t $WORKER_TF1_IMAGE .
-
-  WORKER_IMAGE_HUB="'tensorflow:1.15': $WORKER_TF1_IMAGE"
-  # add more base images
 }
 
 load_images_to_master() {
@@ -206,16 +196,13 @@ prepare_k8s_env() {
   export KUBECONFIG=$(realpath $TMP_DIR/kubeconfig)
   # prepare our k8s environment
   # create these crds including dataset, model, joint-inference etc.
-  kubectl apply -f build/crds/sedna/
-
-  # gm, lc will be created in this namespace
-  kubectl create namespace $NAMESPACE
+  kubectl create -f build/crds/
 
   # create the cluster role for gm
-  kubectl apply -f build/gm/rbac/
+  kubectl create -f build/gm/rbac/
 
   add_cleanup "
-    kubectl delete -f build/crds/sedna/
+    kubectl delete -f build/crds/
     kubectl delete namespace $NAMESPACE --timeout=5s
   "
   load_images_to_master
@@ -233,8 +220,6 @@ start_gm() {
   cat > gmconfig <<EOF
 kubeConfig: ""
 namespace: ""
-imageHub:
-  ${WORKER_IMAGE_HUB:-}
 websocket:
   port: $GM_BIND_PORT
 localController:
@@ -469,8 +454,6 @@ do_up() {
   localup_kubeedge
 
   build_component_image gm lc
-
-  build_worker_base_images
 
   check_prerequisites
 

@@ -74,8 +74,6 @@ The tables below summarize the group, kind and API version details for the CRD.
 |Kind                   | IncrementalLearningJob             |
 
 ### Incremental learning CRD
-![](./images/incremental-learning-job-crd-details.png)
-
 See the [crd source](/build/crds/sedna/incrementallearningjob_v1alpha1.yaml) for details.
 
 ### Incremental learning job type definition

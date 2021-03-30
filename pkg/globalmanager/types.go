@@ -19,26 +19,30 @@ package globalmanager
 import (
 	"encoding/json"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// ContainerPara describes initial values need by creating a pod
-type ContainerPara struct {
+// WorkerPara describes the system-defined parameters of worker
+type WorkerPara struct {
 	volumeMountList []string
 	volumeList      []string
 	volumeMapName   []string
 	env             map[string]string
-	frameName       string
-	frameVersion    string
-	scriptBootFile  string
-	nodeName        string
+	workerType      string
+	// if true, force to use hostNetwork
+	hostNetwork bool
+
+	restartPolicy v1.RestartPolicy
 }
 
 // CommonInterface describes the commom interface of CRs
 type CommonInterface interface {
 	metav1.Object
 	schema.ObjectKind
+	runtime.Object
 }
 
 // FeatureControllerI defines the interface of an AI Feature controller

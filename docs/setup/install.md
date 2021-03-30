@@ -3,10 +3,7 @@
 * [Create CRDs](#create-crds)
 * [Deploy GM](#deploy-gm)
  * [Prepare GM config](#prepare-gm-config)
- * [Build worker base images](#build-worker-base-images)
- * [Run GM as k8s deployment(recommended)](#run-gm-as-k8s-deploymentrecommended)
- * [Run GM as a single process(alternative)](#run-gm-as-a-single-processalternative)
- * [Run GM as docker container(alternative)](#run-gm-as-docker-containeralternative)
+ * [Run GM as k8s deployment](#run-gm-as-k8s-deployment)
 * [Deploy LC](#deploy-lc)
 
 ## Deploy Sedna
@@ -30,14 +27,14 @@ The shell commands below should to be executed in this node and **one terminal s
 ```shell
 git clone http://github.com/kubeedge/sedna.git
 cd sedna
-git checkout master
+git checkout main
 ```
 
 ### Create CRDs
 
 ```shell
 # create these crds including dataset, model, joint-inference
-kubectl apply -f build/crds/sedna/
+kubectl create -f build/crds/
 ```
 
 ### Deploy GM
@@ -48,8 +45,6 @@ Get `build/gm/gm-config.yaml` for a copy
 kubeConfig: ""
 master: ""
 namespace: ""
-imageHub:
- "tensorflow:1.15": "docker.io/sedna/tensorflow-base-image-to-filled:1.15"
 websocket:
   address: 0.0.0.0
   port: 9000
@@ -59,33 +54,11 @@ localController:
 1. `kubeConfig`: config to connect k8s, default `""`
 1. `master`: k8s master addr, default `""`
 1. `namespace`: the namespace GM watches, `""` means that gm watches all namespaces, default `""`.
-1. `imageHub`: the base image mapping for model training/evaluation/inference which key is frameworkType/frameVersion.
 1. `websocket`: since the current limit of kubeedge(1.5), GM needs to build the websocket channel for communicating between GM and LCs.
 1. `localController`:
    - `server`: to be injected into the worker to connect LC.
 
-#### Build worker base images
-
-Here build worker base image for tensorflow 1.15 for example:
-```shell
-# here using github container registry for example.
-# edit it with the truly container registry by your choice.
-IMAGE_REPO=ghcr.io/kubeedge/sedna
-
-# build tensorflow image
-WORKER_TF1_IMAGE=$IMAGE_REPO/worker-tensorflow:1.15
-
-docker build -f build/worker/base_images/tensorflow/tensorflow-1.15.Dockerfile -t $WORKER_TF1_IMAGE .
-
-# push worker image to registry, login to registry first if needed
-docker push $WORKER_TF1_IMAGE
-```
-
-
-
-There are some methods to run gm, you can choose one method below:
-
-#### Run GM as k8s deployment(**recommended**):
+#### Run GM as k8s deployment:
 
 We don't need to config the kubeconfig in this method said by [accessing the API from a Pod](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#accessing-the-api-from-a-pod).
 
@@ -103,8 +76,8 @@ LC_PORT=9100
 
 # here using github container registry for example
 # edit it with the truly container registry by your choice.
-IMAGE_REPO=ghcr.io/kubeedge/sedna
-IMAGE_TAG=v1alpha1
+IMAGE_REPO=kubeedge
+IMAGE_TAG=v0.1.0
 
 LC_SERVER="http://localhost:$LC_PORT"
 
@@ -122,9 +95,6 @@ sed -i 's@master:.*@master: ""@' $CONFIG_FILE
 
 sed -i "s@port:.*@port: $GM_PORT@" $CONFIG_FILE
 
-# setting tensorflow1.15 base image
-sed -i 's@\("tensorflow:1.15":\).*@\1 '"$WORKER_TF1_IMAGE@" $CONFIG_FILE
-
 # setting lc server
 sed -i "s@http://localhost:9100@$LC_SERVER@" $CONFIG_FILE
 
@@ -135,7 +105,7 @@ sed -i "s@http://localhost:9100@$LC_SERVER@" $CONFIG_FILE
 # build image from source OR use the gm image previous built.
 
 # edit it with the truly base repo by your choice.
-GM_IMAGE=$IMAGE_REPO/gm:$IMAGE_TAG
+GM_IMAGE=$IMAGE_REPO/sedna-gm:$IMAGE_TAG
 
 make gmimage IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
 
@@ -216,33 +186,6 @@ EOF
 kubectl get deploy -n sedna gm
 ```
 
-#### Run GM as a single process(alternative)
-1\. config GM:
-```shell
-cp build/gm/sedna-gm.yaml gm.yaml
-# make sure /root/.kube/config exists
-sed -i 's@kubeConfig.*@kubeConfig: /root/.kube/config@' gm.yaml
-```
-
-2\. compile and run GM direct:
-```shell
-go build cmd/sedna-gm/sedna-gm.go
-./sedna-gm --config gm.yaml -v2
-```
-
-#### Run GM as docker container(alternative)
-1\. build GM image:
-```shell
-GM_IMAGE=$IMAGE_REPO/gm:$IMAGE_TAG
-sed -i 's@kubeConfig.*@kubeConfig: /root/.kube/config@' build/gm/sedna-gm.yaml
-make gmimage IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
-```
-
-2\. run GM as container:
-```shell
-docker run --net host -v /root/.kube:/root/.kube $GM_IMAGE
-```
-
 ### Deploy LC
 Prerequisites:
 1. Run GM successfully.
@@ -252,7 +195,7 @@ Steps:
 
 1\. Build LC image:
 ```shell
-LC_IMAGE=$IMAGE_REPO/lc:$IMAGE_TAG
+LC_IMAGE=$IMAGE_REPO/sedna-lc:$IMAGE_TAG
 
 make lcimage IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
 

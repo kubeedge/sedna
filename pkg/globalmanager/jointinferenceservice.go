@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -52,11 +51,9 @@ import (
 	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
-type jointInferenceType string
-
 const (
-	jointInferenceForEdge  jointInferenceType = "Edge"
-	jointInferenceForCloud jointInferenceType = "Cloud"
+	jointInferenceForEdge  = "Edge"
+	jointInferenceForCloud = "Cloud"
 )
 
 // jointServiceControllerKind contains the schema.GroupVersionKind for this controller type.
@@ -409,7 +406,9 @@ func (jc *JointInferenceServiceController) createPod(service *sednav1.JointInfer
 
 	// create kubernetesService for cloudPod, and get bigServicePort for edgePod
 	var bigServicePort int32
-	bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.NodeName)
+	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
+	// will support Spec.NodeSelector.
+	bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
 	bigServicePort, err = CreateKubernetesService(jc.kubeClient, service, bigModelPort, bigModelIP)
 	if err != nil {
 		return active, err
@@ -443,35 +442,33 @@ func (jc *JointInferenceServiceController) createCloudPod(service *sednav1.Joint
 	cloudModelString := string(cloudModelJSON)
 	cloudModelParent := filepath.Dir(cloudModelPath)
 
-	cloudWorker := service.Spec.CloudWorker
-	cloudCodePath := cloudWorker.WorkerSpec.ScriptDir
-	cloudParameterJSON, _ := json.Marshal(cloudWorker.WorkerSpec.Parameters)
-	cloudParameterString := string(cloudParameterJSON)
-
 	// Container VolumeMounts parameters
-	cloudCodeConPath := codePrefix
 	cloudModelConPath := dataPrefix + cloudModelParent
 
 	// Env parameters for cloud
 	cloudModelURL := dataPrefix + cloudModelPath
 
-	// Configure container mounting and Env information by initial ContainerPara
-	var cloudContainer *ContainerPara = new(ContainerPara)
-	cloudContainer.volumeMountList = []string{cloudCodeConPath, cloudModelConPath}
-	cloudContainer.volumeList = []string{cloudCodePath, cloudModelParent}
+	// Configure container mounting and Env information by initial WorkerPara
+	var cloudContainer *WorkerPara = new(WorkerPara)
+	cloudContainer.volumeMountList = []string{cloudModelConPath}
+	cloudContainer.volumeList = []string{cloudModelParent}
 	cloudContainer.volumeMapName = []string{"code", "model"}
 	cloudContainer.env = map[string]string{
 		"MODEL":               cloudModelString,
 		"WORKER_NAME":         "cloudworker-" + utilrand.String(5),
 		"SERVICE_NAME":        service.Name,
-		"PARAMETERS":          cloudParameterString,
 		"MODEL_URL":           cloudModelURL,
 		"NAMESPACE":           service.Namespace,
 		"BIG_MODEL_BIND_PORT": strconv.Itoa(int(bigModelPort)),
 	}
 
+	cloudContainer.workerType = jointInferenceForCloud
+
 	// create cloud pod
-	err = jc.generatedPod(service, jointInferenceForCloud, cloudContainer, false)
+	_, err = createPodWithTemplate(jc.kubeClient,
+		service,
+		&service.Spec.CloudWorker.Template,
+		cloudContainer)
 	if err != nil {
 		return err
 	}
@@ -489,8 +486,10 @@ func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointI
 	}
 	edgeModelPath := edgeModel.Spec.URL
 
+	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
+	// will support Spec.NodeSelector.
 	// get bigModelIP from nodeName in cloudWorker
-	bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.NodeName)
+	bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
 	if err != nil {
 		return fmt.Errorf("failed to get node ip: %w", err)
 	}
@@ -501,23 +500,19 @@ func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointI
 	edgeModelParent := filepath.Dir(edgeModelPath)
 
 	edgeWorker := service.Spec.EdgeWorker
-	edgeCodePath := edgeWorker.WorkerSpec.ScriptDir
-	edgeParameterJSON, _ := json.Marshal(edgeWorker.WorkerSpec.Parameters)
-	edgeParameterString := string(edgeParameterJSON)
 	HEMParameterJSON, _ := json.Marshal(edgeWorker.HardExampleMining.Parameters)
 	HEMParameterString := string(HEMParameterJSON)
 
 	// Container VolumeMounts parameters
-	edgeCodeConPath := codePrefix
 	edgeModelConPath := dataPrefix + edgeModelParent
 
 	// Env parameters for edge
 	edgeModelURL := dataPrefix + edgeModelPath
 
-	// Configure container mounting and Env information by initial ContainerPara
-	var edgeContainer *ContainerPara = new(ContainerPara)
-	edgeContainer.volumeMountList = []string{edgeCodeConPath, edgeModelConPath}
-	edgeContainer.volumeList = []string{edgeCodePath, edgeModelParent}
+	// Configure container mounting and Env information by initial WorkerPara
+	var edgeContainer *WorkerPara = new(WorkerPara)
+	edgeContainer.volumeMountList = []string{edgeModelConPath}
+	edgeContainer.volumeList = []string{edgeModelParent}
 	edgeContainer.volumeMapName = []string{"code", "model"}
 	edgeContainer.env = map[string]string{
 		"MODEL":          edgeModelString,
@@ -525,7 +520,6 @@ func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointI
 		"SERVICE_NAME":   service.Name,
 		"BIG_MODEL_IP":   bigModelIP,
 		"BIG_MODEL_PORT": strconv.Itoa(int(bigServicePort)),
-		"PARAMETERS":     edgeParameterString,
 		"HEM_PARAMETERS": HEMParameterString,
 		"MODEL_URL":      edgeModelURL,
 		"NAMESPACE":      service.Namespace,
@@ -533,70 +527,17 @@ func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointI
 		"LC_SERVER":      jc.cfg.LC.Server,
 	}
 
-	// create edge pod
-	err = jc.generatedPod(service, jointInferenceForEdge, edgeContainer, true)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+	edgeContainer.workerType = jointInferenceForEdge
+	edgeContainer.hostNetwork = true
 
-func (jc *JointInferenceServiceController) generatedPod(service *sednav1.JointInferenceService, podtype jointInferenceType,
-	containerPara *ContainerPara, hostNetwork bool) error {
-	var workerSpec sednav1.CommonWorkerSpec
-	var volumeMounts []v1.VolumeMount
-	var volumes []v1.Volume
-	var envs []v1.EnvVar
-	var nodeName string
-	ctx := context.Background()
-	if podtype == jointInferenceForEdge {
-		workerSpec = service.Spec.EdgeWorker.WorkerSpec
-		nodeName = service.Spec.EdgeWorker.NodeName
-	} else {
-		workerSpec = service.Spec.CloudWorker.WorkerSpec
-		nodeName = service.Spec.CloudWorker.NodeName
-	}
-	// get baseImgURL from imageHub based on user's configuration in job CRD
-	frameName := workerSpec.FrameworkType
-	frameVersion := workerSpec.FrameworkVersion
-	baseImgURL, err := MatchContainerBaseImage(jc.cfg.ImageHub, frameName, frameVersion)
-	// TODO: if matched image is empty, the pod creation process will not proceed, return error directly.
+	// create edge pod
+	_, err = createPodWithTemplate(jc.kubeClient,
+		service,
+		&service.Spec.EdgeWorker.Template,
+		edgeContainer)
 	if err != nil {
-		klog.Warningf("jointinference service %v/%v %v worker matching container base image occurs error:%v", service.Namespace, service.Name, podtype, err)
-		return fmt.Errorf("%s pod occurs error: %w",
-			podtype, err)
-	}
-	volumeMounts, volumes = CreateVolumeMap(containerPara)
-	envs = CreateEnvVars(containerPara.env)
-	podSpec := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:    service.Namespace,
-			GenerateName: service.Name + "-" + strings.ToLower(string(podtype)) + "-",
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(service, jointServiceControllerKind),
-			},
-			Labels: GenerateLabels(service),
-		},
-		Spec: v1.PodSpec{
-			RestartPolicy: v1.RestartPolicyNever,
-			NodeName:      nodeName,
-			Containers: []v1.Container{
-				{Name: "container-" + service.Name + "-" + strings.ToLower(string(podtype)) + "-" + utilrand.String(5),
-					Image:        baseImgURL,
-					Args:         []string{workerSpec.ScriptBootFile},
-					Env:          envs,
-					VolumeMounts: volumeMounts,
-				}},
-			Volumes:     volumes,
-			HostNetwork: hostNetwork,
-		},
-	}
-	pod, err := jc.kubeClient.CoreV1().Pods(service.Namespace).Create(ctx, podSpec, metav1.CreateOptions{})
-	if err != nil {
-		klog.Warningf("failed to create %s pod %s for jointinference service %v/%v, err:%s", string(podtype), pod.Name, service.Namespace, service.Name, err)
 		return err
 	}
-	klog.V(2).Infof("%s pod %s is created successfully for jointinference service %v/%v", string(podtype), pod.Name, service.Namespace, service.Name)
 	return nil
 }
 

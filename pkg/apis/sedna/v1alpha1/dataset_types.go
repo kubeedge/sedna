@@ -22,6 +22,7 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 
 // Dataset describes the data that a dataset resource should have
 type Dataset struct {
@@ -30,7 +31,7 @@ type Dataset struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   DatasetSpec   `json:"spec"`
-	Status DatasetStatus `json:"status"`
+	Status DatasetStatus `json:"status,omitempty"`
 }
 
 // DatasetSpec is a description of a dataset

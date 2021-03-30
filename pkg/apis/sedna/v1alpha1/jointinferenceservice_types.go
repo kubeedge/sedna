@@ -23,6 +23,8 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:shortName=ji
+// +kubebuilder:subresource:status
 
 // JointInferenceService describes the data that a jointinferenceservice resource should have
 type JointInferenceService struct {
@@ -42,17 +44,15 @@ type JointInferenceServiceSpec struct {
 
 // EdgeWorker describes the data a edge worker should have
 type EdgeWorker struct {
-	Model             SmallModel        `json:"model"`
-	NodeName          string            `json:"nodeName"`
-	HardExampleMining HardExampleMining `json:"hardExampleMining"`
-	WorkerSpec        CommonWorkerSpec  `json:"workerSpec"`
+	Model             SmallModel         `json:"model"`
+	HardExampleMining HardExampleMining  `json:"hardExampleMining"`
+	Template          v1.PodTemplateSpec `json:"template"`
 }
 
 // CloudWorker describes the data a cloud worker should have
 type CloudWorker struct {
-	Model      BigModel         `json:"model"`
-	NodeName   string           `json:"nodeName"`
-	WorkerSpec CommonWorkerSpec `json:"workerSpec"`
+	Model    BigModel           `json:"model"`
+	Template v1.PodTemplateSpec `json:"template"`
 }
 
 // SmallModel describes the small model
@@ -68,7 +68,7 @@ type BigModel struct {
 // HardExampleMining describes the hard example algorithm to be used
 type HardExampleMining struct {
 	Name       string     `json:"name"`
-	Parameters []ParaSpec `json:"parameters"`
+	Parameters []ParaSpec `json:"parameters,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
