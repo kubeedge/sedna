@@ -18,6 +18,7 @@ package globalmanager
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -642,6 +643,8 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 
 	// Env parameters for edge
 	inferModelURL := dataPrefix + inferModelPath
+	HEMParameterJSON, _ := json.Marshal(job.Spec.DeploySpec.HardExampleMining.Parameters)
+	HEMParameterString := string(HEMParameterJSON)
 
 	// Configure container mounting and Env information by initial WorkerPara
 	var workerParam *WorkerPara = new(WorkerPara)
@@ -649,11 +652,12 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 	workerParam.volumeList = []string{inferModelParent}
 	workerParam.volumeMapName = []string{"model"}
 	workerParam.env = map[string]string{
-		"WORKER_NAME":           "inferworker-" + utilrand.String(5),
-		"MODEL_URL":             inferModelURL,
-		"NAMESPACE":             job.Namespace,
-		"HARD_SAMPLE_ALGORITHM": job.Spec.DeploySpec.HardExampleMining.Name,
-		"LC_SERVER":             jc.cfg.LC.Server,
+		"WORKER_NAME":    "inferworker-" + utilrand.String(5),
+		"MODEL_URL":      inferModelURL,
+		"NAMESPACE":      job.Namespace,
+		"HEM_NAME":       job.Spec.DeploySpec.HardExampleMining.Name,
+		"HEM_PARAMETERS": HEMParameterString,
+		"LC_SERVER":      jc.cfg.LC.Server,
 	}
 
 	workerParam.workerType = "inference"
