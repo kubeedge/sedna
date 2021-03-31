@@ -3,7 +3,7 @@
 * [Create CRDs](#create-crds)
 * [Deploy GM](#deploy-gm)
  * [Prepare GM config](#prepare-gm-config)
- * [Run GM as k8s deployment](#run-gm-as-k8s-deployment)
+ * [Run GM as k8s deployment](#run-gm-as-a-k8s-deployment)
 * [Deploy LC](#deploy-lc)
 
 ## Deploy Sedna
@@ -16,8 +16,7 @@
 - [KubeEdge][kubeedge] version v.15+.
 
 GM will be deployed to a node which has satisfied these requirements:
- 1. Has a public IP address which the edge can access to.
- 1. Can access the k8s master.
+1. Has a IP address which the edge can access to.
 
 Simply you can use the node which `cloudcore` of `kubeedge` is deployed at.
 
@@ -33,99 +32,81 @@ git checkout main
 ### Create CRDs
 
 ```shell
-# create these crds including dataset, model, joint-inference
+# create these crds including dataset, model, joint-inference etc.
 kubectl create -f build/crds/
 ```
 
 ### Deploy GM
 
 #### Prepare GM config
-Get `build/gm/gm-config.yaml` for a copy
+The content of `build/gm/gm-config.yaml`:
 ```yaml
 kubeConfig: ""
 master: ""
 namespace: ""
-websocket:
-  address: 0.0.0.0
-  port: 9000
 localController:
   server: http://localhost:9100
 ```
 1. `kubeConfig`: config to connect k8s, default `""`
 1. `master`: k8s master addr, default `""`
 1. `namespace`: the namespace GM watches, `""` means that gm watches all namespaces, default `""`.
-1. `websocket`: since the current limit of kubeedge(1.5), GM needs to build the websocket channel for communicating between GM and LCs.
 1. `localController`:
    - `server`: to be injected into the worker to connect LC.
 
-#### Run GM as k8s deployment:
+Edit the config file if you wish.
+
+Note: if you just want to use the default values, don't need to run the below commands.
+```shell
+# edit build/gm/gm-config.yaml, here using sed command.
+# alternative you can edit the config file manully.
+GM_CONFIG_FILE=build/gm/gm-config.yaml
+
+# here edit it with another LC bind ports if you wish or it's conflict with your node environment since LC is deployed in host namespace.
+LC_BIND_PORT=9100
+
+LC_SERVER="http://localhost:$LC_BIND_PORT"
+
+# setting lc server
+sed -i "s@http://localhost:9100@$LC_SERVER@" $GM_CONFIG_FILE
+```
+
+#### Run GM as a K8S Deployment:
 
 We don't need to config the kubeconfig in this method said by [accessing the API from a Pod](https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#accessing-the-api-from-a-pod).
 
-1\. Create the cluster role in case that gm can access/write the CRDs:
+1\. Create the cluster roles in order to GM can access/write the CRDs:
 ```shell
 # create the cluster role
 kubectl create -f build/gm/rbac/
 ```
 
-2\. Prepare the config:
+2\. Deploy GM as deployment:
+
+Currently we need to deploy GM to a k8s node which edge node can access to.
+
+More specifically, the k8s node has a INTERNAL-IP or EXTERNAL-IP where edge node can access to.
+
+For example, in a kind cluster `kubectl get node -o wide`:
 ```shell
-# edit it with another number if you wish
-GM_PORT=9000
-LC_PORT=9100
-
-# here using github container registry for example
-# edit it with the truly container registry by your choice.
-IMAGE_REPO=kubeedge
-IMAGE_TAG=v0.1.0
-
-LC_SERVER="http://localhost:$LC_PORT"
-
+NAME                  STATUS   ROLES                  AGE     VERSION                   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION       CONTAINER-RUNTIME
+edge-node             Ready    agent,edge             3d21h   v1.19.3-kubeedge-v1.6.1   192.168.0.233   <none>        Ubuntu 18.04.5 LTS   4.15.0-128-generic   docker://20.10.2
+sedna-control-plane   Ready    control-plane,master   3d21h   v1.20.2                   172.18.0.2      <none>        Ubuntu 20.10         4.15.0-128-generic   containerd://1.5.0-beta.3-24-g95513021e
 ```
+In this example the node `sedna-control-plane` has a internal-ip 172.18.0.2, and `edge-node` can access it.
+
+So we can set `GM_NODE_NAME=sedna-control-plane` in below instructions:
 
 ```shell
-# copy and edit CONFIG_FILE.
-CONFIG_FILE=gm-config.yaml
-cp build/gm/gm-config.yaml $CONFIG_FILE
+# set the right node where edge node can be access
+# GM_NODE_NAME=sedna-control-plane
+GM_NODE_NAME=CHANGE-ME-HERE
 
-# prepare the config with empty kubeconfig and empty master url meaning accessing k8s by rest.InClusterConfig().
-# here using sed command, alternative you can edit the config file manully.
-sed -i 's@kubeConfig:.*@kubeConfig: ""@' $CONFIG_FILE
-sed -i 's@master:.*@master: ""@' $CONFIG_FILE
+# create configmap from $GM_CONFIG_FILE
+GM_CONFIG_FILE=${GM_CONFIG_FILE:-build/gm/gm-config.yaml}
 
-sed -i "s@port:.*@port: $GM_PORT@" $CONFIG_FILE
+GM_CONFIG_FILE_NAME=$(basename $GM_CONFIG_FILE)
+kubectl create -n sedna configmap gm-config --from-file=$GM_CONFIG_FILE
 
-# setting lc server
-sed -i "s@http://localhost:9100@$LC_SERVER@" $CONFIG_FILE
-
-```
-
-3\. Build the GM image:
-```shell
-# build image from source OR use the gm image previous built.
-
-# edit it with the truly base repo by your choice.
-GM_IMAGE=$IMAGE_REPO/sedna-gm:$IMAGE_TAG
-
-make gmimage IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
-
-# push image to registry, login to registry first if needed
-docker push $GM_IMAGE
-```
-
-4\. Create gm configmap:
-```shell
-# create configmap from $CONFIG_FILE
-CONFIG_NAME=gm-config   # customize this configmap name
-kubectl create -n sedna configmap $CONFIG_NAME --from-file=$CONFIG_FILE
-```
-
-5\. Deploy GM as deployment:
-```shell
-# we assign gm to the node which edge node can access to.
-# here current terminal node name, i.e. the k8s master node.
-# remember the GM_IP
-GM_NODE_NAME=$(hostname)
 
 kubectl apply -f - <<EOF
 apiVersion: v1
@@ -139,8 +120,8 @@ spec:
   type: NodePort
   ports:
     - protocol: TCP
-      port: $GM_PORT
-      targetPort: $GM_PORT
+      port: 9000
+      targetPort: 9000
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -163,8 +144,8 @@ spec:
       serviceAccountName: sedna
       containers:
       - name: gm
-        image: $GM_IMAGE
-        command: ["sedna-gm", "--config", "/config/$CONFIG_FILE", "-v2"]
+        image: kubeedge/sedna-gm:v0.1.0
+        command: ["sedna-gm", "--config", "/config/$GM_CONFIG_FILE_NAME", "-v2"]
         volumeMounts:
         - name: gm-config
           mountPath: /config
@@ -177,11 +158,11 @@ spec:
       volumes:
         - name: gm-config
           configMap:
-            name: $CONFIG_NAME
+            name: gm-config
 EOF
 ```
 
-6\. Check the GM status:
+4\. Check the GM status:
 ```shell
 kubectl get deploy -n sedna gm
 ```
@@ -189,28 +170,16 @@ kubectl get deploy -n sedna gm
 ### Deploy LC
 Prerequisites:
 1. Run GM successfully.
-2. Get the bind address/port of GM.
 
-Steps:
-
-1\. Build LC image:
-```shell
-LC_IMAGE=$IMAGE_REPO/sedna-lc:$IMAGE_TAG
-
-make lcimage IMAGE_REPO=$IMAGE_REPO IMAGE_TAG=$IMAGE_TAG
-
-# push image to registry, login to registry first if needed
-docker push $LC_IMAGE
-```
-
-2\. Deploy LC as k8s daemonset:
+1\. Deploy LC as k8s daemonset:
 ```shell
 gm_node_port=$(kubectl -n sedna get svc gm -ojsonpath='{.spec.ports[0].nodePort}')
 
 # fill the GM_NODE_NAME's ip which edge node can access to.
 # such as gm_node_ip=192.168.0.9
 # gm_node_ip=<GM_NODE_NAME_IP_ADDRESS>
-# here try to get node ip by kubectl
+
+# Here is the automatical way: try to get node ip by kubectl
 gm_node_ip=$(kubectl get node $GM_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="ExternalIP")].address }')
 gm_node_internal_ip=$(kubectl get node $GM_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="InternalIP")].address }')
 
@@ -235,12 +204,12 @@ spec:
     spec:
       containers:
         - name: lc
-          image: $LC_IMAGE
+          image: kubeedge/sedna-lc:v0.1.0
           env:
             - name: GM_ADDRESS
               value: $GM_ADDRESS
             - name: BIND_PORT
-              value: "$LC_PORT"
+              value: "${LC_BIND_PORT:-9100}"
             - name: NODENAME
               valueFrom:
                 fieldRef:
@@ -266,7 +235,7 @@ spec:
 EOF
 ```
 
-3\. Check the LC status:
+2\. Check the LC status:
 ```shell
 kubectl get ds lc -n sedna
 
