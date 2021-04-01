@@ -16,7 +16,7 @@ ENV PYTHONPATH "/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
-COPY examples/incremental_learning/helmet_detection_incremental_train/training/  /home/work/
+COPY examples/incremental_learning/helmet_detection/training/  /home/work/
 
 
 ENTRYPOINT ["python"]
