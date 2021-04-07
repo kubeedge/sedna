@@ -174,4 +174,4 @@ kubectl get federatedlearningjob surface-defect-detection
 ```
 
 ### Check Federated Learning Train Result
-After the job completed, you will find the model generated on the directory `/model` in `$EDGE1_NODE` and `EDGE2_NODE`.
+After the job completed, you will find the model generated on the directory `/model` in `$EDGE1_NODE` and `$EDGE2_NODE`.
