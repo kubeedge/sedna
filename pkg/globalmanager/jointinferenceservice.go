@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -397,8 +396,8 @@ func isJointinferenceserviceFinished(j *sednav1.JointInferenceService) bool {
 func (jc *JointInferenceServiceController) createPod(service *sednav1.JointInferenceService) (active int32, err error) {
 	active = 0
 
-	// create pod for cloudPod
-	err = jc.createCloudPod(service)
+	// create cloud worker
+	err = jc.createCloudWorker(service)
 	if err != nil {
 		return active, err
 	}
@@ -414,8 +413,8 @@ func (jc *JointInferenceServiceController) createPod(service *sednav1.JointInfer
 		return active, err
 	}
 
-	// create pod for edgePod
-	err = jc.createEdgePod(service, bigServicePort)
+	// create edge worker
+	err = jc.createEdgeWorker(service, bigServicePort)
 	if err != nil {
 		return active, err
 	}
@@ -424,58 +423,42 @@ func (jc *JointInferenceServiceController) createPod(service *sednav1.JointInfer
 	return active, err
 }
 
-func (jc *JointInferenceServiceController) createCloudPod(service *sednav1.JointInferenceService) error {
+func (jc *JointInferenceServiceController) createCloudWorker(service *sednav1.JointInferenceService) error {
 	// deliver pod for cloudworker
-	ctx := context.Background()
-	var cloudModelPath string
 	cloudModelName := service.Spec.CloudWorker.Model.Name
-	cloudModel, err := jc.client.Models(service.Namespace).Get(ctx, cloudModelName, metav1.GetOptions{})
+	cloudModel, err := jc.client.Models(service.Namespace).Get(context.Background(), cloudModelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get cloud model %s: %w",
 			cloudModelName, err)
 	}
 
-	cloudModelPath = cloudModel.Spec.URL
+	var workerParam WorkerParam
 
-	// convert crd to json, and put them into env of container
-	cloudModelJSON, _ := json.Marshal(cloudModel)
-	cloudModelString := string(cloudModelJSON)
-	cloudModelParent := filepath.Dir(cloudModelPath)
+	workerParam.mounts = append(workerParam.mounts, WorkerMount{
+		URL:     &MountURL{URL: cloudModel.Spec.URL},
+		Name:    "model",
+		EnvName: "MODEL_URL",
+	})
 
-	// Container VolumeMounts parameters
-	cloudModelConPath := dataPrefix + cloudModelParent
+	workerParam.env = map[string]string{
+		"NAMESPACE":    service.Namespace,
+		"SERVICE_NAME": service.Name,
+		"WORKER_NAME":  "cloudworker-" + utilrand.String(5),
 
-	// Env parameters for cloud
-	cloudModelURL := dataPrefix + cloudModelPath
-
-	// Configure container mounting and Env information by initial WorkerPara
-	var cloudContainer *WorkerPara = new(WorkerPara)
-	cloudContainer.volumeMountList = []string{cloudModelConPath}
-	cloudContainer.volumeList = []string{cloudModelParent}
-	cloudContainer.volumeMapName = []string{"code", "model"}
-	cloudContainer.env = map[string]string{
-		"MODEL":               cloudModelString,
-		"WORKER_NAME":         "cloudworker-" + utilrand.String(5),
-		"SERVICE_NAME":        service.Name,
-		"MODEL_URL":           cloudModelURL,
-		"NAMESPACE":           service.Namespace,
 		"BIG_MODEL_BIND_PORT": strconv.Itoa(int(bigModelPort)),
 	}
 
-	cloudContainer.workerType = jointInferenceForCloud
+	workerParam.workerType = jointInferenceForCloud
 
 	// create cloud pod
 	_, err = createPodWithTemplate(jc.kubeClient,
 		service,
 		&service.Spec.CloudWorker.Template,
-		cloudContainer)
-	if err != nil {
-		return err
-	}
-	return nil
+		&workerParam)
+	return err
 }
 
-func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointInferenceService, bigServicePort int32) error {
+func (jc *JointInferenceServiceController) createEdgeWorker(service *sednav1.JointInferenceService, bigServicePort int32) error {
 	// deliver pod for edgeworker
 	ctx := context.Background()
 	edgeModelName := service.Spec.EdgeWorker.Model.Name
@@ -484,7 +467,6 @@ func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointI
 		return fmt.Errorf("failed to get edge model %s: %w",
 			edgeModelName, err)
 	}
-	edgeModelPath := edgeModel.Spec.URL
 
 	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 	// will support Spec.NodeSelector.
@@ -494,51 +476,41 @@ func (jc *JointInferenceServiceController) createEdgePod(service *sednav1.JointI
 		return fmt.Errorf("failed to get node ip: %w", err)
 	}
 
-	// convert crd to json, and put them into env of container
-	edgeModelJSON, _ := json.Marshal(edgeModel)
-	edgeModelString := string(edgeModelJSON)
-	edgeModelParent := filepath.Dir(edgeModelPath)
-
 	edgeWorker := service.Spec.EdgeWorker
 	HEMParameterJSON, _ := json.Marshal(edgeWorker.HardExampleMining.Parameters)
 	HEMParameterString := string(HEMParameterJSON)
 
-	// Container VolumeMounts parameters
-	edgeModelConPath := dataPrefix + edgeModelParent
+	var workerParam WorkerParam
 
-	// Env parameters for edge
-	edgeModelURL := dataPrefix + edgeModelPath
+	workerParam.mounts = append(workerParam.mounts, WorkerMount{
+		URL:     &MountURL{URL: edgeModel.Spec.URL},
+		Name:    "model",
+		EnvName: "MODEL_URL",
+	})
 
-	// Configure container mounting and Env information by initial WorkerPara
-	var edgeContainer *WorkerPara = new(WorkerPara)
-	edgeContainer.volumeMountList = []string{edgeModelConPath}
-	edgeContainer.volumeList = []string{edgeModelParent}
-	edgeContainer.volumeMapName = []string{"code", "model"}
-	edgeContainer.env = map[string]string{
-		"MODEL":          edgeModelString,
-		"WORKER_NAME":    "edgeworker-" + utilrand.String(5),
-		"SERVICE_NAME":   service.Name,
+	workerParam.env = map[string]string{
+		"NAMESPACE":    service.Namespace,
+		"SERVICE_NAME": service.Name,
+		"WORKER_NAME":  "edgeworker-" + utilrand.String(5),
+
 		"BIG_MODEL_IP":   bigModelIP,
 		"BIG_MODEL_PORT": strconv.Itoa(int(bigServicePort)),
-		"HEM_PARAMETERS": HEMParameterString,
-		"MODEL_URL":      edgeModelURL,
-		"NAMESPACE":      service.Namespace,
+
 		"HEM_NAME":       edgeWorker.HardExampleMining.Name,
-		"LC_SERVER":      jc.cfg.LC.Server,
+		"HEM_PARAMETERS": HEMParameterString,
+
+		"LC_SERVER": jc.cfg.LC.Server,
 	}
 
-	edgeContainer.workerType = jointInferenceForEdge
-	edgeContainer.hostNetwork = true
+	workerParam.workerType = jointInferenceForEdge
+	workerParam.hostNetwork = true
 
 	// create edge pod
 	_, err = createPodWithTemplate(jc.kubeClient,
 		service,
 		&service.Spec.EdgeWorker.Template,
-		edgeContainer)
-	if err != nil {
-		return err
-	}
-	return nil
+		&workerParam)
+	return err
 }
 
 // GetName returns the name of the joint inference controller
