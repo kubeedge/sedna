@@ -19,17 +19,28 @@ set -o nounset
 set -o pipefail
 
 TMP_DIR=$(mktemp -d --suffix=.sedna)
+SEDNA_ROOT=${SEDNA_ROOT:-$TMP_DIR}
 
 trap "rm -rf '$TMP_DIR'" EXIT 
 
 _download_yamls() {
 
   yaml_dir=$1
-  mkdir -p ${TMP_DIR}/$yaml_dir
-  cd ${TMP_DIR}/$yaml_dir
+  mkdir -p ${SEDNA_ROOT}/$yaml_dir
+  cd ${SEDNA_ROOT}/$yaml_dir
   for yaml in ${yaml_files[@]}; do
-    echo downloading $yaml into ${TMP_DIR}/$yaml_dir
-    curl -sSO https://raw.githubusercontent.com/kubeedge/sedna/main/$yaml_dir/$yaml
+    # the yaml file already exists, no need to download
+    [ -e "$yaml" ] && continue
+
+    echo downloading $yaml into ${SEDNA_ROOT}/$yaml_dir
+    local try_times=30 i=1 timeout=2
+    while ! timeout ${timeout}s curl -sSO https://raw.githubusercontent.com/kubeedge/sedna/main/$yaml_dir/$yaml; do
+      ((++i>try_times)) && {
+        echo timeout to download $yaml
+        exit 2
+      }
+      echo -en "retrying to download $yaml after $[i*timeout] seconds...\r"
+    done
   done
 }
 
@@ -49,9 +60,21 @@ download_yamls() {
 }
 
 prepare() {
+  mkdir -p ${SEDNA_ROOT}
+
   # we only need build directory
   # here don't use git clone because of large vendor directory
   download_yamls
+}
+
+create_crds() {
+  cd ${SEDNA_ROOT}
+  kubectl create -f build/crds
+}
+
+delete_crds() {
+  cd ${SEDNA_ROOT}
+  kubectl delete -f build/crds --timeout=90s
 }
 
 prepare_gm_config_map() {
@@ -76,19 +99,13 @@ EOF
   kubectl $action -n sedna configmap $cm_name --from-file=$config_file
 }
 
-do_gm() {
-  cd ${TMP_DIR}
+create_gm() {
 
-  kubectl $action -f build/crds
+  cd ${SEDNA_ROOT}
 
-  kubectl $action -f build/gm/rbac/
+  kubectl apply -f build/gm/rbac/
 
-  if [ "$action" == delete ] ; then 
-    kubectl label node/$GM_NODE_NAME sedna- | sed 's/labeled$/un&/' || true
-    return
-  fi
-
-  kubectl label node/$GM_NODE_NAME sedna=gm || true
+  kubectl label node/$GM_NODE_NAME sedna=gm --overwrite
 
   cm_name=gm-config
   config_file_name=gm.yaml
@@ -150,14 +167,18 @@ spec:
 EOF
 }
 
-do_lc() {
+delete_gm() {
+  cd ${SEDNA_ROOT}
 
-  if [ "$action" == delete ] ; then 
-    # ns would be deleted in do_gm
-    # so no need to clean lc alone
-    return
-  fi
+  # sedna namespace would be deleted in here
+  kubectl delete -f build/gm/rbac/
 
+  kubectl label node/$GM_NODE_NAME sedna- | sed 's/labeled$/un&/' || true
+
+  # no need to clean gm deployment alone
+}
+
+create_lc() {
   gm_node_port=$(kubectl -n sedna get svc gm -ojsonpath='{.spec.ports[0].nodePort}')
 
   # here try to get node ip by kubectl
@@ -216,10 +237,21 @@ spec:
 EOF
 }
 
+delete_lc() {
+  # ns would be deleted in delete_gm
+  # so no need to clean lc alone
+  return
+}
+
 wait_ok() {
   kubectl -n sedna wait --for=condition=available --timeout=600s deployment/gm
   kubectl -n sedna wait pod --for=condition=Ready --selector=sedna
   kubectl -n sedna get pod
+}
+
+delete_pods() {
+  # in case some nodes are not ready, here delete with a 60s timeout, otherwise force delete these
+  kubectl -n sedna delete pod --all --timeout=60s || kubectl -n sedna delete pod --all --force --grace-period=0
 }
 
 check_kubectl () {
@@ -277,16 +309,20 @@ do_check
 
 prepare
 
-do_gm
-
-do_lc
-
 case "$action" in
   create)
+    create_crds
+    create_gm
+    create_lc
     wait_ok
     show_debug_infos
     ;;
+
   delete)
+    delete_pods
+    delete_gm
+    delete_lc
+    delete_crds
     echo "$(green_text Sedna is uninstalled successfully)"
     ;;
 esac

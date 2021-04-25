@@ -1,5 +1,4 @@
 ### Prerequisites
-- [GIT][git_tool]
 - [KUBECTL][kubectl] with right kubeconfig
 - [Kubernetes][kubernetes] 1.16+ cluster running
 - [KubeEdge][kubeedge] v.15+ running
@@ -30,7 +29,16 @@ So we can set `SEDNA_GM_NODE=sedna-control-plane` in below instructions:
 # SEDNA_GM_NODE=sedna-control-plane
 SEDNA_GM_NODE=CHANGE-ME-HERE
 
-curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$SEDNA_GM_NODE bash -
+curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$SEDNA_GM_NODE SEDNA_ACTION=create bash -
+
+```
+
+The way above will require the network to access github since it will download the sedna [crd yamls](/build/crds).
+If you have unstable network to access github or existing sedna source, you can try the way:
+```shell
+# SEDNA_ROOT is the sedna git source directory or cached directory
+export SEDNA_ROOT=/opt/sedna
+curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$SEDNA_GM_NODE SEDNA_ACTION=create bash -
 ```
 
 #### Debug
@@ -58,7 +66,6 @@ SEDNA_GM_NODE=CHANGE-ME-HERE
 curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$SEDNA_GM_NODE SEDNA_ACTION=delete bash -
 ```
 
-[git_tool]:https://git-scm.com/downloads
 [kubectl]:https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/#install-kubectl-binary-with-curl-on-linux
 [kubeedge]:https://github.com/kubeedge/kubeedge
 [kubernetes]:https://kubernetes.io/
