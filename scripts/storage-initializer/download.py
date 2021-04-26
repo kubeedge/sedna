@@ -82,7 +82,50 @@ def download(uri: str, out_dir: str = None) -> str:
     return out_dir
 
 
-def _download_s3(uri, out_dir: str):
+def indirect_download(indirect_uri: str, out_dir: str = None) -> str:
+    """ Download the uri to local directory.
+
+    Support procotols: http, s3.
+    Note when uri ends with .tar.gz/.tar/.zip, this will extract it
+    """
+    tmpdir = tempfile.mkdtemp()[1]
+    download(indirect_uri, tmpdir)
+    files = os.listdir(tmpdir)
+
+    if len(files) != 1:
+        raise Exception("indirect url %s should be file, not directory"
+                        % indirect_uri)
+
+    uri_files_to_download = {}
+    with open(os.path.join(tmpdir, files[0])) as f:
+        for line_no, line in enumerate(f):
+            line = line.strip()
+            fields = line.split(' ', maxsplit=1)
+            if len(fields) == 2:
+                base_uri, file_name = fields
+                uri_files_to_download.setdefault(
+                   base_uri, set()).add(file_name)
+            else:
+                print("parsing indirect url %s, skipping the line %d: %s" %
+                      (indirect_uri, line_no, line))
+
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    for uri, download_files in uri_files_to_download.items():
+        uri = _normalize_uri(uri)
+        # only support s3 for indirect download
+        if uri.startswith(_S3_PREFIX):
+            _download_s3(uri, out_dir, download_files)
+        else:
+            print("downloading indirect url %s, the base uri is skipped"
+                  % (indirect_uri, uri))
+    logging.info("Successfully download IN-DIRECT %s to %s",
+                 indirect_uri, out_dir)
+    return
+
+
+def _download_s3(uri, out_dir: str, download_files=None):
     client = _create_minio_client()
     bucket_args = uri.replace(_S3_PREFIX, "", 1).split("/", 1)
     bucket_name = bucket_args[0]
@@ -94,6 +137,11 @@ def _download_s3(uri, out_dir: str):
     for obj in objects:
         # Replace any prefix from the object key with out_dir
         subdir_object_key = obj.object_name[len(bucket_path):].strip("/")
+        if (
+             download_files is not None
+             and subdir_object_key not in download_files):
+            continue
+
         # fget_object handles directory creation if does not exist
         if not obj.is_dir:
             local_file = os.path.join(
@@ -175,16 +223,11 @@ def _extract_compress(local_path, out_dir):
 
 
 def _create_minio_client():
-    # Adding prefixing "http" in urlparse is necessary for it to be the netloc
-    url = urlparse(os.getenv("AWS_ENDPOINT_URL", "http://s3.amazonaws.com"))
-    use_ssl = (url.scheme == 'https' if url.scheme
-               else os.getenv("S3_USE_HTTPS", "true") == "true")
+    url = urlparse(os.getenv("S3_ENDPOINT", "http://s3.amazonaws.com"))
     return minio.Minio(
         url.netloc,
-        access_key=os.getenv("AWS_ACCESS_KEY_ID", ""),
-        secret_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
-        region=os.getenv("AWS_REGION", ""),
-        secure=use_ssl
+        access_key=os.getenv("ACCESS_KEY_ID", ""),
+        secret_key=os.getenv("SECRET_ACCESS_KEY", ""),
     )
 
 
@@ -194,13 +237,18 @@ def main():
                       "src_uri dest_path [src_uri dest_path]")
         sys.exit(1)
 
+    indirect_mark = os.getenv("INDIRECT_URL_MARK", "@")
+
     for i in range(1, len(sys.argv)-1, 2):
         src_uri = sys.argv[i]
         dest_path = sys.argv[i+1]
 
         logging.info("Initializing, args: src_uri [%s] dest_path [%s]" %
                      (src_uri, dest_path))
-        download(src_uri, dest_path)
+        if dest_path.startswith(indirect_mark):
+            indirect_download(src_uri, dest_path[len(indirect_mark):])
+        else:
+            download(src_uri, dest_path)
 
 
 main()
