@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
@@ -42,8 +43,23 @@ type DownstreamController struct {
 
 	cfg *config.ControllerConfig
 
-	client       *clientset.SednaV1alpha1Client
+	client     *clientset.SednaV1alpha1Client
+	kubeClient kubernetes.Interface
+
 	messageLayer messagelayer.MessageLayer
+}
+
+func (dc *DownstreamController) injectSecret(obj CommonInterface, secretName string) error {
+	if secretName == "" {
+		return nil
+	}
+	secret, err := dc.kubeClient.CoreV1().Secrets(obj.GetNamespace()).Get(context.TODO(), secretName, metav1.GetOptions{})
+	if err != nil {
+		err = fmt.Errorf("failed to get the secret %s",
+			secretName)
+	}
+	InjectSecretObj(obj, secret)
+	return err
 }
 
 // syncDataset syncs the dataset resources
@@ -53,6 +69,7 @@ func (dc *DownstreamController) syncDataset(eventType watch.EventType, dataset *
 	if len(nodeName) == 0 {
 		return fmt.Errorf("empty node name")
 	}
+	dc.injectSecret(dataset, dataset.Spec.CredentialName)
 
 	return dc.messageLayer.SendResourceObject(nodeName, eventType, dataset)
 }
@@ -102,6 +119,8 @@ func (dc *DownstreamController) syncModelWithName(nodeName, modelName, namespace
 		model.Kind = "Model"
 	}
 
+	dc.injectSecret(model, model.Spec.CredentialName)
+
 	dc.messageLayer.SendResourceObject(nodeName, watch.Added, model)
 	return nil
 }
@@ -116,6 +135,7 @@ func (dc *DownstreamController) syncIncrementalJob(eventType watch.EventType, jo
 	if len(nodeName) == 0 {
 		return fmt.Errorf("empty node name")
 	}
+	dc.injectSecret(job, job.Spec.CredentialName)
 
 	// Sync the model info to edgenode when the job is created
 	if eventType == watch.Added {
@@ -279,10 +299,16 @@ func NewDownstreamController(cfg *config.ControllerConfig) (FeatureControllerI, 
 		return nil, fmt.Errorf("create crd client failed with error: %w", err)
 	}
 
+	kubeClient, err := utils.KubeClient()
+	if err != nil {
+		return nil, err
+	}
+
 	dc := &DownstreamController{
 		cfg:          cfg,
 		events:       events,
 		client:       crdclient,
+		kubeClient:   kubeClient,
 		messageLayer: messagelayer.NewContextMessageLayer(),
 	}
 

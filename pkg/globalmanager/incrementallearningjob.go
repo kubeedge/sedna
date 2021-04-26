@@ -494,6 +494,18 @@ func IsIncrementalJobFinished(j *sednav1.IncrementalLearningJob) bool {
 	return false
 }
 
+func (jc *IncrementalJobController) getSecret(namespace, name string, ownerStr string) (secret *v1.Secret, err error) {
+	if name != "" {
+		secret, err = jc.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			err = fmt.Errorf("failed to get the secret %s for %s: %w",
+				name,
+				ownerStr, err)
+		}
+	}
+	return
+}
+
 func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJob, podtype sednav1.ILJobStage) (err error) {
 	ctx := context.Background()
 	var podTemplate *v1.PodTemplateSpec
@@ -503,7 +515,7 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 	deployModelName := job.Spec.DeploySpec.Model.Name
 
 	// check initial model name
-	_, err = jc.client.Models(job.Namespace).Get(ctx, initialModelName, metav1.GetOptions{})
+	initialModel, err := jc.client.Models(job.Namespace).Get(ctx, initialModelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get initial model %s: %w",
 			initialModelName, err)
@@ -521,6 +533,24 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 			incrementalDatasetName, err)
 	}
 
+	datasetSecret, err := jc.getSecret(
+		job.Namespace,
+		dataset.Spec.CredentialName,
+		fmt.Sprintf("dataset %s", dataset.Name),
+	)
+	if err != nil {
+		return err
+	}
+
+	jobSecret, err := jc.getSecret(
+		job.Namespace,
+		job.Spec.CredentialName,
+		fmt.Sprintf("incremental job %s", job.Name),
+	)
+	if err != nil {
+		return err
+	}
+
 	// get all url for train and eval from data in condition
 	condDataStr := job.Status.Conditions[len(job.Status.Conditions)-1].Data
 	klog.V(2).Infof("incrementallearning job %v/%v data condition:%s", job.Namespace, job.Name, condDataStr)
@@ -531,6 +561,15 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 	}
 	dataURL := cond.Input.DataURL
 	inputmodelURLs := cond.GetInputModelURLs()
+
+	var originalDataURLOrIndex string
+	if cond.Input.DataIndexURL != "" {
+		// this guarantee dataset.Spec.URL is not in host filesystem by LC,
+		// but cond.Input.DataIndexURL could be in host filesystem.
+		originalDataURLOrIndex = cond.Input.DataIndexURL
+	} else {
+		originalDataURLOrIndex = dataset.Spec.URL
+	}
 
 	var workerParam *WorkerParam = new(WorkerParam)
 	if podtype == sednav1.ILJobTrain {
@@ -547,24 +586,54 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 			"LC_SERVER": jc.cfg.LC.Server,
 		}
 
+		baseModelURL := inputmodelURLs[0]
+		var baseModelSecret *v1.Secret
+		if baseModelURL == initialModel.Spec.URL {
+			baseModelSecret, err = jc.getSecret(
+				job.Namespace,
+				initialModel.Spec.CredentialName,
+				fmt.Sprintf("initial model %s", initialModelName),
+			)
+			if err != nil {
+				return err
+			}
+		} else {
+			baseModelSecret = jobSecret
+		}
+
 		workerParam.mounts = append(workerParam.mounts,
 			WorkerMount{
-				URL:     &MountURL{URL: inputmodelURLs[0]},
+				URL: &MountURL{
+					URL:    baseModelURL,
+					Secret: baseModelSecret,
+				},
 				EnvName: "BASE_MODEL_URL",
 			},
 			WorkerMount{
-				URL:     &MountURL{URL: cond.Input.OutputDir},
+				URL: &MountURL{
+					URL:    cond.Input.OutputDir,
+					Secret: jobSecret,
+					Mode:   workerMountWriteOnly,
+				},
 				EnvName: "MODEL_URL",
 			},
 
 			WorkerMount{
-				URL:     &MountURL{URL: dataURL},
-				EnvName: "TEST_DATASET_URL",
+				URL: &MountURL{
+					URL: dataURL,
+
+					Secret: jobSecret,
+				},
+				EnvName: "TRAIN_DATASET_URL",
 			},
 
 			// see https://github.com/kubeedge/sedna/issues/35
 			WorkerMount{
-				URL:     &MountURL{URL: dataset.Spec.URL},
+				URL: &MountURL{
+					Secret:   datasetSecret,
+					URL:      originalDataURLOrIndex,
+					Indirect: dataset.Spec.URL != originalDataURLOrIndex,
+				},
 				EnvName: "ORIGINAL_DATASET_URL",
 			},
 		)
@@ -583,7 +652,24 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 
 		var modelMountURLs []MountURL
 		for _, url := range inputmodelURLs {
-			modelMountURLs = append(modelMountURLs, MountURL{URL: url})
+			var modelSecret *v1.Secret
+			if url == initialModel.Spec.URL {
+				modelSecret, err = jc.getSecret(
+					job.Namespace,
+					initialModel.Spec.CredentialName,
+					fmt.Sprintf("initial model %s", initialModelName),
+				)
+				if err != nil {
+					return err
+				}
+			} else {
+				modelSecret = jobSecret
+			}
+
+			modelMountURLs = append(modelMountURLs, MountURL{
+				URL:    url,
+				Secret: modelSecret,
+			})
 		}
 		workerParam.mounts = append(workerParam.mounts,
 			WorkerMount{
@@ -593,16 +679,20 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 			},
 
 			WorkerMount{
-				URL:     &MountURL{URL: dataURL},
+				URL: &MountURL{
+					URL:    dataURL,
+					Secret: datasetSecret,
+				},
 				Name:    "datasets",
 				EnvName: "TEST_DATASET_URL",
 			},
 
 			WorkerMount{
-				// only need when URL is hostpath
 				URL: &MountURL{
-					CheckHostPath: true,
-					URL:           dataset.Spec.URL},
+					Secret:   datasetSecret,
+					URL:      originalDataURLOrIndex,
+					Indirect: dataset.Spec.URL != originalDataURLOrIndex,
+				},
 				Name:    "origin-dataset",
 				EnvName: "ORIGINAL_DATASET_URL",
 			},
@@ -635,10 +725,18 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 	HEMParameterString := string(HEMParameterJSON)
 
 	// Configure container mounting and Env information by initial WorkerParam
+	modelSecret, err := jc.getSecret(
+		job.Namespace,
+		inferModel.Spec.CredentialName,
+		fmt.Sprintf("model %s", inferModel.Name),
+	)
 	var workerParam *WorkerParam = new(WorkerParam)
 	workerParam.mounts = append(workerParam.mounts,
 		WorkerMount{
-			URL:     &MountURL{URL: inferModelURL},
+			URL: &MountURL{
+				URL:    inferModelURL,
+				Secret: modelSecret,
+			},
 			Name:    "model",
 			EnvName: "MODEL_URL",
 		},

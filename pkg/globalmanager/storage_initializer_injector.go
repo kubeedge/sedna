@@ -28,14 +28,17 @@ import (
 
 const (
 	downloadInitalizerContainerName = "storage-initializer"
-	downloadInitalizerImage         = "kubeedge/sedna-storage-initializer:v0.1.0"
+	downloadInitalizerImage         = "kubeedge/sedna-storage-initializer:v0.2.0"
 
 	downloadInitalizerPrefix     = "/downloads"
 	downloadInitalizerVolumeName = "sedna-storage-initializer"
 
-	hostPathPrefix   = "/hostpath"
-	urlsFieldSep     = ";"
-	volumeNamePrefix = "sedna-"
+	hostPathPrefixEnvKey = "DATA_PATH_PREFIX"
+	hostPathPrefix       = "/home/data"
+	urlsFieldSep         = ";"
+
+	indirectURLMark    = "@"
+	indirectURLMarkEnv = "INDIRECT_URL_MARK"
 )
 
 var supportStorageInitializerURLSchemes = [...]string{
@@ -74,6 +77,13 @@ type MountURL struct {
 	// URL is the url of dataset/model
 	URL string
 
+	// Indirect indicates the url is indirect, need to parse its content and download all,
+	// and is used in dataset which has index url.
+	//
+	// when Indirect = true, URL could be in host path filesystem.
+	// default: false
+	Indirect bool
+
 	// Mode indicates the url mode, default is workerMountReadOnly
 	Mode workerMountMode
 
@@ -81,24 +91,28 @@ type MountURL struct {
 	IsDir bool
 
 	// if true, only mounts when url is hostpath
-	CheckHostPath bool
+	EnableIfHostPath bool
 
 	// the container path
 	ContainerPath string
 
 	// indicates the path this url will be mounted into container.
-	// can be containerPath or its parent dir
+	// can be ContainerPath or its parent dir
 	MountPath string
 
 	// for host path, we just need to mount without downloading
 	HostPath string
 
-	// for storage initializer
+	// for download
 	DownloadSrcURL string
 	DownloadDstDir string
 
-	// if Disable, then no mount
+	// if true, then no mount
 	Disable bool
+
+	// the relevant secret
+	Secret     *v1.Secret
+	SecretEnvs []v1.EnvVar
 
 	// parsed for the parent of url
 	u *url.URL
@@ -108,11 +122,12 @@ func (m *MountURL) Parse() {
 	u, _ := url.Parse(m.URL)
 
 	m.u = u
-	m.injectDownloadPath()
-	m.injectHostPath()
+	m.parseDownloadPath()
+	m.parseHostPath()
+	m.parseSecret()
 }
 
-func (m *MountURL) injectDownloadPath() {
+func (m *MountURL) parseDownloadPath() {
 	if m.Mode == workerMountWriteOnly {
 		// no storage-initializer for write only
 		// leave the write operation to worker
@@ -134,11 +149,12 @@ func (m *MountURL) injectDownloadPath() {
 	}
 }
 
-func (m *MountURL) injectHostPath() {
+func (m *MountURL) parseHostPath() {
 	// for compatibility, hostpath of a node is supported.
 	// e.g. the url of a dataset: /datasets/d1/label.txt
 	if m.u.Scheme != "" {
-		if m.CheckHostPath {
+		if m.EnableIfHostPath {
+			// not hostpath, so disable it
 			m.Disable = true
 		}
 		return
@@ -149,16 +165,37 @@ func (m *MountURL) injectHostPath() {
 		m.MountPath = filepath.Join(hostPathPrefix, m.u.Path)
 		m.ContainerPath = m.MountPath
 	} else {
-		// if file, here mount its directory
+		// if file, here mount its parent directory
 		m.HostPath, _ = filepath.Split(m.URL)
 		m.ContainerPath = filepath.Join(hostPathPrefix, m.u.Path)
 		m.MountPath, _ = filepath.Split(m.ContainerPath)
+		if m.Indirect {
+			// we need to download it
+			// TODO: mv these to download-related section
+			m.DownloadSrcURL = m.ContainerPath
+			m.ContainerPath = filepath.Join(downloadInitalizerPrefix, m.u.Host+m.u.Path)
+			m.DownloadDstDir, _ = filepath.Split(m.ContainerPath)
+		}
+	}
+}
+
+func (m *MountURL) parseSecret() {
+	if m.Secret == nil {
+		return
+	}
+
+	if strings.ToLower(m.u.Scheme) == "s3" || m.Indirect {
+		SecretEnvs, err := buildS3SecretEnvs(m.Secret)
+		if err == nil {
+			m.SecretEnvs = SecretEnvs
+		}
 	}
 }
 
 func injectHostPathMount(pod *v1.Pod, workerParam *WorkerParam) {
 	var volumes []v1.Volume
 	var volumeMounts []v1.VolumeMount
+	var initContainerVolumeMounts []v1.VolumeMount
 
 	uniqVolumeName := make(map[string]bool)
 
@@ -166,49 +203,102 @@ func injectHostPathMount(pod *v1.Pod, workerParam *WorkerParam) {
 
 	for _, mount := range workerParam.mounts {
 		for _, m := range mount.URLs {
-			if m.HostPath != "" {
-				volumeName := ConvertK8SValidName(m.HostPath)
+			if m.HostPath == "" {
+				continue
+			}
+			volumeName := ConvertK8SValidName(m.HostPath)
 
-				if volumeName == "" {
-					klog.Warningf("failed to convert volume name from the url and skipped: %s", m.URL)
-					continue
-				}
+			if volumeName == "" {
+				klog.Warningf("failed to convert volume name from the url and skipped: %s", m.URL)
+				continue
+			}
 
-				if _, ok := uniqVolumeName[volumeName]; !ok {
-					volumes = append(volumes, v1.Volume{
-						Name: volumeName,
-						VolumeSource: v1.VolumeSource{
-							HostPath: &v1.HostPathVolumeSource{
-								Path: m.HostPath,
-								Type: &hostPathType,
-							},
+			if _, ok := uniqVolumeName[volumeName]; !ok {
+				volumes = append(volumes, v1.Volume{
+					Name: volumeName,
+					VolumeSource: v1.VolumeSource{
+						HostPath: &v1.HostPathVolumeSource{
+							Path: m.HostPath,
+							Type: &hostPathType,
 						},
-					})
-					uniqVolumeName[volumeName] = true
-				}
+					},
+				})
+				uniqVolumeName[volumeName] = true
+			}
 
-				vm := v1.VolumeMount{
-					MountPath: m.MountPath,
-					Name:      volumeName,
-				}
+			vm := v1.VolumeMount{
+				MountPath: m.MountPath,
+				Name:      volumeName,
+			}
+			if m.Indirect {
+				initContainerVolumeMounts = append(initContainerVolumeMounts, vm)
+			} else {
 				volumeMounts = append(volumeMounts, vm)
 			}
 		}
 	}
+
 	injectVolume(pod, volumes, volumeMounts)
+
+	if len(volumeMounts) > 0 {
+		hostPathEnvs := []v1.EnvVar{
+			{
+				Name:  hostPathPrefixEnvKey,
+				Value: hostPathPrefix,
+			},
+		}
+		injectEnvs(pod, hostPathEnvs)
+	}
+
+	if len(initContainerVolumeMounts) > 0 {
+		initIdx := len(pod.Spec.InitContainers) - 1
+		pod.Spec.InitContainers[initIdx].VolumeMounts = append(
+			pod.Spec.InitContainers[initIdx].VolumeMounts,
+			initContainerVolumeMounts...,
+		)
+	}
 }
 
-func injectDownloadInitializer(pod *v1.Pod, workerParam *WorkerParam) {
+func injectWorkerSecrets(pod *v1.Pod, workerParam *WorkerParam) {
+	var secretEnvs []v1.EnvVar
+	for _, mount := range workerParam.mounts {
+		for _, m := range mount.URLs {
+			if m.Disable || m.Mode != workerMountWriteOnly {
+				continue
+			}
+			if len(m.SecretEnvs) > 0 {
+				secretEnvs = MergeSecretEnvs(secretEnvs, m.SecretEnvs, false)
+			}
+		}
+	}
+	injectEnvs(pod, secretEnvs)
+}
+
+func injectInitializerContainer(pod *v1.Pod, workerParam *WorkerParam) {
 	var volumes []v1.Volume
 	var volumeMounts []v1.VolumeMount
 
 	var downloadPairs []string
+	var secretEnvs []v1.EnvVar
 	for _, mount := range workerParam.mounts {
 		for _, m := range mount.URLs {
-			if m.DownloadSrcURL != "" && m.DownloadDstDir != "" {
-				// srcURL dstDir
-				// need to add srcURL first
-				downloadPairs = append(downloadPairs, m.DownloadSrcURL, m.DownloadDstDir)
+			if m.Disable {
+				continue
+			}
+
+			srcURL := m.DownloadSrcURL
+			dstDir := m.DownloadDstDir
+			if srcURL != "" && dstDir != "" {
+				// need to add srcURL first: srcURL dstDir
+				if m.Indirect {
+					// here add indirectURLMark into dstDir which is controllable
+					dstDir = indirectURLMark + dstDir
+				}
+				downloadPairs = append(downloadPairs, srcURL, dstDir)
+
+				if len(m.SecretEnvs) > 0 {
+					secretEnvs = MergeSecretEnvs(secretEnvs, m.SecretEnvs, false)
+				}
 			}
 		}
 	}
@@ -217,6 +307,12 @@ func injectDownloadInitializer(pod *v1.Pod, workerParam *WorkerParam) {
 	if len(downloadPairs) == 0 {
 		return
 	}
+
+	envs := secretEnvs
+	envs = append(envs, v1.EnvVar{
+		Name:  indirectURLMarkEnv,
+		Value: indirectURLMark,
+	})
 
 	// use one empty directory
 	storageVolume := v1.Volume{
@@ -259,6 +355,7 @@ func injectDownloadInitializer(pod *v1.Pod, workerParam *WorkerParam) {
 			},
 		},
 		VolumeMounts: initVolumeMounts,
+		Env:          envs,
 	}
 
 	pod.Spec.InitContainers = append(pod.Spec.InitContainers, initContainer)
@@ -283,13 +380,20 @@ func InjectStorageInitializer(pod *v1.Pod, workerParam *WorkerParam) {
 				continue
 			}
 			mountURLs = append(mountURLs, m)
-			envPaths = append(envPaths, m.ContainerPath)
+
+			if m.ContainerPath != "" {
+				envPaths = append(envPaths, m.ContainerPath)
+			} else {
+				// keep the original URL if no container path
+				envPaths = append(envPaths, m.URL)
+			}
 		}
 
 		if len(mountURLs) > 0 {
 			mount.URLs = mountURLs
 			mounts = append(mounts, mount)
 		}
+
 		if mount.EnvName != "" {
 			workerParam.env[mount.EnvName] = strings.Join(
 				envPaths, urlsFieldSep,
@@ -299,8 +403,11 @@ func InjectStorageInitializer(pod *v1.Pod, workerParam *WorkerParam) {
 
 	workerParam.mounts = mounts
 
+	// need to call injectInitializerContainer before injectHostPathMount
+	// since injectHostPathMount could inject volumeMount to init container
+	injectInitializerContainer(pod, workerParam)
 	injectHostPathMount(pod, workerParam)
-	injectDownloadInitializer(pod, workerParam)
+	injectWorkerSecrets(pod, workerParam)
 }
 
 func injectVolume(pod *v1.Pod, volumes []v1.Volume, volumeMounts []v1.VolumeMount) {
@@ -313,6 +420,17 @@ func injectVolume(pod *v1.Pod, volumes []v1.Volume, volumeMounts []v1.VolumeMoun
 			// inject every containers
 			pod.Spec.Containers[idx].VolumeMounts = append(
 				pod.Spec.Containers[idx].VolumeMounts, volumeMounts...,
+			)
+		}
+	}
+}
+
+func injectEnvs(pod *v1.Pod, envs []v1.EnvVar) {
+	if len(envs) > 0 {
+		for idx := range pod.Spec.Containers {
+			// inject every containers
+			pod.Spec.Containers[idx].Env = append(
+				pod.Spec.Containers[idx].Env, envs...,
 			)
 		}
 	}

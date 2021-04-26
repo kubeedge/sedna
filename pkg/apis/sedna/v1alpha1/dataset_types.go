@@ -39,6 +39,8 @@ type DatasetSpec struct {
 	URL      string `json:"url"`
 	Format   string `json:"format"`
 	NodeName string `json:"nodeName"`
+
+	CredentialName string `json:"credentialName,omitempty"`
 }
 
 // DatasetStatus represents information about the status of a dataset

@@ -39,11 +39,14 @@ type IncrementalLearningJob struct {
 // ILJobSpec is a description of a incrementallearningjob
 type ILJobSpec struct {
 	Dataset      ILDataset    `json:"dataset"`
-	OutputDir    string       `json:"outputDir"`
 	InitialModel InitialModel `json:"initialModel"`
 	TrainSpec    TrainSpec    `json:"trainSpec"`
 	EvalSpec     EvalSpec     `json:"evalSpec"`
 	DeploySpec   DeploySpec   `json:"deploySpec"`
+
+	// the credential referer for OutputDir
+	CredentialName string `json:"credentialName,omitempty"`
+	OutputDir      string `json:"outputDir"`
 }
 
 // TrainSpec describes the data an train worker should have
