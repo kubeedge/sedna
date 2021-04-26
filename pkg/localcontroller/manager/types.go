@@ -45,6 +45,9 @@ const (
 	TriggerReadyStatus = "ready"
 	// TriggerCompletedStatus is the completed status about trigger in incremental-learning-job
 	TriggerCompletedStatus = "completed"
+
+	// Credential is credential of the storage service
+	Credential = "sedna.io/credential"
 )
 
 // WorkerMessage defines message struct from worker
@@ -82,10 +85,10 @@ type UpstreamMessage struct {
 
 type WorkerInput struct {
 	// Only one model cases
-	Models []ModelInfo `json:"models,omitempty"`
-
-	DataURL   string `json:"dataURL,omitempty"`
-	OutputDir string `json:"outputDir,omitempty"`
+	Models       []ModelInfo `json:"models,omitempty"`
+	DataURL      string      `json:"dataURL,omitempty"`
+	DataIndexURL string      `json:"dataIndexURL,omitempty"`
+	OutputDir    string      `json:"outputDir,omitempty"`
 }
 
 // WorkerOutput defines output information of worker
