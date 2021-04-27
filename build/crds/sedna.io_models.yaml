@@ -36,6 +36,8 @@ spec:
           spec:
             description: ModelSpec is a description of a model
             properties:
+              credentialName:
+                type: string
               format:
                 type: string
               url:
