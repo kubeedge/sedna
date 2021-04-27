@@ -43,6 +43,14 @@ _HEADERS_SUFFIX = "-headers"
 
 SUPPORT_PROTOCOLS = (_OBS_PREFIX, _S3_PREFIX, _LOCAL_PREFIX, _HTTP_PREFIX)
 
+LOG = logging.getLogger(__name__)
+
+
+def setup_logger():
+    format = '%(asctime)s %(levelname)s %(funcName)s:%(lineno)s] %(message)s'
+    logging.basicConfig(format=format)
+    LOG.setLevel(os.getenv('LOG_LEVEL', 'INFO'))
+
 
 def _normalize_uri(uri: str) -> str:
     for src, dst in [
@@ -60,7 +68,7 @@ def download(uri: str, out_dir: str = None) -> str:
     Support procotols: http, s3.
     Note when uri ends with .tar.gz/.tar/.zip, this will extract it
     """
-    logging.info("Copying contents of %s to local %s", uri, out_dir)
+    LOG.info("Copying contents of %s to local %s", uri, out_dir)
 
     uri = _normalize_uri(uri)
 
@@ -78,7 +86,7 @@ def download(uri: str, out_dir: str = None) -> str:
                         "%r are the current available storage type." %
                         (uri, SUPPORT_PROTOCOLS))
 
-    logging.info("Successfully copied %s to %s", uri, out_dir)
+    LOG.info("Successfully copied %s to %s", uri, out_dir)
     return out_dir
 
 
@@ -88,7 +96,7 @@ def indirect_download(indirect_uri: str, out_dir: str = None) -> str:
     Support procotols: http, s3.
     Note when uri ends with .tar.gz/.tar/.zip, this will extract it
     """
-    tmpdir = tempfile.mkdtemp()[1]
+    tmpdir = tempfile.mkdtemp()
     download(indirect_uri, tmpdir)
     files = os.listdir(tmpdir)
 
@@ -96,32 +104,40 @@ def indirect_download(indirect_uri: str, out_dir: str = None) -> str:
         raise Exception("indirect url %s should be file, not directory"
                         % indirect_uri)
 
-    uri_files_to_download = {}
+    download_files = set()
     with open(os.path.join(tmpdir, files[0])) as f:
+        base_uri = None
         for line_no, line in enumerate(f):
             line = line.strip()
-            fields = line.split(' ', maxsplit=1)
-            if len(fields) == 2:
-                base_uri, file_name = fields
-                uri_files_to_download.setdefault(
-                   base_uri, set()).add(file_name)
-            else:
-                print("parsing indirect url %s, skipping the line %d: %s" %
-                      (indirect_uri, line_no, line))
+            if line.startswith('#'):
+                continue
+            if line:
+                if base_uri is None:
+                    base_uri = line
+                else:
+                    file_name = line
+                    download_files.add(file_name)
 
+    if not download_files:
+        LOG.info("no files to download for indirect url %s",
+                 indirect_uri)
+        return
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    for uri, download_files in uri_files_to_download.items():
-        uri = _normalize_uri(uri)
-        # only support s3 for indirect download
-        if uri.startswith(_S3_PREFIX):
-            _download_s3(uri, out_dir, download_files)
-        else:
-            print("downloading indirect url %s, the base uri is skipped"
-                  % (indirect_uri, uri))
-    logging.info("Successfully download IN-DIRECT %s to %s",
-                 indirect_uri, out_dir)
+    LOG.info("To download %s files IN-DIRECT %s to %s",
+             len(download_files), indirect_uri, out_dir)
+
+    uri = _normalize_uri(base_uri)
+    # only support s3 for indirect download
+    if uri.startswith(_S3_PREFIX):
+        _download_s3(uri, out_dir, download_files)
+    else:
+        LOG.warning("unsupported %s for indirect url %s, skipped",
+                    uri, indirect_uri)
+        return
+    LOG.info("Successfully download files IN-DIRECT %s to %s",
+             indirect_uri, out_dir)
     return
 
 
@@ -130,10 +146,16 @@ def _download_s3(uri, out_dir: str, download_files=None):
     bucket_args = uri.replace(_S3_PREFIX, "", 1).split("/", 1)
     bucket_name = bucket_args[0]
     bucket_path = len(bucket_args) > 1 and bucket_args[1] or ""
+
+    recursive = True
+    if download_files is not None:
+        download_file = set(download_files)
+        recursive = False
     objects = client.list_objects(bucket_name,
                                   prefix=bucket_path,
-                                  recursive=True)
+                                  recursive=recursive)
     count = 0
+
     for obj in objects:
         # Replace any prefix from the object key with out_dir
         subdir_object_key = obj.object_name[len(bucket_path):].strip("/")
@@ -148,16 +170,25 @@ def _download_s3(uri, out_dir: str, download_files=None):
                 out_dir,
                 subdir_object_key or os.path.basename(obj.object_name)
             )
+            LOG.debug("downloading count:%d, file:%s",
+                      count, subdir_object_key)
             client.fget_object(bucket_name, obj.object_name, local_file)
             _extract_compress(local_file, out_dir)
-        count += 1
+            if download_files:
+                download_files.discard(subdir_object_key)
+                # all files are downloaded
+                if not download_files:
+                    break
+
+            count += 1
     if count == 0:
-        raise RuntimeError("Failed to fetch model. \
-The path or model %s does not exist." % (uri))
+        raise RuntimeError("Failed to fetch files."
+                           "The path %s does not exist." % (uri))
+    LOG.info("downloaded %d files for %s.", count, uri)
 
 
 def _download_local(uri, out_dir=None):
-    local_path = uri.replace(_LOCAL_PREFIX, "", 1)
+    local_path = uri.replace(_LOCAL_PREFIX, "/", 1)
     if not os.path.exists(local_path):
         raise RuntimeError("Local path %s does not exist." % (uri))
 
@@ -172,7 +203,7 @@ def _download_local(uri, out_dir=None):
     for src in glob.glob(local_path):
         _, tail = os.path.split(src)
         dest_path = os.path.join(out_dir, tail)
-        logging.info("Linking: %s to %s", src, dest_path)
+        LOG.info("Linking: %s to %s", src, dest_path)
         os.symlink(src, dest_path)
     return out_dir
 
@@ -223,18 +254,21 @@ def _extract_compress(local_path, out_dir):
 
 
 def _create_minio_client():
-    url = urlparse(os.getenv("S3_ENDPOINT", "http://s3.amazonaws.com"))
+    url = urlparse(os.getenv("S3_ENDPOINT_URL", "http://s3.amazonaws.com"))
+    use_ssl = url.scheme == 'https' if url.scheme else True
     return minio.Minio(
         url.netloc,
         access_key=os.getenv("ACCESS_KEY_ID", ""),
         secret_key=os.getenv("SECRET_ACCESS_KEY", ""),
+        secure=use_ssl
     )
 
 
 def main():
+    setup_logger()
     if len(sys.argv) < 2 or len(sys.argv) % 2 == 0:
-        logging.error("Usage: initializer-entrypoint "
-                      "src_uri dest_path [src_uri dest_path]")
+        LOG.error("Usage: download.py "
+                  "src_uri dest_path [src_uri dest_path]")
         sys.exit(1)
 
     indirect_mark = os.getenv("INDIRECT_URL_MARK", "@")
@@ -243,8 +277,8 @@ def main():
         src_uri = sys.argv[i]
         dest_path = sys.argv[i+1]
 
-        logging.info("Initializing, args: src_uri [%s] dest_path [%s]" %
-                     (src_uri, dest_path))
+        LOG.info("Initializing, args: src_uri [%s] dest_path [%s]" %
+                 (src_uri, dest_path))
         if dest_path.startswith(indirect_mark):
             indirect_download(src_uri, dest_path[len(indirect_mark):])
         else:
