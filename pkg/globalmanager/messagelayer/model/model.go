@@ -16,6 +16,8 @@ limitations under the License.
 
 package model
 
+import "fmt"
+
 // MessageHeader defines the header between LC and GM
 type MessageHeader struct {
 	Namespace string `json:"namespace"`
@@ -31,4 +33,8 @@ type MessageHeader struct {
 type Message struct {
 	MessageHeader `json:"header"`
 	Content       []byte `json:"content"`
+}
+
+func (m *Message) String() string {
+	return fmt.Sprintf("MessageHeader: %+v, Content: +%s", m.MessageHeader, string(m.Content))
 }
