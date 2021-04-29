@@ -54,8 +54,10 @@ type IncrementalCondData struct {
 
 		// the data samples reference will be stored into this URL.
 		// The content of this url would be:
-		// s3://dataset/ mnist/0.jpg
-		// s3://dataset/ mnist/1.jpg
+		// # the first uncomment line means the directory
+		// s3://dataset/
+		// mnist/0.jpg
+		// mnist/1.jpg
 		DataIndexURL string `json:"dataIndexURL,omitempty"`
 
 		OutputDir string `json:"outputDir,omitempty"`

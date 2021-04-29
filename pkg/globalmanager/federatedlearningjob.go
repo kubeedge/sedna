@@ -409,6 +409,13 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 		return active, fmt.Errorf("failed to get model %s: %w",
 			modelName, err)
 	}
+
+	secretName := model.Spec.CredentialName
+	var modelSecret *v1.Secret
+	if secretName != "" {
+		modelSecret, _ = fc.kubeClient.CoreV1().Secrets(job.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	}
+
 	participantsCount := strconv.Itoa(len(job.Spec.TrainingWorkers))
 
 	// deliver pod for aggregation worker
@@ -432,8 +439,9 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 	aggWorkerParam.mounts = append(aggWorkerParam.mounts,
 		WorkerMount{
 			URL: &MountURL{
-				URL:  model.Spec.URL,
-				Mode: workerMountWriteOnly,
+				URL:    model.Spec.URL,
+				Mode:   workerMountWriteOnly,
+				Secret: modelSecret,
 			},
 			EnvName: "MODEL_URL",
 		},
@@ -467,20 +475,28 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 				datasetName, err)
 		}
 
+		secretName := dataset.Spec.CredentialName
+		var datasetSecret *v1.Secret
+		if secretName != "" {
+			datasetSecret, _ = fc.kubeClient.CoreV1().Secrets(job.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+		}
+
 		// Configure container mounting and Env information by initial WorkerParam
 		var workerParam *WorkerParam = new(WorkerParam)
 
 		workerParam.mounts = append(workerParam.mounts,
 			WorkerMount{
 				URL: &MountURL{
-					URL: model.Spec.URL,
+					URL:    model.Spec.URL,
+					Secret: modelSecret,
 				},
 				EnvName: "MODEL_URL",
 			},
 
 			WorkerMount{
 				URL: &MountURL{
-					URL: dataset.Spec.URL,
+					URL:    dataset.Spec.URL,
+					Secret: datasetSecret,
 				},
 				EnvName: "TRAIN_DATASET_URL",
 			},

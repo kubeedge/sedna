@@ -434,8 +434,16 @@ func (jc *JointInferenceServiceController) createCloudWorker(service *sednav1.Jo
 
 	var workerParam WorkerParam
 
+	secretName := cloudModel.Spec.CredentialName
+	var modelSecret *v1.Secret
+	if secretName != "" {
+		modelSecret, _ = jc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	}
 	workerParam.mounts = append(workerParam.mounts, WorkerMount{
-		URL:     &MountURL{URL: cloudModel.Spec.URL},
+		URL: &MountURL{
+			URL:    cloudModel.Spec.URL,
+			Secret: modelSecret,
+		},
 		Name:    "model",
 		EnvName: "MODEL_URL",
 	})
@@ -468,6 +476,12 @@ func (jc *JointInferenceServiceController) createEdgeWorker(service *sednav1.Joi
 			edgeModelName, err)
 	}
 
+	secretName := edgeModel.Spec.CredentialName
+	var modelSecret *v1.Secret
+	if secretName != "" {
+		modelSecret, _ = jc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	}
+
 	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 	// will support Spec.NodeSelector.
 	// get bigModelIP from nodeName in cloudWorker
@@ -483,7 +497,10 @@ func (jc *JointInferenceServiceController) createEdgeWorker(service *sednav1.Joi
 	var workerParam WorkerParam
 
 	workerParam.mounts = append(workerParam.mounts, WorkerMount{
-		URL:     &MountURL{URL: edgeModel.Spec.URL},
+		URL: &MountURL{
+			URL:    edgeModel.Spec.URL,
+			Secret: modelSecret,
+		},
 		Name:    "model",
 		EnvName: "MODEL_URL",
 	})
