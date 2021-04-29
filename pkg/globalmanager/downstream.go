@@ -55,8 +55,10 @@ func (dc *DownstreamController) injectSecret(obj CommonInterface, secretName str
 	}
 	secret, err := dc.kubeClient.CoreV1().Secrets(obj.GetNamespace()).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
-		err = fmt.Errorf("failed to get the secret %s",
-			secretName)
+		klog.Warningf("failed to get the secret %s: %+v",
+			secretName, err)
+
+		return err
 	}
 	InjectSecretObj(obj, secret)
 	return err
