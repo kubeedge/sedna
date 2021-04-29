@@ -116,7 +116,7 @@ func (jc *IncrementalJobController) enqueueByPod(pod *v1.Pod, immediate bool) {
 		return
 	}
 
-	if controllerRef.Kind != jointServiceControllerKind.Kind {
+	if controllerRef.Kind != ijControllerKind.Kind {
 		return
 	}
 
