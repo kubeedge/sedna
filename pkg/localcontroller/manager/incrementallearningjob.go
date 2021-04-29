@@ -66,7 +66,6 @@ type JobConfig struct {
 	DeployModel      *ModelInfo
 	EvalResult       []*ModelInfo
 	Lock             sync.Mutex
-	IsLocalStorage   bool
 }
 
 // OutputConfig defines config for job output
@@ -343,6 +342,7 @@ func (im *IncrementalJobManager) Insert(message *gmclient.Message) error {
 	job, ok := im.IncrementalJobMap[name]
 	if !ok {
 		job = &IncrementalLearningJob{}
+		job.Storage = storage.Storage{IsLocalStorage: false}
 		job.Done = make(chan struct{})
 		im.IncrementalJobMap[name] = job
 		first = true
@@ -352,11 +352,10 @@ func (im *IncrementalJobManager) Insert(message *gmclient.Message) error {
 		return err
 	}
 
-	credential := job.ObjectMeta.Annotations[Credential]
+	credential := job.ObjectMeta.Annotations[CredentialAnnotationKey]
 	if credential != "" {
-		job.Storage = storage.Storage{}
 		if err := job.Storage.SetCredential(credential); err != nil {
-			klog.Errorf("job(name=%s) sets storage credential failed, error: %+v", name, err)
+			return fmt.Errorf("failed to set job(name=%s)'s storage credential, error: %+v", name, err)
 		}
 	}
 
@@ -413,19 +412,19 @@ func (im *IncrementalJobManager) initJob(job *IncrementalLearningJob) error {
 
 	outputDir := job.Spec.OutputDir
 
-	prefix, err := storage.CheckURL(outputDir)
+	isLocalURL, err := job.Storage.IsLocalURL(outputDir)
 	if err != nil {
-		return fmt.Errorf("outout dir is unvalid, error: %+v", err)
+		return fmt.Errorf("job(name=%s)'s output dir is invalid, error: %+v", job.Name, outputDir)
 	}
 
-	jobConfig.IsLocalStorage = false
+	if isLocalURL {
+		job.Storage.IsLocalStorage = true
+		outputDir = util.AddPrefixPath(im.VolumeMountPrefix, outputDir)
+	}
+
 	jobConfig.OutputDir = outputDir
-	if prefix == storage.LocalPrefix {
-		jobConfig.IsLocalStorage = true
-		jobConfig.OutputDir = util.AddPrefixPath(im.VolumeMountPrefix, outputDir)
-	}
 
-	if err := createOutputDir(jobConfig); err != nil {
+	if err := job.createOutputDir(jobConfig); err != nil {
 		return err
 	}
 
@@ -480,19 +479,18 @@ func (im *IncrementalJobManager) triggerTrainTask(job *IncrementalLearningJob) (
 	}
 
 	dataURL := jobConfig.TrainDataURL
-	if jobConfig.IsLocalStorage {
-		dataURL = util.TrimPrefixPath(im.VolumeMountPrefix, jobConfig.TrainDataURL)
-		if !job.Dataset.IsLocalStorage {
-			dataIndexURL = util.TrimPrefixPath(im.VolumeMountPrefix, dataIndexURL)
-		}
+	outputDir := strings.Join([]string{jobConfig.OutputConfig.TrainOutput, strconv.Itoa(jobConfig.Version)}, "/")
+	if job.Storage.IsLocalStorage {
+		dataURL = util.TrimPrefixPath(im.VolumeMountPrefix, dataURL)
+		dataIndexURL = util.TrimPrefixPath(im.VolumeMountPrefix, dataIndexURL)
+		outputDir = util.TrimPrefixPath(im.VolumeMountPrefix, outputDir)
 	}
 
 	input := WorkerInput{
 		Models:       []ModelInfo{m},
 		DataURL:      dataURL,
 		DataIndexURL: dataIndexURL,
-		OutputDir: util.TrimPrefixPath(im.VolumeMountPrefix,
-			strings.Join([]string{jobConfig.OutputConfig.TrainOutput, strconv.Itoa(jobConfig.Version)}, "/")),
+		OutputDir:    outputDir,
 	}
 	msg := UpstreamMessage{
 		Phase:  TrainPhase,
@@ -529,19 +527,18 @@ func (im *IncrementalJobManager) triggerEvalTask(job *IncrementalLearningJob) (*
 	})
 
 	dataURL := jobConfig.EvalDataURL
-	if jobConfig.IsLocalStorage {
-		dataURL = util.TrimPrefixPath(im.VolumeMountPrefix, jobConfig.EvalDataURL)
-		if !job.Dataset.IsLocalStorage {
-			dataIndexURL = util.TrimPrefixPath(im.VolumeMountPrefix, dataIndexURL)
-		}
+	outputDir := strings.Join([]string{jobConfig.OutputConfig.EvalOutput, strconv.Itoa(jobConfig.Version)}, "/")
+	if job.Storage.IsLocalStorage {
+		dataURL = util.TrimPrefixPath(im.VolumeMountPrefix, dataURL)
+		dataIndexURL = util.TrimPrefixPath(im.VolumeMountPrefix, dataIndexURL)
+		outputDir = util.TrimPrefixPath(im.VolumeMountPrefix, outputDir)
 	}
 
 	input := WorkerInput{
 		Models:       models,
 		DataURL:      dataURL,
 		DataIndexURL: dataIndexURL,
-		OutputDir: util.TrimPrefixPath(im.VolumeMountPrefix,
-			strings.Join([]string{jobConfig.OutputConfig.EvalOutput, strconv.Itoa(jobConfig.Version)}, "/")),
+		OutputDir:    outputDir,
 	}
 	msg := &UpstreamMessage{
 		Phase:  EvalPhase,
@@ -604,43 +601,44 @@ func (im *IncrementalJobManager) deployModel(job *IncrementalLearningJob) (*Mode
 	var err error
 
 	trainedModelFormat := models[0].Format
-	deployModelFormat := models[1].Format
+	deployModelFormat := job.JobConfig.DeployModel.Format
 	if trainedModelFormat != deployModelFormat {
 		return nil, fmt.Errorf("the trained model format(format=%s) is inconsistent with deploy model(format=%s)",
 			deployModelFormat, deployModelFormat)
 	}
 
-	trainedModel := util.AddPrefixPath(im.VolumeMountPrefix, models[0].URL)
-	deployModel := util.AddPrefixPath(im.VolumeMountPrefix, models[1].URL)
+	trainedModel := models[0].URL
+	deployModel := job.JobConfig.DeployModel.URL
+	if job.Storage.IsLocalStorage {
+		trainedModel = util.AddPrefixPath(im.VolumeMountPrefix, trainedModel)
+	}
 
 	if err = job.updateDeployModel(deployModel, trainedModel); err != nil {
 		return nil, err
 	}
-
-	jobConfig.DeployModel.Format = models[1].Format
-	jobConfig.DeployModel.URL = models[1].URL
 
 	klog.Infof("job(name=%s) deploys model(url=%s) successfully", jobConfig.UniqueIdentifier, trainedModel)
 
 	return &models[0], nil
 }
 
-func (job *IncrementalLearningJob) updateDeployModel(deployModel string, objectModel string) error {
-	if _, err := job.Storage.Download(objectModel, deployModel); err != nil {
-		return fmt.Errorf("copy model file(url=%s) to the deployment model file failed(url=%s): %v",
-			objectModel, deployModel, err)
+func (job *IncrementalLearningJob) updateDeployModel(deployModel string, newModel string) error {
+	if err := job.Storage.CopyFile(newModel, deployModel); err != nil {
+		return fmt.Errorf("copy model(url=%s) to the deploy model(url=%s) failed, error: %+v",
+			newModel, deployModel, err)
 	}
 
+	klog.Infof("copy model(url=%s) to the deploy model(url=%s) successfully", newModel, deployModel)
 	return nil
 }
 
 // createOutputDir creates the job output dir
-func createOutputDir(jobConfig *JobConfig) error {
+func (job *IncrementalLearningJob) createOutputDir(jobConfig *JobConfig) error {
 	outputDir := jobConfig.OutputDir
 
 	dirNames := []string{"data/train", "data/eval", "train", "eval"}
 
-	if jobConfig.IsLocalStorage {
+	if job.Storage.IsLocalStorage {
 		if err := util.CreateFolder(outputDir); err != nil {
 			klog.Errorf("job(name=%s) create fold %s failed", jobConfig.UniqueIdentifier, outputDir)
 			return err
@@ -807,9 +805,9 @@ func createFile(dir string, format string, isLocalStorage bool) (string, string)
 // writeSamples writes samples information to a file
 func (im *IncrementalJobManager) writeSamples(job *IncrementalLearningJob, samples []string, dir string, version int, format string, urlPrefix string) (string, string, error) {
 	subDir := strings.Join([]string{dir, strconv.Itoa(version)}, "/")
-	fileURL, absURLFile := createFile(subDir, format, job.Dataset.IsLocalStorage)
+	fileURL, absURLFile := createFile(subDir, format, job.Dataset.Storage.IsLocalStorage)
 
-	if job.JobConfig.IsLocalStorage {
+	if job.Storage.IsLocalStorage {
 		if err := util.CreateFolder(subDir); err != nil {
 			return "", "", err
 		}
@@ -817,7 +815,7 @@ func (im *IncrementalJobManager) writeSamples(job *IncrementalLearningJob, sampl
 			return "", "", err
 		}
 
-		if !job.Dataset.IsLocalStorage {
+		if !job.Dataset.Storage.IsLocalStorage {
 			tempSamples := util.ParsingDatasetIndex(samples, urlPrefix)
 			if err := im.writeByLine(tempSamples, absURLFile); err != nil {
 				return "", "", err
@@ -832,7 +830,7 @@ func (im *IncrementalJobManager) writeSamples(job *IncrementalLearningJob, sampl
 		return "", "", err
 	}
 
-	localFileURL, localAbsURLFile := createFile(temporaryDir, format, job.Dataset.IsLocalStorage)
+	localFileURL, localAbsURLFile := createFile(temporaryDir, format, job.Dataset.Storage.IsLocalStorage)
 
 	if err := im.writeByLine(samples, localFileURL); err != nil {
 		return "", "", err
@@ -851,6 +849,9 @@ func (im *IncrementalJobManager) writeSamples(job *IncrementalLearningJob, sampl
 	if err := job.Storage.Upload(localAbsURLFile, absURLFile); err != nil {
 		return "", "", err
 	}
+
+	defer os.RemoveAll(localFileURL)
+	defer os.RemoveAll(localAbsURLFile)
 
 	return fileURL, absURLFile, nil
 }

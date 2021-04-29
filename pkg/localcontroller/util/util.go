@@ -119,6 +119,7 @@ func CreateTemporaryDir() (string, error) {
 }
 
 // ParsingDatasetIndex parses index file of dataset and adds the prefix to abs url of sample
+// first line is the prefix, the next lines are abs url of sample
 func ParsingDatasetIndex(samples []string, prefix string) []string {
 	var l []string
 	l = append(l, prefix)

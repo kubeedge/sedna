@@ -46,8 +46,8 @@ const (
 	// TriggerCompletedStatus is the completed status about trigger in incremental-learning-job
 	TriggerCompletedStatus = "completed"
 
-	// Credential is credential of the storage service
-	Credential = "sedna.io/credential"
+	// CredentialAnnotationKey is credential of the storage service
+	CredentialAnnotationKey = "sedna.io/credential"
 )
 
 // WorkerMessage defines message struct from worker

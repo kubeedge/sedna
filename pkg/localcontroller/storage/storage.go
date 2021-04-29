@@ -23,8 +23,6 @@ import (
 	"path"
 	"path/filepath"
 
-	"k8s.io/klog/v2"
-
 	"github.com/kubeedge/sedna/pkg/localcontroller/util"
 )
 
@@ -44,12 +42,13 @@ const (
 )
 
 type Storage struct {
-	MinioClient *MinioClient
+	MinioClient    *MinioClient
+	IsLocalStorage bool
 }
 
 // Download downloads the file to the local host
 func (s *Storage) Download(objectURL string, localPath string) (string, error) {
-	prefix, err := CheckURL(objectURL)
+	prefix, err := s.CheckURL(objectURL)
 	if err != nil {
 		return "", err
 	}
@@ -67,7 +66,7 @@ func (s *Storage) Download(objectURL string, localPath string) (string, error) {
 // downloadLocal copies the local file to another in local host
 func (s *Storage) localCopy(objectURL string, localPath string) (string, error) {
 	if !util.IsExists(objectURL) {
-		return "", fmt.Errorf("url(%s) is not exists", objectURL)
+		return "", fmt.Errorf("url(%s) does not exists", objectURL)
 	}
 
 	if localPath == "" {
@@ -107,12 +106,13 @@ func (s *Storage) downloadS3(objectURL string, localPath string) (string, error)
 	return localPath, nil
 }
 
-// checkMapKey checks whether key exists in the dict
-func checkMapKey(m map[string]string, key string) (string, error) {
+// checkMapKeyExists checks whether key exists in the dict
+func checkMapKeyExists(m map[string]string, key string) (string, error) {
 	v, ok := m[key]
 	if !ok {
-		return "", fmt.Errorf("%s is empty", key)
+		return "", fmt.Errorf("%s does not exists", key)
 	}
+
 	return v, nil
 }
 
@@ -124,22 +124,22 @@ func (s *Storage) SetCredential(credential string) error {
 		return err
 	}
 
-	endpoint, err := checkMapKey(m, S3Endpoint)
+	endpoint, err := checkMapKeyExists(m, S3Endpoint)
 	if err != nil {
 		return err
 	}
 
-	useHTTPS, err := checkMapKey(m, S3UseHTTPS)
+	useHTTPS, err := checkMapKeyExists(m, S3UseHTTPS)
 	if err != nil {
 		useHTTPS = "1"
 	}
 
-	ak, err := checkMapKey(m, AccessKeyID)
+	ak, err := checkMapKeyExists(m, AccessKeyID)
 	if err != nil {
 		return err
 	}
 
-	sk, err := checkMapKey(m, SecretAccessKey)
+	sk, err := checkMapKeyExists(m, SecretAccessKey)
 	if err != nil {
 		return err
 	}
@@ -154,9 +154,9 @@ func (s *Storage) SetCredential(credential string) error {
 	return nil
 }
 
-// Upload uploads the file in local host to another(e.g., "s3")
+// Upload uploads the src url to the object url (e.g., "s3")
 func (s *Storage) Upload(localPath string, objectURL string) error {
-	prefix, err := CheckURL(objectURL)
+	prefix, err := s.CheckURL(objectURL)
 	if err != nil {
 		return err
 	}
@@ -169,35 +169,31 @@ func (s *Storage) Upload(localPath string, objectURL string) error {
 	}
 }
 
-// uploadS3 uploads the file in local host to the url of s3
+// uploadS3 uploads the src url to the object url of s3
 func (s *Storage) uploadS3(srcURL string, objectURL string) error {
-	prefix, err := CheckURL(srcURL)
+	prefix, err := s.CheckURL(srcURL)
 	if err != nil {
 		return err
 	}
 	switch prefix {
 	case LocalPrefix:
-		if err := s.MinioClient.uploadFile(srcURL, objectURL); err != nil {
-			return err
-		}
+		return s.MinioClient.uploadFile(srcURL, objectURL)
+
 	case S3Prefix:
-		if err := s.MinioClient.copyFile(srcURL, objectURL); err != nil {
-			return err
-		}
+		return s.MinioClient.copyFile(srcURL, objectURL)
 	}
 	return nil
 }
 
 // CheckURL checks prefix of the url
-func CheckURL(objectURL string) (string, error) {
+func (s *Storage) CheckURL(objectURL string) (string, error) {
 	if objectURL == "" {
 		return "", fmt.Errorf("empty url")
 	}
 
 	u, err := url.Parse(objectURL)
 	if err != nil {
-		klog.Errorf("invalid url(%s), error: %v", objectURL, err)
-		return "", fmt.Errorf("invalid url(%s)", objectURL)
+		return "", fmt.Errorf("invalid url(%s), error: %+v", objectURL, err)
 	}
 
 	l := []string{LocalPrefix, S3Prefix}
@@ -208,5 +204,38 @@ func CheckURL(objectURL string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("unvalid url(%s), not support prefix(%s)", objectURL, u.Scheme)
+	return "", fmt.Errorf("invalid url(%s), not support prefix(%s), support prefix: %+v", objectURL, u.Scheme, l)
+}
+
+// IsLocalURL checks whether the url is local url
+func (s *Storage) IsLocalURL(srcURL string) (bool, error) {
+	prefix, err := s.CheckURL(srcURL)
+	if err != nil {
+		return false, err
+	}
+
+	if prefix == LocalPrefix {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// CopyFile copy the file to another
+func (s *Storage) CopyFile(srcURL string, objectURL string) error {
+	prefix, err := s.CheckURL(objectURL)
+	if err != nil {
+		return err
+	}
+	if prefix == LocalPrefix {
+		if _, err := s.Download(srcURL, objectURL); err != nil {
+			return err
+		}
+	} else {
+		if err := s.Upload(srcURL, objectURL); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -52,11 +52,10 @@ type DatasetManager struct {
 // Dataset defines config for dataset
 type Dataset struct {
 	*sednav1.Dataset
-	DataSource     *DataSource `json:"dataSource"`
-	Done           chan struct{}
-	URLPrefix      string
-	Storage        storage.Storage
-	IsLocalStorage bool
+	DataSource *DataSource `json:"dataSource"`
+	Done       chan struct{}
+	URLPrefix  string
+	Storage    storage.Storage
 }
 
 // DatasetSpec defines dataset spec
@@ -101,6 +100,7 @@ func (dm *DatasetManager) Insert(message *gmclient.Message) error {
 	dataset, ok := dm.DatasetMap[name]
 	if !ok {
 		dataset = &Dataset{}
+		dataset.Storage = storage.Storage{IsLocalStorage: false}
 		dataset.Done = make(chan struct{})
 		dm.DatasetMap[name] = dataset
 		first = true
@@ -110,12 +110,19 @@ func (dm *DatasetManager) Insert(message *gmclient.Message) error {
 		return err
 	}
 
-	credential := dataset.ObjectMeta.Annotations[Credential]
+	credential := dataset.ObjectMeta.Annotations[CredentialAnnotationKey]
 	if credential != "" {
-		dataset.Storage = storage.Storage{}
 		if err := dataset.Storage.SetCredential(credential); err != nil {
-			klog.Errorf("dataset(name=%s) sets storage credential failed, error: %+v", name, err)
+			return fmt.Errorf("failed to set dataset(name=%s)'s storage credential, error: %+v", name, err)
 		}
+	}
+
+	isLocalURL, err := dataset.Storage.IsLocalURL(dataset.Spec.URL)
+	if err != nil {
+		return fmt.Errorf("dataset(name=%s)'s url is invalid, error: %+v", name, err)
+	}
+	if isLocalURL {
+		dataset.Storage.IsLocalStorage = true
 	}
 
 	if first {
@@ -154,15 +161,8 @@ func (dm *DatasetManager) monitorDataSources(name string) {
 	}
 
 	dataURL := ds.Spec.URL
-	prefix, err := storage.CheckURL(dataURL)
-	if err != nil {
-		klog.Errorf("dataset(name=%) has the invalid url, error: %+v", name, err)
-		return
-	}
-
-	if prefix == storage.LocalPrefix {
+	if ds.Storage.IsLocalStorage {
 		dataURL = util.AddPrefixPath(dm.VolumeMountPrefix, dataURL)
-		ds.IsLocalStorage = true
 	}
 
 	ds.URLPrefix = strings.TrimRight(dataURL, filepath.Base(dataURL))
@@ -206,6 +206,11 @@ func (dm *DatasetManager) monitorDataSources(name string) {
 // getDataSource gets data source info
 func (ds *Dataset) getDataSource(dataURL string, format string) (*DataSource, error) {
 	localURL, err := ds.Storage.Download(dataURL, "")
+
+	if !ds.Storage.IsLocalStorage {
+		defer os.RemoveAll(localURL)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -231,12 +236,6 @@ func (ds *Dataset) readByLine(url string) (*DataSource, error) {
 	dataSource := DataSource{
 		TrainSamples:    samples,
 		NumberOfSamples: numberOfSamples,
-	}
-
-	if !ds.IsLocalStorage {
-		if err := os.Remove(url); err != nil {
-			return nil, err
-		}
 	}
 
 	return &dataSource, nil
