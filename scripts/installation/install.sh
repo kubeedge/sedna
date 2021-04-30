@@ -149,7 +149,7 @@ spec:
       serviceAccountName: sedna
       containers:
       - name: gm
-        image: kubeedge/sedna-gm:v0.1.0
+        image: kubeedge/sedna-gm:v0.2.0
         command: ["sedna-gm", "--config", "/config/$config_file_name", "-v2"]
         volumeMounts:
         - name: gm-config
@@ -206,7 +206,7 @@ spec:
     spec:
       containers:
         - name: lc
-          image: kubeedge/sedna-lc:v0.1.0
+          image: kubeedge/sedna-lc:v0.2.0
           env:
             - name: GM_ADDRESS
               value: $GM_ADDRESS
