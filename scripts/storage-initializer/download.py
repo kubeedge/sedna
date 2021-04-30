@@ -17,6 +17,7 @@
 
 # modify from https://github.com/kubeflow/kfserving/blob/master/python/kfserving/kfserving/storage.py # noqa
 
+import concurrent.futures
 import glob
 import gzip
 import json
@@ -76,11 +77,11 @@ def download(uri: str, out_dir: str = None) -> str:
         os.makedirs(out_dir)
 
     if uri.startswith(_S3_PREFIX):
-        _download_s3(uri, out_dir)
+        download_s3(uri, out_dir)
     elif uri.startswith(_LOCAL_PREFIX):
-        _download_local(uri, out_dir)
+        download_local(uri, out_dir)
     elif re.search(_URI_RE, uri):
-        _download_from_uri(uri, out_dir)
+        download_from_uri(uri, out_dir)
     else:
         raise Exception("Cannot recognize storage type for %s.\n"
                         "%r are the current available storage type." %
@@ -131,7 +132,7 @@ def indirect_download(indirect_uri: str, out_dir: str = None) -> str:
     uri = _normalize_uri(base_uri)
     # only support s3 for indirect download
     if uri.startswith(_S3_PREFIX):
-        _download_s3(uri, out_dir, download_files)
+        download_s3_with_multi_files(download_files, uri, out_dir)
     else:
         LOG.warning("unsupported %s for indirect url %s, skipped",
                     uri, indirect_uri)
@@ -141,29 +142,53 @@ def indirect_download(indirect_uri: str, out_dir: str = None) -> str:
     return
 
 
-def _download_s3(uri, out_dir: str, download_files=None):
+def download_s3(uri, out_dir: str):
     client = _create_minio_client()
+    count = _download_s3(client, uri, out_dir)
+    if count == 0:
+        raise RuntimeError("Failed to fetch files."
+                           "The path %s does not exist." % (uri))
+    LOG.info("downloaded %d files for %s.", count, uri)
+
+
+def download_s3_with_multi_files(download_files,
+                                 base_uri, base_out_dir):
+    client = _create_minio_client()
+    total_count = 0
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        todos = []
+        for dfile in set(download_files):
+            dir_ = os.path.dirname(dfile)
+            uri = base_uri.rstrip("/") + "/" + dfile
+            out_dir = os.path.join(base_out_dir, dir_)
+            todos.append(executor.submit(_download_s3, client, uri, out_dir))
+
+        for done in concurrent.futures.as_completed(todos):
+            count = done.result()
+            if count == 0:
+                LOG.warning("failed to download %s in base uri(%s)",
+                            dfile, base_uri)
+                continue
+
+            total_count += count
+    LOG.info("downloaded %d files for base_uri %s to local dir %s.",
+             total_count, base_uri, base_out_dir)
+
+
+def _download_s3(client, uri, out_dir):
     bucket_args = uri.replace(_S3_PREFIX, "", 1).split("/", 1)
     bucket_name = bucket_args[0]
     bucket_path = len(bucket_args) > 1 and bucket_args[1] or ""
 
-    recursive = True
-    if download_files is not None:
-        download_file = set(download_files)
-        recursive = False
     objects = client.list_objects(bucket_name,
                                   prefix=bucket_path,
-                                  recursive=recursive)
+                                  recursive=True,
+                                  use_api_v1=True)
     count = 0
 
     for obj in objects:
         # Replace any prefix from the object key with out_dir
         subdir_object_key = obj.object_name[len(bucket_path):].strip("/")
-        if (
-             download_files is not None
-             and subdir_object_key not in download_files):
-            continue
-
         # fget_object handles directory creation if does not exist
         if not obj.is_dir:
             local_file = os.path.join(
@@ -174,20 +199,13 @@ def _download_s3(uri, out_dir: str, download_files=None):
                       count, subdir_object_key)
             client.fget_object(bucket_name, obj.object_name, local_file)
             _extract_compress(local_file, out_dir)
-            if download_files:
-                download_files.discard(subdir_object_key)
-                # all files are downloaded
-                if not download_files:
-                    break
 
             count += 1
-    if count == 0:
-        raise RuntimeError("Failed to fetch files."
-                           "The path %s does not exist." % (uri))
-    LOG.info("downloaded %d files for %s.", count, uri)
+
+    return count
 
 
-def _download_local(uri, out_dir=None):
+def download_local(uri, out_dir=None):
     local_path = uri.replace(_LOCAL_PREFIX, "/", 1)
     if not os.path.exists(local_path):
         raise RuntimeError("Local path %s does not exist." % (uri))
@@ -208,7 +226,7 @@ def _download_local(uri, out_dir=None):
     return out_dir
 
 
-def _download_from_uri(uri, out_dir=None):
+def download_from_uri(uri, out_dir=None):
     url = urlparse(uri)
     filename = os.path.basename(url.path)
     mimetype, encoding = mimetypes.guess_type(url.path)
