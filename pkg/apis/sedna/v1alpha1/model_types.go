@@ -38,6 +38,8 @@ type Model struct {
 type ModelSpec struct {
 	URL    string `json:"url"`
 	Format string `json:"format"`
+
+	CredentialName string `json:"credentialName,omitempty"`
 }
 
 // ModelStatus represents information about the status of a model

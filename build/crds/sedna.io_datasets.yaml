@@ -36,6 +36,8 @@ spec:
           spec:
             description: DatasetSpec is a description of a dataset
             properties:
+              credentialName:
+                type: string
               format:
                 type: string
               nodeName:

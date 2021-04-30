@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -495,6 +494,18 @@ func IsIncrementalJobFinished(j *sednav1.IncrementalLearningJob) bool {
 	return false
 }
 
+func (jc *IncrementalJobController) getSecret(namespace, name string, ownerStr string) (secret *v1.Secret, err error) {
+	if name != "" {
+		secret, err = jc.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			err = fmt.Errorf("failed to get the secret %s for %s: %w",
+				name,
+				ownerStr, err)
+		}
+	}
+	return
+}
+
 func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJob, podtype sednav1.ILJobStage) (err error) {
 	ctx := context.Background()
 	var podTemplate *v1.PodTemplateSpec
@@ -503,34 +514,42 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 	initialModelName := job.Spec.InitialModel.Name
 	deployModelName := job.Spec.DeploySpec.Model.Name
 
-	// get basemodel URL, deploymodel, dataset URL
-	var basemodelPath string
-	var deploymodelPath string
-	var datasetPath string
-
-	basemodel, err := jc.client.Models(job.Namespace).Get(ctx, initialModelName, metav1.GetOptions{})
+	// check initial model name
+	initialModel, err := jc.client.Models(job.Namespace).Get(ctx, initialModelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get initial model %s: %w",
 			initialModelName, err)
 	}
-	basemodelPath = filepath.Dir(basemodel.Spec.URL)
 
-	deploymodel, err := jc.client.Models(job.Namespace).Get(ctx, deployModelName, metav1.GetOptions{})
+	_, err = jc.client.Models(job.Namespace).Get(ctx, deployModelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get deploy model %s: %w",
 			deployModelName, err)
 	}
-	deploymodelPath = filepath.Dir(deploymodel.Spec.URL)
 
 	dataset, err := jc.client.Datasets(job.Namespace).Get(ctx, incrementalDatasetName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get dataset %s: %w",
 			incrementalDatasetName, err)
 	}
-	datasetPath = dataset.Spec.URL
 
-	outputDir := job.Spec.OutputDir
-	datasetParent := filepath.Dir(datasetPath)
+	datasetSecret, err := jc.getSecret(
+		job.Namespace,
+		dataset.Spec.CredentialName,
+		fmt.Sprintf("dataset %s", dataset.Name),
+	)
+	if err != nil {
+		return err
+	}
+
+	jobSecret, err := jc.getSecret(
+		job.Namespace,
+		job.Spec.CredentialName,
+		fmt.Sprintf("incremental job %s", job.Name),
+	)
+	if err != nil {
+		return err
+	}
 
 	// get all url for train and eval from data in condition
 	condDataStr := job.Status.Conditions[len(job.Status.Conditions)-1].Data
@@ -542,84 +561,150 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 	}
 	dataURL := cond.Input.DataURL
 	inputmodelURLs := cond.GetInputModelURLs()
-	outputmodelURL := cond.Input.OutputDir
 
-	// convert user inputs into its form in the container
-	var inputmodelURLList []string
-	var inputmodelURLContain string
-	var outputmodelURLContain string
-	var dataURLContain string
-
-	// process inputmodelURLs, add dataPrefix to ench inputmodelURL, return inputmodelURLList
-	for _, URL := range inputmodelURLs {
-		inputmodelURLList = append(inputmodelURLList, dataPrefix+URL)
+	var originalDataURLOrIndex string
+	if cond.Input.DataIndexURL != "" {
+		// this guarantee dataset.Spec.URL is not in host filesystem by LC,
+		// but cond.Input.DataIndexURL could be in host filesystem.
+		originalDataURLOrIndex = cond.Input.DataIndexURL
+	} else {
+		originalDataURLOrIndex = dataset.Spec.URL
 	}
 
-	// three container Url for data, inputmodel, outputmodel
-	inputmodelURLContain = strings.Join(inputmodelURLList, ";")
-	outputmodelURLContain = dataPrefix + outputmodelURL
-	dataURLContain = dataPrefix + dataURL
-
-	// Container VolumeMounts parameters
-	dataConPath := dataPrefix + datasetParent
-	basemodelConPath := dataPrefix + basemodelPath
-	deploymodelConPath := dataPrefix + deploymodelPath
-	outputConPath := dataPrefix + outputDir
-	originalDatasetPathInContainer := dataPrefix + datasetPath
-	var workerPara *WorkerPara = new(WorkerPara)
+	var workerParam *WorkerParam = new(WorkerParam)
 	if podtype == sednav1.ILJobTrain {
-		workerPara.workerType = "Train"
+		workerParam.workerType = "Train"
 
 		podTemplate = &job.Spec.TrainSpec.Template
 		// Env parameters for train
-		preModelURL := inputmodelURLContain     // premodel savepath before increase
-		outputModelURL := outputmodelURLContain // outputmodel savepath after increase, should be under outputdir
-		trainDataURL := dataURLContain
 
-		// Configure container mounting and Env information for train by initial WorkerPara
-		workerPara.volumeMountList = []string{dataConPath, basemodelConPath, deploymodelConPath, outputConPath}
-		workerPara.volumeList = []string{datasetParent, basemodelPath, deploymodelPath, outputDir}
-		workerPara.volumeMapName = []string{"data", "base-model", "deploy-model", "output-dir"}
-		workerPara.env = map[string]string{
-			// see https://github.com/kubeedge/sedna/issues/35
-			"ORIGINAL_DATASET_URL": originalDatasetPathInContainer,
-			"TRAIN_DATASET_URL":    trainDataURL,
-			"MODEL_URL":            outputModelURL,
-			"BASE_MODEL_URL":       preModelURL,
-			"NAMESPACE":            job.Namespace,
-			"JOB_NAME":             job.Name,
-			"WORKER_NAME":          "train-worker-" + utilrand.String(5),
-			"LC_SERVER":            jc.cfg.LC.Server,
+		workerParam.env = map[string]string{
+			"NAMESPACE":   job.Namespace,
+			"JOB_NAME":    job.Name,
+			"WORKER_NAME": "train-worker-" + utilrand.String(5),
+
+			"LC_SERVER": jc.cfg.LC.Server,
 		}
+
+		baseModelURL := inputmodelURLs[0]
+		var baseModelSecret *v1.Secret
+		if baseModelURL == initialModel.Spec.URL {
+			baseModelSecret, err = jc.getSecret(
+				job.Namespace,
+				initialModel.Spec.CredentialName,
+				fmt.Sprintf("initial model %s", initialModelName),
+			)
+			if err != nil {
+				return err
+			}
+		} else {
+			baseModelSecret = jobSecret
+		}
+
+		workerParam.mounts = append(workerParam.mounts,
+			WorkerMount{
+				URL: &MountURL{
+					URL:    baseModelURL,
+					Secret: baseModelSecret,
+				},
+				EnvName: "BASE_MODEL_URL",
+			},
+			WorkerMount{
+				URL: &MountURL{
+					URL:    cond.Input.OutputDir,
+					Secret: jobSecret,
+					Mode:   workerMountWriteOnly,
+				},
+				EnvName: "MODEL_URL",
+			},
+
+			WorkerMount{
+				URL: &MountURL{
+					URL: dataURL,
+
+					Secret: jobSecret,
+				},
+				EnvName: "TRAIN_DATASET_URL",
+			},
+
+			// see https://github.com/kubeedge/sedna/issues/35
+			WorkerMount{
+				URL: &MountURL{
+					Secret:   datasetSecret,
+					URL:      originalDataURLOrIndex,
+					Indirect: dataset.Spec.URL != originalDataURLOrIndex,
+				},
+				EnvName: "ORIGINAL_DATASET_URL",
+			},
+		)
 	} else {
 		podTemplate = &job.Spec.EvalSpec.Template
-		workerPara.workerType = "Eval"
+		workerParam.workerType = "Eval"
 
-		// Env parameters for eval
-		evalDataURL := dataURLContain
-		modelForEval := inputmodelURLContain // can be single or multi models
+		// Configure Env information for eval by initial WorkerParam
+		workerParam.env = map[string]string{
+			"NAMESPACE":   job.Namespace,
+			"JOB_NAME":    job.Name,
+			"WORKER_NAME": "eval-worker-" + utilrand.String(5),
 
-		// Configure container mounting and Env information for eval by initial WorkerPara
-		workerPara.volumeMountList = []string{dataConPath, basemodelConPath, deploymodelConPath, outputConPath}
-		workerPara.volumeList = []string{datasetParent, basemodelPath, deploymodelPath, outputDir}
-		workerPara.volumeMapName = []string{"data", "base-model", "deploy-model", "output-dir"}
-		workerPara.env = map[string]string{
-			"ORIGINAL_DATASET_URL": originalDatasetPathInContainer,
-			"TEST_DATASET_URL":     evalDataURL,
-			"MODEL_URLS":           modelForEval,
-			"NAMESPACE":            job.Namespace,
-			"JOB_NAME":             job.Name,
-			"WORKER_NAME":          "eval-worker-" + utilrand.String(5),
-			"LC_SERVER":            jc.cfg.LC.Server,
+			"LC_SERVER": jc.cfg.LC.Server,
 		}
+
+		var modelMountURLs []MountURL
+		for _, url := range inputmodelURLs {
+			var modelSecret *v1.Secret
+			if url == initialModel.Spec.URL {
+				modelSecret, err = jc.getSecret(
+					job.Namespace,
+					initialModel.Spec.CredentialName,
+					fmt.Sprintf("initial model %s", initialModelName),
+				)
+				if err != nil {
+					return err
+				}
+			} else {
+				modelSecret = jobSecret
+			}
+
+			modelMountURLs = append(modelMountURLs, MountURL{
+				URL:    url,
+				Secret: modelSecret,
+			})
+		}
+		workerParam.mounts = append(workerParam.mounts,
+			WorkerMount{
+				URLs:    modelMountURLs,
+				Name:    "models",
+				EnvName: "MODEL_URLS",
+			},
+
+			WorkerMount{
+				URL: &MountURL{
+					URL:    dataURL,
+					Secret: datasetSecret,
+				},
+				Name:    "datasets",
+				EnvName: "TEST_DATASET_URL",
+			},
+
+			WorkerMount{
+				URL: &MountURL{
+					Secret:   datasetSecret,
+					URL:      originalDataURLOrIndex,
+					Indirect: dataset.Spec.URL != originalDataURLOrIndex,
+				},
+				Name:    "origin-dataset",
+				EnvName: "ORIGINAL_DATASET_URL",
+			},
+		)
 	}
 
 	// set the default policy instead of Always policy
-	workerPara.restartPolicy = v1.RestartPolicyOnFailure
-	workerPara.hostNetwork = true
+	workerParam.restartPolicy = v1.RestartPolicyOnFailure
+	workerParam.hostNetwork = true
 
 	// create pod based on podtype
-	_, err = createPodWithTemplate(jc.kubeClient, job, podTemplate, workerPara)
+	_, err = createPodWithTemplate(jc.kubeClient, job, podTemplate, workerParam)
 	if err != nil {
 		return err
 	}
@@ -633,31 +718,39 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 		return fmt.Errorf("failed to get infer model %s: %w",
 			infermodelName, err)
 	}
-	inferModelPath := inferModel.Spec.URL
-
-	// convert crd to JSON, and put them into env of container
-	inferModelParent := filepath.Dir(inferModelPath)
-
-	// Container VolumeMounts parameters
-	inferModelConPath := dataPrefix + inferModelParent
+	inferModelURL := inferModel.Spec.URL
 
 	// Env parameters for edge
-	inferModelURL := dataPrefix + inferModelPath
 	HEMParameterJSON, _ := json.Marshal(job.Spec.DeploySpec.HardExampleMining.Parameters)
 	HEMParameterString := string(HEMParameterJSON)
 
-	// Configure container mounting and Env information by initial WorkerPara
-	var workerParam *WorkerPara = new(WorkerPara)
-	workerParam.volumeMountList = []string{inferModelConPath}
-	workerParam.volumeList = []string{inferModelParent}
-	workerParam.volumeMapName = []string{"model"}
+	// Configure container mounting and Env information by initial WorkerParam
+	modelSecret, err := jc.getSecret(
+		job.Namespace,
+		inferModel.Spec.CredentialName,
+		fmt.Sprintf("model %s", inferModel.Name),
+	)
+	var workerParam *WorkerParam = new(WorkerParam)
+	workerParam.mounts = append(workerParam.mounts,
+		WorkerMount{
+			URL: &MountURL{
+				URL:    inferModelURL,
+				Secret: modelSecret,
+			},
+			Name:    "model",
+			EnvName: "MODEL_URL",
+		},
+	)
+
 	workerParam.env = map[string]string{
-		"WORKER_NAME":    "inferworker-" + utilrand.String(5),
-		"MODEL_URL":      inferModelURL,
-		"NAMESPACE":      job.Namespace,
+		"NAMESPACE":   job.Namespace,
+		"JOB_NAME":    job.Name,
+		"WORKER_NAME": "inferworker-" + utilrand.String(5),
+
 		"HEM_NAME":       job.Spec.DeploySpec.HardExampleMining.Name,
 		"HEM_PARAMETERS": HEMParameterString,
-		"LC_SERVER":      jc.cfg.LC.Server,
+
+		"LC_SERVER": jc.cfg.LC.Server,
 	}
 
 	workerParam.workerType = "inference"

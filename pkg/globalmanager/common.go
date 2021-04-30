@@ -30,7 +30,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	k8scontroller "k8s.io/kubernetes/pkg/controller"
 )
 
 const (
@@ -39,62 +38,9 @@ const (
 	// MaxBackOff is the max backoff period
 	MaxBackOff          = 360 * time.Second
 	statusUpdateRetries = 3
-	// setting some prefix for container path, include data and code prefix
-	dataPrefix         = "/home/data"
+
 	bigModelPort int32 = 5000
 )
-
-// CreateVolumeMap creates volumeMap for container and
-// returns volumeMounts and volumes for stage of creating pod
-func CreateVolumeMap(workerPara *WorkerPara) ([]v1.VolumeMount, []v1.Volume) {
-	var volumeMounts []v1.VolumeMount
-	var volumes []v1.Volume
-	volumetype := v1.HostPathDirectory
-	mountPathMap := make(map[string]bool)
-	duplicateIdx := make(map[int]bool)
-	for i, v := range workerPara.volumeMountList {
-		if mountPathMap[v] {
-			duplicateIdx[i] = true
-			continue
-		}
-		mountPathMap[v] = true
-		tempVolumeMount := v1.VolumeMount{
-			MountPath: v,
-			Name:      workerPara.volumeMapName[i],
-		}
-		volumeMounts = append(volumeMounts, tempVolumeMount)
-	}
-	for i, v := range workerPara.volumeList {
-		if duplicateIdx[i] {
-			continue
-		}
-		tempVolume := v1.Volume{
-			Name: workerPara.volumeMapName[i],
-			VolumeSource: v1.VolumeSource{
-				HostPath: &v1.HostPathVolumeSource{
-					Path: v,
-					Type: &volumetype,
-				},
-			},
-		}
-		volumes = append(volumes, tempVolume)
-	}
-	return volumeMounts, volumes
-}
-
-// CreateEnvVars creates EnvMap for container
-// include EnvName and EnvValue map for stage of creating a pod
-func CreateEnvVars(envMap map[string]string) []v1.EnvVar {
-	var envVars []v1.EnvVar
-	for envName, envValue := range envMap {
-		Env := v1.EnvVar{
-			Name:  envName,
-			Value: envValue,
-		}
-		envVars = append(envVars, Env)
-	}
-	return envVars
-}
 
 // GetNodeIPByName get node ip by node name
 func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, error) {
@@ -117,25 +63,6 @@ func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, erro
 		return address, nil
 	}
 	return "", fmt.Errorf("can't found node ip for node %s", name)
-}
-
-// GenerateLabels generates labels for an object
-func GenerateLabels(object CommonInterface) map[string]string {
-	kind := object.GroupVersionKind().Kind
-	group := object.GroupVersionKind().Group
-	name := object.GetName()
-	key := strings.ToLower(kind) + "." + group + "/name"
-	labels := make(map[string]string)
-	labels[key] = name
-	return labels
-}
-
-// GenerateSelector generates selector for an object
-func GenerateSelector(object CommonInterface) (labels.Selector, error) {
-	ls := &metav1.LabelSelector{
-		MatchLabels: GenerateLabels(object),
-	}
-	return metav1.LabelSelectorAsSelector(ls)
 }
 
 // CreateKubernetesService creates a k8s service for an object given ip and port
@@ -213,56 +140,58 @@ func calcActivePodCount(pods []*v1.Pod) int32 {
 	return result
 }
 
-// injectWorkerPara modifies pod in-place
-func injectWorkerPara(pod *v1.Pod, workerPara *WorkerPara, object CommonInterface) {
-	// inject our predefined volumes/envs
-	volumeMounts, volumes := CreateVolumeMap(workerPara)
-	envs := CreateEnvVars(workerPara.env)
-	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
-	for idx := range pod.Spec.Containers {
-		pod.Spec.Containers[idx].Env = append(
-			pod.Spec.Containers[idx].Env, envs...,
-		)
-		pod.Spec.Containers[idx].VolumeMounts = append(
-			pod.Spec.Containers[idx].VolumeMounts, volumeMounts...,
-		)
-	}
+// GenerateLabels generates labels for an object
+func GenerateLabels(object CommonInterface) map[string]string {
+	kind := object.GroupVersionKind().Kind
+	group := object.GroupVersionKind().Group
 
-	// inject our labels
-	if pod.Labels == nil {
-		pod.Labels = make(map[string]string)
-	}
-	for k, v := range GenerateLabels(object) {
-		pod.Labels[k] = v
-	}
+	keyPrefix := strings.ToLower(kind + "." + group + "/")
 
-	pod.GenerateName = object.GetName() + "-" + strings.ToLower(workerPara.workerType) + "-"
-
-	pod.Namespace = object.GetNamespace()
-
-	if workerPara.hostNetwork {
-		// FIXME
-		// force to set hostnetwork
-		pod.Spec.HostNetwork = true
-	}
-
-	if pod.Spec.RestartPolicy == "" {
-		pod.Spec.RestartPolicy = workerPara.restartPolicy
-	}
+	labels := make(map[string]string)
+	labels[keyPrefix+"name"] = object.GetName()
+	labels[keyPrefix+"uid"] = string(object.GetUID())
+	return labels
 }
 
-// createPodWithTemplate creates and returns a pod object given a crd object, pod template, and workerPara
-func createPodWithTemplate(client kubernetes.Interface, object CommonInterface, spec *v1.PodTemplateSpec, workerPara *WorkerPara) (*v1.Pod, error) {
-	objectKind := object.GroupVersionKind()
-	pod, _ := k8scontroller.GetPodFromTemplate(spec, object, metav1.NewControllerRef(object, objectKind))
-	injectWorkerPara(pod, workerPara, object)
-
-	createdPod, err := client.CoreV1().Pods(object.GetNamespace()).Create(context.TODO(), pod, metav1.CreateOptions{})
-	objectName := object.GetNamespace() + "/" + object.GetName()
-	if err != nil {
-		klog.Warningf("failed to create pod(type=%s) for %s %s, err:%s", workerPara.workerType, objectKind, objectName, err)
-		return nil, err
+// GenerateSelector generates the selector for an object
+func GenerateSelector(object CommonInterface) (labels.Selector, error) {
+	ls := &metav1.LabelSelector{
+		MatchLabels: GenerateLabels(object),
 	}
-	klog.V(2).Infof("pod %s is created successfully for %s %s", createdPod.Name, objectKind, objectName)
-	return createdPod, nil
+	return metav1.LabelSelectorAsSelector(ls)
+}
+
+// ConvertK8SValidName converts to the k8s valid name
+func ConvertK8SValidName(name string) string {
+	// the name(e.g. pod/volume name) should be a lowercase RFC 1123 label:
+	// [a-z0-9]([-a-z0-9]*[a-z0-9])?
+	// and no more than 63 characters
+	limitCount := 63
+	var fixName []byte
+	for _, c := range []byte(strings.ToLower(name)) {
+		if ('a' <= c && c <= 'z') ||
+			('0' <= c && c <= '9') ||
+			c == '-' {
+			fixName = append(fixName, c)
+			continue
+		}
+
+		// the first char not '-'
+		// and no two consecutive '-'
+		if len(fixName) > 0 && fixName[len(fixName)-1] != '-' {
+			fixName = append(fixName, '-')
+		}
+	}
+
+	// fix limitCount
+	if len(fixName) > limitCount {
+		fixName = fixName[:limitCount]
+	}
+
+	// fix the end character
+	if len(fixName) > 0 && fixName[len(fixName)-1] == '-' {
+		fixName[len(fixName)-1] = 'z'
+	}
+
+	return string(fixName)
 }
