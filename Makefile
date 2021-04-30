@@ -131,16 +131,18 @@ images: gmimage lcimage
 gmimage lcimage:
 	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/sedna-${@:image=}:${IMAGE_TAG} -f build/${@:image=}/Dockerfile .
 
+
 .PHONY: push push-examples push-all
 push-all: push push-examples
+
+# push target pushes sedna-built images
 push: images
 	docker push ${IMAGE_REPO}/sedna-gm:${IMAGE_TAG} 
 	docker push ${IMAGE_REPO}/sedna-lc:${IMAGE_TAG} 
+	bash scripts/storage-initializer/push_image.sh
 
 push-examples:
 	bash examples/push_image.sh
-
-
 
 .PHONE: e2e
 e2e:
