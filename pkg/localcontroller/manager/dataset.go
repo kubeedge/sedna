@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -30,6 +31,7 @@ import (
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/localcontroller/db"
 	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	"github.com/kubeedge/sedna/pkg/localcontroller/storage"
 	"github.com/kubeedge/sedna/pkg/localcontroller/util"
 )
 
@@ -52,6 +54,8 @@ type Dataset struct {
 	*sednav1.Dataset
 	DataSource *DataSource `json:"dataSource"`
 	Done       chan struct{}
+	URLPrefix  string
+	Storage    storage.Storage
 }
 
 // DatasetSpec defines dataset spec
@@ -96,6 +100,7 @@ func (dm *DatasetManager) Insert(message *gmclient.Message) error {
 	dataset, ok := dm.DatasetMap[name]
 	if !ok {
 		dataset = &Dataset{}
+		dataset.Storage = storage.Storage{IsLocalStorage: false}
 		dataset.Done = make(chan struct{})
 		dm.DatasetMap[name] = dataset
 		first = true
@@ -103,6 +108,21 @@ func (dm *DatasetManager) Insert(message *gmclient.Message) error {
 
 	if err := json.Unmarshal(message.Content, dataset); err != nil {
 		return err
+	}
+
+	credential := dataset.ObjectMeta.Annotations[CredentialAnnotationKey]
+	if credential != "" {
+		if err := dataset.Storage.SetCredential(credential); err != nil {
+			return fmt.Errorf("failed to set dataset(name=%s)'s storage credential, error: %+v", name, err)
+		}
+	}
+
+	isLocalURL, err := dataset.Storage.IsLocalURL(dataset.Spec.URL)
+	if err != nil {
+		return fmt.Errorf("dataset(name=%s)'s url is invalid, error: %+v", name, err)
+	}
+	if isLocalURL {
+		dataset.Storage.IsLocalStorage = true
 	}
 
 	if first {
@@ -140,11 +160,13 @@ func (dm *DatasetManager) monitorDataSources(name string) {
 		return
 	}
 
-	if ds.Spec.URL == "" {
-		klog.Errorf("dataset(name=%s) empty data source url.", name)
-		return
+	dataURL := ds.Spec.URL
+	if ds.Storage.IsLocalStorage {
+		dataURL = util.AddPrefixPath(dm.VolumeMountPrefix, dataURL)
 	}
 
+	ds.URLPrefix = strings.TrimRight(dataURL, filepath.Base(dataURL))
+	samplesNumber := 0
 	for {
 		select {
 		case <-ds.Done:
@@ -152,16 +174,16 @@ func (dm *DatasetManager) monitorDataSources(name string) {
 		default:
 		}
 
-		dataURL := util.AddPrefixPath(dm.VolumeMountPrefix, filepath.Join(ds.Spec.URL))
-		dataSource, err := dm.getDataSource(dataURL, ds.Spec.Format)
+		dataSource, err := ds.getDataSource(dataURL, ds.Spec.Format)
 		if err != nil {
-			klog.Errorf("dataset(name=%s) get samples from %s failed", name, dataURL)
+			klog.Errorf("dataset(name=%s) get samples from %s failed, error: %+v", name, dataURL, err)
 		} else {
 			ds.DataSource = dataSource
-
-			klog.Infof("dataset(name=%s) get samples from data source(url=%s) successfully. number of samples: %d",
-				name, dataURL, dataSource.NumberOfSamples)
-
+			if samplesNumber != dataSource.NumberOfSamples {
+				samplesNumber = dataSource.NumberOfSamples
+				klog.Infof("dataset(name=%s) get samples from data source(url=%s) successfully. number of samples: %d",
+					name, dataURL, dataSource.NumberOfSamples)
+			}
 			header := gmclient.MessageHeader{
 				Namespace:    ds.Namespace,
 				ResourceKind: ds.Kind,
@@ -174,7 +196,7 @@ func (dm *DatasetManager) monitorDataSources(name string) {
 			}{
 				dataSource.NumberOfSamples,
 			}, header); err != nil {
-				klog.Errorf("dataset(name=%s) publish samples info failed", name)
+				klog.Errorf("dataset(name=%s) publish samples info failed, error: %+v", name, err)
 			}
 		}
 		<-time.After(MonitorDataSourceIntervalSeconds * time.Second)
@@ -182,16 +204,26 @@ func (dm *DatasetManager) monitorDataSources(name string) {
 }
 
 // getDataSource gets data source info
-func (dm *DatasetManager) getDataSource(dataURL string, format string) (*DataSource, error) {
+func (ds *Dataset) getDataSource(dataURL string, format string) (*DataSource, error) {
+	localURL, err := ds.Storage.Download(dataURL, "")
+
+	if !ds.Storage.IsLocalStorage {
+		defer os.RemoveAll(localURL)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
 	switch format {
 	case "txt":
-		return dm.readByLine(dataURL)
+		return ds.readByLine(localURL)
 	}
 	return nil, fmt.Errorf("not vaild file format")
 }
 
 // readByLine reads file by line
-func (dm *DatasetManager) readByLine(url string) (*DataSource, error) {
+func (ds *Dataset) readByLine(url string) (*DataSource, error) {
 	samples, err := getSamples(url)
 	if err != nil {
 		klog.Errorf("read file %s failed, error: %v", url, err)

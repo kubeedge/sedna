@@ -5,6 +5,7 @@ go 1.14
 require (
 	github.com/emicklei/go-restful/v3 v3.4.0
 	github.com/gorilla/websocket v1.4.0
+	github.com/minio/minio-go/v7 v7.0.10
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.7.0
 	github.com/spf13/cobra v1.0.0
