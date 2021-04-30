@@ -16,10 +16,5 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-IMAGE_REPO=${IMAGE_REPO:-kubeedge}
-IMAGE_TAG=${IMAGE_TAG:-v0.2.0}
-
-REPO_PREFIX=${IMAGE_REPO}/sedna-storage-initializer
-IMAGE=${REPO_PREFIX}:${IMAGE_TAG}
-
-docker build -t $IMAGE --label sedna=scripts .
+source build_image.sh
+docker push $IMAGE
