@@ -61,7 +61,7 @@ class TxtDataParse(BaseDataSource, ABC):
         y_data = []
         use_raw = kwargs.get("use_raw")
         for f in args:
-            if not FileOps.exists(f):
+            if not (f and FileOps.exists(f)):
                 continue
             with open(f) as fin:
                 if self.process_func:

@@ -49,7 +49,7 @@ def main():
     epochs = int(Context.get_parameters("epochs", 1))
     batch_size = int(Context.get_parameters("batch_size", 1))
     aggregation_algorithm = Context.get_parameters(
-        "aggregation_algorithm", "FwdAvg"
+        "aggregation_algorithm", "FedAvg"
     )
     learning_rate = float(
         Context.get_parameters("learning_rate", 0.001)

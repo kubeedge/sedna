@@ -25,7 +25,7 @@ class FederatedLearning(JobBase):
     Federated learning Experiment
     """
 
-    def __init__(self, estimator, aggregation="fedavg"):
+    def __init__(self, estimator, aggregation="FedAvg"):
         protocol = Context.get_parameters("AGG_PROTOCOL", "ws")
         agg_ip = Context.get_parameters("AGG_IP", "127.0.0.1")
         agg_port = int(Context.get_parameters("AGG_PORT", "7363"))
