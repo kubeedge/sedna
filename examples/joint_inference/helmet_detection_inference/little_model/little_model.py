@@ -12,33 +12,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import time
-import copy
-
 import cv2
-import numpy as np
-import os
+import copy
+import logging
 
-import sedna
-from sedna.hard_example_mining import IBTFilter
-from sedna.joint_inference.joint_inference import InferenceResult
+import tensorflow as tf
+import numpy as np
+
+from interface import Estimator
+from sedna.common.config import Context
+from sedna.core.joint_inference import JointInference
 
 LOG = logging.getLogger(__name__)
 
-# Predefined color values for frames and display categories
-colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255),
-          (0, 255, 255), (255, 255, 255)]
+camera_address = Context.get_parameters('video_url')
+
 class_names = ['person', 'helmet', 'helmet_on', 'helmet_off']
-all_output_path = sedna.context.get_parameters(
+all_output_path = Context.get_parameters(
     'all_examples_inference_output'
 )
-hard_example_edge_output_path = sedna.context.get_parameters(
+hard_example_edge_output_path = Context.get_parameters(
     'hard_example_edge_inference_output'
 )
-hard_example_cloud_output_path = sedna.context.get_parameters(
+hard_example_cloud_output_path = Context.get_parameters(
     'hard_example_cloud_inference_output'
 )
+
+
+class InferenceResult:
+    """The Result class for joint inference
+
+    :param is_hard_example: `True` means a hard example, `False` means not a
+        hard example
+    :param final_result: the final inference result
+    :param hard_example_edge_result: the edge little model inference result of
+        hard example
+    :param hard_example_cloud_result: the cloud big model inference result of
+        hard example
+    """
+
+    def __init__(self, is_hard_example, final_result,
+                 hard_example_edge_result, hard_example_cloud_result):
+        self.is_hard_example = is_hard_example
+        self.final_result = final_result
+        self.hard_example_edge_result = hard_example_edge_result
+        self.hard_example_cloud_result = hard_example_cloud_result
 
 
 def draw_boxes(img, bboxes, colors, text_thickness, box_thickness):
@@ -79,63 +98,6 @@ def draw_boxes(img, bboxes, colors, text_thickness, box_thickness):
     return img_copy
 
 
-def preprocess(image, input_shape):
-    """Preprocess functions in edge model inference"""
-
-    # resize image with unchanged aspect ratio using padding by opencv
-    h, w, _ = image.shape
-
-    input_h, input_w = input_shape
-    scale = min(float(input_w) / float(w), float(input_h) / float(h))
-    nw = int(w * scale)
-    nh = int(h * scale)
-
-    image = cv2.resize(image, (nw, nh))
-
-    new_image = np.zeros((input_h, input_w, 3), np.float32)
-    new_image.fill(128)
-    bh, bw, _ = new_image.shape
-    new_image[int((bh - nh) / 2):(nh + int((bh - nh) / 2)),
-              int((bw - nw) / 2):(nw + int((bw - nw) / 2)), :] = image
-
-    new_image /= 255.
-    new_image = np.expand_dims(new_image, 0)  # Add batch dimension.
-    return new_image
-
-
-def create_input_feed(sess, new_image, img_data):
-    """Create input feed for edge model inference"""
-    input_feed = {}
-
-    input_img_data = sess.graph.get_tensor_by_name('images:0')
-    input_feed[input_img_data] = new_image
-
-    input_img_shape = sess.graph.get_tensor_by_name('shapes:0')
-    input_feed[input_img_shape] = [img_data.shape[0], img_data.shape[1]]
-
-    return input_feed
-
-
-def create_output_fetch(sess):
-    """Create output fetch for edge model inference"""
-    output_classes = sess.graph.get_tensor_by_name('concat_19:0')
-    output_scores = sess.graph.get_tensor_by_name('concat_18:0')
-    output_boxes = sess.graph.get_tensor_by_name('concat_17:0')
-
-    output_fetch = [output_classes, output_scores, output_boxes]
-    return output_fetch
-
-
-def postprocess(model_output):
-    all_classes, all_scores, all_bboxes = model_output
-    bboxes = []
-    for c, s, bbox in zip(all_classes, all_scores, all_bboxes):
-        bbox[0], bbox[1], bbox[2], bbox[3] = bbox[1], bbox[0], bbox[3], bbox[2]
-        bboxes.append(bbox.tolist() + [s, c])
-
-    return bboxes
-
-
 def output_deal(inference_result: InferenceResult, nframe, img_rgb):
     # save and show image
     img_rgb = np.array(img_rgb)
@@ -164,52 +126,15 @@ def output_deal(inference_result: InferenceResult, nframe, img_rgb):
                 edge_collaboration_frame)
 
 
-def mkdir(path):
-    path = path.strip()
-    path = path.rstrip()
-    is_exists = os.path.exists(path)
-    if not is_exists:
-        os.makedirs(path)
-        LOG.info(f"{path} is not exists, create the dir")
+def main():
+    tf.set_random_seed(22)
 
+    inference_instance = JointInference(estimator=Estimator)
+    inference_instance.initial(run_type="edge")
 
-def run():
-    input_shape_str = sedna.context.get_parameters("input_shape")
-    input_shape = tuple(int(v) for v in input_shape_str.split(","))
-    camera_address = sedna.context.get_parameters('video_url')
-
-    mkdir(all_output_path)
-    mkdir(hard_example_edge_output_path)
-    mkdir(hard_example_cloud_output_path)
-
-    # create little model object
-    model = sedna.joint_inference.TSLittleModel(
-        preprocess=preprocess,
-        postprocess=postprocess,
-        input_shape=input_shape,
-        create_input_feed=create_input_feed,
-        create_output_fetch=create_output_fetch
-    )
-    # create hard example algorithm
-    threshold_box = float(sedna.context.get_hem_parameters(
-        "threshold_box", 0.5
-    ))
-    threshold_img = float(sedna.context.get_hem_parameters(
-        "threshold_img", 0.5
-    ))
-    hard_example_mining_algorithm = IBTFilter(threshold_img, threshold_box)
-
-    # create joint inference object
-    inference_instance = sedna.joint_inference.JointInference(
-        little_model=model,
-        hard_example_mining_algorithm=hard_example_mining_algorithm
-    )
-
-    # use video streams for testing
     camera = cv2.VideoCapture(camera_address)
     fps = 10
     nframe = 0
-    # the input of video stream
     while 1:
         ret, input_yuv = camera.read()
         if not ret:
@@ -227,9 +152,9 @@ def run():
         img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
         nframe += 1
         LOG.info(f"camera is open, current frame index is {nframe}")
-        inference_result = inference_instance.inference(img_rgb)
+        inference_result = InferenceResult(*inference_instance.inference(img_rgb))
         output_deal(inference_result, nframe, img_rgb)
 
 
-if __name__ == "__main__":
-    run()
+if __name__ == '__main__':
+    main()

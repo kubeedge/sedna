@@ -11,35 +11,42 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
+import os
 
 import tensorflow as tf
 
-import sedna
-from interface import Interface
-from sedna.incremental_learning import IncrementalConfig
+from interface import Estimator
+from sedna.common.config import Context
+from sedna.datasources import TxtDataParse
+from sedna.core.incremental_learning import IncrementalLearning
 
-LOG = logging.getLogger(__name__)
-MODEL_URL = IncrementalConfig().model_url
+
+def _load_txt_dataset(dataset_url):
+
+    # use original dataset url,
+    # see https://github.com/kubeedge/sedna/issues/35
+    original_dataset_url = Context.get_parameters('original_dataset_url')
+    return original_dataset_url + os.path.sep + dataset_url
 
 
 def main():
     tf.set_random_seed(22)
 
-    class_names = sedna.context.get_parameters("class_names")
+    class_names = Context.get_parameters("class_names")
 
     # load dataset.
-    train_data = sedna.load_train_dataset(data_format='txt')
+    train_dataset_url = Context.get_parameters('train_dataset_url')
+    train_data = TxtDataParse(data_type="train", func=_load_txt_dataset)
+    train_data.parse(train_dataset_url, use_raw=True)
 
     # read parameters from deployment config.
-    obj_threshold = sedna.context.get_parameters("obj_threshold")
-    nms_threshold = sedna.context.get_parameters("nms_threshold")
-    input_shape = sedna.context.get_parameters("input_shape")
-    epochs = sedna.context.get_parameters('epochs')
-    batch_size = sedna.context.get_parameters('batch_size')
+    obj_threshold = Context.get_parameters("obj_threshold")
+    nms_threshold = Context.get_parameters("nms_threshold")
+    input_shape = Context.get_parameters("input_shape")
+    epochs = Context.get_parameters('epochs')
+    batch_size = Context.get_parameters('batch_size')
 
-    tf.flags.DEFINE_string('train_url', default=MODEL_URL,
+    tf.flags.DEFINE_string('train_url', default=Context.get_parameters("model_url"),
                            help='train url for model')
     tf.flags.DEFINE_string('log_url', default=None, help='log url for model')
     tf.flags.DEFINE_string('checkpoint_url', default=None,
@@ -84,16 +91,13 @@ def main():
     tf.flags.DEFINE_string('result_url', default=None,
                            help='result url for training')
 
-    model = Interface()
-
-    sedna.incremental_learning.train(model=model,
-                                     train_data=train_data,
-                                     epochs=epochs,
-                                     batch_size=batch_size,
-                                     class_names=class_names,
-                                     input_shape=input_shape,
-                                     obj_threshold=obj_threshold,
-                                     nms_threshold=nms_threshold)
+    model = IncrementalLearning(estimator=Estimator)
+    return model.train(train_data=train_data, epochs=epochs,
+                       batch_size=batch_size,
+                       class_names=class_names,
+                       input_shape=input_shape,
+                       obj_threshold=obj_threshold,
+                       nms_threshold=nms_threshold)
 
 
 if __name__ == '__main__':

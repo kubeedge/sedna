@@ -25,20 +25,20 @@ class ModelType(Enum):
 
 class Framework(Enum):
     Tensorflow = "tensorflow"
+    Keras = "keras"
     Pytorch = "pytorch"
     Mindspore = "mindspore"
 
 
 class K8sResourceKind(Enum):
+    DEFAULT = "default"
     JOINT_INFERENCE_SERVICE = "jointinferenceservice"
     FEDERATED_LEARNING_JOB = "federatedlearningjob"
     INCREMENTAL_JOB = "incrementallearningjob"
+    LIFELONG_JOB = "lifelonglearningjob"
 
 
 class K8sResourceKindStatus(Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     RUNNING = "running"
-
-
-FRAMEWORK = Framework.Tensorflow  # TODO: should read from env.

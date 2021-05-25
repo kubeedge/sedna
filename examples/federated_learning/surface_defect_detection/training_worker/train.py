@@ -11,18 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
 import numpy as np
-from tensorflow import keras
+import keras.preprocessing.image as img_preprocessing
+from interface import Estimator
 
-import sedna
-from network import GlobalModelInspectionCNN
-from sedna.ml_model import save_model
+from sedna.common.config import Context
+from sedna.datasources import TxtDataParse
+
+from sedna.core.federated_learning import FederatedLearning
 
 
 def image_process(line):
-    import keras.preprocessing.image as img_preprocessing
     file_path, label = line.split(',')
+    original_dataset_url = Context.get_parameters('original_dataset_url')
+    root_path = os.path.dirname(original_dataset_url)
+    file_path = os.path.join(root_path, file_path)
     img = img_preprocessing.load_img(file_path).resize((128, 128))
     data = img_preprocessing.img_to_array(img) / 255.0
     label = [0, 1] if int(label) == 0 else [1, 0]
@@ -33,41 +37,38 @@ def image_process(line):
 
 def main():
     # load dataset.
-    train_data = sedna.load_train_dataset(data_format="txt",
-                                          preprocess_fun=image_process)
+    train_dataset_url = Context.get_parameters('train_dataset_url')
+    test_dataset_url = Context.get_parameters('test_dataset_url')
 
-    x = np.array([tup[0] for tup in train_data])
-    y = np.array([tup[1] for tup in train_data])
+    train_data = TxtDataParse(data_type="train", func=image_process)
+    train_data.parse(train_dataset_url)
 
-    # read parameters from deployment config.
-    epochs = sedna.context.get_parameters("epochs")
-    batch_size = sedna.context.get_parameters("batch_size")
-    aggregation_algorithm = sedna.context.get_parameters(
-        "aggregation_algorithm"
+    valid_data = TxtDataParse(data_type="test", func=image_process)
+    valid_data.parse(test_dataset_url)
+
+    epochs = int(Context.get_parameters("epochs", 1))
+    batch_size = int(Context.get_parameters("batch_size", 1))
+    aggregation_algorithm = Context.get_parameters(
+        "aggregation_algorithm", "FwdAvg"
     )
     learning_rate = float(
-        sedna.context.get_parameters("learning_rate", 0.001)
+        Context.get_parameters("learning_rate", 0.001)
+    )
+    validation_split = float(
+        Context.get_parameters("validation_split", 0.2)
     )
 
-    model = GlobalModelInspectionCNN().build_model()
-
-    loss = keras.losses.CategoricalCrossentropy(from_logits=True)
-    metrics = [keras.metrics.categorical_accuracy]
-    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
-
-    model = sedna.federated_learning.train(
-        model=model,
-        x=x, y=y,
+    fl_model = FederatedLearning(estimator=Estimator, aggregation=aggregation_algorithm)
+    fl_model.connect()
+    train_jobs = fl_model.train(
+        train_data=train_data,
+        valid_data=valid_data,
         epochs=epochs,
         batch_size=batch_size,
-        loss=loss,
-        optimizer=optimizer,
-        metrics=metrics,
-        aggregation_algorithm=aggregation_algorithm
+        learning_rate=learning_rate,
+        validation_split=validation_split
     )
-
-    # Save the model based on the config.
-    save_model(model)
+    return train_jobs
 
 
 if __name__ == '__main__':

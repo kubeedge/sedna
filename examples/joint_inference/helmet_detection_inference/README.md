@@ -76,7 +76,7 @@ EOF
 Note the setting of the following parameters, which have to same as the script [little_model.py](/examples/joint_inference/helmet_detection_inference/little_model/little_model.py):
 - hardExampleMining: set hard example algorithm from {IBT, CrossEntropy} for inferring in edge side.
 - video_url: set the url for video streaming. 
-- all_examples_inference_output: set your output path for the inference results.
+- all_examples_inference_output: set your output path for the inference results, and note that the root path has to be /home/data.
 - hard_example_edge_inference_output: set your output path for results of inferring hard examples in edge side.
 - hard_example_cloud_inference_output: set your output path for results of inferring hard examples in cloud side.
 
@@ -190,7 +190,7 @@ ffmpeg -re -i /data/video/video.mp4 -vcodec libx264 -f rtsp rtsp://localhost/vid
 
 ### Check Inference Result
 
-You can check the inference results in the output path (e.g. `/joint_inference/output`) defined in the JointInferenceService config.
+You can check the inference results in the output path (e.g. `/output`) defined in the JointInferenceService config.
 * the result of edge inference vs the result of joint inference
 ![](images/inference-result.png)
 

@@ -27,7 +27,7 @@ flags = tf.flags.FLAGS
 
 class DataGen(object):
 
-    def __init__(self, config, train_data, valid_data):
+    def __init__(self, config, train_data):
 
         LOG.info("DataGen build start .......")
 
@@ -43,11 +43,6 @@ class DataGen(object):
         self.train_data = train_data
         self.train_data_size = len(self.train_data)
         LOG.info('size of train data is : %d' % self.train_data_size)
-
-        self.val_curr_index = 0
-        self.val_data = valid_data
-        self.val_data_size = len(self.val_data)
-        LOG.info('size of validation data is : %d' % self.val_data_size)
 
         self.batch_index = 0
         self.cur_shape = flags.input_shape
@@ -74,16 +69,6 @@ class DataGen(object):
         else:
             self.train_curr_index += count
             batch_data['input_shape'] = self.cur_shape
-            return batch_data
-
-    def next_batch_validate(self):
-        count, batch_data = self.next_batch(self.val_curr_index, self.val_data, self.val_data_size, self.input_shape,
-                                            False)
-        if not count:
-            self.val_curr_index = 0
-            return None
-        else:
-            self.val_curr_index += count
             return batch_data
 
     def next_batch(self, curr_index, dataset, data_size, input_shape, is_training):
