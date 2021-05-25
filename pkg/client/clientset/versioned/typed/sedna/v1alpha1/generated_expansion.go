@@ -26,4 +26,6 @@ type IncrementalLearningJobExpansion interface{}
 
 type JointInferenceServiceExpansion interface{}
 
+type LifelongLearningJobExpansion interface{}
+
 type ModelExpansion interface{}
