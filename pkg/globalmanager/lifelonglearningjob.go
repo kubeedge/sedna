@@ -18,7 +18,6 @@ package globalmanager
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -50,12 +49,12 @@ import (
 	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
-// ijControllerKind contains the schema.GroupVersionKind for this controller type.
-var ijControllerKind = sednav1.SchemeGroupVersion.WithKind("IncrementalLearningJob")
+// ljControllerKind contains the schema.GroupVersionKind for this controller type.
+var ljControllerKind = sednav1.SchemeGroupVersion.WithKind("LifelongLearningJob")
 
-// IncrementalJobController ensures that all IncrementalLearningJob objects have corresponding pods to
+// LifelongLearningJobController ensures that all LifelongLearningJob objects have corresponding pods to
 // run their configured workload.
-type IncrementalJobController struct {
+type LifelongLearningJobController struct {
 	kubeClient kubernetes.Interface
 	client     sednaclientset.SednaV1alpha1Interface
 	podControl k8scontroller.PodControlInterface
@@ -63,17 +62,17 @@ type IncrementalJobController struct {
 	// podStoreSynced returns true if the pod store has been synced at least once.
 	// Added as a member to the struct to allow injection for testing.
 	podStoreSynced cache.InformerSynced
-	// jobStoreSynced returns true if the incrementaljob store has been synced at least once.
+	// jobStoreSynced returns true if the lifelonglearningjob store has been synced at least once.
 	// Added as a member to the struct to allow injection for testing.
 	jobStoreSynced cache.InformerSynced
 
 	// A store of jobs
-	jobLister sednav1listers.IncrementalLearningJobLister
+	jobLister sednav1listers.LifelongLearningJobLister
 
 	// A store of pods, populated by the podController
 	podStore corelisters.PodLister
 
-	// IncrementalLearningJobs that need to be updated
+	// LifelongLearningJobs that need to be updated
 	queue workqueue.RateLimitingInterface
 
 	recorder record.EventRecorder
@@ -82,22 +81,22 @@ type IncrementalJobController struct {
 }
 
 // Run the main goroutine responsible for watching and syncing jobs.
-func (jc *IncrementalJobController) Start() error {
+func (jc *LifelongLearningJobController) Start() error {
 	workers := 1
 	stopCh := messageContext.Done()
 
 	go func() {
 		defer utilruntime.HandleCrash()
 		defer jc.queue.ShutDown()
-		klog.Infof("Starting incrementallearning job controller")
-		defer klog.Infof("Shutting down incrementallearning job controller")
+		klog.Infof("Starting lifelonglearning job controller")
+		defer klog.Infof("Shutting down lifelonglearning job controller")
 
-		if !cache.WaitForNamedCacheSync("incrementallearningjob", stopCh, jc.podStoreSynced, jc.jobStoreSynced) {
+		if !cache.WaitForNamedCacheSync("lifelonglearningjob", stopCh, jc.podStoreSynced, jc.jobStoreSynced) {
 			klog.Errorf("failed to wait for caches to sync")
 
 			return
 		}
-		klog.Infof("Starting incrementallearning job workers")
+		klog.Infof("Starting lifelonglearning job workers")
 		for i := 0; i < workers; i++ {
 			go wait.Until(jc.worker, time.Second, stopCh)
 		}
@@ -107,19 +106,19 @@ func (jc *IncrementalJobController) Start() error {
 	return nil
 }
 
-// enqueueByPod enqueues the jointInferenceService object of the specified pod.
-func (jc *IncrementalJobController) enqueueByPod(pod *v1.Pod, immediate bool) {
+// enqueueByPod enqueues the lifelonglearningjob object of the specified pod.
+func (jc *LifelongLearningJobController) enqueueByPod(pod *v1.Pod, immediate bool) {
 	controllerRef := metav1.GetControllerOf(pod)
 
 	if controllerRef == nil {
 		return
 	}
 
-	if controllerRef.Kind != ijControllerKind.Kind {
+	if controllerRef.Kind != ljControllerKind.Kind {
 		return
 	}
 
-	service, err := jc.jobLister.IncrementalLearningJobs(pod.Namespace).Get(controllerRef.Name)
+	service, err := jc.jobLister.LifelongLearningJobs(pod.Namespace).Get(controllerRef.Name)
 	if err != nil {
 		return
 	}
@@ -132,7 +131,7 @@ func (jc *IncrementalJobController) enqueueByPod(pod *v1.Pod, immediate bool) {
 }
 
 // When a pod is created, enqueue the controller that manages it and update it's expectations.
-func (jc *IncrementalJobController) addPod(obj interface{}) {
+func (jc *LifelongLearningJobController) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	if pod.DeletionTimestamp != nil {
 		// on a restart of the controller, it's possible a new pod shows up in a state that
@@ -147,8 +146,8 @@ func (jc *IncrementalJobController) addPod(obj interface{}) {
 	jc.enqueueByPod(pod, immediate)
 }
 
-// When a pod is updated, figure out what joint inference service manage it and wake them up.
-func (jc *IncrementalJobController) updatePod(old, cur interface{}) {
+// When a pod is updated, figure out what lifelonglearning job manage it and wake them up.
+func (jc *LifelongLearningJobController) updatePod(old, cur interface{}) {
 	curPod := cur.(*v1.Pod)
 	oldPod := old.(*v1.Pod)
 
@@ -160,8 +159,8 @@ func (jc *IncrementalJobController) updatePod(old, cur interface{}) {
 	jc.addPod(curPod)
 }
 
-// deletePod enqueues the jointinferenceservice obj When a pod is deleted
-func (jc *IncrementalJobController) deletePod(obj interface{}) {
+// deletePod enqueues the lifelonglearningjob obj When a pod is deleted
+func (jc *LifelongLearningJobController) deletePod(obj interface{}) {
 	pod, ok := obj.(*v1.Pod)
 
 	// comment from https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/job/job_controller.go
@@ -169,7 +168,7 @@ func (jc *IncrementalJobController) deletePod(obj interface{}) {
 	// When a delete is dropped, the relist will notice a pod in the store not
 	// in the list, leading to the insertion of a tombstone object which contains
 	// the deleted key/value. Note that this value might be stale. If the pod
-	// changed labels the new jointinferenceservice will not be woken up till the periodic resync.
+	// changed labels the new lifelonglearningjob will not be woken up till the periodic resync.
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
@@ -185,10 +184,10 @@ func (jc *IncrementalJobController) deletePod(obj interface{}) {
 	jc.enqueueByPod(pod, true)
 }
 
-// obj could be an *sedna.IncrementalLearningJob, or a DeletionFinalStateUnknown marker item,
+// obj could be an *sedna.LifelongLearningJob, or a DeletionFinalStateUnknown marker item,
 // immediate tells the controller to update the status right away, and should
 // happen ONLY when there was a successful pod run.
-func (jc *IncrementalJobController) enqueueController(obj interface{}, immediate bool) {
+func (jc *LifelongLearningJobController) enqueueController(obj interface{}, immediate bool) {
 	key, err := k8scontroller.KeyFunc(obj)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %+v: %v", obj, err))
@@ -205,12 +204,12 @@ func (jc *IncrementalJobController) enqueueController(obj interface{}, immediate
 
 // worker runs a worker thread that just dequeues items, processes them, and marks them done.
 // It enforces that the syncHandler is never invoked concurrently with the same key.
-func (jc *IncrementalJobController) worker() {
+func (jc *LifelongLearningJobController) worker() {
 	for jc.processNextWorkItem() {
 	}
 }
 
-func (jc *IncrementalJobController) processNextWorkItem() bool {
+func (jc *LifelongLearningJobController) processNextWorkItem() bool {
 	key, quit := jc.queue.Get()
 	if quit {
 		return false
@@ -225,19 +224,19 @@ func (jc *IncrementalJobController) processNextWorkItem() bool {
 		return true
 	}
 
-	utilruntime.HandleError(fmt.Errorf("Error syncing incrementallearning job: %v", err))
+	utilruntime.HandleError(fmt.Errorf("Error syncing lifelonglearning job: %v", err))
 	jc.queue.AddRateLimited(key)
 
 	return true
 }
 
-// sync will sync the incrementallearning job with the given key if it has had its expectations fulfilled, meaning
+// sync will sync the lifelonglearning job with the given key if it has had its expectations fulfilled, meaning
 // it did not expect to see any more of its pods created or deleted. This function is not meant to be invoked
 // concurrently with the same key.
-func (jc *IncrementalJobController) sync(key string) (bool, error) {
+func (jc *LifelongLearningJobController) sync(key string) (bool, error) {
 	startTime := time.Now()
 	defer func() {
-		klog.V(4).Infof("Finished syncing incrementallearning job %q (%v)", key, time.Since(startTime))
+		klog.V(4).Infof("Finished syncing lifelonglearning job %q (%v)", key, time.Since(startTime))
 	}()
 
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
@@ -245,38 +244,28 @@ func (jc *IncrementalJobController) sync(key string) (bool, error) {
 		return false, err
 	}
 	if len(ns) == 0 || len(name) == 0 {
-		return false, fmt.Errorf("invalid incrementallearning job key %q: either namespace or name is missing", key)
+		return false, fmt.Errorf("invalid lifelonglearning job key %q: either namespace or name is missing", key)
 	}
-	sharedIncrementalJob, err := jc.jobLister.IncrementalLearningJobs(ns).Get(name)
+	sharedLifelongLearningJob, err := jc.jobLister.LifelongLearningJobs(ns).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			klog.V(4).Infof("incrementallearning job has been deleted: %v", key)
+			klog.V(4).Infof("lifelonglearning job has been deleted: %v", key)
 			return true, nil
 		}
 		return false, err
 	}
-	incrementaljob := *sharedIncrementalJob
-	// set kind for incrementaljob in case that the kind is None
-	incrementaljob.SetGroupVersionKind(sednav1.SchemeGroupVersion.WithKind("IncrementalLearningJob"))
-	// incrementaljob first start, create pod for inference
-	if incrementaljob.Status.StartTime == nil {
+	lifelonglearningjob := *sharedLifelongLearningJob
+	// set kind for lifelonglearningjob in case that the kind is None
+	lifelonglearningjob.SetGroupVersionKind(sednav1.SchemeGroupVersion.WithKind("LifelongLearningJob"))
+
+	// lifelonglearningjob first start
+	if lifelonglearningjob.Status.StartTime == nil {
 		now := metav1.Now()
-		incrementaljob.Status.StartTime = &now
-		pod := jc.getSpecifiedPods(&incrementaljob, InferencePodType)
-		if pod == nil {
-			err = jc.createInferPod(&incrementaljob)
-		} else {
-			if pod.Status.Phase != v1.PodRunning && pod.Status.Phase != v1.PodPending {
-				err = jc.createInferPod(&incrementaljob)
-			}
-		}
-		if err != nil {
-			return false, nil
-		}
+		lifelonglearningjob.Status.StartTime = &now
 	}
 
-	// if incrementaljob was finished previously, we don't want to redo the termination
-	if IsIncrementalJobFinished(&incrementaljob) {
+	// if lifelonglearningjob was finished previously, we don't want to redo the termination
+	if IsLifelongLearningJobFinished(&lifelonglearningjob) {
 		return true, nil
 	}
 
@@ -285,19 +274,19 @@ func (jc *IncrementalJobController) sync(key string) (bool, error) {
 	needUpdated := false
 
 	// update conditions of incremental job
-	needUpdated, err = jc.updateIncrementalJobConditions(&incrementaljob)
+	needUpdated, err = jc.updateLifelongLearningJobConditions(&lifelonglearningjob)
 	if err != nil {
-		klog.V(2).Infof("incrementallearning job %v/%v faied to be updated, err:%s", incrementaljob.Namespace, incrementaljob.Name, err)
+		klog.V(2).Infof("lifelonglearning job %v/%v faied to be updated, err:%s", lifelonglearningjob.Namespace, lifelonglearningjob.Name, err)
 	}
 
 	if needUpdated {
-		if err := jc.updateIncrementalJobStatus(&incrementaljob); err != nil {
+		if err := jc.updateLifelongLearningJobStatus(&lifelonglearningjob); err != nil {
 			return forget, err
 		}
 
-		if jobFailed && !IsIncrementalJobFinished(&incrementaljob) {
-			// returning an error will re-enqueue IncrementalJob after the backoff period
-			return forget, fmt.Errorf("failed pod(s) detected for incrementaljob key %q", key)
+		if jobFailed && !IsLifelongLearningJobFinished(&lifelonglearningjob) {
+			// returning an error will re-enqueue LifelongLearningJob after the backoff period
+			return forget, fmt.Errorf("failed pod(s) detected for lifelonglearningjob key %q", key)
 		}
 
 		forget = true
@@ -306,24 +295,24 @@ func (jc *IncrementalJobController) sync(key string) (bool, error) {
 	return forget, err
 }
 
-// updateIncrementalJobConditions ensures that conditions of incrementallearning job can be changed by podstatus
-func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljob *sednav1.IncrementalLearningJob) (bool, error) {
-	var initialType sednav1.ILJobStageConditionType
-	var latestCondition sednav1.ILJobCondition = sednav1.ILJobCondition{
-		Stage: sednav1.ILJobTrain,
+// updateLifelongLearningJobConditions ensures that conditions of lifelonglearning job can be changed by podstatus
+func (jc *LifelongLearningJobController) updateLifelongLearningJobConditions(lifelonglearningjob *sednav1.LifelongLearningJob) (bool, error) {
+	var initialType sednav1.LLJobStageConditionType
+	var latestCondition sednav1.LLJobCondition = sednav1.LLJobCondition{
+		Stage: sednav1.LLJobTrain,
 		Type:  initialType,
 	}
-	var newConditionType sednav1.ILJobStageConditionType
-	latestCondition.Stage = sednav1.ILJobTrain
+	var newConditionType sednav1.LLJobStageConditionType
+	latestCondition.Stage = sednav1.LLJobTrain
 	var needUpdated = false
-	jobConditions := incrementaljob.Status.Conditions
+	jobConditions := lifelonglearningjob.Status.Conditions
 	var podStatus v1.PodPhase = v1.PodUnknown
 	if len(jobConditions) > 0 {
 		// get latest pod and pod status
 		latestCondition = (jobConditions)[len(jobConditions)-1]
-		klog.V(2).Infof("incrementallearning job %v/%v latest stage %v:", incrementaljob.Namespace, incrementaljob.Name,
+		klog.V(2).Infof("lifelonglearning job %v/%v latest stage %v:", lifelonglearningjob.Namespace, lifelonglearningjob.Name,
 			latestCondition.Stage)
-		pod := jc.getSpecifiedPods(incrementaljob, string(latestCondition.Stage))
+		pod := jc.getSpecifiedPods(lifelonglearningjob, string(latestCondition.Stage))
 
 		if pod != nil {
 			podStatus = pod.Status.Phase
@@ -335,86 +324,86 @@ func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljo
 
 	switch currentType {
 	case initialType:
-		newConditionType = sednav1.ILJobStageCondWaiting
+		newConditionType = sednav1.LLJobStageCondWaiting
 
-	case sednav1.ILJobStageCondWaiting:
+	case sednav1.LLJobStageCondWaiting:
 		// do nothing, waiting for LC to set type from waiting to ready
 
-	case sednav1.ILJobStageCondReady:
+	case sednav1.LLJobStageCondReady:
 		// create a pod, and set type from ready to starting
 		// include train, eval, deploy pod
 		var err error
-		if jobStage == sednav1.ILJobDeploy {
-			err = jc.restartInferPod(incrementaljob)
+		if jobStage == sednav1.LLJobDeploy {
+			err = jc.restartInferPod(lifelonglearningjob)
 			if err != nil {
-				klog.V(2).Infof("incrementallearning job %v/%v inference pod failed to restart, err:%s", incrementaljob.Namespace, incrementaljob.Name, err)
+				klog.V(2).Infof("lifelonglearning job %v/%v inference pod failed to restart, err:%s", lifelonglearningjob.Namespace, lifelonglearningjob.Name, err)
 			} else {
-				klog.V(2).Infof("incrementallearning job %v/%v inference pod restarts successfully", incrementaljob.Namespace, incrementaljob.Name)
+				klog.V(2).Infof("lifelonglearning job %v/%v inference pod restarts successfully", lifelonglearningjob.Namespace, lifelonglearningjob.Name)
 			}
 		} else if podStatus != v1.PodPending && podStatus != v1.PodRunning {
-			err = jc.createPod(incrementaljob, jobStage)
+			err = jc.createPod(lifelonglearningjob, jobStage)
 		}
 		if err != nil {
 			return needUpdated, err
 		}
-		newConditionType = sednav1.ILJobStageCondStarting
+		newConditionType = sednav1.LLJobStageCondStarting
 
-	case sednav1.ILJobStageCondStarting, sednav1.ILJobStageCondRunning:
+	case sednav1.LLJobStageCondStarting, sednav1.LLJobStageCondRunning:
 		if podStatus == v1.PodRunning {
-			if jobStage == sednav1.ILJobDeploy {
-				newConditionType = sednav1.ILJobStageCondCompleted
+			if jobStage == sednav1.LLJobDeploy {
+				newConditionType = sednav1.LLJobStageCondCompleted
 			} else {
 				// watch pod status, if pod running, set type running
-				newConditionType = sednav1.ILJobStageCondRunning
+				newConditionType = sednav1.LLJobStageCondRunning
 			}
 		} else if podStatus == v1.PodSucceeded {
 			// watch pod status, if pod completed, set type completed
-			newConditionType = sednav1.ILJobStageCondCompleted
-			klog.V(2).Infof("incrementallearning job %v/%v %v stage completed!", incrementaljob.Namespace, incrementaljob.Name, jobStage)
+			newConditionType = sednav1.LLJobStageCondCompleted
+			klog.V(2).Infof("lifelonglearning job %v/%v %v stage completed!", lifelonglearningjob.Namespace, lifelonglearningjob.Name, jobStage)
 		} else if podStatus == v1.PodFailed {
-			newConditionType = sednav1.ILJobStageCondFailed
-			klog.V(2).Infof("incrementallearning job %v/%v %v stage failed!", incrementaljob.Namespace, incrementaljob.Name, jobStage)
+			newConditionType = sednav1.LLJobStageCondFailed
+			klog.V(2).Infof("lifelonglearning job %v/%v %v stage failed!", lifelonglearningjob.Namespace, lifelonglearningjob.Name, jobStage)
 		}
-	case sednav1.ILJobStageCondCompleted:
-		jobStage = getNextStage(jobStage)
-		newConditionType = sednav1.ILJobStageCondWaiting
+	case sednav1.LLJobStageCondCompleted:
+		jobStage = jc.getNextStage(jobStage)
+		newConditionType = sednav1.LLJobStageCondWaiting
 
-	case sednav1.ILJobStageCondFailed:
-		jobStage = sednav1.ILJobTrain
-		newConditionType = sednav1.ILJobStageCondWaiting
+	case sednav1.LLJobStageCondFailed:
+		jobStage = sednav1.LLJobTrain
+		newConditionType = sednav1.LLJobStageCondWaiting
 
 	default:
 		// do nothing when given other type out of cases
 	}
-	klog.V(2).Infof("incrementallearning job %v/%v, conditions: %v", incrementaljob.Namespace, incrementaljob.Name, jobConditions)
+	klog.V(2).Infof("lifelonglearning job %v/%v, conditions: %v", lifelonglearningjob.Namespace, lifelonglearningjob.Name, jobConditions)
 	if latestCondition.Type != newConditionType {
-		incrementaljob.Status.Conditions = append(incrementaljob.Status.Conditions, NewIncrementalJobCondition(newConditionType, jobStage))
+		lifelonglearningjob.Status.Conditions = append(lifelonglearningjob.Status.Conditions, NewLifelongLearningJobCondition(newConditionType, jobStage))
 		needUpdated = true
 		return needUpdated, nil
 	}
 	return needUpdated, nil
 }
 
-// updateIncrementalJobStatus ensures that jobstatus can be updated rightly
-func (jc *IncrementalJobController) updateIncrementalJobStatus(incrementaljob *sednav1.IncrementalLearningJob) error {
-	jobClient := jc.client.IncrementalLearningJobs(incrementaljob.Namespace)
+// updateLifelongLearningJobStatus ensures that jobstatus can be updated rightly
+func (jc *LifelongLearningJobController) updateLifelongLearningJobStatus(lifelonglearningjob *sednav1.LifelongLearningJob) error {
+	jobClient := jc.client.LifelongLearningJobs(lifelonglearningjob.Namespace)
 	var err error
 	for i := 0; i <= statusUpdateRetries; i = i + 1 {
-		var newIncrementalJob *sednav1.IncrementalLearningJob
-		newIncrementalJob, err = jobClient.Get(context.TODO(), incrementaljob.Name, metav1.GetOptions{})
+		var newLifelongLearningJob *sednav1.LifelongLearningJob
+		newLifelongLearningJob, err = jobClient.Get(context.TODO(), lifelonglearningjob.Name, metav1.GetOptions{})
 		if err != nil {
 			break
 		}
-		newIncrementalJob.Status = incrementaljob.Status
-		if _, err = jobClient.UpdateStatus(context.TODO(), newIncrementalJob, metav1.UpdateOptions{}); err == nil {
+		newLifelongLearningJob.Status = lifelonglearningjob.Status
+		if _, err = jobClient.UpdateStatus(context.TODO(), newLifelongLearningJob, metav1.UpdateOptions{}); err == nil {
 			break
 		}
 	}
 	return err
 }
 
-func NewIncrementalJobCondition(conditionType sednav1.ILJobStageConditionType, jobStage sednav1.ILJobStage) sednav1.ILJobCondition {
-	return sednav1.ILJobCondition{
+func NewLifelongLearningJobCondition(conditionType sednav1.LLJobStageConditionType, jobStage sednav1.LLJobStage) sednav1.LLJobCondition {
+	return sednav1.LLJobCondition{
 		Type:               conditionType,
 		Status:             v1.ConditionTrue,
 		LastHeartbeatTime:  metav1.Now(),
@@ -425,11 +414,11 @@ func NewIncrementalJobCondition(conditionType sednav1.ILJobStageConditionType, j
 	}
 }
 
-func (jc *IncrementalJobController) generatePodName(jobName string, workerType string) string {
+func (jc *LifelongLearningJobController) generatePodName(jobName string, workerType string) string {
 	return jobName + "-" + strings.ToLower(workerType) + "-" + utilrand.String(5)
 }
 
-func (jc *IncrementalJobController) getSpecifiedPods(job *sednav1.IncrementalLearningJob, podType string) *v1.Pod {
+func (jc *LifelongLearningJobController) getSpecifiedPods(job *sednav1.LifelongLearningJob, podType string) *v1.Pod {
 	if podType == "Deploy" {
 		podType = InferencePodType
 	}
@@ -455,46 +444,41 @@ func (jc *IncrementalJobController) getSpecifiedPods(job *sednav1.IncrementalLea
 	return latestPod
 }
 
-func (jc *IncrementalJobController) restartInferPod(job *sednav1.IncrementalLearningJob) error {
+func (jc *LifelongLearningJobController) restartInferPod(job *sednav1.LifelongLearningJob) error {
 	inferPod := jc.getSpecifiedPods(job, InferencePodType)
 	if inferPod == nil {
-		klog.V(2).Infof("No inferpod is running in incrementallearning job %v/%v", job.Namespace, job.Name)
+		klog.V(2).Infof("No inferpod is running in lifelonglearning job %v/%v", job.Namespace, job.Name)
 		err := jc.createInferPod(job)
 		return err
 	}
 	ctx := context.Background()
 	err := jc.kubeClient.CoreV1().Pods(job.Namespace).Delete(ctx, inferPod.Name, metav1.DeleteOptions{})
 	if err != nil {
-		klog.Warningf("failed to delete inference pod %s for incrementallearning job %v/%v, err:%s", inferPod.Name, job.Namespace, job.Name, err)
+		klog.Warningf("failed to delete inference pod %s for lifelonglearning job %v/%v, err:%s", inferPod.Name, job.Namespace, job.Name, err)
 		return err
 	}
 	err = jc.createInferPod(job)
 	if err != nil {
-		klog.Warningf("failed to create inference pod %s for incrementallearning job %v/%v, err:%s", inferPod.Name, job.Namespace, job.Name, err)
+		klog.Warningf("failed to create inference pod %s for lifelonglearning job %v/%v, err:%s", inferPod.Name, job.Namespace, job.Name, err)
 		return err
 	}
 	return nil
 }
 
-func getNextStage(currentStage sednav1.ILJobStage) sednav1.ILJobStage {
+func (jc *LifelongLearningJobController) getNextStage(currentStage sednav1.LLJobStage) sednav1.LLJobStage {
 	switch currentStage {
-	case sednav1.ILJobTrain:
-		return sednav1.ILJobEval
-	case sednav1.ILJobEval:
-		return sednav1.ILJobDeploy
-	case sednav1.ILJobDeploy:
-		return sednav1.ILJobTrain
+	case sednav1.LLJobTrain:
+		return sednav1.LLJobEval
+	case sednav1.LLJobEval:
+		return sednav1.LLJobDeploy
+	case sednav1.LLJobDeploy:
+		return sednav1.LLJobTrain
 	default:
-		return sednav1.ILJobTrain
+		return sednav1.LLJobTrain
 	}
 }
 
-func IsIncrementalJobFinished(j *sednav1.IncrementalLearningJob) bool {
-	// TODO
-	return false
-}
-
-func (jc *IncrementalJobController) getSecret(namespace, name string, ownerStr string) (secret *v1.Secret, err error) {
+func (jc *LifelongLearningJobController) getSecret(namespace, name string, ownerStr string) (secret *v1.Secret, err error) {
 	if name != "" {
 		secret, err = jc.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
@@ -506,31 +490,20 @@ func (jc *IncrementalJobController) getSecret(namespace, name string, ownerStr s
 	return
 }
 
-func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJob, podtype sednav1.ILJobStage) (err error) {
+func IsLifelongLearningJobFinished(j *sednav1.LifelongLearningJob) bool {
+	// TODO
+	return false
+}
+
+func (jc *LifelongLearningJobController) createPod(job *sednav1.LifelongLearningJob, podtype sednav1.LLJobStage) (err error) {
 	ctx := context.Background()
 	var podTemplate *v1.PodTemplateSpec
 
-	incrementalDatasetName := job.Spec.Dataset.Name
-	initialModelName := job.Spec.InitialModel.Name
-	deployModelName := job.Spec.DeploySpec.Model.Name
+	LLDatasetName := job.Spec.Dataset.Name
 
-	// check initial model name
-	initialModel, err := jc.client.Models(job.Namespace).Get(ctx, initialModelName, metav1.GetOptions{})
+	dataset, err := jc.client.Datasets(job.Namespace).Get(ctx, LLDatasetName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get initial model %s: %w",
-			initialModelName, err)
-	}
-
-	_, err = jc.client.Models(job.Namespace).Get(ctx, deployModelName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get deploy model %s: %w",
-			deployModelName, err)
-	}
-
-	dataset, err := jc.client.Datasets(job.Namespace).Get(ctx, incrementalDatasetName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get dataset %s: %w",
-			incrementalDatasetName, err)
+		return fmt.Errorf("failed to get dataset %s: %w", LLDatasetName, err)
 	}
 
 	datasetSecret, err := jc.getSecret(
@@ -545,7 +518,7 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 	jobSecret, err := jc.getSecret(
 		job.Namespace,
 		job.Spec.CredentialName,
-		fmt.Sprintf("incremental job %s", job.Name),
+		fmt.Sprintf("lifelonglearning job %s", job.Name),
 	)
 	if err != nil {
 		return err
@@ -553,8 +526,8 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 
 	// get all url for train and eval from data in condition
 	condDataStr := job.Status.Conditions[len(job.Status.Conditions)-1].Data
-	klog.V(2).Infof("incrementallearning job %v/%v data condition:%s", job.Namespace, job.Name, condDataStr)
-	var cond IncrementalCondData
+	klog.V(2).Infof("lifelonglearning job %v/%v data condition:%s", job.Namespace, job.Name, condDataStr)
+	var cond LifelongLearningCondData
 	(&cond).Unmarshal([]byte(condDataStr))
 	if cond.Input == nil {
 		return fmt.Errorf("empty input from condData")
@@ -572,8 +545,8 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 	}
 
 	var workerParam *WorkerParam = new(WorkerParam)
-	if podtype == sednav1.ILJobTrain {
-		workerParam.workerType = TrainPodType
+	if podtype == sednav1.LLJobTrain {
+		workerParam.workerType = "Train"
 
 		podTemplate = &job.Spec.TrainSpec.Template
 		// Env parameters for train
@@ -584,44 +557,22 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 			"WORKER_NAME": "train-worker-" + utilrand.String(5),
 
 			"LC_SERVER": jc.cfg.LC.Server,
-		}
-
-		baseModelURL := inputmodelURLs[0]
-		var baseModelSecret *v1.Secret
-		if baseModelURL == initialModel.Spec.URL {
-			baseModelSecret, err = jc.getSecret(
-				job.Namespace,
-				initialModel.Spec.CredentialName,
-				fmt.Sprintf("initial model %s", initialModelName),
-			)
-			if err != nil {
-				return err
-			}
-		} else {
-			baseModelSecret = jobSecret
+			"KB_SERVER": jc.cfg.KB.Server,
 		}
 
 		workerParam.mounts = append(workerParam.mounts,
-			WorkerMount{
-				URL: &MountURL{
-					URL:    baseModelURL,
-					Secret: baseModelSecret,
-				},
-				EnvName: "BASE_MODEL_URL",
-			},
 			WorkerMount{
 				URL: &MountURL{
 					URL:    cond.Input.OutputDir,
 					Secret: jobSecret,
 					Mode:   workerMountWriteOnly,
 				},
-				EnvName: "MODEL_URL",
+				EnvName: "OUTPUT_URL",
 			},
 
 			WorkerMount{
 				URL: &MountURL{
-					URL: dataURL,
-
+					URL:    dataURL,
 					Secret: jobSecret,
 				},
 				EnvName: "TRAIN_DATASET_URL",
@@ -652,23 +603,9 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 
 		var modelMountURLs []MountURL
 		for _, url := range inputmodelURLs {
-			var modelSecret *v1.Secret
-			if url == initialModel.Spec.URL {
-				modelSecret, err = jc.getSecret(
-					job.Namespace,
-					initialModel.Spec.CredentialName,
-					fmt.Sprintf("initial model %s", initialModelName),
-				)
-				if err != nil {
-					return err
-				}
-			} else {
-				modelSecret = jobSecret
-			}
-
 			modelMountURLs = append(modelMountURLs, MountURL{
 				URL:    url,
-				Secret: modelSecret,
+				Secret: jobSecret,
 			})
 		}
 		workerParam.mounts = append(workerParam.mounts,
@@ -676,6 +613,15 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 				URLs:    modelMountURLs,
 				Name:    "models",
 				EnvName: "MODEL_URLS",
+			},
+
+			WorkerMount{
+				URL: &MountURL{
+					URL:    cond.Input.OutputDir,
+					Secret: jobSecret,
+					Mode:   workerMountWriteOnly,
+				},
+				EnvName: "OUTPUT_URL",
 			},
 
 			WorkerMount{
@@ -711,31 +657,24 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 	return
 }
 
-func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearningJob) error {
-	infermodelName := job.Spec.DeploySpec.Model.Name
-	inferModel, err := jc.client.Models(job.Namespace).Get(context.TODO(), infermodelName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get infer model %s: %w",
-			infermodelName, err)
-	}
-	inferModelURL := inferModel.Spec.URL
+func (jc *LifelongLearningJobController) createInferPod(job *sednav1.LifelongLearningJob) error {
+	inferModelURL := strings.Join([]string{strings.TrimRight(job.Spec.OutputDir, "/"), "deploy/index.pkl"}, "/")
 
-	// Env parameters for edge
-	HEMParameterJSON, _ := json.Marshal(job.Spec.DeploySpec.HardExampleMining.Parameters)
-	HEMParameterString := string(HEMParameterJSON)
-
-	// Configure container mounting and Env information by initial WorkerParam
-	modelSecret, err := jc.getSecret(
+	jobSecret, err := jc.getSecret(
 		job.Namespace,
-		inferModel.Spec.CredentialName,
-		fmt.Sprintf("model %s", inferModel.Name),
+		job.Spec.CredentialName,
+		fmt.Sprintf("lifelonglearning job %s", job.Name),
 	)
+	if err != nil {
+		return err
+	}
+
 	var workerParam *WorkerParam = new(WorkerParam)
 	workerParam.mounts = append(workerParam.mounts,
 		WorkerMount{
 			URL: &MountURL{
 				URL:    inferModelURL,
-				Secret: modelSecret,
+				Secret: jobSecret,
 			},
 			Name:    "model",
 			EnvName: "MODEL_URL",
@@ -746,9 +685,6 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 		"NAMESPACE":   job.Namespace,
 		"JOB_NAME":    job.Name,
 		"WORKER_NAME": "inferworker-" + utilrand.String(5),
-
-		"HEM_NAME":       job.Spec.DeploySpec.HardExampleMining.Name,
-		"HEM_PARAMETERS": HEMParameterString,
 
 		"LC_SERVER": jc.cfg.LC.Server,
 	}
@@ -761,14 +697,14 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 	return err
 }
 
-// GetName returns the name of the incrementallearning job controller
-func (jc *IncrementalJobController) GetName() string {
-	return "IncrementalLearningJobController"
+// GetName returns the name of the lifelonglearning job controller
+func (jc *LifelongLearningJobController) GetName() string {
+	return "LifelongLearningJobController"
 }
 
-// NewIncrementalJobController creates a new IncrementalJob controller that keeps the relevant pods
-// in sync with their corresponding IncrementalJob objects.
-func NewIncrementalJobController(cfg *config.ControllerConfig) (FeatureControllerI, error) {
+// NewLifelongLearningJobController creates a new LifelongLearningJob controller that keeps the relevant pods
+// in sync with their corresponding LifelongLearningJob objects.
+func NewLifelongLearningJobController(cfg *config.ControllerConfig) (FeatureControllerI, error) {
 	namespace := cfg.Namespace
 	if namespace == "" {
 		namespace = metav1.NamespaceAll
@@ -792,21 +728,21 @@ func NewIncrementalJobController(cfg *config.ControllerConfig) (FeatureControlle
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	jobInformerFactory := informers.NewSharedInformerFactoryWithOptions(crdclient, time.Second*30, informers.WithNamespace(namespace))
-	jobInformer := jobInformerFactory.Sedna().V1alpha1().IncrementalLearningJobs()
+	jobInformer := jobInformerFactory.Sedna().V1alpha1().LifelongLearningJobs()
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
 
-	jc := &IncrementalJobController{
+	jc := &LifelongLearningJobController{
 		kubeClient: kubeClient,
 		client:     crdclient.SednaV1alpha1(),
 		podControl: k8scontroller.RealPodControl{
 			KubeClient: kubeClient,
-			Recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "incrementallearningjob-controller"}),
+			Recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "lifelonglearningjob-controller"}),
 		},
 
-		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(DefaultBackOff, MaxBackOff), "incrementallearningjob"),
-		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "incrementallearningjob-controller"}),
+		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(DefaultBackOff, MaxBackOff), "lifelonglearningjob"),
+		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "lifelonglearningjob-controller"}),
 		cfg:      cfg,
 	}
 

@@ -33,6 +33,7 @@ const (
 	defaultWebsocketAddress = "0.0.0.0"
 	defaultWebsocketPort    = 9000
 	defaultLCServer         = "http://localhost:9100"
+	defaultKBServer         = "http://localhost:9020"
 )
 
 // ControllerConfig indicates the config of controller
@@ -54,6 +55,9 @@ type ControllerConfig struct {
 
 	// lc config to info the worker
 	LC LCConfig `json:"localController,omitempty"`
+
+	// kb config to info the worker
+	KB KBConfig `json:"knowledgeBaseServer,omitempty"`
 }
 
 // WebSocket describes GM of websocket config
@@ -67,6 +71,12 @@ type WebSocket struct {
 // LCConfig describes LC config to inject the worker
 type LCConfig struct {
 	// default defaultLCServer
+	Server string `json:"server"`
+}
+
+// KBConfig describes KB config to inject the worker
+type KBConfig struct {
+	// default defaultKBServer
 	Server string `json:"server"`
 }
 
@@ -106,6 +116,9 @@ func NewDefaultControllerConfig() *ControllerConfig {
 		},
 		LC: LCConfig{
 			Server: defaultLCServer,
+		},
+		KB: KBConfig{
+			Server: defaultKBServer,
 		},
 	}
 }

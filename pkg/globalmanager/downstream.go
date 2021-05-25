@@ -163,6 +163,23 @@ func (dc *DownstreamController) syncIncrementalJob(eventType watch.EventType, jo
 	return nil
 }
 
+// syncLifelongLearningJob syncs the lifelonglearning jobs
+func (dc *DownstreamController) syncLifelongLearningJob(eventType watch.EventType, job *sednav1.LifelongLearningJob) error {
+	// Here only propagate to the nodes with non empty name
+
+	// FIXME(llhuii): only the case that all workers having the same nodeName are support,
+	// will support Spec.NodeSelector and differenect nodeName.
+	nodeName := job.Spec.TrainSpec.Template.Spec.NodeName
+	if len(nodeName) == 0 {
+		return fmt.Errorf("empty node name")
+	}
+
+	dc.injectSecret(job, job.Spec.CredentialName)
+	dc.messageLayer.SendResourceObject(nodeName, eventType, job)
+
+	return nil
+}
+
 // sync defines the entrypoint of syncing all resources
 func (dc *DownstreamController) sync(stopCh <-chan struct{}) {
 	for {
@@ -215,7 +232,14 @@ func (dc *DownstreamController) sync(stopCh <-chan struct{}) {
 				namespace = t.Namespace
 				name = t.Name
 				err = dc.syncIncrementalJob(e.Type, t)
-
+			case (*sednav1.LifelongLearningJob):
+				if len(t.Kind) == 0 {
+					t.Kind = "LifelongLearningJob"
+				}
+				kind = t.Kind
+				namespace = t.Namespace
+				name = t.Name
+				err = dc.syncLifelongLearningJob(e.Type, t)
 			default:
 				klog.Warningf("object type: %T unsupported", e)
 				continue
@@ -264,6 +288,7 @@ func (dc *DownstreamController) watch(stopCh <-chan struct{}) {
 		"jointinferenceservices":  &sednav1.JointInferenceService{},
 		"federatedlearningjobs":   &sednav1.FederatedLearningJob{},
 		"incrementallearningjobs": &sednav1.IncrementalLearningJob{},
+		"lifelonglearningjobs":    &sednav1.LifelongLearningJob{},
 	} {
 		lw := cache.NewListWatchFromClient(client, resourceName, namespace, fields.Everything())
 		si := cache.NewSharedInformer(lw, object, resyncPeriod)
