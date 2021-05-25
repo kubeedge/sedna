@@ -100,7 +100,6 @@ func (s *Server) messageHandler(request *restful.Request, response *restful.Resp
 	err = request.ReadEntity(&workerMessage)
 	if workerMessage.Name != workerName || err != nil {
 		var msg string
-
 		if workerMessage.Name != workerName {
 			msg = fmt.Sprintf("worker name(name=%s) in the api is different from that(name=%s) in the message body",
 				workerName, workerMessage.Name)
