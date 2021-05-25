@@ -52,10 +52,13 @@ rules:
     - ""
     resources:
     - services
+    - secrets
+    - configmaps
     verbs:
     - create
     - list
     - get
+    - delete
 
   - apiGroups:
     - ""

@@ -39,6 +39,9 @@ spec:
           spec:
             description: ILJobSpec is a description of a incrementallearningjob
             properties:
+              credentialName:
+                description: the credential referer for OutputDir
+                type: string
               dataset:
                 properties:
                   name:

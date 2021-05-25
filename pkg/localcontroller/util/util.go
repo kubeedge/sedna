@@ -19,9 +19,13 @@ package util
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"k8s.io/klog/v2"
 )
@@ -104,4 +108,25 @@ func AddPrefixPath(prefix string, path string) string {
 // GetUniqueIdentifier get unique identifier
 func GetUniqueIdentifier(namespace string, name string, kind string) string {
 	return fmt.Sprintf("%s/%s/%s", namespace, kind, name)
+}
+
+// CreateTemporaryDir creates a temporary dir
+func CreateTemporaryDir() (string, error) {
+	var src = rand.NewSource(time.Now().UnixNano())
+	dir := path.Join("/tmp/", strconv.FormatInt(src.Int63(), 10), "/")
+	err := CreateFolder(dir)
+	return dir, err
+}
+
+// ParsingDatasetIndex parses index file of dataset and adds the prefix to abs url of sample
+// first line is the prefix, the next lines are abs url of sample
+func ParsingDatasetIndex(samples []string, prefix string) []string {
+	var l []string
+	l = append(l, prefix)
+	for _, v := range samples {
+		absURL := strings.Split(v, " ")[0]
+		l = append(l, absURL)
+	}
+
+	return l
 }

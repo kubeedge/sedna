@@ -87,7 +87,7 @@ func (cml *ContextMessageLayer) SendResourceObject(nodeName string, eventType wa
 	msg.Operation = operation
 
 	klog.V(2).Infof("sending %s %s/%s to node(%s)", kind, namespace, name, nodeName)
-	klog.V(4).Infof("sending %s %s/%s to node(%s), msg:%+v", kind, namespace, name, nodeName, msg)
+	klog.V(4).Infof("sending %s %s/%s to node(%s), msg:%s", kind, namespace, name, nodeName, msg)
 	// TODO: may need to guarantee message send to node
 	return wsContext.SendToEdge(nodeName, &msg)
 }
