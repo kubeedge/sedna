@@ -84,6 +84,6 @@ class InferenceServer(BaseServer):  # pylint: disable=too-many-arguments
     def model_info(self):
         return ServeModelInfoResult(infos=self.get_all_urls())
 
-    async def predict(self, data: InferenceItem):
+    def predict(self, data: InferenceItem):
         inference_res = self.model.inference(data.data, post_process=data.callback)
         return ServePredictResult(result=inference_res)

@@ -11,10 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+import joblib
+import tempfile
 from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
-from sedna.common.config import BaseConfig, Context
+from sedna.common.config import Context
 from sedna.common.log import sednaLogger
 from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.algorithms.multi_task_learning import MulTaskLearning
@@ -44,11 +47,8 @@ class LifelongLearning(JobBase):
 
     def _update_db(self, task_info: TaskGroup):
         _id = self.kb_server.update_db(task_info)
-
         if not _id:
             self.log.error(f"KB update Fail !")
-            return
-        # res = self.kb_server.check_job_status(_id)
         return
 
     def train(self, train_data,
@@ -103,5 +103,15 @@ class LifelongLearning(JobBase):
                 sednaLogger.error("Lifelong learning Experiment Inference [UTD] : {}".format(err))
             else:
                 is_unseen_task = unseen_task_detect_algorithm(tasks=tasks, result=res, **utd_parameters)
+        if is_unseen_task:
+            utd_saved_url = self.get_parameters('UTD_SAVED_URL')
+            fd, name = tempfile.mkstemp()
+            joblib.dump(name, tasks)
+            os.close(fd)
+            out_file = FileOps.join_path(utd_saved_url, FileOps.get_file_hash(name))
+
+            FileOps.upload(name, out_file)
+            os.remove(name)
+
         self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value, res, kind="inference")
         return res, is_unseen_task

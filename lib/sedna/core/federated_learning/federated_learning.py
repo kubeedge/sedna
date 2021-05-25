@@ -40,7 +40,7 @@ class FederatedLearning(JobBase):
         self.aggregation = ClassFactory.get_cls(ClassType.FLAGG, aggregation)
         self.node = None
 
-    def connect(self):
+    def register(self):
         self.node = AggregationClient(url=self.config.agg_uri, client_id=self.worker_name)
         loop = asyncio.get_event_loop()
         res = loop.run_until_complete(self.node.connect())
@@ -48,7 +48,7 @@ class FederatedLearning(JobBase):
         FileOps.clean_folder([self.config.model_url], clean=False)
         self.aggregation = self.aggregation()
         self.log.info("Federated learning Experiment model prepared")
-        ig callable(self.estimator):
+        if callable(self.estimator):
             self.estimator = self.estimator()
 
     def train(self, train_data,

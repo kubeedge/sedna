@@ -59,7 +59,7 @@ def main():
     )
 
     fl_model = FederatedLearning(estimator=Estimator, aggregation=aggregation_algorithm)
-    fl_model.connect()
+    fl_model.register()
     train_jobs = fl_model.train(
         train_data=train_data,
         valid_data=valid_data,

@@ -19,6 +19,7 @@ import codecs
 import pickle
 import shutil
 import tempfile
+import hashlib
 
 
 class FileOps:
@@ -40,6 +41,17 @@ class FileOps:
         _path = cls.join_path(*args)
         if not os.path.isdir(_path):
             os.makedirs(_path, exist_ok=True)
+
+    @classmethod
+    def get_file_hash(cls, filepath):
+        md5_hash = hashlib.md5()
+        if not (filepath and os.path.isfile(filepath)):
+            return ""
+        a_file = open(filepath, "rb")
+        content = a_file.read()
+        md5_hash.update(content)
+        digest = md5_hash.hexdigest()
+        return digest
 
     @classmethod
     def clean_folder(cls, target, clean=True):

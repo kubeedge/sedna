@@ -15,7 +15,7 @@ ENV PYTHONPATH "/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
-COPY examples/lifelong_learning/chiller  /home/work/
+COPY examples/lifelong_learning/atcii  /home/work/
 
 
 ENTRYPOINT ["python"]

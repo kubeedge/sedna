@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import json
 import joblib
 import tempfile
@@ -19,7 +20,6 @@ from pydantic import BaseModel
 from fastapi import FastAPI, File, UploadFile
 from fastapi.routing import APIRoute
 from starlette.responses import JSONResponse
-from fastapi.responses import FileResponse
 from sedna.service.server.base import BaseServer
 from sedna.common.file_ops import FileOps
 from sqlalchemy.orm import Session
@@ -77,6 +77,7 @@ class KBServer(BaseServer):
         fd, name = tempfile.mkstemp()
         with open(name, "wb") as fout:
             fout.write(tasks)
+        os.close(fd)
         task_obj = joblib.load(name)
         with Session(bind=engine) as session:
             for task_group in task_obj:

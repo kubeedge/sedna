@@ -130,7 +130,6 @@ def main():
     tf.set_random_seed(22)
 
     inference_instance = JointInference(estimator=Estimator)
-    inference_instance.initial(run_type="edge")
 
     camera = cv2.VideoCapture(camera_address)
     fps = 10
