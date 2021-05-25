@@ -13,11 +13,12 @@
 # limitations under the License.
 import os
 import re
-
+from sedna.service.server.knowledgeBase.model import init_db
 from sedna.service.server.knowledgeBase import KBServer
 
 
 def main():
+    init_db()
     server = os.getenv("knowledgebaseService", "http://0.0.0.0:9020")
     match = re.compile("(https?)://([0-9]{1,3}(?:\.[0-9]{1,3}){3}):([0-9]+)").match(server)
     if match:

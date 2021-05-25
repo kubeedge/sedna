@@ -107,7 +107,7 @@ def get_or_create(session, model, **kwargs):
         return instance, True
 
 
-if __name__ == '__main__':
+def init_db():
     Base.metadata.create_all(bind=engine)
     TaskGrp.__table__.create(bind=engine, checkfirst=True)
     Tasks.__table__.create(bind=engine, checkfirst=True)
@@ -115,3 +115,4 @@ if __name__ == '__main__':
     TaskRelation.__table__.create(bind=engine, checkfirst=True)
     Samples.__table__.create(bind=engine, checkfirst=True)
     TaskSample.__table__.create(bind=engine, checkfirst=True)
+
