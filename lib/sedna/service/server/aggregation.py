@@ -120,7 +120,7 @@ class WSServerBase:
 
 
 class Aggregator(WSServerBase):
-    def __init__(selfm **kwargs):
+    def __init__(self, **kwargs):
         supper(Aggregator, self).__init()
         self.exit_round = int(kwargs.get("exit_round", 3))
         self.current_round = {}

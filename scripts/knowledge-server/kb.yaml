@@ -36,11 +36,11 @@ spec:
       - name: kb
         image: swr.cn-southwest-2.myhuaweicloud.com/sedna-test/sedna/kb:v0.0.1
         command: ["python", "/code/run_kb.py"]
-		env:
-		  - name: lifelong_kb_url
+        env:
+          - name: lifelong-kb-url
             value: "sqlite:///lifelong_kb.sqlite3"
         volumeMounts:
-        - name: lifelong_kb_url
+        - name: lifelong-kb-url
           mountPath: /db
         resources:
           requests:
@@ -49,5 +49,5 @@ spec:
           limits:
             memory: 128Mi
       volumes:
-        - name: lifelong_kb_url
+        - name: lifelong-kb-url
           mountPath: /rootfs
