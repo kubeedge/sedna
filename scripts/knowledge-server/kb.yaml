@@ -35,10 +35,10 @@ spec:
       containers:
       - name: kb
         image: swr.cn-southwest-2.myhuaweicloud.com/sedna-test/sedna/kb:v0.0.1
-        command: ["python", "/code/run_kb.py"]
+        command: ["python", "/code/lib/sedna/service/run_kb.py"]
         env:
-          - name: lifelong-kb-url
-            value: "sqlite:///lifelong_kb.sqlite3"
+          - name: LIFELONG_KB_URL
+            value: "sqlite:///db/lifelong_kb.sqlite3"
         volumeMounts:
         - name: lifelong-kb-url
           mountPath: /db

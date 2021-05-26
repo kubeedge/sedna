@@ -17,7 +17,7 @@ from sqlalchemy.orm import sessionmaker
 
 from sedna.common.config import Context
 
-SQLALCHEMY_DATABASE_URL = Context.get_parameters("lifelong_kb_url", "sqlite:///lifelong_kb.sqlite3")
+SQLALCHEMY_DATABASE_URL = Context.get_parameters("LIFELONG-KB-URL", "sqlite:///lifelong_kb.sqlite3")
 
 engine = create_engine(
     # echo=True表示引擎将用repr()函数记录所有语句及其参数列表到日志
