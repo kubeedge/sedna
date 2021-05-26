@@ -1,8 +1,8 @@
-FROM python:3-alpine
+FROM python:3.6
 
 RUN mkdir /code
 COPY ./lib/requirements.txt /code
-RUN pip install -r /home/requirements.txt
+RUN pip install -r /code/requirements.txt
 
 ENV PYTHONPATH "/code/lib"
 

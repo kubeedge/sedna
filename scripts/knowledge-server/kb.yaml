@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kb
+  namespace: sedna
+spec:
+  selector:
+    sedna: kb
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 9020
+      targetPort: 9020
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kb
+  labels:
+    sedna: kb
+  namespace: sedna
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      sedna: kb
+  template:
+    metadata:
+      labels:
+        sedna: kb
+    spec:
+      nodeSelector:
+        sedna: kb
+      serviceAccountName: sedna
+      containers:
+      - name: kb
+        image: swr.cn-southwest-2.myhuaweicloud.com/sedna-test/sedna/kb:v0.0.1
+        command: ["python", "/code/run_kb.py"]
+		env:
+		  - name: lifelong_kb_url
+            value: "sqlite:///lifelong_kb.sqlite3"
+        volumeMounts:
+        - name: lifelong_kb_url
+          mountPath: /db
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 100m
+          limits:
+            memory: 128Mi
+      volumes:
+        - name: lifelong_kb_url
+          mountPath: /rootfs
