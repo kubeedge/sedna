@@ -49,10 +49,10 @@ class MulTaskLearning:
                  ):
         self.method_selection = dict(
             task_definition=task_definition,
-            task_relationship_discovery=task_relationship_discovery,
+            task_relationship_discovery=task_relationship_discovery or "DefaultTaskRelationDiscover",
             task_mining=task_mining,
-            task_remodeling=task_remodeling,
-            inference_integrate=inference_integrate,
+            task_remodeling=task_remodeling or "DefaultTaskRemodeling",
+            inference_integrate=inference_integrate or "DefaultInferenceIntegrate",
 
             task_definition_param=task_definition_param,
             task_relationship_discovery_param=task_relationship_discovery_param,
@@ -85,8 +85,7 @@ class MulTaskLearning:
         return method_cls(samples)
 
     def task_relationship_discovery(self, tasks):
-        method_name = self.method_selection.get("task_relationship_discovery",
-                                                "DefaultTaskRelationDiscover")
+        method_name = self.method_selection.get("task_relationship_discovery")
         extend_param = self.parse_param(
             self.method_selection.get("task_relationship_discovery_param")
         )
@@ -109,13 +108,13 @@ class MulTaskLearning:
         return method_cls(samples=samples)
 
     def task_remodeling(self, samples, mappings):
-        method_name = self.method_selection.get("task_remodeling", "DefaultTaskRemodeling")
+        method_name = self.method_selection.get("task_remodeling")
         extend_param = self.parse_param(self.method_selection.get("task_remodeling_param"))
         method_cls = ClassFactory.get_cls(ClassType.MTL, method_name)(models=self.models, **extend_param)
         return method_cls(samples=samples, mappings=mappings)
 
     def inference_integrate(self, tasks):
-        method_name = self.method_selection.get("inference_integrate", "DefaultInferenceIntegrate")
+        method_name = self.method_selection.get("inference_integrate")
         extend_param = self.parse_param(self.method_selection.get("inference_integrate_param"))
         method_cls = ClassFactory.get_cls(ClassType.MTL, method_name)(models=self.models, **extend_param)
         return method_cls(tasks=tasks) if method_cls else tasks

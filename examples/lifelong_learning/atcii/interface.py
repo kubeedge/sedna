@@ -27,7 +27,8 @@ DATACONF = {
 
 
 def feature_process(df: pd.DataFrame):
-    for feature in df.colums:
+    df.drop(["City"], axis=1, inplace=True)
+    for feature in df.columns:
         df[feature] = df[feature].apply(lambda x: float(x) if x else 0.0)
     return df
 
