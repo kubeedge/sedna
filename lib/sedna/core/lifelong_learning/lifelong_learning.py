@@ -91,11 +91,12 @@ class LifelongLearning(JobBase):
             **kwargs
         )  # todo: Distinguishing incremental update and fully overwrite
 
-        # FileOps.upload(self.estimator.estimator.task_index_url, self.config.task_index)
         task_groups = self.estimator.estimator.task_groups
-        extractor = self.estimator.estimator.extractor
-
-        extractor_file = self.kb_server.upload_file(extractor)
+        extractor_file = FileOps.join_path(
+            os.path.dirname(self.estimator.estimator.task_index_url),
+            "kb_extractor.pkl"
+        )
+        extractor_file = self.kb_server.upload_file(extractor_file)
         for task in task_groups:
             task.model.model = self.kb_server.upload_file(task.model.model)
 
