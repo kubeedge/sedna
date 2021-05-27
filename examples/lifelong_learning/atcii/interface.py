@@ -27,15 +27,8 @@ DATACONF = {
 
 
 def feature_process(df: pd.DataFrame):
-    df = df[['Thermal preference', 'Air temperature C', 'Season',
-             'Relative humidity (%)', 'Air velocity (m/s)', 'Outdoor monthly air temperature C']]
-    for feature in ['Air temperature C',
-                    'Relative humidity (%)',
-                    'Air velocity (m/s)',
-                    'Outdoor monthly air temperature C']:
+    for feature in df.colums:
         df[feature] = df[feature].apply(lambda x: float(x) if x else 0.0)
-    if DATACONF["LABEL"] in df.columns:
-        df[DATACONF["LABEL"]].replace({"no change": 0, "cooler": -1, "warmer": 1}, inplace=True)
     return df
 
 
