@@ -55,6 +55,7 @@ class BackendBase:
 
     def save(self, model_url="", model_name=None):
         mname = model_name or self.model_name
+        FileOps.clean_folder([self.model_save_path], clean=False)
         model_path = FileOps.join_path(self.model_save_path, mname)
         self.estimator.save(model_path)
         if model_url and FileOps.exists(model_path):
