@@ -20,19 +20,23 @@ from sedna.core.lifelong_learning import LifelongLearning
 
 
 def main():
-    method_selection = {
-        "task_definition": "TaskDefinitionByDataAttr",
-        "task_definition_param": '{"attribute": ["Season"]}',
-
-    }
     test_dataset_url = Context.get_parameters('test_dataset_url')
     valid_data = CSVDataParse(data_type="test", func=feature_process)
     valid_data.parse(test_dataset_url, label=DATACONF["LABEL"])
-    ll_model = LifelongLearning(estimator=Estimator,
-                                method_selection=method_selection)
-    return ll_model.evaluate(data=valid_data,
-                             metrics="precision_score",
-                             metics_param={"average": "micro"})
+
+    model_threshold = float(Context.get_parameters('model_threshold', 0))
+
+    ll_job = LifelongLearning(
+        estimator=Estimator,
+        task_definition="TaskDefinitionByDataAttr",
+        task_definition_param='{"attribute": ["Season"]}'
+    )
+    eval_experiment = ll_job.evaluate(
+        data=valid_data, metrics="precision_score",
+        metrics_param={"average": "micro"},
+        model_threshold=model_threshold
+    )
+    return eval_experiment
 
 
 if __name__ == '__main__':

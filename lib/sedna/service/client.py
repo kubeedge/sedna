@@ -224,36 +224,39 @@ class KBClient:
     def __init__(self, kbserver):
         self.kbserver = kbserver
 
-    def update_db(self, task_info):
-        fd, name = tempfile.mkstemp()
-        joblib.dump(task_info, name)
+    def upload_file(self, files, name=""):
+        if not (files and os.path.isfile(files)):
+            return files
+        if not name:
+            name = os.path.basename(name)
+        _url = f"{self.kbserver}/file/upload"
+        try:
+            with open(name, "rb") as fin:
+                files = {"file": fin}
+                outurl = http_request(url=_url, method="POST", files=files)
+        except:
+            outurl = files
+        return outurl
+
+    def update_db(self, task_info_file):
+
         _url = f"{self.kbserver}/update"
 
         try:
-            with open(name, "rb") as fin:
+            with open(task_info_file, "rb") as fin:
                 files = {"task": fin}
                 _id = http_request(url=_url, method="POST", files=files)
         except:
             _id = None
-        finally:
-            os.close(fd)
-            if os.path.isfile(name):
-                os.remove(name)
         return _id
 
-    # def check_job_status(self, _id: int, interval=10, max_try=100):
-    #     _url = f"{self.kbserver}/check"
-    #     data = {"id": int(_id)}
-    #     while max_try:
-    #         try:
-    #             job_info = http_request(url=_url, method="POST", json=data)
-    #         except:
-    #             pass
-    #         else:
-    #             if isinstance(job_info, dict) and (job_info.get("status") == "complete"):
-    #                 return job_info
-    #         max_try -= 1
-    #         time.sleep(interval)
+    def update_task_status(self, tasks, new_status=1):
+        data = {
+            "tasks": tasks,
+            "status": int(new_status)
+        }
+        _url = f"{self.kbserver}/update/status"
+        return http_request(url=_url, method="POST", json=data)
 
     def query_db(self, sample):
         pass

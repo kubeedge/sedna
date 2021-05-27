@@ -29,22 +29,19 @@ def main():
     # print(singel_task.train(train_data=train_data))
     # print(singel_task.evaluate(valid_data))
     early_stopping_rounds = int(Context.get_parameters("early_stopping_rounds", 100))
-    method_selection = {
-        "task_definition": "TaskDefinitionByDataAttr",
-        "task_definition_param": '{"attribute": ["Season"]}',
-
-    }
-
-    ll_model = LifelongLearning(estimator=Estimator,
-                                method_selection=method_selection)
-    train_jobs = ll_model.train(
+    metric_name = Context.get_parameters("metric_name", "mlogloss")
+    ll_job = LifelongLearning(
+        estimator=Estimator,
+        task_definition="TaskDefinitionByDataAttr",
+        task_definition_param='{"attribute": ["Season"]}'
+    )
+    train_experiment = ll_job.train(
         train_data=train_data,
-        valid_data=None,
-        metric_name="mlogloss",
+        metric_name=metric_name,
         early_stopping_rounds=early_stopping_rounds
     )
 
-    return train_jobs
+    return train_experiment
 
 
 if __name__ == '__main__':

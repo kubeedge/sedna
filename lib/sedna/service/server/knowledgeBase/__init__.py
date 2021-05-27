@@ -19,6 +19,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import FastAPI, File, UploadFile
 from fastapi.routing import APIRoute
+from fastapi.responses import FileResponse
 from starlette.responses import JSONResponse
 from sedna.service.server.base import BaseServer
 from sedna.common.file_ops import FileOps
@@ -30,7 +31,7 @@ class KBUpdateResult(BaseModel):  # pylint: disable=too-few-public-methods
     """
     result
     """
-    status: bool
+    code: int
     result: Optional[str] = None
 
 
@@ -45,13 +46,18 @@ class KBServer(BaseServer):
         super(KBServer, self).__init__(servername=servername, host=host,
                                        http_port=http_port, workers=workers)
         self.save_dir = FileOps.clean_folder([save_dir], clean=False)[0]
+        self.url = f"{self.url}/{servername}"
+        self.latest = 0
         self.app = FastAPI(
             routes=[
                 APIRoute(
                     f"/{servername}/update",
                     self.update,
-                    response_model=KBUpdateResult,
-                    response_class=JSONResponse,
+                    methods=["POST"],
+                ),
+                APIRoute(
+                    f"/{servername}/update/status",
+                    self.update_status,
                     methods=["POST"],
                 ),
                 APIRoute(
@@ -60,6 +66,16 @@ class KBServer(BaseServer):
                     response_model=TaskItem,
                     response_class=JSONResponse,
                     methods=["POST"],
+                ),
+                APIRoute(
+                    f"/{servername}/file/download",
+                    self.file_download,
+                    methods=["GET"],
+                ),
+                APIRoute(
+                    f"/{servername}/file/upload",
+                    self.file_upload,
+                    methods=["GET"],
                 ),
             ],
             log_level="trace",
@@ -72,18 +88,71 @@ class KBServer(BaseServer):
     def query(self):
         pass
 
+    def _get_db_index(self):
+        _index_path = FileOps.join_path(self.save_dir,
+                                        f"kb_index_{self.latest}.pkl")
+        if not FileOps.exists(_index_path):  # todo: get from kb
+            pass
+        return _index_path
+
+    @staticmethod
+    def _file_endpoint(files, name=""):
+        if not (files and os.path.isfile(files)):
+            return files
+        filename = name or os.path.basename(files)
+        return FileResponse(files, filename=filename)
+
+    async def file_download(self, files: str, name: str = ""):
+        files = FileOps.join_path(self.save_dir, files)
+        return self._file_endpoint(files, name=name)
+
+    async def file_upload(self, file: UploadFile = File(...)):
+        files = await file.read()
+        filename = str(file.filename)
+        output = FileOps.join_path(self.save_dir, filename)
+        with open(output, "wb") as fout:
+            fout.write(files)
+        return f"{self.url}/file/download?files={filename}&name={filename}"
+
+    async def update_status(self, tasks: List[str], status: int):
+        deploy = True if status else False
+        with Session(bind=engine) as session:
+            session.query(TaskGrp).filter(
+                TaskGrp.name.in_(tasks)
+            ).update({
+                TaskGrp.deploy: deploy
+            }, synchronize_session=False)
+
+        # todo: get from kb
+        _index_path = FileOps.join_path(self.save_dir,
+                                        f"kb_index_{self.latest}.pkl")
+        task_info = joblib.load(_index_path)
+        new_task_group = []
+        for task_group in task_info["task_groups"]:
+            if not ((task_group.entry in tasks) == deploy):
+                continue
+            new_task_group.append(task_group)
+        task_info["task_groups"] = new_task_group
+        self.latest += 1
+
+        _index_path = FileOps.join_path(self.save_dir,
+                                        f"kb_index_{self.latest}.pkl")
+        joblib.dump(task_info, _index_path)
+
+        return f"{self.url}/file/download?files=kb_index_{self.latest}.pkl&name=index.pkl"
+
     async def update(self, task: UploadFile = File(...)):
         tasks = await task.read()
         fd, name = tempfile.mkstemp()
         with open(name, "wb") as fout:
             fout.write(tasks)
         os.close(fd)
-        task_obj = joblib.load(name)
+        upload_info = joblib.load(name)
+
         with Session(bind=engine) as session:
-            for task_group in task_obj:
+            for task_group in upload_info["task_groups"]:
                 grp, g_create = get_or_create(session=session, model=TaskGrp, name=task_group.entry)
                 if g_create:
-
                     grp.sample_num = 0
                     grp.task_num = 0
                     session.add(grp)
@@ -135,6 +204,19 @@ class KBServer(BaseServer):
                 )
 
             session.commit()
+
+        self.latest += 1
+        extractor_file = upload_info["extractor"]
+        extractor_path = FileOps.join_path(self.save_dir,
+                                           f"kb_extractor.pkl")
+        FileOps.upload(extractor_file, extractor_path)
+
+        # todo: get from kb
+        _index_path = FileOps.join_path(self.save_dir,
+                                        f"kb_index_{self.latest}.pkl")
+        FileOps.upload(name, _index_path)
+
+        return f"{self.url}/file/download?files=kb_index_{self.latest}.pkl&name=index.pkl"
 
 
 if __name__ == '__main__':

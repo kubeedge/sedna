@@ -247,56 +247,75 @@ class FileOps:
         """todo: not support now"""
 
     @classmethod
+    def _download_s3(cls, client, uri, out_dir):
+        bucket_args = uri.replace(cls._S3_PREFIX, "", 1).split("/", 1)
+        bucket_name = bucket_args[0]
+        bucket_path = len(bucket_args) > 1 and bucket_args[1] or ""
+
+        objects = client.list_objects(bucket_name,
+                                      prefix=bucket_path,
+                                      recursive=True,
+                                      use_api_v1=True)
+        count = 0
+
+        for obj in objects:
+            # Replace any prefix from the object key with out_dir
+            subdir_object_key = obj.object_name[len(bucket_path):].strip("/")
+            # fget_object handles directory creation if does not exist
+            if not obj.is_dir:
+                local_file = os.path.join(
+                    out_dir,
+                    subdir_object_key or os.path.basename(obj.object_name)
+                )
+                client.fget_object(bucket_name, obj.object_name, local_file)
+                count += 1
+
+        return count
+
+    @classmethod
     def s3_download(cls, src, dst):
-        import boto3
+        import minio
         from urllib.parse import urlparse
-        s3 = boto3.resource('s3',
-                            endpoint_url=os.getenv("S3_ENDPOINT_URL", "http://s3.amazonaws.com"),
-                            aws_access_key_id=os.getenv("S3_ACCESS_KEY"),
-                            aws_secret_access_key=os.getenv("S3_SECRET_KEY")
-                            )
-        parsed = urlparse(src, scheme='s3')
-        bucket_name = parsed.netloc
-        bucket_path = parsed.path.lstrip('/')
-        cls.clean_folder([dst], clean=False)
-        bucket = s3.Bucket(bucket_name)
-        for obj in bucket.objects.filter(Prefix=bucket_path):
-            # Skip where boto3 lists the directory as an object
-            if obj.key.endswith("/"):
-                continue
-            # In the case where bucket_path points to a single object, set the target key to bucket_path
-            # Otherwise, remove the bucket_path prefix, strip any extra slashes, then prepend the target_dir
-            target_key = (
-                obj.key
-                if bucket_path == obj.key
-                else obj.key.replace(bucket_path, "", 1).lstrip("/")
-            )
-            target = f"{dst}/{target_key}"
-            if not os.path.exists(os.path.dirname(target)):
-                os.makedirs(os.path.dirname(target), exist_ok=True)
-            bucket.download_file(obj.key, target)
+
+        url = urlparse(os.getenv("S3_ENDPOINT_URL", "http://s3.amazonaws.com"))
+        use_ssl = url.scheme == 'https' if url.scheme else True
+
+        s3 = minio.Minio(
+            url.netloc,
+            access_key=os.getenv("ACCESS_KEY_ID", ""),
+            secret_key=os.getenv("SECRET_ACCESS_KEY", ""),
+            secure=use_ssl
+        )
+        count = cls._download_s3(s3, src, dst)
+        if count == 0:
+            raise RuntimeError("Failed to fetch files."
+                               "The path %s does not exist." % (src))
 
     @classmethod
     def s3_upload(cls, src, dst):
-        import boto3
+        import minio
         from urllib.parse import urlparse
-        s3 = boto3.resource('s3',
-                            endpoint_url=os.getenv("S3_ENDPOINT", "http://s3.amazonaws.com"),
-                            aws_access_key_id=os.getenv("ACCESS_KEY_ID"),
-                            aws_secret_access_key=os.getenv("SECRET_ACCESS_KEY")
-                            )
+
+        url = urlparse(os.getenv("S3_ENDPOINT_URL", "http://s3.amazonaws.com"))
+        use_ssl = url.scheme == 'https' if url.scheme else True
+
+        s3 = minio.Minio(
+            url.netloc,
+            access_key=os.getenv("ACCESS_KEY_ID", ""),
+            secret_key=os.getenv("SECRET_ACCESS_KEY", ""),
+            secure=use_ssl
+        )
         parsed = urlparse(dst, scheme='s3')
         bucket_name = parsed.netloc
-        bucket = s3.Bucket(bucket_name)
         if os.path.isdir(src):
             for root, _, files in os.walk(src):
                 for file in files:
                     filepath = os.path.join(root, file)
                     with open(filepath, 'rb') as data:
-                        bucket.put_object(Key=file, Body=data)
+                        s3.put_object(bucket_name, file, data, -1)
         elif os.path.isfile(src):
             with open(src, 'rb') as data:
-                bucket.put_object(Key=os.path.basename(src), Body=data)
+                s3.put_object(bucket_name, os.path.basename(src), data, -1)
 
     @classmethod
     def http_download(cls, src, dst):

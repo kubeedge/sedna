@@ -15,7 +15,7 @@ from sqlalchemy import Column, String, Integer, Boolean, Text, \
     DateTime, Float, SmallInteger, ForeignKey, func
 from sqlalchemy.orm import relationship
 
-from .database import Base, engine
+from database import Base, engine
 
 __all__ = ('TaskGrp', 'Tasks', 'TaskModel', 'TaskRelation', 'Samples',
            'TaskSample', 'get_or_create', 'engine')
@@ -27,6 +27,8 @@ class TaskGrp(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String(100), unique=True, nullable=False, comment='task group name')
+    deploy = Column(Boolean(create_constraint=False), default=False)
+
     sample_num = Column(Integer, default=0, comment='int of sample number')
     task_num = Column(Integer, default=0, comment='int of task number')
 
@@ -38,7 +40,6 @@ class Tasks(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String(100), unique=True, nullable=False, comment='task name')
     task_attr = Column(Text, default="{}", comment='task attribute, json')
-    deploy = Column(Boolean(create_constraint=False), default=False)
     created_at = Column(DateTime, server_default=func.now(),
                         comment='task create time')
     updated_at = Column(DateTime, server_default=func.now(),

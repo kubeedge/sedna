@@ -21,14 +21,17 @@ from sedna.core.lifelong_learning import LifelongLearning
 
 
 def main():
-    method_selection = {
-        "task_definition": "TaskDefinitionByDataAttr",
-        "task_definition_param": '{"attribute": ["Season"]}',
 
-    }
+    utd = Context.get_parameters("UTD_NAME", "TaskAttr")
+    utd_parameters = Context.get_parameters("UTD_PARAMETERS", {})
 
-    ll_model = LifelongLearning(estimator=Estimator,
-                                method_selection=method_selection)
+    ll_job = LifelongLearning(
+        estimator=Estimator,
+        task_mining="TaskMiningByDataAttr",
+        task_mining_param='{"attribute": ["Season"]}',
+        unseen_task_detect=utd,
+        unseen_task_detect_param=utd_parameters
+    )
 
     infer_dataset_url = Context.get_parameters('infer_dataset_url')
     file_handle = open(infer_dataset_url, "r", encoding="utf-8")
@@ -46,8 +49,8 @@ def main():
 
         rows = dict(zip(header, reader[0]))
         infer_data.parse(rows, label=DATACONF["LABEL"])
-
-        print(ll_model.inference(infer_data))
+        infer_experiment = ll_job.inference(infer_data)
+        yield infer_experiment
 
 
 if __name__ == '__main__':

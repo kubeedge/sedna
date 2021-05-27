@@ -14,13 +14,14 @@
 import os
 import json
 import joblib
-from copy import deepcopy
+
 from sklearn import metrics as sk_metrics
 from .task_jobs.artifact import Model, Task, TaskGroup
 from sedna.datasources import BaseDataSource
 from sedna.backend import set_backend
 from sedna.common.log import sednaLogger
 from sedna.common.config import Context
+from sedna.common.file_ops import FileOps
 from sedna.common.class_factory import ClassFactory, ClassType
 
 __all__ = ('MulTaskLearning',)
@@ -32,14 +33,39 @@ class MulTaskLearning:
         'TaskDefinitionByDataAttr': 'TaskMiningByDataAttr',
     }
 
-    def __init__(self, estimator=None, method_selection=None):
-        self.method_selection = method_selection
+    def __init__(self,
+                 estimator=None,
+                 task_definition="TaskDefinitionByDataAttr",
+                 task_relationship_discovery=None,
+                 task_mining=None,
+                 task_remodeling=None,
+                 inference_integrate=None,
+
+                 task_definition_param=None,
+                 task_relationship_discovery_param=None,
+                 task_mining_param=None,
+                 task_remodeling_param=None,
+                 inference_integrate_param=None
+                 ):
+        self.method_selection = dict(
+            task_definition=task_definition,
+            task_relationship_discovery=task_relationship_discovery,
+            task_mining=task_mining,
+            task_remodeling=task_remodeling,
+            inference_integrate=inference_integrate,
+
+            task_definition_param=task_definition_param,
+            task_relationship_discovery_param=task_relationship_discovery_param,
+            task_mining_param=task_mining_param,
+            task_remodeling_param=task_remodeling_param,
+            inference_integrate_param=inference_integrate_param
+        )
         self.models = None
         self.extractor = None
-        self.base_model = set_backend(estimator=estimator)
+        self.base_model = estimator
         self.task_groups = None
         self.task_index_url = Context.get_parameters(
-            "KB_INDEX_URL", os.path.join(self.base_model.model_save_path, 'index.pkl')
+            "KB_INDEX_URL", '/tmp/index.pkl'
         )
 
     @staticmethod
@@ -98,7 +124,7 @@ class MulTaskLearning:
               valid_data: BaseDataSource = None,
               post_process=None, **kwargs):
         tasks, task_extractor = self.task_definition(train_data)
-        self.extractor = deepcopy(task_extractor)
+        self.extractor = task_extractor
         self.task_groups = self.task_relationship_discovery(tasks)
         self.models = []
         callback = None
@@ -110,7 +136,7 @@ class MulTaskLearning:
             if not isinstance(task, TaskGroup):
                 continue
             sednaLogger.info(f"MTL Train start {i} : {task.entry}")
-            model_obj = deepcopy(self.base_model)
+            model_obj = set_backend(estimator=self.base_model)
             res = model_obj.train(train_data=task.samples, **kwargs)
             if callback:
                 res = callback(model_obj, res)
@@ -122,9 +148,14 @@ class MulTaskLearning:
             self.models.append(model)
             feedback[task.entry] = res
 
+        extractor_file = FileOps.join_path(
+            os.path.dirname(self.task_index_url),
+            "kb_extractor.pkl"
+        )
+        joblib.dump(self.extractor, extractor_file)
         task_index = {
-            "extractor": task_extractor,
-            "models": self.models
+            "extractor": extractor_file,
+            "tasks": self.task_groups
         }
         joblib.dump(task_index, self.task_index_url)
         if valid_data:
@@ -132,11 +163,18 @@ class MulTaskLearning:
 
         return feedback
 
-    def predict(self, data: BaseDataSource, post_process=None, **kwargs):
+    def predict(self, data: BaseDataSource,
+                post_process=None, **kwargs):
         if not (self.models and self.extractor):
             task_index = joblib.load(self.task_index_url)
-            self.extractor = task_index['extractor']
-            self.models = task_index['models']
+            extractor_file = FileOps.join_path(
+                os.path.dirname(self.task_index_url),
+                "kb_extractor.pkl"
+            )
+            FileOps.download(task_index['extractor'], extractor_file)
+            self.extractor = joblib.load(extractor_file)
+            self.task_groups = task_index['tasks']
+            self.models = [task.model for task in self.task_groups]
         data, mappings = self.task_mining(samples=data)
         samples, models = self.task_remodeling(samples=data, mappings=mappings)
 
@@ -149,7 +187,8 @@ class MulTaskLearning:
             m = models[inx]
             if not isinstance(m, Model):
                 continue
-            evaluator = self.base_model.load(m.model)
+            model_obj = set_backend(estimator=self.base_model)
+            evaluator = model_obj.load(m.model)
             pred = evaluator.predict(df.x, kwargs=kwargs)
             if callable(callback):
                 pred = callback(pred, df)
@@ -160,8 +199,11 @@ class MulTaskLearning:
         res = self.inference_integrate(tasks)
         return res, tasks
 
-    def evaluate(self, data: BaseDataSource, metrics="log_loss", metics_param=None, **kwargs):
-        result = self.predict(data, kwargs=kwargs)
+    def evaluate(self, data: BaseDataSource,
+                 metrics="log_loss",
+                 metrics_param=None,
+                 **kwargs):
+        result, tasks = self.predict(data, kwargs=kwargs)
         m_dict = {}
         if metrics:
             if callable(metrics):
@@ -194,9 +236,19 @@ class MulTaskLearning:
             }
         data.x['pred'] = result
         data.x['y'] = data.y
-        if not metics_param:
-            metics_param = {}
+        if not metrics_param:
+            metrics_param = {}
+        tasks_detail = []
+        for task in tasks:
+            sample = task.samples
+            pred = task.result
+            scores = {
+                   name: metric(sample.y, pred, **metrics_param)
+                   for name, metric in m_dict.items()
+            }
+            task.socres = scores
+            tasks_detail.append(task)
         return {
-            name: metric(data.y, result, **metics_param)
-            for name, metric in m_dict.items()
-        }
+                   name: metric(data.y, result, **metrics_param)
+                   for name, metric in m_dict.items()
+               }, tasks_detail

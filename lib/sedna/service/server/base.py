@@ -37,12 +37,14 @@ class BaseServer:  # pylint: disable=too-many-instance-attributes,too-many-argum
         self.server_name = servername
         self.app = None
         self.host = host or get_host_ip()
-        self.http_port = http_port
+        self.http_port = http_port or 80
         self.grpc_port = grpc_port
         self.workers = workers
         self.keyfile = ssl_key
         self.certfile = ssl_cert
         self.ws_size = int(ws_size)
+        protoal = "https" if self.certfile else "http"
+        self.url = f"{protoal}://{self.host}:{self.http_port}"
 
     def run(self, app):
         app.add_middleware(
@@ -50,7 +52,7 @@ class BaseServer:  # pylint: disable=too-many-instance-attributes,too-many-argum
             allow_methods=["*"], allow_headers=["*"],
         )
 
-        sednaLogger.info(f"Start {self.server_name} server over {self.host} {self.http_port}")
+        sednaLogger.info(f"Start {self.server_name} server over {self.url}")
 
         uvicorn.run(app, host=self.host, port=self.http_port,
                     ssl_keyfile=self.keyfile, ssl_certfile=self.certfile,

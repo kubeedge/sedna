@@ -20,8 +20,6 @@ spec:
                 value: "100"
               - name: "metric_name"
                 value: "mlogloss"
-              - name: "learning_rate"
-                value: "0.1"
     trigger:
       checkPeriodSeconds: 60
       timer:

@@ -21,7 +21,6 @@ from sedna.common.config import Context
 from sedna.common.log import sednaLogger
 from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.algorithms.multi_task_learning import MulTaskLearning
-from sedna.algorithms.multi_task_learning.task_jobs.artifact import TaskGroup
 from sedna.service.client import KBClient
 
 
@@ -30,11 +29,37 @@ class LifelongLearning(JobBase):
     Lifelong learning Experiment
     """
 
-    def __init__(self, estimator, method_selection=None):
+    def __init__(self,
+                 estimator,
+                 task_definition="TaskDefinitionByDataAttr",
+                 task_relationship_discovery=None,
+                 task_mining=None,
+                 task_remodeling=None,
+                 inference_integrate=None,
+                 unseen_task_detect="TaskAttrFilter",
+
+                 task_definition_param=None,
+                 task_relationship_discovery_param=None,
+                 task_mining_param=None,
+                 task_remodeling_param=None,
+                 inference_integrate_param=None,
+                 unseen_task_detect_param=None):
         estimator = MulTaskLearning(
             estimator=estimator,
-            method_selection=method_selection,
+            task_definition=task_definition,
+            task_relationship_discovery=task_relationship_discovery,
+            task_mining=task_mining,
+            task_remodeling=task_remodeling,
+            inference_integrate=inference_integrate,
+
+            task_definition_param=task_definition_param,
+            task_relationship_discovery_param=task_relationship_discovery_param,
+            task_mining_param=task_mining_param,
+            task_remodeling_param=task_remodeling_param,
+            inference_integrate_param=inference_integrate_param
         )
+        self.unseen_task_detect = unseen_task_detect
+        self.unseen_task_detect_param = estimator.parse_param(unseen_task_detect_param)
         config = dict(
             ll_kb_server=Context.get_parameters("KB_SERVER"),
             output_url=Context.get_parameters("OUTPUT_URL")
@@ -44,12 +69,6 @@ class LifelongLearning(JobBase):
         super(LifelongLearning, self).__init__(estimator=estimator, config=config)
         self.job_kind = K8sResourceKind.LIFELONG_JOB.value
         self.kb_server = KBClient(kbserver=self.config.ll_kb_server)
-
-    def _update_db(self, task_info: TaskGroup):
-        _id = self.kb_server.update_db(task_info)
-        if not _id:
-            self.log.error(f"KB update Fail !")
-        return
 
     def train(self, train_data,
               valid_data=None,
@@ -72,10 +91,30 @@ class LifelongLearning(JobBase):
             **kwargs
         )  # todo: Distinguishing incremental update and fully overwrite
 
-        task_info = self.estimator.estimator.task_groups
-        FileOps.upload(self.estimator.estimator.task_index_url, self.config.task_index)
-        self._update_db(task_info)
+        # FileOps.upload(self.estimator.estimator.task_index_url, self.config.task_index)
+        task_groups = self.estimator.estimator.task_groups
+        extractor = self.estimator.estimator.extractor
 
+        extractor_file = self.kb_server.upload_file(extractor)
+        for task in task_groups:
+            task.model.model = self.kb_server.upload_file(task.model.model)
+
+        task_info = {
+            "task_groups": task_groups,
+            "extractor": extractor_file
+        }
+        fd, name = tempfile.mkstemp()
+        joblib.dump(task_info, name)
+
+        index_file = self.kb_server.update_db(task_info)
+        if not index_file:
+            self.log.error(f"KB update Fail !")
+            index_file = name
+
+        FileOps.download(index_file, self.config.task_index)
+        if os.path.isfile(name):
+            os.close(fd)
+            os.remove(name)
         self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value, res)
         sednaLogger.info("Lifelong learning Experiment Finished")
         return callback_func(self.estimator, res) if callback_func else res
@@ -89,20 +128,53 @@ class LifelongLearning(JobBase):
             **kwargs
         )
 
+    def evaluate(self, data, post_process=None, model_threshold=0.1, **kwargs):
+        callback_func = None
+        if callable(post_process):
+            callback_func = post_process
+        elif post_process is not None:
+            callback_func = ClassFactory.get_cls(ClassType.CALLBACK, post_process)
+
+        FileOps.download(self.config.task_index,
+                         self.estimator.estimator.task_index_url)
+        res, tasks_detail = self.estimator.evaluate(data=data, **kwargs)
+        drop_tasks = []
+        for detail in tasks_detail:
+            scores = detail.scores
+            entry = detail.entry
+            if any(map(lambda x: x < model_threshold, scores)):
+                sednaLogger.warn(f"{entry} will not be deploy because scores lt {model_threshold}")
+                drop_tasks.append(entry)
+                continue
+
+        _id = self.kb_server.update_task_status(drop_tasks, new_status=0)
+        if not _id:
+            self.log.error(f"KB update Fail !")
+        return callback_func(res) if callback_func else res
+
     def inference(self, data=None, post_process=None, **kwargs):
+        FileOps.download(self.config.task_index,
+                         self.estimator.estimator.task_index_url)
         res, tasks = self.estimator.predict(
             data=data, post_process=post_process, **kwargs
         )
-        utd = self.get_parameters("UTD_NAME", "TaskAttr")
-        utd_parameters = self.get_parameters("UTD_PARAMETERS", {})
+
         is_unseen_task = False
-        if utd:
+        if self.unseen_task_detect:
+
             try:
-                unseen_task_detect_algorithm = ClassFactory.get_cls(ClassType.UTD, utd)()
+                if callable(self.unseen_task_detect):
+                    unseen_task_detect_algorithm = self.unseen_task_detect()
+                else:
+                    unseen_task_detect_algorithm = ClassFactory.get_cls(
+                        ClassType.UTD, self.unseen_task_detect
+                    )()
             except ValueError as err:
                 sednaLogger.error("Lifelong learning Experiment Inference [UTD] : {}".format(err))
             else:
-                is_unseen_task = unseen_task_detect_algorithm(tasks=tasks, result=res, **utd_parameters)
+                is_unseen_task = unseen_task_detect_algorithm(
+                    tasks=tasks, result=res, **self.unseen_task_detect_param
+                )
         if is_unseen_task:
             utd_saved_url = self.get_parameters('UTD_SAVED_URL')
             fd, name = tempfile.mkstemp()
