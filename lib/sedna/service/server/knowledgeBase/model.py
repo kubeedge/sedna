@@ -15,7 +15,7 @@ from sqlalchemy import Column, String, Integer, Boolean, Text, \
     DateTime, Float, SmallInteger, ForeignKey, func
 from sqlalchemy.orm import relationship
 
-from database import Base, engine
+from .database import Base, engine
 
 __all__ = ('TaskGrp', 'Tasks', 'TaskModel', 'TaskRelation', 'Samples',
            'TaskSample', 'get_or_create', 'engine')
