@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """ML Framework Backend base Class"""
+import os.path
 from copy import deepcopy
 from sedna.common.file_ops import FileOps
 
@@ -55,6 +56,9 @@ class BackendBase:
 
     def save(self, model_url="", model_name=None):
         mname = model_name or self.model_name
+        if os.path.isfile(self.model_save_path):
+            self.model_save_path, mname = os.path.split(self.model_save_path)
+
         FileOps.clean_folder([self.model_save_path], clean=False)
         model_path = FileOps.join_path(self.model_save_path, mname)
         self.estimator.save(model_path)
@@ -64,6 +68,8 @@ class BackendBase:
 
     def load(self, model_url="", model_name=None):
         mname = model_name or self.model_name
+        if os.path.isfile(self.model_save_path):
+            self.model_save_path, mname = os.path.split(self.model_save_path)
         model_path = FileOps.join_path(self.model_save_path, mname)
         if model_url:
             FileOps.download(model_url, model_path)
