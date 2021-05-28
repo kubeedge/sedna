@@ -48,7 +48,8 @@ class IncrementalLearning(JobBase):
         return callback_func(self.estimator) if callback_func else self.estimator
 
     def inference(self, data=None, post_process=None, **kwargs):
-
+        self.log.info(f"Incremental learning Experiment loading model from {self.model_path}")
+        
         if not self.estimator.has_load:
             self.estimator.load(self.model_path)
         hem = self.get_parameters("HEM_NAME")
@@ -85,4 +86,3 @@ class IncrementalLearning(JobBase):
         self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value, res, kind="eval")
 
         return res
-

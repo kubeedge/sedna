@@ -72,9 +72,10 @@ class FileOps:
             if os.path.isdir(_path) and clean:
                 shutil.rmtree(_path)
             if os.path.isfile(_path):
-                os.remove(_path)
+                if clean:
+                    os.remove(_path)
                 _path = cls.join_path(*args[:len(args) - 1])
-            os.makedirs(_path, exist_ok=True)
+                os.makedirs(_path, exist_ok=True)
         return target
 
     @classmethod
