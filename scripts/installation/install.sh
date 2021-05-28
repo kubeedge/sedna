@@ -50,6 +50,7 @@ download_yamls() {
   sedna.io_federatedlearningjobs.yaml
   sedna.io_incrementallearningjobs.yaml
   sedna.io_jointinferenceservices.yaml
+  sedna.io_lifelonglearningjobs.yaml
   sedna.io_models.yaml
   )
   _download_yamls build/crds

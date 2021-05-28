@@ -96,10 +96,12 @@ func runServer() {
 
 	im := manager.NewIncrementalJobManager(c, dm, mm, Options)
 
+	lm := manager.NewLifelongLearningJobManager(c, dm, mm, Options)
+
 	s := server.New(Options)
 
 	for _, m := range []manager.FeatureManager{
-		dm, mm, jm, fm, im,
+		dm, mm, jm, fm, im, lm,
 	} {
 		s.AddFeatureManager(m)
 		c.Subscribe(m)

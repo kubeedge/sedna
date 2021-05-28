@@ -57,6 +57,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&FederatedLearningJobList{},
 		&IncrementalLearningJob{},
 		&IncrementalLearningJobList{},
+		&LifelongLearningJob{},
+		&LifelongLearningJobList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

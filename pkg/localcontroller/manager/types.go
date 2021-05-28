@@ -48,6 +48,11 @@ const (
 
 	// CredentialAnnotationKey is credential of the storage service
 	CredentialAnnotationKey = "sedna.io/credential"
+
+	// DatasetFormatCSV is csv format of dataset
+	DatasetFormatCSV = "csv"
+	// DatasetFormatTXT is txt format of dataset
+	DatasetFormatTXT = "txt"
 )
 
 // WorkerMessage defines message struct from worker
