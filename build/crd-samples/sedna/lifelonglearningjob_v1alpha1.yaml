@@ -63,15 +63,15 @@ spec:
           - name: utdir
             mountPath: /ut_saved_url
           - name: inferdata
-              mountPath: /data/
+            mountPath: /data/
           resources:  # user defined resources
             limits:
               memory: 2Gi
         volumes:   # user defined volumes
           - name: utdir
-              hostPath:
-                path: /lifelong/unseen_task/
-                type: DirectoryOrCreate
+            hostPath:
+              path: /lifelong/unseen_task/
+              type: DirectoryOrCreate
           - name: inferdata
             hostPath:
               path:  /lifelong/data/

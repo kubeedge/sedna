@@ -42,7 +42,7 @@ def set_backend(estimator=None, config=None):
         backend_type = config.get("backend_type") or "UNKNOWN"
         warnings.warn(f"{backend_type} Not Support yet, use itself")
         from sedna.backend.base import BackendBase as REGISTER
-    model_save_url = config.get("model_url")
+    model_save_url = config.model_url
     base_model_save = config.get("base_model_save") or model_save_url
     return REGISTER(estimator=estimator, use_cuda=use_cuda,
                     model_save_path=base_model_save,

@@ -138,8 +138,9 @@ class LifelongLearning(JobBase):
         elif post_process is not None:
             callback_func = ClassFactory.get_cls(ClassType.CALLBACK, post_process)
 
-        FileOps.download(self.config.task_index,
-                         self.estimator.estimator.task_index_url)
+        index_url = self.estimator.estimator.task_index_url
+        sednaLogger.log(f"Download kb index to {index_url}")
+        FileOps.download(self.config.task_index, index_url)
         res, tasks_detail = self.estimator.evaluate(data=data, **kwargs)
         drop_tasks = []
         for detail in tasks_detail:
@@ -160,6 +161,8 @@ class LifelongLearning(JobBase):
         return callback_func(res) if callback_func else res
 
     def inference(self, data=None, post_process=None, **kwargs):
+        index_url = self.estimator.estimator.task_index_url
+        sednaLogger.log(f"Download kb index to {index_url}")
         FileOps.download(self.config.task_index,
                          self.estimator.estimator.task_index_url)
         res, tasks = self.estimator.predict(

@@ -65,7 +65,7 @@ class MulTaskLearning:
         self.base_model = estimator
         self.task_groups = None
         self.task_index_url = Context.get_parameters(
-            "KB_INDEX_URL", '/tmp/index.pkl'
+            "MODEL_URLS", '/tmp/index.pkl'
         )
 
     @staticmethod
@@ -170,8 +170,12 @@ class MulTaskLearning:
                 os.path.dirname(self.task_index_url),
                 "kb_extractor.pkl"
             )
-            FileOps.download(task_index['extractor'], extractor_file)
-            self.extractor = joblib.load(extractor_file)
+            if not callable(task_index['extractor']) and \
+                    isinstance(task_index['extractor'], str):
+                FileOps.download(task_index['extractor'], extractor_file)
+                self.extractor = joblib.load(extractor_file)
+            else:
+                self.extractor = task_index['extractor']
             self.task_groups = task_index['task_groups']
             self.models = [task.model for task in self.task_groups]
         data, mappings = self.task_mining(samples=data)
