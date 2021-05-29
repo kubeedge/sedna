@@ -62,7 +62,6 @@ var flJobControllerKind = sednav1.SchemeGroupVersion.WithKind("FederatedLearning
 type FederatedController struct {
 	kubeClient kubernetes.Interface
 	client     sednaclientset.SednaV1alpha1Interface
-	podControl k8scontroller.PodControlInterface
 
 	// podStoreSynced returns true if the pod store has been synced at least once.
 	// Added as a member to the struct to allow injection for testing.
@@ -554,10 +553,6 @@ func NewFederatedController(cfg *config.ControllerConfig) (FeatureControllerI, e
 	fc := &FederatedController{
 		kubeClient: kubeClient,
 		client:     crdclient.SednaV1alpha1(),
-		podControl: k8scontroller.RealPodControl{
-			KubeClient: kubeClient,
-			Recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "flJob-controller"}),
-		},
 
 		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(DefaultBackOff, MaxBackOff), "flJob"),
 		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "flJob-controller"}),

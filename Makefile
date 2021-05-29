@@ -144,7 +144,7 @@ push: images
 push-examples:
 	bash examples/push_image.sh
 
-.PHONE: e2e
+.PHONY: e2e
 e2e:
 	hack/run-e2e.sh
 

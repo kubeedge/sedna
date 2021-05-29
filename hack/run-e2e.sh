@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -29,7 +28,6 @@ cd "$SEDNA_ROOT"
   # this will export KUBECONFIG
   source hack/local-up.sh
   trap cleanup EXIT
-  echo local idx=${CLEANUP_CMDS[@]} cmd
 }
 
 echo "Running e2e..."

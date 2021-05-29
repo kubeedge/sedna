@@ -58,7 +58,6 @@ var ijControllerKind = sednav1.SchemeGroupVersion.WithKind("IncrementalLearningJ
 type IncrementalJobController struct {
 	kubeClient kubernetes.Interface
 	client     sednaclientset.SednaV1alpha1Interface
-	podControl k8scontroller.PodControlInterface
 
 	// podStoreSynced returns true if the pod store has been synced at least once.
 	// Added as a member to the struct to allow injection for testing.
@@ -800,10 +799,6 @@ func NewIncrementalJobController(cfg *config.ControllerConfig) (FeatureControlle
 	jc := &IncrementalJobController{
 		kubeClient: kubeClient,
 		client:     crdclient.SednaV1alpha1(),
-		podControl: k8scontroller.RealPodControl{
-			KubeClient: kubeClient,
-			Recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "incrementallearningjob-controller"}),
-		},
 
 		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(DefaultBackOff, MaxBackOff), "incrementallearningjob"),
 		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "incrementallearningjob-controller"}),
