@@ -21,7 +21,7 @@ from sedna.core.lifelong_learning import LifelongLearning
 
 def main():
     test_dataset_url = BaseConfig.test_dataset_url
-    valid_data = CSVDataParse(data_type="test", func=feature_process)
+    valid_data = CSVDataParse(data_type="valid", func=feature_process)
     valid_data.parse(test_dataset_url, label=DATACONF["LABEL"])
 
     model_threshold = float(Context.get_parameters('model_threshold', 0))

@@ -599,6 +599,7 @@ func (jc *LifelongLearningJobController) createPod(job *sednav1.LifelongLearning
 			"WORKER_NAME": "eval-worker-" + utilrand.String(5),
 
 			"LC_SERVER": jc.cfg.LC.Server,
+			"KB_SERVER": jc.cfg.KB.Server,
 		}
 
 		var modelMountURLs []MountURL

@@ -153,7 +153,8 @@ class LifelongLearning(JobBase):
         for detail in tasks_detail:
             scores = detail.scores
             entry = detail.entry
-            if any(map(lambda x: x < model_threshold, scores)):
+            self.log.info(f"{entry} socres: {scores}")
+            if any(map(lambda x: float(x) < model_threshold, scores.values())):
                 self.log.warn(f"{entry} will not be deploy because scores lt {model_threshold}")
                 drop_tasks.append(entry)
                 continue

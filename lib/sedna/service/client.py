@@ -253,7 +253,11 @@ class KBClient:
             "status": int(new_status)
         }
         _url = f"{self.kbserver}/update/status"
-        return http_request(url=_url, method="POST", json=data)
+        try:
+            return http_request(url=_url, method="POST", json=data)
+        except Exception as err:
+            sednaLogger.error(f"Update kb error: {err}")
+        return None
 
     def query_db(self, sample):
         pass
