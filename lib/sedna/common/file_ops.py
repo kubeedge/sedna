@@ -330,26 +330,34 @@ class FileOps:
         :type dst: str
         :raises FileNotFoundError: if the file path is not exist, an error will raise
         """
-        from six.moves import urllib
-        import fcntl
+        from urllib.parse import urlparse
+        import mimetypes
+        import requests
+        import gzip
 
-        signal_file = cls.join_path(os.path.dirname(dst), ".{}.signal".format(os.path.basename(dst)))
-        if not os.path.isfile(signal_file):
-            with open(signal_file, 'w') as fp:
-                fp.write('{}'.format(0))
+        url = urlparse(src)
 
-        with open(signal_file, 'r+') as fp:
-            fcntl.flock(fp, fcntl.LOCK_EX)
-            signal = int(fp.readline().strip())
-            if signal == 0:
-                try:
-                    urllib.request.urlretrieve(src, dst)
-                except (urllib.error.URLError, IOError) as e:
-                    raise e
+        filename = os.path.basename(url.path)
+        mimetype, encoding = mimetypes.guess_type(url.path)
+        if os.path.isdir(dst):
+            dst = os.path.join(dst, filename)
 
-                with open(signal_file, 'w') as fn:
-                    fn.write('{}'.format(1))
-            fcntl.flock(fp, fcntl.LOCK_UN)
+        if filename == '':
+            raise ValueError('No filename contained in URI: %s' % (src))
+
+        host_uri = url.hostname
+
+        with requests.get(src, stream=True) as response:
+            if response.status_code != 200:
+                raise RuntimeError("URI: %s returned a %s response code." %
+                                   (src, response.status_code))
+
+            if encoding == 'gzip':
+                stream = gzip.GzipFile(fileobj=response.raw)
+            else:
+                stream = response.raw
+            with open(dst, 'wb') as out:
+                shutil.copyfileobj(stream, out)
 
     @classmethod
     def _untar(cls, src, dst=None):
