@@ -154,11 +154,11 @@ class MulTaskLearning:
         joblib.dump(self.extractor, extractor_file)
         task_index = {
             "extractor": extractor_file,
-            "tasks": self.task_groups
+            "task_groups": self.task_groups
         }
         joblib.dump(task_index, self.task_index_url)
         if valid_data:
-            feedback = self.evaluate(valid_data, kwargs=kwargs)
+            feedback = self.evaluate(valid_data, **kwargs)
 
         return feedback
 
@@ -172,7 +172,7 @@ class MulTaskLearning:
             )
             FileOps.download(task_index['extractor'], extractor_file)
             self.extractor = joblib.load(extractor_file)
-            self.task_groups = task_index['tasks']
+            self.task_groups = task_index['task_groups']
             self.models = [task.model for task in self.task_groups]
         data, mappings = self.task_mining(samples=data)
         samples, models = self.task_remodeling(samples=data, mappings=mappings)
@@ -199,7 +199,7 @@ class MulTaskLearning:
         return res, tasks
 
     def evaluate(self, data: BaseDataSource,
-                 metrics="log_loss",
+                 metrics=None,
                  metrics_param=None,
                  **kwargs):
         result, tasks = self.predict(data, kwargs=kwargs)
@@ -233,10 +233,14 @@ class MulTaskLearning:
             m_dict = {
                 'precision_score': sk_metrics.precision_score
             }
+            metrics_param = {"average": "micro"}
+
         data.x['pred'] = result
         data.x['y'] = data.y
         if not metrics_param:
             metrics_param = {}
+        elif isinstance(metrics_param, str):
+            metrics_param = self.parse_param(metrics_param)
         tasks_detail = []
         for task in tasks:
             sample = task.samples
@@ -245,7 +249,7 @@ class MulTaskLearning:
                    name: metric(sample.y, pred, **metrics_param)
                    for name, metric in m_dict.items()
             }
-            task.socres = scores
+            task.scores = scores
             tasks_detail.append(task)
         return {
                    name: metric(data.y, result, **metrics_param)

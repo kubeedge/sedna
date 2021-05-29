@@ -33,6 +33,8 @@ class DefaultTaskRemodeling:
             task_df = BaseDataSource(data_type=d_type)
             _inx = np.where(mappings == m)
             task_df.x = samples.x.iloc[_inx]
+            if d_type != "test":
+                task_df.y = samples.y.iloc[_inx]
             task_df.inx = _inx[0].tolist()
             task_df.meta_attr = samples.meta_attr.iloc[_inx].values
             data.append(task_df)

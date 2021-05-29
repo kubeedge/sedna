@@ -75,7 +75,7 @@ class FileOps:
                 if clean:
                     os.remove(_path)
                 _path = cls.join_path(*args[:len(args) - 1])
-                os.makedirs(_path, exist_ok=True)
+            os.makedirs(_path, exist_ok=True)
         return target
 
     @classmethod

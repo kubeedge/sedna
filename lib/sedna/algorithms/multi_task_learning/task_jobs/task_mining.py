@@ -48,7 +48,7 @@ class TaskMiningByDataAttr:
         allocations = meta_attr.apply(
             lambda x: self.task_extractor.get(
                 "_".join(
-                        map(lambda y: str(x[y]).replace("_", "-"),
+                        map(lambda y: str(x[y]).replace("_", "-").replace(" ", ""),
                             self.attr_filed)
                     ),
                 0),

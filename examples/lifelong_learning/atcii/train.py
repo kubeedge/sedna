@@ -25,9 +25,6 @@ def main():
     train_data = CSVDataParse(data_type="train", func=feature_process)
     train_data.parse(train_dataset_url, label=DATACONF["LABEL"])
 
-    # singel_task = Estimator()
-    # print(singel_task.train(train_data=train_data))
-    # print(singel_task.evaluate(valid_data))
     early_stopping_rounds = int(Context.get_parameters("early_stopping_rounds", 100))
     metric_name = Context.get_parameters("metric_name", "mlogloss")
     ll_job = LifelongLearning(

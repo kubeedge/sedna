@@ -14,7 +14,7 @@
 
 """ML Framework Backend base Class"""
 import os.path
-from copy import deepcopy
+from inspect import getfullargspec
 from sedna.common.file_ops import FileOps
 
 
@@ -36,23 +36,37 @@ class BackendBase:
         post_fix = model_postfix.get(self.framework, ".pkl")
         return f"model{continue_flag}{self.framework}{post_fix}"
 
+    @staticmethod
+    def parse_kwargs(func, **kwargs):
+        if not callable(func):
+            return kwargs
+        need_kw = getfullargspec(func)
+        if need_kw.varkw == 'kwargs':
+            return kwargs
+        return {k: v for k, v in kwargs.items() if k in need_kw.args}
+
     def train(self, **kwargs):
         """Train model."""
         if callable(self.estimator):
-            self.estimator = self.estimator()
-        return self.estimator.train(**kwargs)
+            varkw = self.parse_kwargs(self.estimator, **kwargs)
+            self.estimator = self.estimator(**varkw)
+        varkw = self.parse_kwargs(self.estimator.train, **kwargs)
+        return self.estimator.train(**varkw)
 
     def predict(self, **kwargs):
         """Inference model."""
-        return self.estimator.predict(**kwargs)
+        varkw = self.parse_kwargs(self.estimator.predict, **kwargs)
+        return self.estimator.predict(**varkw)
 
     def predict_proba(self, **kwargs):
         """Compute probabilities of possible outcomes for samples in X."""
-        return self.estimator.predict_proba(**kwargs)
+        varkw = self.parse_kwargs(self.estimator.predict_proba, **kwargs)
+        return self.estimator.predict_proba(**varkw)
 
     def evaluate(self, **kwargs):
         """evaluate model."""
-        return self.estimator.evaluate(**kwargs)
+        varkw = self.parse_kwargs(self.estimator.evaluate, **kwargs)
+        return self.estimator.evaluate(**varkw)
 
     def save(self, model_url="", model_name=None):
         mname = model_name or self.model_name
@@ -66,8 +80,11 @@ class BackendBase:
             FileOps.upload(model_path, model_url)
         return model_path
 
-    def load(self, model_url="", model_name=None):
+    def load(self, model_url="", model_name=None, **kwargs):
         mname = model_name or self.model_name
+        if callable(self.estimator):
+            varkw = self.parse_kwargs(self.estimator, **kwargs)
+            self.estimator = self.estimator(**varkw)
         if os.path.isfile(self.model_save_path):
             self.model_save_path, mname = os.path.split(self.model_save_path)
         model_path = FileOps.join_path(self.model_save_path, mname)
@@ -75,7 +92,7 @@ class BackendBase:
             FileOps.download(model_url, model_path)
         self.has_load = True
 
-        return self.estimator.load(model_path)
+        return self.estimator.load(model_url=model_path)
 
     def set_weights(self, weights):
         """Set weight with memory tensor."""

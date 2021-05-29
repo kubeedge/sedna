@@ -81,13 +81,13 @@ class TaskDefinitionByDataAttr:
             if g_attr in task_index:
                 old_task = tasks[task_index[g_attr]]
                 old_task.x = pd.concat([old_task.x, df])
-                old_task.y = pd.concat([old_task.y, y_data[df.index]])
+                old_task.y = pd.concat([old_task.y, y_data.iloc[df.index]])
                 continue
             task_index[g_attr] = _inx
 
             task_df = BaseDataSource(data_type=d_type)
             task_df.x = df.drop(self.attr_filed, axis=1)
-            task_df.y = y_data[df.index]
+            task_df.y = y_data.iloc[df.index]
 
             task_obj = Task(entry=g_attr, samples=task_df, meta_attr=meta_attr)
             tasks.append(task_obj)

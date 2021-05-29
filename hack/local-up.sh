@@ -74,7 +74,7 @@ get_latest_version() {
   # ...
   # "tag_name": "v1.0.0",
   # ...
-  curl -s https://api.github.com/repos/$repo/releases/latest | awk '/"tag_name":/&&$0=$2' | sed 's/[",]//g'
+  curl -k -s https://api.github.com/repos/$repo/releases/latest | awk '/"tag_name":/&&$0=$2' | sed 's/[",]//g'
 }
 
 download_and_extract_kubeedge() {
