@@ -207,7 +207,7 @@ class FileOps:
     def download(cls, src, dst, unzip=False) -> str:
         if dst is None:
             dst = tempfile.mkdtemp()
-
+        cls.clean_folder([os.path.dirname(dst)], clean=False)
         if src.startswith(cls._GCS_PREFIX):
             cls.gcs_download(src, dst)
         elif src.startswith(cls._S3_PREFIX):

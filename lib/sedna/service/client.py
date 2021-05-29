@@ -244,7 +244,8 @@ class KBClient:
             with open(task_info_file, "rb") as fin:
                 files = {"task": fin}
                 _id = http_request(url=_url, method="POST", files=files)
-        except:
+        except Exception as err:
+            sednaLogger.error(f"Update kb error: {err} - {task_info_file}")
             _id = None
         return _id
 
