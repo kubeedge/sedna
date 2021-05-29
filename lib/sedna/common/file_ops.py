@@ -330,34 +330,12 @@ class FileOps:
         :type dst: str
         :raises FileNotFoundError: if the file path is not exist, an error will raise
         """
-        from urllib.parse import urlparse
-        import mimetypes
-        import requests
-        import gzip
+        from six.moves import urllib
 
-        url = urlparse(src)
-
-        filename = os.path.basename(url.path)
-        mimetype, encoding = mimetypes.guess_type(url.path)
-        if os.path.isdir(dst):
-            dst = os.path.join(dst, filename)
-
-        if filename == '':
-            raise ValueError('No filename contained in URI: %s' % (src))
-
-        host_uri = url.hostname
-
-        with requests.get(src, stream=True) as response:
-            if response.status_code != 200:
-                raise RuntimeError("URI: %s returned a %s response code." %
-                                   (src, response.status_code))
-
-            if encoding == 'gzip':
-                stream = gzip.GzipFile(fileobj=response.raw)
-            else:
-                stream = response.raw
-            with open(dst, 'wb') as out:
-                shutil.copyfileobj(stream, out)
+        try:
+            urllib.request.urlretrieve(src, dst)
+        except (urllib.error.URLError, IOError) as e:
+            raise e
 
     @classmethod
     def _untar(cls, src, dst=None):
