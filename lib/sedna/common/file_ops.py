@@ -117,6 +117,8 @@ class FileOps:
     @classmethod
     def remove_path_prefix(cls, org_str: str, prefix: str):
         """remove the prefix, for converting path in container to path in host."""
+        if not prefix:
+            return org_str
         p = prefix[:-1] if prefix.endswith(os.path.sep) else prefix
         if org_str.startswith(p):
             out_str = org_str.replace(p, '', 1)

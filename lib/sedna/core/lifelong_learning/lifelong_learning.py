@@ -118,7 +118,8 @@ class LifelongLearning(JobBase):
             os.remove(name)
         self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value,
                                res, model=self.config.task_index)
-        sednaLogger.info("Lifelong learning Experiment Finished")
+        sednaLogger.info(f"Lifelong learning Experiment Finished, "
+                         f"KB idnex save in {self.config.task_index}")
         return callback_func(self.estimator, res) if callback_func else res
 
     def update(self, train_data, valid_data=None, post_process=None, **kwargs):

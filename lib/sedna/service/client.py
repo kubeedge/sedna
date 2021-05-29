@@ -24,9 +24,9 @@ from websockets.exceptions import InvalidStatusCode, WebSocketException, Connect
 from sedna.common.log import sednaLogger
 
 
-@retry(stop_max_attempt_number=1, retry_on_result=lambda x: x is None, wait_fixed=2000)
+@retry(stop_max_attempt_number=3, retry_on_result=lambda x: x is None, wait_fixed=2000)
 def http_request(url, method=None, timeout=None, binary=True, **kwargs):
-    _maxTimeout = timeout if timeout else 5
+    _maxTimeout = timeout if timeout else 300
     _method = "GET" if not method else method
     try:
         response = request(method=_method, url=url, **kwargs)
@@ -245,7 +245,7 @@ class KBClient:
                 files = {"task": fin}
                 _id = http_request(url=_url, method="POST", files=files)
         except Exception as err:
-            sednaLogger.error(f"Update kb error: {err} - {task_info_file}")
+            sednaLogger.error(f"Update kb error: {err}")
             _id = None
         return _id
 
