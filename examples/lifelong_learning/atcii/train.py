@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from interface import DATACONF, Estimator, feature_process
-from sedna.common.config import Context
+from sedna.common.config import Context, BaseConfig
 from sedna.datasources import CSVDataParse
 
 from sedna.core.lifelong_learning import LifelongLearning
@@ -21,7 +21,7 @@ from sedna.core.lifelong_learning import LifelongLearning
 
 def main():
     # load dataset.
-    train_dataset_url = Context.get_parameters('train_dataset_url')
+    train_dataset_url = BaseConfig.train_dataset_url
     train_data = CSVDataParse(data_type="train", func=feature_process)
     train_data.parse(train_dataset_url, label=DATACONF["LABEL"])
 

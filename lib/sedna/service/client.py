@@ -14,8 +14,6 @@
 import os
 import json
 import time
-import joblib
-import tempfile
 import threading
 from copy import deepcopy
 from retrying import retry
@@ -102,7 +100,7 @@ class LCClient:
         url = '{0}/sedna/workers/{1}/info'.format(
             lc_server, worker_name
         )
-        return http_request(url=url, method="GET", json=message)
+        return http_request(url=url, method="POST", json=message)
 
 
 class AggregationClient:
