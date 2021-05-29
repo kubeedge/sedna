@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+import os.path
+
 from sedna.common.log import sednaLogger
 from sedna.common.file_ops import FileOps
 from sedna.common.config import BaseConfig
@@ -96,25 +98,45 @@ class JobBase(DistributedWorker):
     def get_parameters(self, param, default=None):
         return self.parameters.get_parameters(param=param, default=default)
 
-    def _report_task_info(self, task_info, status, metrics, kind="train"):
-        ckpt_model_url = FileOps.remove_path_prefix(self.config.model_url,
-                                                    self.config.data_path_prefix)
-        pb_model_url = FileOps.remove_path_prefix(self.model_path,
+    def _report_task_info(self, task_info, status, metrics, kind="train", model=None):
+        if model:
+            _, _type = os.path.splitext(model)
+            _url = FileOps.remove_path_prefix(model,
+                                              self.config.data_path_prefix)
+            results = [{
+                "format": _type.lstrip("."),
+                "url": _url,
+                "metrics": metrics
+            }]
+            if _type == ".pb":
+                _url = FileOps.remove_path_prefix(os.path.dirname(model),
                                                   self.config.data_path_prefix)
+                results.append(
+                    {
+                        "format": "ckpt",
+                        "url": _url,
+                        "metrics": metrics
+                    }
+                )
+        else:
+            ckpt_model_url = FileOps.remove_path_prefix(self.config.model_url,
+                                                        self.config.data_path_prefix)
+            pb_model_url = FileOps.remove_path_prefix(self.model_path,
+                                                      self.config.data_path_prefix)
 
-        ckpt_result = {
-            "format": "ckpt",
-            "url": ckpt_model_url,
-            "metrics": metrics
-        }
+            ckpt_result = {
+                "format": "ckpt",
+                "url": ckpt_model_url,
+                "metrics": metrics
+            }
 
-        pb_result = {
-            "format": "pb",
-            "url": pb_model_url,
-            "metrics": metrics
-        }
+            pb_result = {
+                "format": "pb",
+                "url": pb_model_url,
+                "metrics": metrics
+            }
 
-        results = [ckpt_result, pb_result]
+            results = [ckpt_result, pb_result]
         message = {
             "name": self.worker_name,
             "namespace": self.config.namespace,

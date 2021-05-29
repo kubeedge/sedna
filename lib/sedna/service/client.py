@@ -220,7 +220,7 @@ class KBClient:
     """Communicate with Knowledge Base server"""
 
     def __init__(self, kbserver):
-        self.kbserver = kbserver
+        self.kbserver = f"{kbserver}/knowledgebase"
 
     def upload_file(self, files, name=""):
         if not (files and os.path.isfile(files)):

@@ -107,7 +107,7 @@ class LifelongLearning(JobBase):
         fd, name = tempfile.mkstemp()
         joblib.dump(task_info, name)
 
-        index_file = self.kb_server.update_db(task_info)
+        index_file = self.kb_server.update_db(name)
         if not index_file:
             self.log.error(f"KB update Fail !")
             index_file = name
@@ -116,7 +116,8 @@ class LifelongLearning(JobBase):
         if os.path.isfile(name):
             os.close(fd)
             os.remove(name)
-        self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value, res)
+        self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value,
+                               res, model=self.config.task_index)
         sednaLogger.info("Lifelong learning Experiment Finished")
         return callback_func(self.estimator, res) if callback_func else res
 
@@ -148,9 +149,13 @@ class LifelongLearning(JobBase):
                 drop_tasks.append(entry)
                 continue
 
-        _id = self.kb_server.update_task_status(drop_tasks, new_status=0)
-        if not _id:
+        index_file = self.kb_server.update_task_status(drop_tasks, new_status=0)
+        if not index_file:
             self.log.error(f"KB update Fail !")
+        else:
+            FileOps.download(index_file, self.config.task_index)
+        self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value,
+                               res, kind="eval", model=self.config.task_index)
         return callback_func(res) if callback_func else res
 
     def inference(self, data=None, post_process=None, **kwargs):
@@ -186,5 +191,5 @@ class LifelongLearning(JobBase):
             FileOps.upload(name, out_file)
             os.remove(name)
 
-        self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value, res, kind="inference")
+        # self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value, res, kind="inference")
         return res, is_unseen_task
