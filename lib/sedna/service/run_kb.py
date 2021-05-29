@@ -19,7 +19,7 @@ from sedna.service.server.knowledgeBase import KBServer
 
 def main():
     init_db()
-    server = os.getenv("knowledgebaseServer", "http://0.0.0.0:9020")
+    server = os.getenv("knowledgebaseServer", "http://127.0.0.1:9020")
     match = re.compile("(https?)://([0-9]{1,3}(?:\.[0-9]{1,3}){3}):([0-9]+)").match(server)
     if match:
         _, host, port = match.groups()

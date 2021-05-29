@@ -226,9 +226,10 @@ class KBClient:
         if not (files and os.path.isfile(files)):
             return files
         if not name:
-            name = os.path.basename(name)
+            name = os.path.basename(files)
+        sednaLogger.log(f"Try to upload file {name}")
         _url = f"{self.kbserver}/file/upload"
-        with open(name, "rb") as fin:
+        with open(files, "rb") as fin:
             files = {"file": fin}
             outurl = http_request(url=_url, method="POST", files=files)
         return outurl

@@ -5,6 +5,7 @@ COPY ./lib/requirements.txt /code
 RUN pip install -r /code/requirements.txt
 RUN pip install python-multipart
 RUN pip install SQLAlchemy
+RUN pip install aiofiles
 ENV PYTHONPATH "/code/lib"
 
 COPY ./lib /code/lib
