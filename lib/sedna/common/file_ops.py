@@ -214,7 +214,7 @@ class FileOps:
             cls.gcs_download(src, dst)
         elif src.startswith(cls._S3_PREFIX):
             cls.s3_download(src, dst)
-        elif cls.is_local:
+        elif cls.is_local(src):
             cls.copy_file(src, dst)
         elif re.search(cls._URI_RE, src):
             cls.http_download(src, dst)
@@ -233,7 +233,7 @@ class FileOps:
             cls.gcs_upload(src, dst)
         elif src.startswith(cls._S3_PREFIX):
             cls.s3_upload(src, dst)
-        elif cls.is_local:
+        elif cls.is_local(src):
             cls.copy_file(src, dst)
         return dst
 
