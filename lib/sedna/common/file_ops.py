@@ -105,15 +105,14 @@ class FileOps:
             return args[0]
         is_root = os.path.sep if str(args[0]).startswith(os.path.sep) else ""
         args = list(map(lambda x: x.lstrip(os.path.sep), args))
-
+        args[0] = f"{is_root}{args[0]}"
         # local path
         if ":" not in args[0]:
             args = tuple(args)
             return os.path.join(*args)
         # http or s3 path
-        prefix = f"{is_root}{args[0]}"
         tail = os.path.join(*args[1:])
-        return os.path.join(prefix, tail)
+        return os.path.join(args[0], tail)
 
     @classmethod
     def remove_path_prefix(cls, org_str: str, prefix: str):

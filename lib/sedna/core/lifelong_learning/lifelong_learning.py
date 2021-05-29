@@ -64,7 +64,7 @@ class LifelongLearning(JobBase):
             ll_kb_server=Context.get_parameters("KB_SERVER"),
             output_url=Context.get_parameters("OUTPUT_URL")
         )
-        task_index = FileOps.join_path(config['output_url'], 'deploy', 'index.pkl')
+        task_index = FileOps.join_path(config['output_url'], 'index.pkl')
         config['task_index'] = task_index
         super(LifelongLearning, self).__init__(estimator=estimator, config=config)
         self.job_kind = K8sResourceKind.LIFELONG_JOB.value
