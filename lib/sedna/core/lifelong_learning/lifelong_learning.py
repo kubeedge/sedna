@@ -97,13 +97,15 @@ class LifelongLearning(JobBase):
         )
         try:
             extractor_file = self.kb_server.upload_file(extractor_file)
-        except:
+        except Exception as err:
+            self.log.error(f"Upload task extractor_file fail {extractor_file}: {err}")
             extractor_file = joblib.load(extractor_file)
         for task in task_groups:
             try:
-                task.model.model = self.kb_server.upload_file(task.model.model)
+                model = self.kb_server.upload_file(task.model.model)
             except:
-                task.model.model = joblib.load(task.model.model)
+                model = joblib.load(task.model.model)
+            task.model.model = model
 
         task_info = {
             "task_groups": task_groups,

@@ -11,5 +11,5 @@ ENV PYTHONPATH "/code/lib"
 COPY ./lib /code/lib
 
 
-ENTRYPOINT ["python"]
+ENTRYPOINT ["python", "/code/lib/sedna/service/run_kb.py"]
 
