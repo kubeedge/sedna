@@ -75,7 +75,7 @@ class KBServer(BaseServer):
                 APIRoute(
                     f"/{servername}/file/upload",
                     self.file_upload,
-                    methods=["GET"],
+                    methods=["POST"],
                 ),
             ],
             log_level="trace",

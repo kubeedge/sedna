@@ -228,12 +228,9 @@ class KBClient:
         if not name:
             name = os.path.basename(name)
         _url = f"{self.kbserver}/file/upload"
-        try:
-            with open(name, "rb") as fin:
-                files = {"file": fin}
-                outurl = http_request(url=_url, method="POST", files=files)
-        except:
-            outurl = files
+        with open(name, "rb") as fin:
+            files = {"file": fin}
+            outurl = http_request(url=_url, method="POST", files=files)
         return outurl
 
     def update_db(self, task_info_file):

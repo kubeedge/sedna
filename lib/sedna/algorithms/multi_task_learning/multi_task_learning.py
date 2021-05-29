@@ -191,7 +191,7 @@ class MulTaskLearning:
             if not isinstance(m, Model):
                 continue
             model_obj = set_backend(estimator=self.base_model)
-            evaluator = model_obj.load(m.model)
+            evaluator = m.model if callable(m.model) else model_obj.load(m.model)
             pred = evaluator.predict(df.x, kwargs=kwargs)
             if callable(callback):
                 pred = callback(pred, df)

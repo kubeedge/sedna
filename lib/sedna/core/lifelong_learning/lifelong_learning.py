@@ -18,7 +18,6 @@ from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
 from sedna.common.config import Context
-from sedna.common.log import sednaLogger
 from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.algorithms.multi_task_learning import MulTaskLearning
 from sedna.service.client import KBClient
@@ -96,9 +95,15 @@ class LifelongLearning(JobBase):
             os.path.dirname(self.estimator.estimator.task_index_url),
             "kb_extractor.pkl"
         )
-        extractor_file = self.kb_server.upload_file(extractor_file)
+        try:
+            extractor_file = self.kb_server.upload_file(extractor_file)
+        except:
+            extractor_file = joblib.load(extractor_file)
         for task in task_groups:
-            task.model.model = self.kb_server.upload_file(task.model.model)
+            try:
+                task.model.model = self.kb_server.upload_file(task.model.model)
+            except:
+                task.model.model = joblib.load(task.model.model)
 
         task_info = {
             "task_groups": task_groups,
@@ -118,8 +123,8 @@ class LifelongLearning(JobBase):
             os.remove(name)
         self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value,
                                res, model=self.config.task_index)
-        sednaLogger.info(f"Lifelong learning Experiment Finished, "
-                         f"KB idnex save in {self.config.task_index}")
+        self.log.info(f"Lifelong learning Experiment Finished, "
+                      f"KB idnex save in {self.config.task_index}")
         return callback_func(self.estimator, res) if callback_func else res
 
     def update(self, train_data, valid_data=None, post_process=None, **kwargs):
@@ -139,7 +144,7 @@ class LifelongLearning(JobBase):
             callback_func = ClassFactory.get_cls(ClassType.CALLBACK, post_process)
 
         index_url = self.estimator.estimator.task_index_url
-        sednaLogger.log(f"Download kb index to {index_url}")
+        self.log.info(f"Download kb index to {index_url}")
         FileOps.download(self.config.task_index, index_url)
         res, tasks_detail = self.estimator.evaluate(data=data, **kwargs)
         drop_tasks = []
@@ -147,7 +152,7 @@ class LifelongLearning(JobBase):
             scores = detail.scores
             entry = detail.entry
             if any(map(lambda x: x < model_threshold, scores)):
-                sednaLogger.warn(f"{entry} will not be deploy because scores lt {model_threshold}")
+                self.log.warn(f"{entry} will not be deploy because scores lt {model_threshold}")
                 drop_tasks.append(entry)
                 continue
 
@@ -162,7 +167,7 @@ class LifelongLearning(JobBase):
 
     def inference(self, data=None, post_process=None, **kwargs):
         index_url = self.estimator.estimator.task_index_url
-        sednaLogger.log(f"Download kb index to {index_url}")
+        self.log.info(f"Download kb index to {index_url}")
         FileOps.download(self.config.task_index,
                          self.estimator.estimator.task_index_url)
         res, tasks = self.estimator.predict(
@@ -180,7 +185,7 @@ class LifelongLearning(JobBase):
                         ClassType.UTD, self.unseen_task_detect
                     )()
             except ValueError as err:
-                sednaLogger.error("Lifelong learning Experiment Inference [UTD] : {}".format(err))
+                self.log.error("Lifelong learning Experiment Inference [UTD] : {}".format(err))
             else:
                 is_unseen_task = unseen_task_detect_algorithm(
                     tasks=tasks, result=res, **self.unseen_task_detect_param

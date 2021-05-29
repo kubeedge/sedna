@@ -45,10 +45,10 @@ spec:
           mountPath: /db
         resources:
           requests:
-            memory: 32Mi
-            cpu: 100m
+            memory: 256Mi
+            cpu: 512m
           limits:
-            memory: 128Mi
+            memory: 512Mi
       volumes:
         - name: lifelong-kb-url
           hostPath:
