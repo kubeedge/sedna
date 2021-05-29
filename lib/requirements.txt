@@ -14,4 +14,5 @@ six~=1.15.0
 opencv-python==4.4.0.44
 Pillow==8.0.1
 scikit-learn==0.24.1
-git+https://github.com/joeyhwong-gk/uvicorn
+uvicorn~=0.13.4
+

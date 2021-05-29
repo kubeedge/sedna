@@ -137,7 +137,7 @@ class JobBase(DistributedWorker):
             }
 
             results = [ckpt_result, pb_result]
-        
+
         message = {
             "name": self.worker_name,
             "namespace": self.config.namespace,

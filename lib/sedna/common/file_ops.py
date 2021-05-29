@@ -103,6 +103,7 @@ class FileOps:
         """
         if len(args) == 1:
             return args[0]
+        is_root = os.path.sep if str(args[0]).startswith(os.path.sep) else ""
         args = list(map(lambda x: x.lstrip(os.path.sep), args))
 
         # local path
@@ -110,7 +111,7 @@ class FileOps:
             args = tuple(args)
             return os.path.join(*args)
         # http or s3 path
-        prefix = args[0]
+        prefix = f"{is_root}{args[0]}"
         tail = os.path.join(*args[1:])
         return os.path.join(prefix, tail)
 

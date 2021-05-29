@@ -33,7 +33,7 @@ class BaseServer:  # pylint: disable=too-many-instance-attributes,too-many-argum
 
     def __init__(self, servername: str, host: str = '', http_port: int = 8080,
                  grpc_port: int = 8081, workers: int = 1, ws_size: int = 16 * 1024 * 1024,
-                 ssl_key=None, ssl_cert=None):
+                 ssl_key=None, ssl_cert=None, timeout=300):
         self.server_name = servername
         self.app = None
         self.host = host or get_host_ip()
@@ -43,10 +43,11 @@ class BaseServer:  # pylint: disable=too-many-instance-attributes,too-many-argum
         self.keyfile = ssl_key
         self.certfile = ssl_cert
         self.ws_size = int(ws_size)
+        self.timeout = int(timeout)
         protoal = "https" if self.certfile else "http"
         self.url = f"{protoal}://{self.host}:{self.http_port}"
 
-    def run(self, app):
+    def run(self, app, **kwargs):
         app.add_middleware(
             CORSMiddleware, allow_origins=["*"], allow_credentials=True,
             allow_methods=["*"], allow_headers=["*"],
@@ -56,7 +57,7 @@ class BaseServer:  # pylint: disable=too-many-instance-attributes,too-many-argum
 
         uvicorn.run(app, host=self.host, port=self.http_port,
                     ssl_keyfile=self.keyfile, ssl_certfile=self.certfile,
-                    workers=self.workers, websocket_max_message_size=self.ws_size)
+                    workers=self.workers, timeout_keep_alive=self.timeout, **kwargs)
 
     def get_all_urls(self):
         url_list = [

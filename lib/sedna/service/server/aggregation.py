@@ -121,12 +121,12 @@ class WSServerBase:
 
 class Aggregator(WSServerBase):
     def __init__(self, **kwargs):
-        supper(Aggregator, self).__init()
+        super(Aggregator, self).__init__()
         self.exit_round = int(kwargs.get("exit_round", 3))
         self.current_round = {}
 
     async def send_message(self, client_id: str, msg: Dict):
-        self._client_meat[client_id].job_count += 1
+        self._client_meta[client_id].job_count += 1
         for to_client, websocket in self._clients.items():
             if to_client == client_id:
                 continue
@@ -206,7 +206,7 @@ class AggregationServer(BaseServer):
         Start the server
         """
         self.app.add_middleware(WSEventMiddleware, exit_round=self.exit_round)
-        self.run(self.app)
+        self.run(self.app, websocket_max_message_size=self.ws_size)
 
     async def client_info(self, request: Request):
         server: Optional[Aggregator] = request.get(self.server_name)
