@@ -30,7 +30,7 @@ def main():
     ll_job = LifelongLearning(
         estimator=Estimator,
         task_definition="TaskDefinitionByDataAttr",
-        task_definition_param='{"attribute": ["Season"]}'
+        task_definition_param='{"attribute": ["Season", "Cooling startegy_building level"]}'
     )
     train_experiment = ll_job.train(
         train_data=train_data,

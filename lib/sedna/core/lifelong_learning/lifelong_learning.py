@@ -14,6 +14,7 @@
 import os
 import joblib
 import tempfile
+from sedna.backend import set_backend
 from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
@@ -61,7 +62,7 @@ class LifelongLearning(JobBase):
         self.unseen_task_detect_param = estimator.parse_param(unseen_task_detect_param)
         config = dict(
             ll_kb_server=Context.get_parameters("KB_SERVER"),
-            output_url=Context.get_parameters("OUTPUT_URL")
+            output_url=Context.get_parameters("OUTPUT_URL", "/tmp")
         )
         task_index = FileOps.join_path(config['output_url'], 'index.pkl')
         config['task_index'] = task_index
@@ -104,7 +105,10 @@ class LifelongLearning(JobBase):
             try:
                 model = self.kb_server.upload_file(task.model.model)
             except:
-                model = joblib.load(task.model.model)
+                model_obj = set_backend(
+                    estimator=self.estimator.estimator.base_model
+                )
+                model = model_obj.load(task.model.model)
             task.model.model = model
 
         task_info = {

@@ -73,7 +73,7 @@ class TaskDefinitionByDataAttr:
         task_index = {}
         for meta_attr, df in x_data.groupby(self.attr_filed):
             if isinstance(meta_attr, (list, tuple, set)):
-                g_attr = "_".join(map(lambda x: x.replace("_", "-"), meta_attr))
+                g_attr = "_".join(map(lambda x: str(x).replace("_", "-"), meta_attr))
             else:
                 g_attr = str(meta_attr).replace("_", "-")
                 meta_attr = [meta_attr]

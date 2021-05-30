@@ -93,3 +93,20 @@ class Estimator:
         save model as a single pb file from checkpoint
         """
         return self.model.save_model(model_path)
+
+
+if __name__ == '__main__':
+    from sedna.datasources import CSVDataParse
+    from sedna.common.config import BaseConfig
+
+    train_dataset_url = BaseConfig.train_dataset_url
+    train_data = CSVDataParse(data_type="train", func=feature_process)
+    train_data.parse(train_dataset_url, label=DATACONF["LABEL"])
+
+    test_dataset_url = BaseConfig.test_dataset_url
+    valid_data = CSVDataParse(data_type="valid", func=feature_process)
+    valid_data.parse(test_dataset_url, label=DATACONF["LABEL"])
+
+    model = Estimator()
+    print(model.train(train_data))
+    print(model.evaluate(test_data=valid_data))
