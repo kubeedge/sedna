@@ -148,10 +148,10 @@ class LifelongLearning(JobBase):
             callback_func = post_process
         elif post_process is not None:
             callback_func = ClassFactory.get_cls(ClassType.CALLBACK, post_process)
-
+        task_index_url = self.get_parameters("MODEL_URLS", self.config.task_index)
         index_url = self.estimator.estimator.task_index_url
-        self.log.info(f"Download kb index to {index_url}")
-        FileOps.download(self.config.task_index, index_url)
+        self.log.info(f"Download kb index from {task_index_url} to {index_url}")
+        FileOps.download(task_index_url, index_url)
         res, tasks_detail = self.estimator.evaluate(data=data, **kwargs)
         drop_tasks = []
         for detail in tasks_detail:
@@ -166,8 +166,7 @@ class LifelongLearning(JobBase):
         index_file = self.kb_server.update_task_status(drop_tasks, new_status=0)
         if not index_file:
             self.log.error(f"KB update Fail !")
-        else:
-            FileOps.download(index_file, self.config.task_index)
+        FileOps.download(index_file, self.config.task_index)
         self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value,
                                res, kind="eval", model=self.config.task_index)
         return callback_func(res) if callback_func else res
