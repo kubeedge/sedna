@@ -176,7 +176,6 @@ class LifelongLearning(JobBase):
     def inference(self, data=None, post_process=None, **kwargs):
         task_index_url = self.get_parameters("MODEL_URLS", self.config.task_index)
         index_url = self.estimator.estimator.task_index_url
-        self.log.info(f"Download kb index from {task_index_url} to {index_url}")
         FileOps.download(task_index_url, index_url)
         res, tasks = self.estimator.predict(
             data=data, post_process=post_process, **kwargs
@@ -198,15 +197,5 @@ class LifelongLearning(JobBase):
                 is_unseen_task = unseen_task_detect_algorithm(
                     tasks=tasks, result=res, **self.unseen_task_detect_param
                 )
-        if is_unseen_task:
-            utd_saved_url = self.get_parameters('UTD_SAVED_URL')
-            fd, name = tempfile.mkstemp()
-            joblib.dump(name, tasks)
-            os.close(fd)
-            out_file = FileOps.join_path(utd_saved_url, FileOps.get_file_hash(name))
-
-            FileOps.upload(name, out_file)
-            os.remove(name)
-
         # self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value, res, kind="inference")
-        return res, is_unseen_task
+        return res, is_unseen_task, tasks

@@ -58,8 +58,8 @@ class TaskAttrFilter(BaseFilter, abc.ABC):
 
     def __call__(self, tasks: List[Task] = None, **kwargs):
         for task in tasks:
-            model_attr = task.model.meta_attr
-            sample_attr = task.samples.meta_attr
+            model_attr = list(map(list, task.model.meta_attr))
+            sample_attr = list(map(list, task.samples.meta_attr))
 
             if not (model_attr and sample_attr):
                 continue

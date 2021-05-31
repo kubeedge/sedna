@@ -24,11 +24,12 @@ def main():
 
     utd = Context.get_parameters("UTD_NAME", "TaskAttr")
     utd_parameters = Context.get_parameters("UTD_PARAMETERS", {})
+    ut_saved_url = Context.get_parameters("UTD_SAVED_URL", "/tmp")
 
     ll_job = LifelongLearning(
         estimator=Estimator,
         task_mining="TaskMiningByDataAttr",
-        task_mining_param='{"attribute": ["Season"]}',
+        task_mining_param='{"attribute": ["Season", "Cooling startegy_building level"]}',
         unseen_task_detect=utd,
         unseen_task_detect_param=utd_parameters
     )
@@ -38,6 +39,8 @@ def main():
     header = list(csv.reader([file_handle.readline().strip()]))[0]
     infer_data = CSVDataParse(data_type="test", func=feature_process)
 
+    unseen_sample = open(infer_dataset_url, "w", encoding="utf-8")
+    unseen_sample.write("\t".join(header + ['pred', 'TaskAttr', 'SampleAttr']) + "\n")
     while 1:
         where = file_handle.tell()
         line = file_handle.readline()
@@ -46,11 +49,18 @@ def main():
             file_handle.seek(where)
             continue
         reader = list(csv.reader([line.strip()]))
+        rows = reader[0]
+        data = dict(zip(header, rows))
+        infer_data.parse(data, label=DATACONF["LABEL"])
+        rsl, is_unseen, target_task = ll_job.inference(infer_data)
 
-        rows = dict(zip(header, reader[0]))
-        infer_data.parse(rows, label=DATACONF["LABEL"])
-        infer_experiment = ll_job.inference(infer_data)
-        yield infer_experiment
+        task_attr = target_task.samples.meta_attr
+        sample_attr = target_task.model.meta_attr
+
+        rows.extend([list(rsl)[0], task_attr, sample_attr])
+        if is_unseen:
+            unseen_sample.write("\t".join(map(str, rows)) + "\n")
+    unseen_sample.close()
 
 
 if __name__ == '__main__':
