@@ -166,6 +166,7 @@ class LifelongLearning(JobBase):
         index_file = self.kb_server.update_task_status(drop_tasks, new_status=0)
         if not index_file:
             self.log.error(f"KB update Fail !")
+            index_file = task_index_url
         FileOps.download(index_file, self.config.task_index)
         self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value,
                                res, kind="eval", model=self.config.task_index)
