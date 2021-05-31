@@ -68,6 +68,8 @@ class FileOps:
             args = str(path).split(os.path.sep)
             if len(args) < 2:
                 continue
+            if not args[0]:
+                args[0] = os.path.sep
             _path = cls.join_path(*args)
             if os.path.isdir(_path) and clean:
                 shutil.rmtree(_path)
