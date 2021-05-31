@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import csv
+import os
 import time
 from interface import DATACONF, Estimator, feature_process
 from sedna.common.config import Context
@@ -39,8 +40,13 @@ def main():
     header = list(csv.reader([file_handle.readline().strip()]))[0]
     infer_data = CSVDataParse(data_type="test", func=feature_process)
 
-    unseen_sample = open(infer_dataset_url, "w", encoding="utf-8")
+    unseen_sample = open(os.path.join(ut_saved_url, "unseen_sample.csv"),
+                         "w", encoding="utf-8")
     unseen_sample.write("\t".join(header + ['pred', 'TaskAttr', 'SampleAttr']) + "\n")
+    output_sample = open(f"{infer_dataset_url}_out.csv", "w", encoding="utf-8")
+    unseen_sample.write("\t".join(header + ['pred', 'TaskAttr', 'SampleAttr']) + "\n")
+    output_sample.write("\t".join(header + ['pred', 'TaskAttr', 'SampleAttr']) + "\n")
+
     while 1:
         where = file_handle.tell()
         line = file_handle.readline()
@@ -60,7 +66,9 @@ def main():
         rows.extend([list(rsl)[0], task_attr, sample_attr])
         if is_unseen:
             unseen_sample.write("\t".join(map(str, rows)) + "\n")
+        output_sample.write("\t".join(map(str, rows)) + "\n")
     unseen_sample.close()
+    output_sample.close()
 
 
 if __name__ == '__main__':

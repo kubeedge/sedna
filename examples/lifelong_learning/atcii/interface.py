@@ -27,12 +27,13 @@ DATACONF = {
 
 
 def feature_process(df: pd.DataFrame):
-    df.drop(["City"], axis=1, inplace=True)
+    if "City" in df.columns:
+        df.drop(["City"], axis=1, inplace=True)
     for feature in df.columns:
         if feature in ["Season", "Thermal preference"]:
             continue
         df[feature] = df[feature].apply(lambda x: float(x) if x else 0.0)
-
+        df['Thermal preference'] = df['Thermal preference'].astype(int)
     return df
 
 
