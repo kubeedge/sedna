@@ -166,17 +166,18 @@ class LifelongLearning(JobBase):
         index_file = self.kb_server.update_task_status(drop_tasks, new_status=0)
         if not index_file:
             self.log.error(f"KB update Fail !")
-            index_file = task_index_url
+            index_file = str(index_url)
+        self.log.info(f"upload kb index from {index_file} to {self.config.task_index}")
         FileOps.download(index_file, self.config.task_index)
         self._report_task_info(None, K8sResourceKindStatus.COMPLETED.value,
                                res, kind="eval", model=self.config.task_index)
         return callback_func(res) if callback_func else res
 
     def inference(self, data=None, post_process=None, **kwargs):
+        task_index_url = self.get_parameters("MODEL_URLS", self.config.task_index)
         index_url = self.estimator.estimator.task_index_url
-        self.log.info(f"Download kb index to {index_url}")
-        FileOps.download(self.config.task_index,
-                         self.estimator.estimator.task_index_url)
+        self.log.info(f"Download kb index from {task_index_url} to {index_url}")
+        FileOps.download(task_index_url, index_url)
         res, tasks = self.estimator.predict(
             data=data, post_process=post_process, **kwargs
         )

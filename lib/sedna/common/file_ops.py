@@ -196,7 +196,7 @@ class FileOps:
                 return
             if os.path.isdir(dst):
                 basename = os.path.basename(src)
-                dst = os.path.join(basename, basename)
+                dst = os.path.join(dst, basename)
             parent_dir = os.path.dirname(dst)
             cls.clean_folder([parent_dir], clean=False)
 
@@ -209,6 +209,7 @@ class FileOps:
     def download(cls, src, dst, unzip=False) -> str:
         if dst is None:
             dst = tempfile.mkdtemp()
+
         cls.clean_folder([os.path.dirname(dst)], clean=False)
         if src.startswith(cls._GCS_PREFIX):
             cls.gcs_download(src, dst)
