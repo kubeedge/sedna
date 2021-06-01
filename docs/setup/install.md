@@ -1,5 +1,5 @@
 ### Prerequisites
-- [KUBECTL][kubectl] with right kubeconfig
+- [Kubectl][kubectl] with right kubeconfig
 - [Kubernetes][kubernetes] 1.16+ cluster running
 - [KubeEdge][kubeedge] v.15+ running
 
