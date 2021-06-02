@@ -2,7 +2,7 @@
 # Sedna
 [![CI](https://github.com/kubeedge/sedna/workflows/CI/badge.svg?branch=main)](https://github.com/kubeedge/sedna/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/kubeedge/sedna)](https://goreportcard.com/report/github.com/kubeedge/sedna)
-[![LICENSE](https://img.shields.io/github/license/kubeedge/sedna.svg?style=flat-square)](/LICENSE)
+[![LICENSE](https://img.shields.io/github/license/kubeedge/sedna.svg)](/LICENSE)
 
 ## 什么是Sedna?
 Sedna是在KubeEdge SIG AI中孵化的一个边云协同AI项目。得益于KubeEdge提供的边云协同能力，Sedna可以实现跨边云的协同训练和协同推理能力，如联合推理、增量学习、联邦学习等。Sedna支持目前广泛使用的AI框架，如TensorFlow/Pytorch/PaddlePaddle/MindSpore等，现有AI类应用可以无缝迁移到Sedna, 快速实现边云协同的训练和推理，可在降低成本、提升模型性能、保护数据隐私等方面获得提升。
