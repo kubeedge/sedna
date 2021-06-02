@@ -316,7 +316,7 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 		jc.recorder.Event(&jointinferenceservice, v1.EventTypeWarning, reason, message)
 	} else {
 		if len(pods) == 0 {
-			active, manageServiceErr = jc.createPod(&jointinferenceservice)
+			active, manageServiceErr = jc.createWorkers(&jointinferenceservice)
 		}
 		if manageServiceErr != nil {
 			serviceFailed = true
@@ -393,7 +393,7 @@ func isJointinferenceserviceFinished(j *sednav1.JointInferenceService) bool {
 	return false
 }
 
-func (jc *JointInferenceServiceController) createPod(service *sednav1.JointInferenceService) (active int32, err error) {
+func (jc *JointInferenceServiceController) createWorkers(service *sednav1.JointInferenceService) (active int32, err error) {
 	active = 0
 
 	// create cloud worker
@@ -403,12 +403,11 @@ func (jc *JointInferenceServiceController) createPod(service *sednav1.JointInfer
 	}
 	active++
 
-	// create kubernetesService for cloudPod, and get bigServicePort for edgePod
-	var bigServicePort int32
+	// create k8s service for cloudPod
 	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 	// will support Spec.NodeSelector.
 	bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
-	bigServicePort, err = CreateKubernetesService(jc.kubeClient, service, bigModelPort, bigModelIP)
+	bigServicePort, err := CreateKubernetesService(jc.kubeClient, service, jointInferenceForCloud, bigModelPort, bigModelIP)
 	if err != nil {
 		return active, err
 	}
