@@ -60,7 +60,7 @@ class CrossEntropyFilter(BaseFilter):
                     log_sum += class_data * math.log(class_data)
                 confidence_score = 1 + 1.0 * log_sum / math.log(
                     len(infer_result))
-                return confidence_score >= self.threshold_cross_entropy
+                return confidence_score < self.threshold_cross_entropy
             else:
                 logger.warning("every value of infer_result should be in "
                                f"[0,1], your data is {infer_result}")
