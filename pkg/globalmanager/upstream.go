@@ -371,6 +371,83 @@ func (uc *UpstreamController) updateIncrementalLearningFromEdge(name, namespace,
 	return nil
 }
 
+func (uc *UpstreamController) appendLifelongLearningJobStatusCondition(name, namespace string, cond sednav1.LLJobCondition) error {
+	client := uc.client.LifelongLearningJobs(namespace)
+	return retryUpdateStatus(name, namespace, func() error {
+		job, err := client.Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		job.Status.Conditions = append(job.Status.Conditions, cond)
+		_, err = client.UpdateStatus(context.TODO(), job, metav1.UpdateOptions{})
+		return err
+	})
+}
+
+// updateLifelongLearningJobFromEdge syncs the edge updates to k8s
+func (uc *UpstreamController) updateLifelongLearningJobFromEdge(name, namespace, operation string, content []byte) error {
+	err := checkUpstreamOperation(operation)
+	if err != nil {
+		return err
+	}
+	var jobStatus struct {
+		Phase  string `json:"phase"`
+		Status string `json:"status"`
+	}
+
+	err = json.Unmarshal(content, &jobStatus)
+	if err != nil {
+		return newUnmarshalError(namespace, name, operation, content)
+	}
+
+	// Get the condition data.
+	// Here unmarshal and marshal immediately to skip the unnecessary fields
+	var condData LifelongLearningCondData
+	err = json.Unmarshal(content, &condData)
+	if err != nil {
+		return newUnmarshalError(namespace, name, operation, content)
+	}
+	condDataBytes, _ := json.Marshal(&condData)
+
+	cond := sednav1.LLJobCondition{
+		Status:             v1.ConditionTrue,
+		LastHeartbeatTime:  metav1.Now(),
+		LastTransitionTime: metav1.Now(),
+		Data:               string(condDataBytes),
+		Message:            "reported by lc",
+	}
+
+	switch strings.ToLower(jobStatus.Phase) {
+	case "train":
+		cond.Stage = sednav1.LLJobTrain
+	case "eval":
+		cond.Stage = sednav1.LLJobEval
+	case "deploy":
+		cond.Stage = sednav1.LLJobDeploy
+	default:
+		return fmt.Errorf("invalid condition stage: %v", jobStatus.Phase)
+	}
+
+	switch strings.ToLower(jobStatus.Status) {
+	case "ready":
+		cond.Type = sednav1.LLJobStageCondReady
+	case "completed":
+		cond.Type = sednav1.LLJobStageCondCompleted
+	case "failed":
+		cond.Type = sednav1.LLJobStageCondFailed
+	case "waiting":
+		cond.Type = sednav1.LLJobStageCondWaiting
+	default:
+		return fmt.Errorf("invalid condition type: %v", jobStatus.Status)
+	}
+
+	err = uc.appendLifelongLearningJobStatusCondition(name, namespace, cond)
+	if err != nil {
+		return fmt.Errorf("failed to append condition, err:%+w", err)
+	}
+	return nil
+}
+
 // syncEdgeUpdate receives the updates from edge and syncs these to k8s.
 func (uc *UpstreamController) syncEdgeUpdate() {
 	for {
@@ -435,6 +512,7 @@ func NewUpstreamController(cfg *config.ControllerConfig) (FeatureControllerI, er
 		"jointinferenceservice":  uc.updateJointInferenceFromEdge,
 		"federatedlearningjob":   uc.updateFederatedLearningJobFromEdge,
 		"incrementallearningjob": uc.updateIncrementalLearningFromEdge,
+		"lifelonglearningjob":    uc.updateLifelongLearningJobFromEdge,
 	}
 
 	return uc, nil

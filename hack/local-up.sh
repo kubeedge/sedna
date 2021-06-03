@@ -195,8 +195,11 @@ prepare_k8s_env() {
   kind get kubeconfig --name $CLUSTER_NAME > $TMP_DIR/kubeconfig
   export KUBECONFIG=$(realpath $TMP_DIR/kubeconfig)
   # prepare our k8s environment
+
   # create these crds including dataset, model, joint-inference etc.
   kubectl create -f build/crds/
+
+  kubectl create namespace $NAMESPACE 
 
   # create the cluster role for gm
   kubectl create -f build/gm/rbac/

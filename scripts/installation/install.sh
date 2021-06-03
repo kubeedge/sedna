@@ -21,6 +21,10 @@ set -o pipefail
 TMP_DIR=$(mktemp -d --suffix=.sedna)
 SEDNA_ROOT=${SEDNA_ROOT:-$TMP_DIR}
 
+GM_NODE_NAME=${SEDNA_GM_NODE:-}
+KB_NODE_NAME=${SEDNA_GM_NODE:-}
+
+
 trap "rm -rf '$TMP_DIR'" EXIT 
 
 _download_yamls() {
@@ -50,6 +54,7 @@ download_yamls() {
   sedna.io_federatedlearningjobs.yaml
   sedna.io_incrementallearningjobs.yaml
   sedna.io_jointinferenceservices.yaml
+  sedna.io_lifelonglearningjobs.yaml
   sedna.io_models.yaml
   )
   _download_yamls build/crds
@@ -59,12 +64,24 @@ download_yamls() {
   _download_yamls build/gm/rbac
 }
 
+prepare_install(){
+  # need to create a namespace
+  kubectl create ns sedna
+
+  kubectl label node/$GM_NODE_NAME sedna=control-plane --overwrite
+}
+
 prepare() {
   mkdir -p ${SEDNA_ROOT}
-
+  
   # we only need build directory
   # here don't use git clone because of large vendor directory
   download_yamls
+}
+
+cleanup(){
+  kubectl label node/$SEDNA_GM_NODE sedna- | sed 's/labeled$/un&/' || true
+  kubectl delete ns sedna
 }
 
 create_crds() {
@@ -77,7 +94,77 @@ delete_crds() {
   kubectl delete -f build/crds --timeout=90s
 }
 
+create_kb(){
+  cd ${SEDNA_ROOT}
+
+  kubectl $action -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: kb
+  namespace: sedna
+spec:
+  selector:
+    sedna: kb
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 9020
+      targetPort: 9020
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kb
+  labels:
+    sedna: kb
+  namespace: sedna
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      sedna: kb
+  template:
+    metadata:
+      labels:
+        sedna: kb
+    spec:
+      nodeSelector:
+        sedna: control-plane
+      serviceAccountName: sedna
+      containers:
+      - name: kb
+        imagePullPolicy: IfNotPresent
+        image: kubeedge/sedna-kb:v0.3.0
+        env:
+          - name: KB_URL
+            value: "sqlite:///db/kb.sqlite3"
+        volumeMounts:
+        - name: kb-url
+          mountPath: /db
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 100m
+          limits:
+            memory: 512Mi
+      volumes:
+        - name: kb-url
+          hostPath:
+            path: /opt/kb-data
+            type: DirectoryOrCreate
+EOF
+}
+
 prepare_gm_config_map() {
+  kb_node_port=$(kubectl -n sedna get svc kb -ojsonpath='{.spec.ports[0].nodePort}')
+
+  # here try to get node ip by kubectl
+  kb_node_ip=$(kubectl get node $KB_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="ExternalIP")].address }')
+  kb_node_internal_ip=$(kubectl get node $KB_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="InternalIP")].address }')
+
+  KB_ADDRESS=${kb_node_ip:-$kb_node_internal_ip}:$kb_node_port
+
   cm_name=${1:-gm-config}
   config_file=${TMP_DIR}/${2:-gm.yaml}
 
@@ -93,6 +180,8 @@ websocket:
   port: 9000
 localController:
   server: http://localhost:${SEDNA_LC_BIND_PORT:-9100}
+knowledgeBaseServer:
+  server: http://$KB_ADDRESS
 EOF
   fi
 
@@ -103,9 +192,7 @@ create_gm() {
 
   cd ${SEDNA_ROOT}
 
-  kubectl apply -f build/gm/rbac/
-
-  kubectl label node/$GM_NODE_NAME sedna=gm --overwrite
+  kubectl create -f build/gm/rbac/
 
   cm_name=gm-config
   config_file_name=gm.yaml
@@ -145,7 +232,7 @@ spec:
         sedna: gm
     spec:
       nodeSelector:
-        sedna: gm
+        sedna: control-plane
       serviceAccountName: sedna
       containers:
       - name: gm
@@ -170,10 +257,8 @@ EOF
 delete_gm() {
   cd ${SEDNA_ROOT}
 
-  # sedna namespace would be deleted in here
   kubectl delete -f build/gm/rbac/
 
-  kubectl label node/$GM_NODE_NAME sedna- | sed 's/labeled$/un&/' || true
 
   # no need to clean gm deployment alone
 }
@@ -269,9 +354,7 @@ check_action() {
   
 }
 
-check_gm_node() {
-  GM_NODE_NAME=${SEDNA_GM_NODE:-}
-
+check_node() {
   if [ -z "$GM_NODE_NAME" ] || ! kubectl get node $GM_NODE_NAME; then 
     echo "ERROR: $(red_text GM node name \`$GM_NODE_NAME\` does not exist in k8s cluster)!" >&2
     echo "You need to specify it by setting $(red_text SEDNA_GM_NODE) environment variable when running this script!" >&2
@@ -282,7 +365,7 @@ check_gm_node() {
 do_check() {
   check_kubectl
   check_action
-  check_gm_node
+  check_node
 }
 
 show_debug_infos() {
@@ -308,10 +391,11 @@ red_text() {
 do_check
 
 prepare
-
 case "$action" in
   create)
+    prepare_install
     create_crds
+    create_kb
     create_gm
     create_lc
     wait_ok
@@ -323,6 +407,7 @@ case "$action" in
     delete_gm
     delete_lc
     delete_crds
+    cleanup
     echo "$(green_text Sedna is uninstalled successfully)"
     ;;
 esac

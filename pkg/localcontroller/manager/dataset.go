@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -66,9 +67,10 @@ type DatasetSpec struct {
 
 // DataSource defines config for data source
 type DataSource struct {
-	TrainSamples    []string `json:"trainSamples"`
-	ValidSamples    []string `json:"validSamples"`
-	NumberOfSamples int      `json:"numberOfSamples"`
+	TrainSamples    []string
+	ValidSamples    []string
+	NumberOfSamples int
+	Header          string
 }
 
 // NewDatasetManager creates a dataset manager
@@ -205,6 +207,10 @@ func (dm *DatasetManager) monitorDataSources(name string) {
 
 // getDataSource gets data source info
 func (ds *Dataset) getDataSource(dataURL string, format string) (*DataSource, error) {
+	if path.Ext(dataURL) != ("." + format) {
+		return nil, fmt.Errorf("dataset file url(%s)'s suffix is different from format(%s)", dataURL, format)
+	}
+
 	localURL, err := ds.Storage.Download(dataURL, "")
 
 	if !ds.Storage.IsLocalStorage {
@@ -215,15 +221,11 @@ func (ds *Dataset) getDataSource(dataURL string, format string) (*DataSource, er
 		return nil, err
 	}
 
-	switch format {
-	case "txt":
-		return ds.readByLine(localURL)
-	}
-	return nil, fmt.Errorf("not vaild file format")
+	return ds.readByLine(localURL, format)
 }
 
 // readByLine reads file by line
-func (ds *Dataset) readByLine(url string) (*DataSource, error) {
+func (ds *Dataset) readByLine(url string, format string) (*DataSource, error) {
 	samples, err := getSamples(url)
 	if err != nil {
 		klog.Errorf("read file %s failed, error: %v", url, err)
@@ -231,12 +233,25 @@ func (ds *Dataset) readByLine(url string) (*DataSource, error) {
 	}
 
 	numberOfSamples := 0
-	numberOfSamples += len(samples)
+	dataSource := DataSource{}
+	switch format {
+	case DatasetFormatTXT:
+		numberOfSamples += len(samples)
+	case DatasetFormatCSV:
+		// the first row of csv file is header
+		if len(samples) == 0 {
+			return nil, fmt.Errorf("file %s is empty", url)
+		}
+		dataSource.Header = samples[0]
+		samples = samples[1:]
+		numberOfSamples += len(samples)
 
-	dataSource := DataSource{
-		TrainSamples:    samples,
-		NumberOfSamples: numberOfSamples,
+	default:
+		return nil, fmt.Errorf("invaild file format")
 	}
+
+	dataSource.TrainSamples = samples
+	dataSource.NumberOfSamples = numberOfSamples
 
 	return &dataSource, nil
 }

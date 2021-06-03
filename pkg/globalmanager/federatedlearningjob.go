@@ -513,7 +513,7 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 			"DATASET_NAME":       datasetName,
 			"LC_SERVER":          fc.cfg.LC.Server,
 		}
-		workerParam.workerType = "train"
+		workerParam.workerType = TrainPodType
 		workerParam.hostNetwork = true
 		workerParam.restartPolicy = v1.RestartPolicyOnFailure
 		// create train pod based on configured parameters

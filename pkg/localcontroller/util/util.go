@@ -54,7 +54,7 @@ func IsDir(path string) bool {
 }
 
 // CopyFile copies a file to other
-func CopyFile(dstName, srcName string) (written int64, err error) {
+func CopyFile(srcName, dstName string) (written int64, err error) {
 	src, err := os.Open(srcName)
 	if err != nil {
 		klog.Errorf("open file %s failed: %v", srcName, err)
