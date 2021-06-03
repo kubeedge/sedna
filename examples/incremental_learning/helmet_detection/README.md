@@ -1,6 +1,6 @@
 # Using Incremental Learning Job in Helmet Detection Scenario
 
-This document introduces how to use incremental learning job in helmet detectioni scenario. 
+This document introduces how to use incremental learning job in helmet detection scenario. 
 Using the incremental learning job, our application can automatically retrains, evaluates, 
 and updates models based on the data generated at the edge.
 
