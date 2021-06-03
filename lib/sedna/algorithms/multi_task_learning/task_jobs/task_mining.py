@@ -1,0 +1,59 @@
+# Copyright 2021 The KubeEdge Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from sedna.datasources import BaseDataSource
+from sedna.common.class_factory import ClassFactory, ClassType
+
+
+__all__ = ('TaskMiningBySVC', 'TaskMiningByDataAttr')
+
+
+@ClassFactory.register(ClassType.MTL)
+class TaskMiningBySVC:
+    def __init__(self, task_extractor, **kwargs):
+        self.task_extractor = task_extractor
+
+    def __call__(self, samples: BaseDataSource):
+        df = samples.x
+        allocations = [0, ] * len(df)
+        legal = list(
+            filter(lambda col: df[col].dtype == 'float64', df.columns))
+        if not len(legal):
+            return allocations
+
+        allocations = list(self.task_extractor.predict(df[legal]))
+        return samples, allocations
+
+
+@ClassFactory.register(ClassType.MTL)
+class TaskMiningByDataAttr:
+    def __init__(self, task_extractor, **kwargs):
+        self.task_extractor = task_extractor
+        self.attr_filed = kwargs.get("attribute", [])
+
+    def __call__(self, samples: BaseDataSource):
+        df = samples.x
+        meta_attr = df[self.attr_filed]
+
+        allocations = meta_attr.apply(
+            lambda x: self.task_extractor.get(
+                "_".join(
+                    map(lambda y: str(x[y]).replace("_", "-").replace(" ", ""),
+                        self.attr_filed)
+                ),
+                0),
+            axis=1).values.tolist()
+        samples.x = df.drop(self.attr_filed, axis=1)
+        samples.meta_attr = meta_attr
+        return samples, allocations

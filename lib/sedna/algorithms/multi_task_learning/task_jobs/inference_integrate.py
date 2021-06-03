@@ -12,7 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .aggregation import *
-from .hard_example_mining import *
-from .multi_task_learning import *
-from .unseen_task_detect import *
+import numpy as np
+from typing import List
+from .artifact import Task
+from sedna.common.class_factory import ClassFactory, ClassType
+
+__all__ = ('DefaultInferenceIntegrate', )
+
+
+@ClassFactory.register(ClassType.MTL)
+class DefaultInferenceIntegrate:
+    def __init__(self, models: list, **kwargs):
+        self.models = models
+
+    def __call__(self, tasks: List[Task]):
+        res = {}
+        for task in tasks:
+            res.update(dict(zip(task.samples.inx, task.result)))
+        return np.array([z[1]
+                        for z in sorted(res.items(), key=lambda x: x[0])])

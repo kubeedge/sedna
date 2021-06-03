@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .aggregation import *
-from .hard_example_mining import *
-from .multi_task_learning import *
-from .unseen_task_detect import *
+from .task_definition import *
+from .task_relation_discover import *
+
+from .task_mining import *
+from .task_remodeling import *
+
+from .inference_integrate import *
