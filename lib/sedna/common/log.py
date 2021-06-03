@@ -15,7 +15,9 @@
 """Base logger"""
 
 import logging
+
 import colorlog
+
 from sedna.common.config import BaseConfig
 
 

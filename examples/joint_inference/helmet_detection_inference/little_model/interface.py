@@ -17,7 +17,6 @@ import cv2
 import logging
 
 import numpy as np
-
 import tensorflow as tf
 
 LOG = logging.getLogger(__name__)

@@ -17,6 +17,7 @@ import os
 from sedna.common.config import Context
 from sedna.core.incremental_learning import IncrementalLearning
 from sedna.datasources import TxtDataParse
+
 from interface import Estimator
 
 max_epochs = 1

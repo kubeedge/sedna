@@ -13,9 +13,12 @@
 # limitations under the License.
 
 """Unseen Task detect Algorithms for Lifelong Learning"""
+
 import abc
-import numpy as np
 from typing import List
+
+import numpy as np
+
 from sedna.algorithms.multi_task_learning.task_jobs.artifact import Task
 from sedna.common.class_factory import ClassFactory, ClassType
 

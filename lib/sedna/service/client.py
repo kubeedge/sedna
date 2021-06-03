@@ -15,14 +15,16 @@
 import os
 import json
 import time
+import asyncio
 import threading
 from copy import deepcopy
+
 from retrying import retry
 from requests import request
 import websockets
-import asyncio
-from websockets.exceptions import InvalidStatusCode, WebSocketException, \
-    ConnectionClosedError, ConnectionClosedOK
+from websockets.exceptions import InvalidStatusCode, WebSocketException
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
+
 from sedna.common.log import LOGGER
 
 
@@ -34,8 +36,8 @@ def http_request(url, method=None, timeout=None, binary=True, **kwargs):
     try:
         response = request(method=_method, url=url, **kwargs)
         if response.status_code == 200:
-            return response.json() if binary else \
-                response.content.decode("utf-8")
+            return (response.json() if binary else
+                    response.content.decode("utf-8"))
         elif 200 < response.status_code < 400:
             LOGGER.info(f"Redirect_URL: {response.url}")
         LOGGER.error(

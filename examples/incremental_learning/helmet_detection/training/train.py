@@ -11,14 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import os
 
 import tensorflow as tf
 
-from interface import Estimator
-from sedna.common.config import Context, BaseConfig
 from sedna.datasources import TxtDataParse
+from sedna.common.config import Context, BaseConfig
 from sedna.core.incremental_learning import IncrementalLearning
+
+from interface import Estimator
 
 
 def _load_txt_dataset(dataset_url):
@@ -77,11 +79,11 @@ def main():
     tf.flags.DEFINE_boolean('label_changed', default=False,
                             help='whether number of labels is changed or not')
     tf.flags.DEFINE_string('learning_rate', default='0.001',
-                           help='label names for the training datasets')
+                           help='learning rate to used for the optimizer')
     tf.flags.DEFINE_string('obj_threshold', default=obj_threshold,
-                           help='label names for the training datasets')
+                           help='obj threshold')
     tf.flags.DEFINE_string('nms_threshold', default=nms_threshold,
-                           help='label names for the training datasets')
+                           help='nms threshold')
     tf.flags.DEFINE_string('net_type', default='resnet18',
                            help='resnet18 or resnet18_nas')
     tf.flags.DEFINE_string('nas_sequence', default='64_1-2111-2-1112',

@@ -13,9 +13,12 @@
 # limitations under the License.
 
 """Aggregation algorithms"""
+
 import abc
-import numpy as np
 from copy import deepcopy
+
+import numpy as np
+
 from sedna.common.class_factory import ClassFactory, ClassType
 
 __all__ = ('FedAvg',)
@@ -46,8 +49,8 @@ class FedAvg(BaseAggregation, abc.ABC):
         updates = []
         for inx, weight in enumerate(weights):
             old_weight = self.weights[inx]
-            row_weight = (np.array(weight) - old_weight) * \
-                (size / total_sample) + old_weight
+            row_weight = ((np.array(weight) - old_weight) *
+                          (size / total_sample) + old_weight)
             updates.append(row_weight)
         self.weights = deepcopy(updates)
         return updates

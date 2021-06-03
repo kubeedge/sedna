@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import joblib
 from abc import ABC
-import pandas as pd
+
+import joblib
 import numpy as np
+import pandas as pd
+
 from sedna.common.file_ops import FileOps
 from sedna.common.class_factory import ClassFactory, ClassType
 
@@ -24,7 +26,7 @@ __all__ = ('BaseDataSource', 'TxtDataParse', 'CSVDataParse')
 
 class BaseDataSource:
     def __init__(self, data_type="train", func=None):
-        self.data_type = data_type  # sample type: train\eval\test
+        self.data_type = data_type  # sample type: train/eval/test
         self.process_func = None
         if callable(func):
             self.process_func = func

@@ -13,20 +13,22 @@
 # limitations under the License.
 
 import os
+
 import numpy as np
 import keras.preprocessing.image as img_preprocessing
-from interface import Estimator
 
-from sedna.common.config import Context, BaseConfig
 from sedna.datasources import TxtDataParse
-
+from sedna.common.config import Context, BaseConfig
 from sedna.core.federated_learning import FederatedLearning
+
+from interface import Estimator
 
 
 def image_process(line):
     file_path, label = line.split(',')
-    original_dataset_url = \
+    original_dataset_url = (
         BaseConfig.original_dataset_url or BaseConfig.train_dataset_url
+    )
     root_path = os.path.dirname(original_dataset_url)
     file_path = os.path.join(root_path, file_path)
     img = img_preprocessing.load_img(file_path).resize((128, 128))

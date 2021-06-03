@@ -125,43 +125,7 @@ Updates are categorized below along with the possible actions that the upstream 
 |Lifelong-learning-job Reported State Updated    |  The controller appends the reported status of the job by LC in the cloud. |
 
 ### Details of api between GM(cloud) and LC(edge)
-1. GM(downstream controller) syncs the job info to LC:
-    ```go
-    // POST <namespace>/lifelonglearningjobs/<job-name>
-    // body same to the job crd of k8s api, omitted here.
-    ```
-
-1. LC uploads the job status which reported by the worker to GM(upstream controller):
-    ```go
-    // POST <namespace>/lifelonglearningjobs/<job-name>/status
-   
-    // WorkerMessage defines the message from that the training worker. It will send to GM.
-    type WorkerMessage struct {
-        Phase  string        `json:"phase"`
-        Status string        `json:"status"`
-        Output *WorkerOutput `json:"output"`
-    }
-    // 
-    type WorkerOutput struct {
-        Models   []*Model  `json:"models"`
-        OwnerInfo *OwnerInfo `json:"ownerInfo"`
-    }
-    
-    // Model defines the model information 
-    type Model struct {
-        Format  string             `json:"format"`
-        URL     string             `json:"url"`
-        // Including the metrics, e.g. precision/recall
-        Metrics map[string]float64 `json:"metrics"`
-    }
-    
-    // TaskInfo defines the task information
-    type TaskInfo struct {
-        // Current training round
-        CurrentRound int    `json:"currentRound"`
-        UpdateTime   string `json:"updateTime"`
-    }
-    ```    
+[Reference](https://github.com/kubeedge/sedna/blob/main/docs/proposals/incremental-learning.md#details-of-api-between-gmcloud-and-lcedge)
 
 ### The flows of lifelong learning job
 - Flow of the job creation:

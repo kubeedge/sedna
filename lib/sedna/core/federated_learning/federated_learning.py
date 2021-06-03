@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import time
+
 import asyncio
+
 from sedna.core.base import JobBase
 from sedna.common.config import Context
 from sedna.common.file_ops import FileOps
@@ -24,7 +26,7 @@ from sedna.common.constant import K8sResourceKindStatus
 
 class FederatedLearning(JobBase):
     """
-    Federated learning Experiment
+    Federated learning
     """
 
     def __init__(self, estimator, aggregation="FedAvg"):
@@ -54,7 +56,7 @@ class FederatedLearning(JobBase):
 
         FileOps.clean_folder([self.config.model_url], clean=False)
         self.aggregation = self.aggregation()
-        self.log.info(f"Federated learning Experiment model prepared -- {res}")
+        self.log.info(f"Federated learning Jobs model prepared -- {res}")
         if callable(self.estimator):
             self.estimator = self.estimator()
 
@@ -86,8 +88,8 @@ class FederatedLearning(JobBase):
             received = self.node.send(
                 send_data, msg_type="update_weight", job_name=self.job_name)
             exit_flag = False
-            if received and received["type"] == "update_weight" \
-                    and received["job_name"] == self.job_name:
+            if (received and received["type"] == "update_weight"
+                    and received["job_name"] == self.job_name):
                 recv = received["data"]
 
                 rec_client = received["client"]

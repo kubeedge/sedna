@@ -12,29 +12,15 @@ and updates models based on the data generated at the edge.
 Follow the [Sedna installation document](/docs/setup/install.md) to install Sedna.
 
 ### Prepare Dataset
-In this example, you can download ASHRAE Global Thermal Comfort Database II to initial lifelong learning Knowledgebase .
+In this example, you can use [ASHRAE Global Thermal Comfort Database II](https://datadryad.org/stash/dataset/doi:10.6078/D1F671) to initial lifelong learning job.
 
 
 
-download [datasets](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/atcii-classifier/dataset.tar.gz), including train、evaluation and incremental dataset.
+download [datasets](https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/atcii-classifier/dataset.tar.gz), including train, evaluation and incremental dataset.
 ```
 cd /
 wget https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/atcii-classifier/dataset.tar.gz
 tar -zxvf dataset.tar.gz
-```
-### Prepare for Knowledgebase Server
-in this example, we create a knowledgebase restful server with sqlite3, the database will storage to `LIFELONG_KB_URL`, and
-run at `GM Node`. 
-### Prepare Image
-this example use the image:  
-```
-swr.cn-southwest-2.myhuaweicloud.com/sedna-test/sedna/kb:v0.0.1
-```
-
-### Create KB Deployment
-
-```
-kubectl create -f scripts/knowledge-server/kb.yaml
 ```
 
 ### Create Lifelong Job
@@ -77,9 +63,9 @@ spec:
   trainSpec:
     template:
       spec:
-        nodeName: "edge-node"
+        nodeName: $WORKER_NODE
         containers:
-          - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.1.0
+          - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.3.0
             name:  train-worker
             imagePullPolicy: IfNotPresent
             args: ["train.py"]
@@ -100,9 +86,9 @@ spec:
   evalSpec:
     template:
       spec:
-        nodeName: "edge-node"
+        nodeName: $WORKER_NODE
         containers:
-          - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.1.0
+          - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.3.0
             name:  eval-worker
             imagePullPolicy: IfNotPresent
             args: ["eval.py"]
@@ -116,9 +102,9 @@ spec:
   deploySpec:
     template:
       spec:
-        nodeName: "edge-node"
+        nodeName: $WORKER_NODE
         containers:
-        - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.1.0
+        - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.3.0
           name:  infer-worker
           imagePullPolicy: IfNotPresent
           args: ["inference.py"]
@@ -171,7 +157,7 @@ In a real word, we need to label the hard examples in our unseen tasks which sto
 
 
 ### Effect Display  
-in this example, false and failed detections occur at stage of inference before lifelong learning, after lifelong learning, 
-Greatly improve the precision and accuracy of the dataset.
+In this example, **false** and **failed** detections occur at stage of inference before lifelong learning.
+After lifelong learning, the precision of the dataset have been improved by 5.12%.
 
 ![img_1.png](image/effect_comparison.png) 

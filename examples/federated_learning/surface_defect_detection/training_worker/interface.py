@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import os
 import keras
 import numpy as np
@@ -87,11 +88,7 @@ class Estimator:
         return self.model.predict(datas)
 
     def evaluate(self, test_data, **kwargs):
-        """ Model evaluate """
-        from sklearn.metrics import precision_score
-
-        y_pred = self.predict(test_data.x)
-        return precision_score(test_data.y, y_pred, average="micro")
+        pass
 
     def load(self, model_url):
         return self.load_weights(model_url)

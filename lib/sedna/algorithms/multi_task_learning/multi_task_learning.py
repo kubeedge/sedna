@@ -16,13 +16,14 @@ import os
 import json
 import joblib
 
-from .task_jobs.artifact import Model, Task, TaskGroup
 from sedna.datasources import BaseDataSource
 from sedna.backend import set_backend
 from sedna.common.log import LOGGER
 from sedna.common.config import Context
 from sedna.common.file_ops import FileOps
 from sedna.common.class_factory import ClassFactory, ClassType
+
+from .task_jobs.artifact import Model, Task, TaskGroup
 
 __all__ = ('MulTaskLearning',)
 
@@ -85,6 +86,9 @@ class MulTaskLearning:
         return raw_dict
 
     def task_definition(self, samples):
+        """
+        Task attribute extractor and multi-task definition
+        """
         method_name = self.method_selection.get(
             "task_definition", "TaskDefinitionByDataAttr")
         extend_param = self.parse_param(
@@ -94,6 +98,9 @@ class MulTaskLearning:
         return method_cls(samples)
 
     def task_relationship_discovery(self, tasks):
+        """
+        Merge tasks from task_definition
+        """
         method_name = self.method_selection.get("task_relationship_discovery")
         extend_param = self.parse_param(
             self.method_selection.get("task_relationship_discovery_param")
@@ -103,6 +110,9 @@ class MulTaskLearning:
         return method_cls(tasks)
 
     def task_mining(self, samples):
+        """
+        Mining tasks of inference sample base on task attribute extractor
+        """
         method_name = self.method_selection.get("task_mining")
         extend_param = self.parse_param(
             self.method_selection.get("task_mining_param"))
@@ -120,6 +130,9 @@ class MulTaskLearning:
         return method_cls(samples=samples)
 
     def task_remodeling(self, samples, mappings):
+        """
+        Remodeling tasks from task mining
+        """
         method_name = self.method_selection.get("task_remodeling")
         extend_param = self.parse_param(
             self.method_selection.get("task_remodeling_param"))
@@ -128,6 +141,9 @@ class MulTaskLearning:
         return method_cls(samples=samples, mappings=mappings)
 
     def inference_integrate(self, tasks):
+        """
+        Aggregate inference results from target models
+        """
         method_name = self.method_selection.get("inference_integrate")
         extend_param = self.parse_param(
             self.method_selection.get("inference_integrate_param"))
@@ -160,6 +176,7 @@ class MulTaskLearning:
                 self.task_groups.append(None)
                 rare_task.append(i)
                 n = len(task.samples)
+                LOGGER.info(f"Sample {n} of {task.entry} will be merge")
                 continue
             LOGGER.info(f"MTL Train start {i} : {task.entry}")
 
@@ -217,8 +234,8 @@ class MulTaskLearning:
                 os.path.dirname(self.task_index_url),
                 "kb_extractor.pkl"
             )
-            if not callable(task_index['extractor']) and \
-                    isinstance(task_index['extractor'], str):
+            if (not callable(task_index['extractor']) and
+                    isinstance(task_index['extractor'], str)):
                 FileOps.download(task_index['extractor'], extractor_file)
                 self.extractor = joblib.load(extractor_file)
             else:

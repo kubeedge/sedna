@@ -13,12 +13,15 @@
 # limitations under the License.
 
 import os
+
 import numpy as np
 import keras.preprocessing.image as img_preprocessing
-from interface import Estimator
+
 from sedna.common.config import Context
-from sedna.core.federated_learning import FederatedLearning
 from sedna.datasources import TxtDataParse
+from sedna.core.federated_learning import FederatedLearning
+
+from interface import Estimator
 
 
 def image_process(line):

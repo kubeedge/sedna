@@ -14,6 +14,7 @@
 
 import os
 import re
+
 from sedna.service.server.knowledgeBase.model import init_db
 from sedna.service.server.knowledgeBase.server import KBServer
 

@@ -16,10 +16,12 @@ import os
 import csv
 import json
 import time
-from interface import DATACONF, Estimator, feature_process
+
 from sedna.common.config import Context
 from sedna.datasources import CSVDataParse
 from sedna.core.lifelong_learning import LifelongLearning
+
+from interface import DATACONF, Estimator, feature_process
 
 
 def main():

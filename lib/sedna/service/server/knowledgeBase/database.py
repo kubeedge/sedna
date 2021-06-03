@@ -18,6 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from sedna.common.config import Context
 
+
 SQLALCHEMY_DATABASE_URL = Context.get_parameters(
     "KB_URL", "sqlite:///lifelong_kb.sqlite3")
 
@@ -30,5 +31,4 @@ engine = create_engine(
 SessionLocal = sessionmaker(
     bind=engine, autoflush=False, autocommit=False, expire_on_commit=True)
 
-# 创建基本映射类
 Base = declarative_base(bind=engine, name='Base')

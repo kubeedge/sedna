@@ -13,8 +13,11 @@
 # limitations under the License.
 
 """Hard Example Mining Algorithms"""
+
 import abc
+
 import math
+
 from sedna.common.class_factory import ClassFactory, ClassType
 
 __all__ = ('ThresholdFilter', 'CrossEntropyFilter', 'IBTFilter')
@@ -141,8 +144,8 @@ class IBTFilter(BaseFilter, abc.ABC):
                 confidence_score_list = [
                     float(box_score) for box_score in data_check_list
                     if float(box_score) <= self.threshold_box]
-                if (len(confidence_score_list) / len(infer_result)) \
-                        >= (1 - self.threshold_img):
+                if (len(confidence_score_list) / len(infer_result)
+                        >= (1 - self.threshold_img)):
                     return True
                 else:
                     return False

@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import json
-import os
 from copy import deepcopy
+
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
 from sedna.common.class_factory import ClassFactory, ClassType
@@ -25,7 +25,7 @@ __all__ = ("IncrementalLearning",)
 
 class IncrementalLearning(JobBase):
     """
-    Incremental learning Experiment
+    Incremental learning
     """
 
     def __init__(self, estimator, config=None):
@@ -89,13 +89,18 @@ class IncrementalLearning(JobBase):
         elif post_process is not None:
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
-        res = self.estimator.predict(data, **kwargs)
-        rsl = callback_func(deepcopy(res)) if callback_func else res
+        infer_res = self.estimator.predict(data, **kwargs)
+        if callback_func:
+            res = callback_func(
+                deepcopy(infer_res)  # Prevent infer_result from being modified
+            )
+        else:
+            res = infer_res
         is_hard_example = False
 
         if self.hard_example_mining_algorithm:
-            is_hard_example = self.hard_example_mining_algorithm(rsl)
-        return res, rsl, is_hard_example
+            is_hard_example = self.hard_example_mining_algorithm(infer_res)
+        return infer_res, res, is_hard_example
 
     def evaluate(self, data, post_process=None, **kwargs):
         callback_func = None
@@ -105,31 +110,28 @@ class IncrementalLearning(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
         final_res = []
+        all_models = []
         if self.model_urls:
-            for model_url in self.model_urls.split(";"):
-                if not model_url.strip():
-                    continue
-                self.estimator.model_save_path = model_url
-                res = self.estimator.evaluate(
-                    data=data, model_path=model_url, **kwargs)
-                if callback_func:
-                    res = callback_func(res)
-                self.log.info(f"Evaluation with {model_url} : {res} ")
-                task_info_res = self.estimator.model_info(
-                    model_url, result=res,
-                    relpath=self.config.data_path_prefix)
-                if isinstance(task_info_res, (list, tuple)
-                              ) and len(task_info_res):
-                    task_info_res = list(task_info_res)[0]
-                final_res.append(task_info_res)
-        else:
-            model_url = self.config.model_url
-            res = self.estimator.evaluate(data=data, **kwargs)
+            all_models = self.model_urls.split(";")
+        elif self.config.model_url:
+            all_models.append(self.config.model_url)
+        for model_url in all_models:
+            if not model_url.strip():
+                continue
+            self.estimator.model_save_path = model_url
+            res = self.estimator.evaluate(
+                data=data, model_path=model_url, **kwargs)
             if callback_func:
                 res = callback_func(res)
             self.log.info(f"Evaluation with {model_url} : {res} ")
-            final_res = self.estimator.model_info(
-                model_url, result=res, relpath=self.config.data_path_prefix)
+            task_info_res = self.estimator.model_info(
+                model_url, result=res,
+                relpath=self.config.data_path_prefix)
+            if isinstance(
+                    task_info_res, (list, tuple)
+            ) and len(task_info_res):
+                task_info_res = list(task_info_res)[0]
+            final_res.append(task_info_res)
         self.report_task_info(None, K8sResourceKindStatus.COMPLETED.value,
                               final_res, kind="eval")
 

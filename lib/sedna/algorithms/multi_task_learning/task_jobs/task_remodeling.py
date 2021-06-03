@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List
+
 import numpy as np
-from typing import List, Tuple
+
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassFactory, ClassType
 
@@ -25,8 +27,7 @@ class DefaultTaskRemodeling:
     def __init__(self, models: list, **kwargs):
         self.models = models
 
-    def __call__(self, samples: BaseDataSource, mappings: List) \
-            -> Tuple[List[BaseDataSource], List]:
+    def __call__(self, samples: BaseDataSource, mappings: List):
         mappings = np.array(mappings)
         data, models = [], []
         d_type = samples.data_type

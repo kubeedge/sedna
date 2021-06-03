@@ -13,10 +13,10 @@
 # limitations under the License.
 
 from typing import List, Optional
+
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
-
 from starlette.responses import JSONResponse
 
 from .base import BaseServer

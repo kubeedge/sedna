@@ -20,9 +20,10 @@ import logging
 import tensorflow as tf
 import numpy as np
 
-from interface import Estimator
 from sedna.common.config import Context
 from sedna.core.joint_inference import JointInference
+
+from interface import Estimator
 
 LOG = logging.getLogger(__name__)
 

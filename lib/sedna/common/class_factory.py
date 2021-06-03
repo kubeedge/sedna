@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Copy from https://github.com/huawei-noah/vega/blob/
-# master/zeus/common/class_factory.py
+# Copy from https://github.com/huawei-noah/vega/blob/master/zeus/common/class_factory.py  # noqa
 # We made a re-modify due to vega is exceed out needs
 
 from inspect import isfunction, isclass

@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 from typing import List
-from .artifact import Task
+
+import numpy as np
+
 from sedna.common.class_factory import ClassFactory, ClassType
+
+from .artifact import Task
 
 __all__ = ('DefaultInferenceIntegrate', )
 

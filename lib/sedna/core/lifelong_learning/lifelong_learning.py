@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import os
-import joblib
 import tempfile
+
+import joblib
+
 from sedna.backend import set_backend
 from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
@@ -27,7 +29,7 @@ from sedna.service.client import KBClient
 
 class LifelongLearning(JobBase):
     """
-    Lifelong learning Experiment
+    Lifelong learning
     """
 
     def __init__(self,
@@ -135,7 +137,7 @@ class LifelongLearning(JobBase):
             relpath=self.config.data_path_prefix)
         self.report_task_info(
             None, K8sResourceKindStatus.COMPLETED.value, task_info_res)
-        self.log.info(f"Lifelong learning Experiment Finished, "
+        self.log.info(f"Lifelong learning Train task Finished, "
                       f"KB idnex save in {self.config.task_index}")
         return callback_func(self.estimator, res) if callback_func else res
 
@@ -211,9 +213,8 @@ class LifelongLearning(JobBase):
                         ClassType.UTD, self.unseen_task_detect
                     )()
             except ValueError as err:
-                self.log.error(
-                    "Lifelong learning Experiment "
-                    "Inference [UTD] : {}".format(err))
+                self.log.error("Lifelong learning "
+                               "Inference [UTD] : {}".format(err))
             else:
                 is_unseen_task = unseen_task_detect_algorithm(
                     tasks=tasks, result=res, **self.unseen_task_detect_param

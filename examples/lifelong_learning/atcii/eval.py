@@ -13,11 +13,12 @@
 # limitations under the License.
 
 import json
-from interface import DATACONF, Estimator, feature_process
-from sedna.common.config import Context, BaseConfig
-from sedna.datasources import CSVDataParse
 
+from sedna.datasources import CSVDataParse
+from sedna.common.config import Context, BaseConfig
 from sedna.core.lifelong_learning import LifelongLearning
+
+from interface import DATACONF, Estimator, feature_process
 
 
 def main():

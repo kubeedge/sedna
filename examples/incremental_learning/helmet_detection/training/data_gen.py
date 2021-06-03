@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 import logging
 
 import numpy as np
-import random
-import tensorflow as tf
 from PIL import Image
+import tensorflow as tf
 from matplotlib.colors import rgb_to_hsv, hsv_to_rgb
+
 
 LOG = logging.getLogger(__name__)
 
@@ -114,9 +115,11 @@ class DataGen(object):
             if len(img_data_list) >= self.batch_size:
                 batch_data = dict()
                 batch_data['images'] = np.array(img_data_list)
-                bbox_true_13, bbox_true_26, bbox_true_52 = \
-                    self.preprocess_true_boxes(np.array(box_data_list),
-                                               input_shape)
+                bbox_true_13, bbox_true_26, bbox_true_52 = (
+                    self.preprocess_true_boxes(
+                        np.array(box_data_list), input_shape
+                    )
+                )
                 # np.array(bbox_13_list)
                 batch_data['bbox_true_13'] = bbox_true_13
                 # np.array(bbox_26_list)
@@ -181,10 +184,9 @@ class DataGen(object):
                 return None, None
 
         # resize image
-        new_ar = \
-            float(w) / float(h) * self.rand(1 - jitter,
-                                            1 + jitter) / self.rand(1 - jitter,
-                                                                    1 + jitter)
+        new_ar = (float(w) / float(h)
+                  * self.rand(1 - jitter, 1 + jitter)
+                  / self.rand(1 - jitter, 1 + jitter))
         scale = self.rand(.25, 2)
 
         if new_ar < 1:

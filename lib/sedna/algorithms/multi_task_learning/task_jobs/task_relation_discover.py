@@ -13,8 +13,10 @@
 # limitations under the License.
 
 from typing import List
-from .artifact import Task, TaskGroup
+
 from sedna.common.class_factory import ClassType, ClassFactory
+
+from .artifact import Task, TaskGroup
 
 
 __all__ = ('DefaultTaskRelationDiscover', )
@@ -26,9 +28,9 @@ class DefaultTaskRelationDiscover:
         pass
 
     def __call__(self, tasks: List[Task]) -> List[TaskGroup]:
-        tg = []
+        tgs = []
         for task in tasks:
             tg_obj = TaskGroup(entry=task.entry, tasks=[task])
             tg_obj.samples = task.samples
-            tg.append(tg_obj)
-        return tg
+            tgs.append(tg_obj)
+        return tgs

@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""TensorFlow backend class"""
 import os
+
 import tensorflow as tf
+
 from sedna.backend.base import BackendBase
 from sedna.common.file_ops import FileOps
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 class TFBackend(BackendBase):

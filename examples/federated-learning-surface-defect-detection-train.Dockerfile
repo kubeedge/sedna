@@ -6,7 +6,6 @@ RUN apt update \
 COPY ./lib/requirements.txt /home
 RUN pip install -r /home/requirements.txt
 RUN pip install keras~=2.4.3
-RUN pip install scikit-learn~=0.24.1
 
 ENV PYTHONPATH "/home/lib"
 

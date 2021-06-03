@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-import cv2
-import numpy as np
 import os
 import six
-import tensorflow as tf
+import logging
+
+import cv2
+import numpy as np
 from tqdm import tqdm
+import tensorflow as tf
+
 from data_gen import DataGen
 from validate_utils import validate
 from yolo3_multiscale import Yolo3
@@ -151,11 +153,12 @@ class Estimator:
         """
         validate
         """
-        precision, recall, all_precisions, all_recalls = \
+        precision, recall, all_precisions, all_recalls = (
             validate(model_path=model_path,
                      test_dataset=valid_data.x,
                      class_names=class_names,
                      input_shape=input_shape)
+        )
         return {
             "recall": recall, "precision": precision
         }

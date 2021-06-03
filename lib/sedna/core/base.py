@@ -78,7 +78,7 @@ class JobBase(DistributedWorker):
             self.config.model_url, self.estimator.model_name)
 
     def train(self, **kwargs):
-        pass
+        raise NotImplementedError
 
     def inference(self, x=None, post_process=None, **kwargs):
 

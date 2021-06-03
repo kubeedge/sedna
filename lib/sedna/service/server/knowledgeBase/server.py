@@ -11,19 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import os
 import json
-import joblib
 import tempfile
 from typing import List, Optional
+
+import joblib
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 from fastapi import FastAPI, File, UploadFile, Body
 from fastapi.routing import APIRoute
 from fastapi.responses import FileResponse
 from starlette.responses import JSONResponse
+
 from sedna.service.server.base import BaseServer
 from sedna.common.file_ops import FileOps
-from sqlalchemy.orm import Session
+
 from .model import *
 
 
@@ -225,7 +229,3 @@ class KBServer(BaseServer):
         FileOps.upload(name, _index_path)
         res = f"/file/download?files=kb_index_{self.latest}.pkl&name=index.pkl"
         return res
-
-
-if __name__ == '__main__':
-    KBServer(host="127.0.0.1").start()

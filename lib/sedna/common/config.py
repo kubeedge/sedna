@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Copy from https://github.com/huawei-noah/vega/blob/
-# master/zeus/common/config.py
+# Copy from https://github.com/huawei-noah/vega/blob/master/zeus/common/config.py  # noqa
 # We made a re-modify due to vega is exceed out needs
-
 
 import os
 import sys
@@ -24,6 +22,7 @@ import json
 from copy import deepcopy
 from importlib import import_module
 from inspect import ismethod, isfunction
+
 from .utils import singleton
 
 __all__ = ('Context', 'BaseConfig', )

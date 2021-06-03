@@ -13,8 +13,10 @@
 # limitations under the License.
 
 """FileOps class."""
+
 import os
 import re
+
 import codecs
 import pickle
 import shutil

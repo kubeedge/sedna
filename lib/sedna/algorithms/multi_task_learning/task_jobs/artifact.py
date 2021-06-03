@@ -22,8 +22,8 @@ class Task:
         self.entry = entry
         self.samples = samples
         self.meta_attr = meta_attr
-        self.model = None  # define on running
-        self.result = None  # define on running
+        self.model = None  # assign on running
+        self.result = None  # assign on running
 
 
 class TaskGroup:
@@ -31,8 +31,8 @@ class TaskGroup:
     def __init__(self, entry, tasks: List[Task]):
         self.entry = entry
         self.tasks = tasks
-        self.samples = None  # define by task_relation_discover algorithms
-        self.model = None  # define on train
+        self.samples = None  # assign with task_relation_discover algorithms
+        self.model = None  # assign on train
 
 
 class Model:
@@ -41,4 +41,4 @@ class Model:
         self.entry = entry
         self.model = model
         self.result = result
-        self.meta_attr = None  # define on running
+        self.meta_attr = None  # assign on running

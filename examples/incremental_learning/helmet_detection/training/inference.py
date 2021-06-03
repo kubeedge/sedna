@@ -15,11 +15,14 @@
 import os
 import time
 import warnings
+
 import cv2
 import numpy as np
-from interface import Estimator
+
 from sedna.common.config import Context
 from sedna.core.incremental_learning import IncrementalLearning
+from interface import Estimator
+
 
 he_saved_url = Context.get_parameters("HE_SAVED_URL")
 class_names = ['person', 'helmet', 'helmet_on', 'helmet_off']

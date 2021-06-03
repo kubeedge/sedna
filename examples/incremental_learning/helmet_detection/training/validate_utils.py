@@ -15,14 +15,13 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
-import logging
+import os
 import sys
 import time
+import logging
 
 import cv2
 import numpy as np
-import os
 import tensorflow as tf
 from PIL import Image
 
@@ -239,10 +238,7 @@ def draw_boxes(img, labels, scores, bboxes, class_names, colors):
                     (p1[1],
                      p1[0] + 20 * (label + 1)),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (255,
-                        0,
-                        0),
+                    0.6, (255, 0, 0),
                     text_thickness,
                     line_type)
 

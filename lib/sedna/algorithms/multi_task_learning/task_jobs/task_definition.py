@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List, Any, Tuple
+
 import numpy as np
 import pandas as pd
-from typing import List, Any, Tuple
-from .artifact import Task
+
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassType, ClassFactory
+
+from .artifact import Task
 
 
 __all__ = ('TaskDefinitionBySVC', 'TaskDefinitionByDataAttr')

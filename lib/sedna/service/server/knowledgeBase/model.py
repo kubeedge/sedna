@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from sqlalchemy import Column, String, Integer, Boolean, Text, \
-    DateTime, Float, SmallInteger, ForeignKey, func
+
+from sqlalchemy import Column, String, Integer, Boolean, Text
+from sqlalchemy import DateTime, Float, SmallInteger, ForeignKey, func
 from sqlalchemy.orm import relationship
 
 from .database import Base, engine

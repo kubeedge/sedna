@@ -11,12 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
 import logging
 
 import cv2
 import numpy as np
-import os
 import tensorflow as tf
 
 from resnet18 import ResNet18
@@ -108,8 +107,8 @@ class Yolo3:
             self.images, self.is_training)
 
         self.output = self.yolo_inference(
-            features_out, filters_yolo_block, conv_index, len(
-                self.anchors) / 3, self.num_classes, self.is_training)
+            features_out, filters_yolo_block, conv_index,
+            len(self.anchors) / 3, self.num_classes, self.is_training)
         self.loss = self.yolo_loss(
             self.output,
             bbox_true,
@@ -251,8 +250,7 @@ class Yolo3:
         conv = tf.layers.conv2d(inputs=inputs, filters=filters_num,
                                 kernel_size=kernel_size,
                                 strides=[strides, strides],
-                                padding=(
-                                    'SAME' if strides == 1 else 'VALID'),
+                                padding=('SAME' if strides == 1 else 'VALID'),
                                 # padding = 'SAME', #
                                 use_bias=use_bias,
                                 name=name)
@@ -455,7 +453,7 @@ class Yolo3:
         print('conv2d_26 : ', conv2d_26)
 
         with tf.variable_scope('yolo'):
-            conv2d_57, conv2d_59, conv_index = \
+            conv2d_57, conv2d_59, conv_index = (
                 self._yolo_block(conv,
                                  filters_yolo_block[0],
                                  num_anchors * (num_classes + 5),
@@ -463,6 +461,7 @@ class Yolo3:
                                  training=training,
                                  norm_decay=self.norm_decay,
                                  norm_epsilon=self.norm_epsilon)
+            )
             print('conv2d_59 : ', conv2d_59)
             print('conv2d_57 : ', conv2d_57)
 
@@ -493,7 +492,7 @@ class Yolo3:
                                axis=-1, name='route_0')
             print('route0 : ', route0)
 
-            conv2d_65, conv2d_67, conv_index = \
+            conv2d_65, conv2d_67, conv_index = (
                 self._yolo_block(route0,
                                  filters_yolo_block[1],
                                  num_anchors * (num_classes + 5),
@@ -501,6 +500,7 @@ class Yolo3:
                                  training=training,
                                  norm_decay=self.norm_decay,
                                  norm_epsilon=self.norm_epsilon)
+            )
             print('conv2d_67 : ', conv2d_67)
             print('conv2d_65 : ', conv2d_65)
 
@@ -689,27 +689,34 @@ class Yolo3:
                     0, ignore_mask])
             ignore_mask = ignore_mask.stack()
             ignore_mask = tf.expand_dims(ignore_mask, axis=-1)
-            xy_loss = \
-                object_mask * box_loss_scale * \
-                tf.nn.sigmoid_cross_entropy_with_logits(
+            xy_loss = (
+                    object_mask
+                    * box_loss_scale
+                    * tf.nn.sigmoid_cross_entropy_with_logits(
                           labels=raw_true_xy,
                           logits=predictions[..., 0:2])
-            wh_loss = \
-                object_mask * box_loss_scale * 0.5 * \
-                tf.square(raw_true_wh - predictions[..., 2:4])
-            confidence_loss = \
-                object_mask * \
-                tf.nn.sigmoid_cross_entropy_with_logits(
+            )
+            wh_loss = (
+                object_mask
+                * box_loss_scale
+                * 0.5
+                * tf.square(raw_true_wh - predictions[..., 2:4]))
+            confidence_loss = (
+                    object_mask
+                    * tf.nn.sigmoid_cross_entropy_with_logits(
                                   labels=object_mask,
-                                  logits=predictions[..., 4:5]) + (
-                                      1 - object_mask) * \
-                tf.nn.sigmoid_cross_entropy_with_logits(
+                                  logits=predictions[..., 4:5])
+                    + (1 - object_mask)
+                    * tf.nn.sigmoid_cross_entropy_with_logits(
                                   labels=object_mask,
-                                  logits=predictions[..., 4:5]) * ignore_mask
-            class_loss = \
-                object_mask * \
-                tf.nn.sigmoid_cross_entropy_with_logits(
+                                  logits=predictions[..., 4:5])
+                    * ignore_mask
+            )
+            class_loss = (
+                object_mask
+                * tf.nn.sigmoid_cross_entropy_with_logits(
                     labels=class_probs, logits=predictions[..., 5:])
+            )
             xy_loss = tf.reduce_sum(
                 xy_loss) / tf.cast(tf.shape(yolo_output[0])[0], tf.float32)
             wh_loss = tf.reduce_sum(
@@ -731,13 +738,14 @@ class Yolo3:
             box_scores = []
             input_shape = tf.shape(yolo_outputs[0])[1: 3] * 32
             for i in range(len(yolo_outputs)):
-                _boxes, _box_scores = \
+                _boxes, _box_scores = (
                     self.yolo_boxes_scores(yolo_outputs[i],
                                            self.anchors[
                                                anchor_mask[i]],
                                            len(self.class_names),
                                            input_shape,
                                            image_shape)
+                )
                 boxes.append(_boxes)
                 box_scores.append(_box_scores)
             boxes = tf.concat(boxes, axis=0)

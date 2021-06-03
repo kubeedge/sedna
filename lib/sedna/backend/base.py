@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""ML Framework Backend base Class"""
 import os.path
 from inspect import getfullargspec
+
 from sedna.common.file_ops import FileOps
 
 
