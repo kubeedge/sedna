@@ -12,20 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import os
 import time
-
+import warnings
 import cv2
 import numpy as np
+from interface import Estimator
+from sedna.common.config import Context
+from sedna.core.incremental_learning import IncrementalLearning
 
-import sedna
-from sedna.incremental_learning import InferenceResult
-
-LOG = logging.getLogger(__name__)
-
-he_saved_url = sedna.context.get_parameters('HE_SAVED_URL')
-
+he_saved_url = Context.get_parameters("HE_SAVED_URL")
 class_names = ['person', 'helmet', 'helmet_on', 'helmet_off']
 
 
@@ -45,9 +41,7 @@ def draw_boxes(img, labels, scores, bboxes, class_names, colors):
             colors_code.append((0, 255, 255))
         else:
             colors_code.append((0, 0, 255))
-
     label_dict = {i: label for i, label in enumerate(class_names)}
-
     for i in range(bboxes.shape[0]):
         bbox = bboxes[i]
         if float("inf") in bbox or float("-inf") in bbox:
@@ -59,73 +53,25 @@ def draw_boxes(img, labels, scores, bboxes, class_names, colors):
         p2 = (int(bbox[2]), int(bbox[3]))
         if (p2[0] - p1[0] < 1) or (p2[1] - p1[1] < 1):
             continue
-        cv2.rectangle(img, p1[::-1], p2[::-1], colors_code[labels[i]],
-                      box_thickness)
+        cv2.rectangle(img, p1[::-1], p2[::-1],
+                      colors_code[labels[i]], box_thickness)
         cv2.putText(img, text, (p1[1], p1[0] + 20 * (label + 1)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0),
                     text_thickness, line_type)
-
     return img
 
 
-def preprocess(image, input_shape):
-    """Preprocess functions in edge model inference"""
-
-    # resize image with unchanged aspect ratio using padding by opencv
-    h, w, _ = image.shape
-
-    input_h, input_w = input_shape
-    scale = min(float(input_w) / float(w), float(input_h) / float(h))
-    nw = int(w * scale)
-    nh = int(h * scale)
-
-    image = cv2.resize(image, (nw, nh))
-
-    new_image = np.zeros((input_h, input_w, 3), np.float32)
-    new_image.fill(128)
-    bh, bw, _ = new_image.shape
-    new_image[int((bh - nh) / 2):(nh + int((bh - nh) / 2)),
-    int((bw - nw) / 2):(nw + int((bw - nw) / 2)), :] = image
-
-    new_image /= 255.
-    new_image = np.expand_dims(new_image, 0)  # Add batch dimension.
-    return new_image
-
-
-def create_input_feed(sess, new_image, img_data):
-    """Create input feed for edge model inference"""
-    input_feed = {}
-
-    input_img_data = sess.graph.get_tensor_by_name('images:0')
-    input_feed[input_img_data] = new_image
-
-    input_img_shape = sess.graph.get_tensor_by_name('shapes:0')
-    input_feed[input_img_shape] = [img_data.shape[0], img_data.shape[1]]
-
-    return input_feed
-
-
-def create_output_fetch(sess):
-    """Create output fetch for edge model inference"""
-    output_classes = sess.graph.get_tensor_by_name('output/classes:0')
-    output_scores = sess.graph.get_tensor_by_name('output/scores:0')
-    output_boxes = sess.graph.get_tensor_by_name('output/boxes:0')
-
-    output_fetch = [output_classes, output_scores, output_boxes]
-    return output_fetch
-
-
-def output_deal(inference_result: InferenceResult, nframe, img_rgb):
+def output_deal(is_hard_example, infer_result, nframe, img_rgb):
     # save and show image
     img_rgb = np.array(img_rgb)
     img_rgb = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
-
     colors = 'yellow,blue,green,red'
-    if inference_result.is_hard_example:
-        lables, scores, bbox_list_pred = inference_result.infer_result
-        img = draw_boxes(img_rgb, lables, scores, bbox_list_pred, class_names,
-                         colors)
-        cv2.imwrite(f"{he_saved_url}/{nframe}.jpeg", img)
+    # if is_hard_example:
+    label = 1 if is_hard_example else 0
+    lables, scores, bbox_list_pred = infer_result
+    img = draw_boxes(img_rgb, lables, scores, bbox_list_pred, class_names,
+                     colors)
+    cv2.imwrite(f"{he_saved_url}/{nframe}-{label}.jpeg", img)
 
 
 def mkdir(path):
@@ -134,27 +80,24 @@ def mkdir(path):
     is_exists = os.path.exists(path)
     if not is_exists:
         os.makedirs(path)
-        LOG.info(f"{path} is not exists, create the dir")
+
+
+def deal_infer_rsl(model_output):
+    all_classes, all_scores, all_bboxes = model_output
+    rsl = []
+    for c, s, bbox in zip(all_classes, all_scores, all_bboxes):
+        bbox[0], bbox[1], bbox[2], bbox[3] = bbox[1], bbox[0], bbox[3], bbox[2]
+        rsl.append(bbox.tolist() + [s, c])
+    return rsl
 
 
 def run():
-    input_shape_str = sedna.context.get_parameters("input_shape")
+    camera_address = Context.get_parameters('video_url')
+
+    input_shape_str = Context.get_parameters("input_shape")
     input_shape = tuple(int(v) for v in input_shape_str.split(","))
-    camera_address = sedna.context.get_parameters('video_url')
-
-    mkdir(he_saved_url)
-
     # create little model object
-    model = sedna.incremental_learning.TSModel(
-        preprocess=preprocess,
-        input_shape=input_shape,
-        create_input_feed=create_input_feed,
-        create_output_fetch=create_output_fetch
-    )
-
-    # create inference object
-    inference_instance = sedna.incremental_learning.Inference(model)
-
+    model = IncrementalLearning(estimator=Estimator)
     # use video streams for testing
     camera = cv2.VideoCapture(camera_address)
     fps = 10
@@ -163,9 +106,6 @@ def run():
     while 1:
         ret, input_yuv = camera.read()
         if not ret:
-            LOG.info(
-                f"camera is not open, camera_address={camera_address},"
-                f" sleep 5 second.")
             time.sleep(5)
             camera = cv2.VideoCapture(camera_address)
             continue
@@ -176,9 +116,10 @@ def run():
 
         img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
         nframe += 1
-        LOG.info(f"camera is open, current frame index is {nframe}")
-        inference_result = inference_instance.inference(img_rgb)
-        output_deal(inference_result, nframe, img_rgb)
+        warnings.warn(f"camera is open, current frame index is {nframe}")
+        results, _, is_hard_example = model.inference(
+            img_rgb, post_process=deal_infer_rsl, input_shape=input_shape)
+        output_deal(is_hard_example, results, nframe, img_rgb)
 
 
 if __name__ == "__main__":

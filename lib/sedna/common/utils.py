@@ -12,49 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import codecs
-import logging
-import os
-import pickle
-import shutil
+"""This script contains some common tools."""
 
-LOG = logging.getLogger(__name__)
+import socket
+from functools import wraps
 
 
-def clean_folder(folder):
-    if not os.path.exists(folder):
-        LOG.info(f"folder={folder} is not exist.")
-    else:
-        LOG.info(f"clean target dir, dir={folder}")
-        for filename in os.listdir(folder):
-            file_path = os.path.join(folder, filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                LOG.error('Failed to delete %s. Reason: %s' % (file_path, e))
+def get_host_ip():
+    """Get local ip address."""
+    ip = '127.0.0.1'
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        pass
+    finally:
+        s.close()
+
+    return ip
 
 
-def remove_path_prefix(org_str: str, prefix: str):
-    """remove the prefix, for converting path in container to path in host."""
-    p = prefix[:-1] if prefix.endswith('/') else prefix
-    if org_str.startswith(p):
-        out_str = org_str.replace(p, '', 1)
-        return out_str
-    else:
-        LOG.info(f"remove prefix failed, original str={org_str}, "
-                 f"prefix={prefix}")
-        return org_str
+def singleton(cls):
+    """Set class to singleton class.
 
+    :param cls: class
+    :return: instance
+    """
+    __instances__ = {}
 
-def obj_to_pickle_string(x):
-    return codecs.encode(pickle.dumps(x), "base64").decode()
+    @wraps(cls)
+    def get_instance(*args, **kw):
+        """Get class instance and save it into glob list."""
+        if cls not in __instances__:
+            __instances__[cls] = cls(*args, **kw)
+        return __instances__[cls]
 
-
-def pickle_string_to_obj(s):
-    return pickle.loads(codecs.decode(s.encode(), "base64"))
+    return get_instance
 
 
 def model_layer_flatten(weights):

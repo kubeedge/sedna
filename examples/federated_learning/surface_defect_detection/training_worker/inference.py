@@ -12,20 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
+import os
 import numpy as np
+import keras.preprocessing.image as img_preprocessing
+from interface import Estimator
+from sedna.common.config import Context
+from sedna.core.federated_learning import FederatedLearning
+from sedna.datasources import TxtDataParse
 
-import sedna.ml_model
-from sedna.ml_model import load_model
 
-LOG = logging.getLogger(__name__)
+def image_process(line):
+    file_path, label = line.split(',')
+    original_dataset_url = Context.get_parameters('original_dataset_url')
+    root_path = os.path.dirname(original_dataset_url)
+    file_path = os.path.join(root_path, file_path)
+    img = img_preprocessing.load_img(file_path).resize((128, 128))
+    data = img_preprocessing.img_to_array(img) / 255.0
+    label = [0, 1] if int(label) == 0 else [1, 0]
+    data = np.array(data)
+    label = np.array(label)
+    return [data, label]
+
+
+def main():
+    fl_instance = FederatedLearning(estimator=Estimator)
+
+    # load dataset.
+
+    test_data = TxtDataParse(data_type="test", func=image_process)
+    test_data.parse(fl_instance.config.test_dataset_url)
+
+    fl_instance.evaluate(test_data)
+
 
 if __name__ == '__main__':
-    valid_data = sedna.load_test_dataset(data_format="txt", with_image=True)
-
-    x_valid = np.array([tup[0] for tup in valid_data])
-    y_valid = np.array([tup[1] for tup in valid_data])
-
-    loaded_model = load_model()
-    LOG.info(f"x_valid is {loaded_model.predict(x_valid)}")
+    main()

@@ -12,31 +12,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
+import os
 
-import sedna
-from validate_utils import validate
+from sedna.common.config import Context
+from sedna.core.incremental_learning import IncrementalLearning
+from sedna.datasources import TxtDataParse
+from interface import Estimator
 
-LOG = logging.getLogger(__name__)
 max_epochs = 1
+
+
+def _load_txt_dataset(dataset_url):
+    # use original dataset url,
+    # see https://github.com/kubeedge/sedna/issues/35
+    original_dataset_url = Context.get_parameters('original_dataset_url')
+    return os.path.join(os.path.dirname(original_dataset_url), dataset_url)
 
 
 def main():
     # load dataset.
-    test_data = sedna.load_test_dataset(data_format='txt', with_image=False)
+    test_dataset_url = Context.get_parameters('test_dataset_url')
+
+    valid_data = TxtDataParse(data_type="test", func=_load_txt_dataset)
+    valid_data.parse(test_dataset_url, use_raw=True)
 
     # read parameters from deployment config.
-    class_names = sedna.context.get_parameters("class_names")
+    class_names = Context.get_parameters("class_names")
     class_names = [label.strip() for label in class_names.split(',')]
-    input_shape = sedna.context.get_parameters("input_shape")
+    input_shape = Context.get_parameters("input_shape")
     input_shape = tuple(int(shape) for shape in input_shape.split(','))
 
-    model = validate
-
-    sedna.incremental_learning.evaluate(model=model,
-                                          test_data=test_data,
-                                          class_names=class_names,
-                                          input_shape=input_shape)
+    model = IncrementalLearning(estimator=Estimator)
+    return model.evaluate(valid_data, class_names=class_names,
+                          input_shape=input_shape)
 
 
 if __name__ == '__main__':

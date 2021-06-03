@@ -27,14 +27,15 @@ flags = tf.flags.FLAGS
 
 class DataGen(object):
 
-    def __init__(self, config, train_data, valid_data):
+    def __init__(self, config, train_data):
 
         LOG.info("DataGen build start .......")
 
         self.input_shape = flags.input_shape
 
         self.batch_size = flags.batch_size
-        self.anchors = np.array([float(x) for x in config.anchors]).reshape(-1, 2)
+        self.anchors = np.array([float(x)
+                                 for x in config.anchors]).reshape(-1, 2)
         self.class_names = flags.class_names
         self.num_classes = len(self.class_names)
         self.max_boxes = config.max_boxes
@@ -44,11 +45,6 @@ class DataGen(object):
         self.train_data_size = len(self.train_data)
         LOG.info('size of train data is : %d' % self.train_data_size)
 
-        self.val_curr_index = 0
-        self.val_data = valid_data
-        self.val_data_size = len(self.val_data)
-        LOG.info('size of validation data is : %d' % self.val_data_size)
-
         self.batch_index = 0
         self.cur_shape = flags.input_shape
 
@@ -57,15 +53,23 @@ class DataGen(object):
     def next_batch_train(self):
         multi_scales = [self.input_shape]
         for i in range(1, 3):
-            multi_scales.append((self.input_shape[0] - 32 * i, self.input_shape[1] - 32 * i))
-            multi_scales.append((self.input_shape[0] + 32 * i, self.input_shape[1] + 32 * i))
+            multi_scales.append(
+                (self.input_shape[0] - 32 * i,
+                 self.input_shape[1] - 32 * i))
+            multi_scales.append(
+                (self.input_shape[0] + 32 * i,
+                 self.input_shape[1] + 32 * i))
 
         if self.batch_index % 25 == 0:
             self.cur_shape = random.choice(multi_scales)
 
         self.batch_index += 1
-        count, batch_data = self.next_batch(self.train_curr_index, self.train_data, self.train_data_size,
-                                            self.cur_shape, True)
+        count, batch_data = self.next_batch(
+            self.train_curr_index,
+            self.train_data,
+            self.train_data_size,
+            self.cur_shape, True
+        )
 
         if not count:
             self.train_curr_index = 0
@@ -76,17 +80,13 @@ class DataGen(object):
             batch_data['input_shape'] = self.cur_shape
             return batch_data
 
-    def next_batch_validate(self):
-        count, batch_data = self.next_batch(self.val_curr_index, self.val_data, self.val_data_size, self.input_shape,
-                                            False)
-        if not count:
-            self.val_curr_index = 0
-            return None
-        else:
-            self.val_curr_index += count
-            return batch_data
-
-    def next_batch(self, curr_index, dataset, data_size, input_shape, is_training):
+    def next_batch(
+            self,
+            curr_index,
+            dataset,
+            data_size,
+            input_shape,
+            is_training):
 
         count = 0
         img_data_list = []
@@ -103,7 +103,8 @@ class DataGen(object):
                 LOG.info("current line length less than 0......")
                 continue
 
-            image_data, box_data = self.read_data(curr_line, input_shape, is_training, self.max_boxes)
+            image_data, box_data = self.read_data(
+                curr_line, input_shape, is_training, self.max_boxes)
             if image_data is None or box_data is None:
                 continue
 
@@ -113,11 +114,15 @@ class DataGen(object):
             if len(img_data_list) >= self.batch_size:
                 batch_data = dict()
                 batch_data['images'] = np.array(img_data_list)
-                bbox_true_13, bbox_true_26, bbox_true_52 = self.preprocess_true_boxes(np.array(box_data_list),
-                                                                                      input_shape)
-                batch_data['bbox_true_13'] = bbox_true_13  # np.array(bbox_13_list)
-                batch_data['bbox_true_26'] = bbox_true_26  # np.array(bbox_26_list)
-                batch_data['bbox_true_52'] = bbox_true_52  # np.array(bbox_52_list)
+                bbox_true_13, bbox_true_26, bbox_true_52 = \
+                    self.preprocess_true_boxes(np.array(box_data_list),
+                                               input_shape)
+                # np.array(bbox_13_list)
+                batch_data['bbox_true_13'] = bbox_true_13
+                # np.array(bbox_26_list)
+                batch_data['bbox_true_26'] = bbox_true_26
+                # np.array(bbox_52_list)
+                batch_data['bbox_true_52'] = bbox_true_52
                 return count, batch_data
 
         LOG.info('reaching the last line of data ~~~')
@@ -126,8 +131,17 @@ class DataGen(object):
     def rand(self, a=0., b=1.):
         return np.random.rand() * (b - a) + a
 
-    def read_data(self, annotation_line, input_shape=416, random=True, max_boxes=50, jitter=.3, hue=.1, sat=1.5,
-                  val=1.5, proc_img=True):
+    def read_data(
+            self,
+            annotation_line,
+            input_shape=416,
+            random=True,
+            max_boxes=50,
+            jitter=.3,
+            hue=.1,
+            sat=1.5,
+            val=1.5,
+            proc_img=True):
         """
         random preprocessing for real-time data augmentation
         """
@@ -136,7 +150,8 @@ class DataGen(object):
         image = Image.open(line[0])
         iw, ih = image.size
         h, w = input_shape
-        box = np.array([np.array(list(map(int, box.split(',')))) for box in line[1:]])
+        box = np.array([np.array(list(map(int, box.split(','))))
+                        for box in line[1:]])
 
         if not random:
             # resize image
@@ -156,7 +171,8 @@ class DataGen(object):
             box_data = np.zeros((max_boxes, 5))
             if len(box) > 0:
                 np.random.shuffle(box)
-                if len(box) > max_boxes: box = box[:max_boxes]
+                if len(box) > max_boxes:
+                    box = box[:max_boxes]
                 box[:, [0, 2]] = box[:, [0, 2]] * scale + dx
                 box[:, [1, 3]] = box[:, [1, 3]] * scale + dy
                 box_data[:len(box)] = box
@@ -165,7 +181,10 @@ class DataGen(object):
                 return None, None
 
         # resize image
-        new_ar = float(w) / float(h) * self.rand(1 - jitter, 1 + jitter) / self.rand(1 - jitter, 1 + jitter)
+        new_ar = \
+            float(w) / float(h) * self.rand(1 - jitter,
+                                            1 + jitter) / self.rand(1 - jitter,
+                                                                    1 + jitter)
         scale = self.rand(.25, 2)
 
         if new_ar < 1:
@@ -185,11 +204,13 @@ class DataGen(object):
 
         # flip image or not
         flip = self.rand() < .5
-        if flip: image = image.transpose(Image.FLIP_LEFT_RIGHT)
+        if flip:
+            image = image.transpose(Image.FLIP_LEFT_RIGHT)
 
         # convert image to gray or not
         gray = self.rand() < .25
-        if gray: image = image.convert('L').convert('RGB')
+        if gray:
+            image = image.convert('L').convert('RGB')
 
         # distort image
         hue = self.rand(-hue, hue)
@@ -211,13 +232,15 @@ class DataGen(object):
             np.random.shuffle(box)
             box[:, [0, 2]] = box[:, [0, 2]] * nw / iw + dx
             box[:, [1, 3]] = box[:, [1, 3]] * nh / ih + dy
-            if flip: box[:, [0, 2]] = w - box[:, [2, 0]]
+            if flip:
+                box[:, [0, 2]] = w - box[:, [2, 0]]
             box[:, 0:2][box[:, 0:2] < 0] = 0
             box[:, 2][box[:, 2] > w] = w
             box[:, 3][box[:, 3] > h] = h
             box_w = box[:, 2] - box[:, 0]
             box_h = box[:, 3] - box[:, 1]
-            box = box[np.logical_and(box_w > 1, box_h > 1)]  # discard invalid box
+            # discard invalid box
+            box = box[np.logical_and(box_w > 1, box_h > 1)]
 
             if len(box) > max_boxes:
                 box = box[:max_boxes]
@@ -247,8 +270,14 @@ class DataGen(object):
 
         m = true_boxes.shape[0]
         grid_shapes = [input_shape // 32, input_shape // 16, input_shape // 8]
-        y_true = [np.zeros((m, grid_shapes[l][0], grid_shapes[l][1], len(anchor_mask[l]), 5 + self.num_classes),
-                           dtype='float32') for l in range(num_layers)]
+        y_true = [np.zeros(
+            (m,
+             grid_shapes[layer][0],
+             grid_shapes[layer][1],
+             len(anchor_mask[layer]),
+             5 + self.num_classes),
+            dtype='float32') for layer in range(num_layers)
+        ]
         # The dimension is expanded to calculate the IOU between the
         # anchors of all boxes in each graph by broadcasting
         anchors = np.expand_dims(self.anchors, 0)
@@ -259,7 +288,8 @@ class DataGen(object):
 
         for b in range(m):
             wh = boxes_wh[b, valid_mask[b]]
-            if len(wh) == 0: continue
+            if len(wh) == 0:
+                continue
 
             # Expanding dimensions for broadcasting applications
             wh = np.expand_dims(wh, -2)
@@ -281,14 +311,18 @@ class DataGen(object):
             # coordinates of the ground truth box
             best_anchor = np.argmax(iou, axis=-1)
             for t, n in enumerate(best_anchor):
-                for l in range(num_layers):
-                    if n in anchor_mask[l]:
-                        i = np.floor(true_boxes[b, t, 0] * grid_shapes[l][1]).astype('int32')
-                        j = np.floor(true_boxes[b, t, 1] * grid_shapes[l][0]).astype('int32')
-                        k = anchor_mask[l].index(n)
+                for layer in range(num_layers):
+                    if n in anchor_mask[layer]:
+                        i = np.floor(
+                            true_boxes[b, t, 0] *
+                            grid_shapes[layer][1]).astype('int32')
+                        j = np.floor(
+                            true_boxes[b, t, 1] *
+                            grid_shapes[layer][0]).astype('int32')
+                        k = anchor_mask[layer].index(n)
 
                         c = true_boxes[b, t, 4].astype('int32')
-                        y_true[l][b, j, i, k, 0:4] = true_boxes[b, t, 0:4]
-                        y_true[l][b, j, i, k, 4] = 1.
-                        y_true[l][b, j, i, k, 5 + c] = 1.
+                        y_true[layer][b, j, i, k, 0:4] = true_boxes[b, t, 0:4]
+                        y_true[layer][b, j, i, k, 4] = 1.
+                        y_true[layer][b, j, i, k, 5 + c] = 1.
         return y_true[0], y_true[1], y_true[2]

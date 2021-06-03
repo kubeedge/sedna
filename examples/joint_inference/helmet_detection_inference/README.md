@@ -193,4 +193,3 @@ ffmpeg -re -i /data/video/video.mp4 -vcodec libx264 -f rtsp rtsp://localhost/vid
 You can check the inference results in the output path (e.g. `/joint_inference/output`) defined in the JointInferenceService config.
 * the result of edge inference vs the result of joint inference
 ![](images/inference-result.png)
-

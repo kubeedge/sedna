@@ -85,7 +85,8 @@ def _conv(x, filter_size, out_channel, strides, name="conv"):
                                   out_channel], tf.float32,
                                  initializer=tf.random_normal_initializer(
                                      stddev=np.sqrt(
-                                         2.0 / filter_size / filter_size / out_channel)))
+                                         2.0 / filter_size /
+                                         filter_size / out_channel)))
         if kernel not in tf.get_collection(WEIGHT_DECAY_KEY):
             tf.add_to_collection(WEIGHT_DECAY_KEY, kernel)
         if strides == 1:
@@ -185,7 +186,8 @@ class ResNet18(object):
             with tf.variable_scope('logits') as scope:
                 print('\tBuilding unit: %s' % scope.name)
                 x = tf.reduce_mean(x, [1, 2], name="logits_bottleneck")
-                # x = _fc(x, num_classes)    # original resnet18 code used only 8 output classes
+                # x = _fc(x, num_classes)    # original resnet18 code used only
+                # 8 output classes
                 self.end_points['logits'] = x
         # print (self.end_points)
 

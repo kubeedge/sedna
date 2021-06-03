@@ -6,18 +6,17 @@ RUN apt update \
 COPY ./lib/requirements.txt /home
 # install requirements of sedna lib
 RUN pip install -r /home/requirements.txt
-
-# extra requirements for example
-RUN pip install tqdm==4.56.0
-RUN pip install matplotlib==3.3.3
-
+RUN pip install joblib~=1.0.1
+RUN pip install pandas~=1.1.5
+RUN pip install scikit-learn~=0.24.1
+RUN pip install xgboost~=1.3.3
 
 ENV PYTHONPATH "/home/lib"
 
 WORKDIR /home/work
 COPY ./lib /home/lib
 
-COPY examples/incremental_learning/helmet_detection/training/  /home/work/
+COPY examples/lifelong_learning/atcii  /home/work/
 
 
 ENTRYPOINT ["python"]

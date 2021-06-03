@@ -12,4 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .__version__ import __version__
+"""sedna version information."""
+
+__version__ = '0.0.2'
