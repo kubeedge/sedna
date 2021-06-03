@@ -384,7 +384,7 @@ func (uc *UpstreamController) appendLifelongLearningJobStatusCondition(name, nam
 	})
 }
 
-// updateIncrementalLearningFromEdge syncs the edge updates to k8s
+// updateLifelongLearningJobFromEdge syncs the edge updates to k8s
 func (uc *UpstreamController) updateLifelongLearningJobFromEdge(name, namespace, operation string, content []byte) error {
 	err := checkUpstreamOperation(operation)
 	if err != nil {

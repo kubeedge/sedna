@@ -239,6 +239,9 @@ func (ds *Dataset) readByLine(url string, format string) (*DataSource, error) {
 		numberOfSamples += len(samples)
 	case DatasetFormatCSV:
 		// the first row of csv file is header
+		if len(samples) == 0 {
+			return nil, fmt.Errorf("file %s is empty", url)
+		}
 		dataSource.Header = samples[0]
 		samples = samples[1:]
 		numberOfSamples += len(samples)

@@ -6,5 +6,3 @@ websocket:
   port: 9000
 localController:
   server: http://localhost:9100
-knowledgeBaseService:
-  server: http://localhost:9020

@@ -57,7 +57,6 @@ var ljControllerKind = sednav1.SchemeGroupVersion.WithKind("LifelongLearningJob"
 type LifelongLearningJobController struct {
 	kubeClient kubernetes.Interface
 	client     sednaclientset.SednaV1alpha1Interface
-	podControl k8scontroller.PodControlInterface
 
 	// podStoreSynced returns true if the pod store has been synced at least once.
 	// Added as a member to the struct to allow injection for testing.
@@ -273,7 +272,7 @@ func (jc *LifelongLearningJobController) sync(key string) (bool, error) {
 	jobFailed := false
 	needUpdated := false
 
-	// update conditions of incremental job
+	// update conditions of lifelonglearning job
 	needUpdated, err = jc.updateLifelongLearningJobConditions(&lifelonglearningjob)
 	if err != nil {
 		klog.V(2).Infof("lifelonglearning job %v/%v faied to be updated, err:%s", lifelonglearningjob.Namespace, lifelonglearningjob.Name, err)
@@ -599,6 +598,7 @@ func (jc *LifelongLearningJobController) createPod(job *sednav1.LifelongLearning
 			"WORKER_NAME": "eval-worker-" + utilrand.String(5),
 
 			"LC_SERVER": jc.cfg.LC.Server,
+			"KB_SERVER": jc.cfg.KB.Server,
 		}
 
 		var modelMountURLs []MountURL
@@ -676,8 +676,8 @@ func (jc *LifelongLearningJobController) createInferPod(job *sednav1.LifelongLea
 				URL:    inferModelURL,
 				Secret: jobSecret,
 			},
-			Name:    "model",
-			EnvName: "MODEL_URL",
+			Name:    "models",
+			EnvName: "MODEL_URLS",
 		},
 	)
 
@@ -736,14 +736,9 @@ func NewLifelongLearningJobController(cfg *config.ControllerConfig) (FeatureCont
 	jc := &LifelongLearningJobController{
 		kubeClient: kubeClient,
 		client:     crdclient.SednaV1alpha1(),
-		podControl: k8scontroller.RealPodControl{
-			KubeClient: kubeClient,
-			Recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "lifelonglearningjob-controller"}),
-		},
-
-		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(DefaultBackOff, MaxBackOff), "lifelonglearningjob"),
-		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "lifelonglearningjob-controller"}),
-		cfg:      cfg,
+		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(DefaultBackOff, MaxBackOff), "lifelonglearningjob"),
+		recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "lifelonglearningjob-controller"}),
+		cfg:        cfg,
 	}
 
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
