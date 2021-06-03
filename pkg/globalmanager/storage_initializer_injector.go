@@ -39,6 +39,8 @@ const (
 
 	indirectURLMark    = "@"
 	indirectURLMarkEnv = "INDIRECT_URL_MARK"
+
+	defaultVolumeName = "sedna-default-volume-name"
 )
 
 var supportStorageInitializerURLSchemes = [...]string{
@@ -206,11 +208,12 @@ func injectHostPathMount(pod *v1.Pod, workerParam *WorkerParam) {
 			if m.HostPath == "" {
 				continue
 			}
+
 			volumeName := ConvertK8SValidName(m.HostPath)
 
-			if volumeName == "" {
-				klog.Warningf("failed to convert volume name from the url and skipped: %s", m.URL)
-				continue
+			if len(volumeName) == 0 {
+				volumeName = defaultVolumeName
+				klog.Warningf("failed to get name from url(%s), fallback to default name(%s)", m.URL, volumeName)
 			}
 
 			if _, ok := uniqVolumeName[volumeName]; !ok {
