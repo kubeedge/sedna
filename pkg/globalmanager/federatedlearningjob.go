@@ -460,7 +460,7 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 	// will support Spec.NodeSelector.
 	appIP, err = GetNodeIPByName(fc.kubeClient, job.Spec.AggregationWorker.Template.Spec.NodeName)
 
-	aggServicePort, err = CreateKubernetesService(fc.kubeClient, job, aggPort, appIP)
+	aggServicePort, err = CreateKubernetesService(fc.kubeClient, job, FLJobStageAgg, aggPort, appIP)
 	if err != nil {
 		return active, err
 	}

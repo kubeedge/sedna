@@ -6,6 +6,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	k8scontroller "k8s.io/kubernetes/pkg/controller"
@@ -36,6 +38,73 @@ type WorkerParam struct {
 	restartPolicy v1.RestartPolicy
 }
 
+// generateLabels generates labels for an object
+func generateLabels(object CommonInterface, workerType string) map[string]string {
+	kind := object.GroupVersionKind().Kind
+	group := object.GroupVersionKind().Group
+
+	keyPrefix := strings.ToLower(kind + "." + group + "/")
+
+	labels := make(map[string]string)
+	labels[keyPrefix+"name"] = object.GetName()
+	labels[keyPrefix+"uid"] = string(object.GetUID())
+	if workerType != "" {
+		labels[keyPrefix+"worker-type"] = strings.ToLower(workerType)
+	}
+	return labels
+}
+
+// GenerateSelector generates the selector of an object for worker
+func GenerateSelector(object CommonInterface) (labels.Selector, error) {
+	ls := &metav1.LabelSelector{
+		// select any type workers
+		MatchLabels: generateLabels(object, ""),
+	}
+	return metav1.LabelSelectorAsSelector(ls)
+}
+
+// CreateKubernetesService creates a k8s service for an object given ip and port
+func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32, inputIP string) (int32, error) {
+	ctx := context.Background()
+	name := object.GetName()
+	namespace := object.GetNamespace()
+	kind := object.GroupVersionKind().Kind
+	targePort := intstr.IntOrString{
+		IntVal: inputPort,
+	}
+	serviceSpec := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:    object.GetNamespace(),
+			GenerateName: name + "-" + "service" + "-",
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+			},
+			Labels: generateLabels(object, workerType),
+		},
+		Spec: v1.ServiceSpec{
+			Selector: generateLabels(object, workerType),
+			ExternalIPs: []string{
+				inputIP,
+			},
+			Type: v1.ServiceTypeNodePort,
+			Ports: []v1.ServicePort{
+				{
+					Port:       inputPort,
+					TargetPort: targePort,
+				},
+			},
+		},
+	}
+	service, err := kubeClient.CoreV1().Services(namespace).Create(ctx, serviceSpec, metav1.CreateOptions{})
+	if err != nil {
+		klog.Warningf("failed to create service for %v %v/%v, err:%s", kind, namespace, name, err)
+		return 0, err
+	}
+
+	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
+	return service.Spec.Ports[0].NodePort, nil
+}
+
 // injectWorkerParam modifies pod in-place
 func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInterface) {
 	InjectStorageInitializer(pod, workerParam)
@@ -52,7 +121,7 @@ func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInter
 		pod.Labels = make(map[string]string)
 	}
 
-	for k, v := range GenerateLabels(object) {
+	for k, v := range generateLabels(object, workerParam.workerType) {
 		pod.Labels[k] = v
 	}
 
