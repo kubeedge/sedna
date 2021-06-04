@@ -15,14 +15,13 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
-import logging
+import os
 import sys
 import time
+import logging
 
 import cv2
 import numpy as np
-import os
 import tensorflow as tf
 from PIL import Image
 
@@ -81,13 +80,16 @@ def validate(model_path, test_dataset, class_names, input_shape=(352, 640)):
         img_file = line[:pos]
 
         bbox_list_ground = line[pos + 1:].split(' ')
-        time_predict, correct, pred, ground = validate_img_file(yolo_infer, yolo_session, img_file,
-                                                                bbox_list_ground,
-                                                                folder_out, class_names)
+        time_predict, correct, pred, ground = validate_img_file(
+            yolo_infer, yolo_session, img_file,
+            bbox_list_ground, folder_out, class_names
+        )
 
-        count_correct = [count_correct[ix] + correct[ix] for ix in range(class_num)]
+        count_correct = [count_correct[ix] + correct[ix]
+                         for ix in range(class_num)]
         count_pred = [count_pred[ix] + pred[ix] for ix in range(class_num)]
-        count_ground = [count_ground[ix] + ground[ix] for ix in range(class_num)]
+        count_ground = [count_ground[ix] + ground[ix]
+                        for ix in range(class_num)]
 
         count_img += 1
         time_all += time_predict
@@ -96,8 +98,10 @@ def validate(model_path, test_dataset, class_names, input_shape=(352, 640)):
     print('count_pred', count_pred)
     print('count_ground', count_ground)
 
-    precision = [float(count_correct[ix]) / float(count_pred[ix]) for ix in range(class_num)]
-    recall = [float(count_correct[ix]) / float(count_ground[ix]) for ix in range(class_num)]
+    precision = [float(count_correct[ix]) / float(count_pred[ix])
+                 for ix in range(class_num)]
+    recall = [float(count_correct[ix]) / float(count_ground[ix])
+              for ix in range(class_num)]
 
     all_precisions = sum(count_correct) / sum(count_pred)
     all_recalls = sum(count_correct) / sum(count_ground)
@@ -113,7 +117,8 @@ def validate(model_path, test_dataset, class_names, input_shape=(352, 640)):
     return precision, recall, all_precisions, all_recalls
 
 
-def validate_img_file(yolo_infer, yolo_session, img_file, bbox_list_ground, folder_out, class_names):
+def validate_img_file(yolo_infer, yolo_session, img_file,
+                      bbox_list_ground, folder_out, class_names):
     print('validate_img_file : ', img_file)
     class_num = len(class_names)
     img_data = Image.open(img_file)
@@ -139,11 +144,18 @@ def validate_img_file(yolo_infer, yolo_session, img_file, bbox_list_ground, fold
         return time_predict, count_correct, count_ground, count_pred
 
     time_start = time.time()
-    labels, scores, bbox_list_pred = yolo_infer.predict(yolo_session, input_image)
+    labels, scores, bbox_list_pred = yolo_infer.predict(
+        yolo_session, input_image)
     time_predict = time.time() - time_start
     colors = 'yellow,blue,green,red'
     if folder_out is not None:
-        img = draw_boxes(img_data, labels, scores, bbox_list_pred, class_names, colors)
+        img = draw_boxes(
+            img_data,
+            labels,
+            scores,
+            bbox_list_pred,
+            class_names,
+            colors)
         img_file = img_file.split("/")[-1]
         cv2.imwrite(os.path.join(folder_out, img_file), img)
 
@@ -159,7 +171,11 @@ def validate_img_file(yolo_infer, yolo_session, img_file, bbox_list_ground, fold
         count_ground[class_ground] += 1
 
     for iy in range(count_pred_all):
-        bbox_pred = [bbox_list_pred[iy][1], bbox_list_pred[iy][0], bbox_list_pred[iy][3], bbox_list_pred[iy][2]]
+        bbox_pred = [
+            bbox_list_pred[iy][1],
+            bbox_list_pred[iy][0],
+            bbox_list_pred[iy][3],
+            bbox_list_pred[iy][2]]
 
         LOG.debug(f'count_pred={count_pred}, labels[iy]={labels[iy]}')
         count_pred[labels[iy]] += 1
@@ -211,9 +227,20 @@ def draw_boxes(img, labels, scores, bboxes, class_names, colors):
         p2 = (int(bbox[2]), int(bbox[3]))
         if (p2[0] - p1[0] < 1) or (p2[1] - p1[1] < 1):
             continue
-        cv2.rectangle(img, p1[::-1], p2[::-1], colors_code[labels[i]], box_thickness)
-        cv2.putText(img, text, (p1[1], p1[0] + 20 * (label + 1)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0),
-                    text_thickness, line_type)
+        if max(p1) > 2 ** 31 or max(p2) > 2 ** 31:
+            continue
+        if min(p1) < - (2 ** 31) or max(p2) < - (2 ** 31):
+            continue
+        cv2.rectangle(img, p1[::-1], p2[::-1],
+                      colors_code[labels[i]], box_thickness)
+        cv2.putText(img,
+                    text,
+                    (p1[1],
+                     p1[0] + 20 * (label + 1)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6, (255, 0, 0),
+                    text_thickness,
+                    line_type)
 
     return img
 

@@ -27,6 +27,7 @@ federated-learning-surface-defect-detection-train.Dockerfile
 incremental-learning-helmet-detection.Dockerfile
 joint-inference-helmet-detection-big.Dockerfile
 joint-inference-helmet-detection-little.Dockerfile
+lifelong-learning-atcii-classifier.Dockerfile
 )
 
 for dockerfile in ${dockerfiles[@]}; do
