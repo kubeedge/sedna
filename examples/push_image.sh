@@ -23,9 +23,9 @@ bash build_image.sh
 
 for i in $(
     docker images --filter label=sedna=examples |
-    grep $IMAGE_REPO |
-    grep $IMAGE_TAG |
-    awk 'a++&&$0=$1":"$2'
+    grep -F "$IMAGE_REPO" |
+    grep -F "$IMAGE_TAG" |
+    awk '$0=$1":"$2'
  ); do
  docker push $i && {
    echo done docker push $i
