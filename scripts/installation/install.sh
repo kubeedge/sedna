@@ -18,6 +18,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+SEDNA_VERSION=v0.3.0
+KB_VERSION=v0.3.0
+
 TMP_DIR=$(mktemp -d --suffix=.sedna)
 SEDNA_ROOT=${SEDNA_ROOT:-$TMP_DIR}
 
@@ -135,7 +138,7 @@ spec:
       containers:
       - name: kb
         imagePullPolicy: IfNotPresent
-        image: kubeedge/sedna-kb:v0.3.0
+        image: kubeedge/sedna-kb:$KB_VERSION
         env:
           - name: KB_URL
             value: "sqlite:///db/kb.sqlite3"
@@ -236,7 +239,7 @@ spec:
       serviceAccountName: sedna
       containers:
       - name: gm
-        image: kubeedge/sedna-gm:v0.2.0
+        image: kubeedge/sedna-gm:$SEDNA_VERSION
         command: ["sedna-gm", "--config", "/config/$config_file_name", "-v2"]
         volumeMounts:
         - name: gm-config
@@ -291,7 +294,7 @@ spec:
     spec:
       containers:
         - name: lc
-          image: kubeedge/sedna-lc:v0.2.0
+          image: kubeedge/sedna-lc:$SEDNA_VERSION
           env:
             - name: GM_ADDRESS
               value: $GM_ADDRESS
