@@ -12,14 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM python:3.6
+FROM python:3.6-slim
+
+RUN pip install colorlog~=4.7.2
+RUN pip install PyYAML~=5.4.1
+RUN pip install fastapi~=0.63.0
+RUN pip install starlette~=0.13.6
+RUN pip install pydantic~=1.8.1
+RUN pip install joblib~=1.0.1
+RUN pip install pandas~=1.1.5
+RUN pip install uvicorn~=0.14.0
+RUN pip install python-multipart~=0.05
+RUN pip install SQLAlchemy~=1.4.7
+RUN pip install aiofiles~=0.70
 
 RUN mkdir /code
-COPY ./lib/requirements.txt /code
-RUN pip install -r /code/requirements.txt
-RUN pip install python-multipart
-RUN pip install SQLAlchemy
-RUN pip install aiofiles
 ENV PYTHONPATH "/code/lib"
 
 COPY ./lib /code/lib
