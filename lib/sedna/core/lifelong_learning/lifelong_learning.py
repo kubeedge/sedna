@@ -61,7 +61,8 @@ class LifelongLearning(JobBase):
             inference_integrate_param=inference_integrate_param)
         self.unseen_task_detect = unseen_task_detect
         self.unseen_task_detect_param = e.parse_param(
-            unseen_task_detect_param)
+            unseen_task_detect_param
+        )
         config = dict(
             ll_kb_server=Context.get_parameters("KB_SERVER"),
             output_url=Context.get_parameters("OUTPUT_URL", "/tmp")
@@ -69,7 +70,8 @@ class LifelongLearning(JobBase):
         task_index = FileOps.join_path(config['output_url'], 'index.pkl')
         config['task_index'] = task_index
         super(LifelongLearning, self).__init__(
-            estimator=estimator, config=config)
+            estimator=e, config=config
+        )
         self.job_kind = K8sResourceKind.LIFELONG_JOB.value
         self.kb_server = KBClient(kbserver=self.config.ll_kb_server)
 
