@@ -62,7 +62,8 @@ Sedna的安装文档请参考[这里](/docs/setup/install.md)。
 ### 样例
 样例1：[大小模型协同推理](/examples/joint_inference/helmet_detection_inference/README.md)   
 样例2：[边云协同增量学习](/examples/incremental_learning/helmet_detection/README.md)    
-样例3：[边云协同联邦学习](/examples/federated_learning/surface_defect_detection/README.md)  
+样例3：[边云协同联邦学习](/examples/federated_learning/surface_defect_detection/README.md)    
+样例4：[边云协同终身学习](/examples/lifelong_learning/atcii/README.md)
 ## 路标
 
 * [2021 Q1 Roadmap](./docs/roadmap.md#2021-q1-roadmap)
