@@ -96,7 +96,7 @@ metadata:
   name: "surface-defect-detection-model"
 spec:
   url: "/model"
-  format: "ckpt"
+  format: "pb"
 EOF
 ```
 

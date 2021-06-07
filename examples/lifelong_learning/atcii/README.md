@@ -128,7 +128,7 @@ spec:
               type: DirectoryOrCreate
           - name: inferdata
             hostPath:
-              path:  /lifelong/data/
+              path:  /data/
               type: DirectoryOrCreate
   outputDir: "/output"
 EOF

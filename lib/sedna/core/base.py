@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os.path
+import json
 
 from sedna.common.log import LOGGER
 from sedna.common.file_ops import FileOps
@@ -69,6 +70,27 @@ class JobBase(DistributedWorker):
         self.job_name = self.config.job_name or self.config.service_name
         work_name = f"{self.job_name}-{self.worker_id}"
         self.worker_name = self.config.worker_name or work_name
+
+    @property
+    def initial_hem(self):
+        hem = self.get_parameters("HEM_NAME")
+        hem_parameters = self.get_parameters("HEM_PARAMETERS")
+
+        try:
+            hem_parameters = json.loads(hem_parameters)
+            hem_parameters = {
+                p["key"]: p.get("value", "")
+                for p in hem_parameters if "key" in p
+            }
+        except Exception as err:
+            self.log.warn(f"Parse HEM_PARAMETERS failure, "
+                          f"fallback to empty: {err}")
+            hem_parameters = {}
+
+        if hem is None:
+            hem = self.config.get("hem_name") or "IBT"
+
+        return ClassFactory.get_cls(ClassType.HEM, hem)(**hem_parameters)
 
     @property
     def model_path(self):

@@ -5,6 +5,8 @@ RUN apt update \
 
 COPY ./lib/requirements.txt /home
 RUN pip install -r /home/requirements.txt
+RUN pip install opencv-python==4.4.0.44
+RUN pip install Pillow==8.0.1
 
 ENV PYTHONPATH "/home/lib"
 

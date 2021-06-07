@@ -130,7 +130,7 @@ class LifelongLearning(JobBase):
             self.log.error(f"KB update Fail !")
             index_file = name
 
-        FileOps.download(index_file, self.config.task_index)
+        FileOps.upload(index_file, self.config.task_index)
         if os.path.isfile(name):
             os.close(fd)
             os.remove(name)
@@ -184,7 +184,7 @@ class LifelongLearning(JobBase):
             index_file = str(index_url)
         self.log.info(
             f"upload kb index from {index_file} to {self.config.task_index}")
-        FileOps.download(index_file, self.config.task_index)
+        FileOps.upload(index_file, self.config.task_index)
         task_info_res = self.estimator.model_info(
             self.config.task_index, result=res,
             relpath=self.config.data_path_prefix)

@@ -20,6 +20,16 @@ from sedna.backend.base import BackendBase
 from sedna.common.file_ops import FileOps
 
 
+if hasattr(tf, "compat"):
+    # version 2.0 tf
+    ConfigProto = tf.compat.v1.ConfigProto
+    Session = tf.compat.v1.Session
+else:
+    # version 1
+    ConfigProto = tf.ConfigProto
+    Session = tf.Session
+
+
 class TFBackend(BackendBase):
 
     def __init__(self, estimator, fine_tune=True, **kwargs):
@@ -31,25 +41,24 @@ class TFBackend(BackendBase):
         self.graph = tf.Graph()
 
         with self.graph.as_default():
-            self.sess = tf.compat.v1.Session(config=sess_config)
+            self.sess = Session(config=sess_config)
         if callable(self.estimator):
             self.estimator = self.estimator()
 
     @staticmethod
     def _init_cpu_session_config():
-        sess_config = tf.ConfigProto(allow_soft_placement=True)
+        sess_config = ConfigProto(allow_soft_placement=True)
         return sess_config
 
     @staticmethod
     def _init_gpu_session_config():
-        sess_config = tf.ConfigProto(
+        sess_config = ConfigProto(
             log_device_placement=True, allow_soft_placement=True)
         sess_config.gpu_options.per_process_gpu_memory_fraction = 0.7
         sess_config.gpu_options.allow_growth = True
         return sess_config
 
     def train(self, train_data, valid_data=None, **kwargs):
-        # self.sess.run(tf.global_variables_initializer())
         if callable(self.estimator):
             self.estimator = self.estimator()
         if self.fine_tune and FileOps.exists(self.model_save_path):

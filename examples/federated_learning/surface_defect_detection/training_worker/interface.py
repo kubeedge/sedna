@@ -82,6 +82,8 @@ class Estimator:
         self.model.set_weights(weights)
 
     def load_weights(self, model):
+        if not os.path.isfile(model):
+            return
         return self.model.load_weights(model)
 
     def predict(self, datas):

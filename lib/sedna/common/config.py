@@ -279,36 +279,6 @@ class BaseConfig(ConfigSerializable):
         if self.parameters:
             self.parameter = _url2dict(self.parameters)
 
-    @classmethod
-    def is_gpu_device(cls):
-        """Return whether is gpu device or not."""
-        return getattr(cls, 'device_category', None) == 'GPU'
-
-    @classmethod
-    def is_npu_device(cls):
-        """Return whether is npu device or not."""
-        return getattr(cls, 'device_category', None) == 'NPU'
-
-    @classmethod
-    def is_torch_backend(cls):
-        """Return whether is pytorch backend or not."""
-        return getattr(cls, 'backend_type', None) == 'PYTORCH'
-
-    @classmethod
-    def is_tf_backend(cls):
-        """Return whether is tensorflow backend or not."""
-        return getattr(cls, 'backend_type', None) == 'TENSORFLOW'
-
-    @classmethod
-    def is_kr_backend(cls):
-        """Return whether is keras backend or not."""
-        return getattr(cls, 'backend_type', None) == 'KERAS'
-
-    @classmethod
-    def is_ms_backend(cls):
-        """Return whether is mindspore backend or not."""
-        return getattr(cls, 'backend_type', None) == 'MINDSPORE'
-
 
 class Context:
     """The Context provides the capability of obtaining the context"""

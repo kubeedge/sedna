@@ -20,12 +20,15 @@ import cv2
 import numpy as np
 
 from sedna.common.config import Context
+from sedna.common.file_ops import FileOps
 from sedna.core.incremental_learning import IncrementalLearning
 from interface import Estimator
 
 
 he_saved_url = Context.get_parameters("HE_SAVED_URL")
 class_names = ['person', 'helmet', 'helmet_on', 'helmet_off']
+
+FileOps.clean_folder([he_saved_url], clean=False)
 
 
 def draw_boxes(img, labels, scores, bboxes, class_names, colors):
@@ -69,12 +72,12 @@ def output_deal(is_hard_example, infer_result, nframe, img_rgb):
     img_rgb = np.array(img_rgb)
     img_rgb = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
     colors = 'yellow,blue,green,red'
-    # if is_hard_example:
-    label = 1 if is_hard_example else 0
+    if not is_hard_example:
+        return
     lables, scores, bbox_list_pred = infer_result
     img = draw_boxes(img_rgb, lables, scores, bbox_list_pred, class_names,
                      colors)
-    cv2.imwrite(f"{he_saved_url}/{nframe}-{label}.jpeg", img)
+    cv2.imwrite(f"{he_saved_url}/{nframe}.jpeg", img)
 
 
 def mkdir(path):

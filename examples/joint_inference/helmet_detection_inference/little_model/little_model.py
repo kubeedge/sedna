@@ -21,6 +21,7 @@ import tensorflow as tf
 import numpy as np
 
 from sedna.common.config import Context
+from sedna.common.file_ops import FileOps
 from sedna.core.joint_inference import JointInference
 
 from interface import Estimator
@@ -39,6 +40,12 @@ hard_example_edge_output_path = Context.get_parameters(
 hard_example_cloud_output_path = Context.get_parameters(
     'hard_example_cloud_inference_output'
 )
+
+FileOps.clean_folder([
+    all_output_path,
+    hard_example_cloud_output_path,
+    hard_example_edge_output_path
+], clean=False)
 
 
 class InferenceResult:
