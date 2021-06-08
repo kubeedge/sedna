@@ -54,13 +54,14 @@ class LCReporter(threading.Thread):
     the lc.
     """
 
-    def __init__(self, message, period_interval=30):
+    def __init__(self, lc_server, message, period_interval=30):
         threading.Thread.__init__(self)
 
         # the value of statistics
         self.inference_number = 0
         self.hard_example_number = 0
         self.period_interval = period_interval
+        self.lc_server = lc_server
         # The system resets the period_increment after sending the messages to
         # the LC. If the period_increment is 0 in the current period,
         # the system does not send the messages to the LC.
@@ -99,9 +100,10 @@ class LCReporter(threading.Thread):
                 "hardExampleNumber": self.hard_example_number,
                 "uploadCloudRatio": self.hard_example_number /
                 self.inference_number}
-            message = deepcopy(self.message)
-            message["ownerInfo"] = info
-            LCClient.send(message["ownerName"], message["name"], message)
+            self.message["ownerInfo"] = info
+            LCClient.send(self.lc_server,
+                          self.message["name"],
+                          self.message)
             self.period_increment = 0
 
 
@@ -178,18 +180,13 @@ class AggregationClient:
             raise
 
     async def _send(self, data):
-        error = ""
         for _ in range(self._retry):
             try:
                 await self.ws.send(data)
                 result = await self.ws.recv()
                 return result
-            except Exception as e:
-                error = e
-                LOGGER.warning(f"send data error: {error}")
+            except Exception:
                 time.sleep(self._retry_interval_seconds)
-        LOGGER.error(
-            f"websocket error: {error}, retry times: {self._retry}")
         return None
 
     def send(self, data, msg_type="message", job_name=""):
@@ -200,7 +197,6 @@ class AggregationClient:
         })
         data_json = loop.run_until_complete(self._send(j))
         if data_json is None:
-            LOGGER.error(f"send {msg_type} to agg worker failed")
             return
         res = json.loads(data_json)
         return res

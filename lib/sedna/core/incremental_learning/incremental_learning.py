@@ -36,29 +36,7 @@ class IncrementalLearning(JobBase):
             "MODEL_URLS")  # use in evaluation
         self.job_kind = K8sResourceKind.INCREMENTAL_JOB.value
         FileOps.clean_folder([self.config.model_url], clean=False)
-        hem = self.get_parameters("HEM_NAME")
-        hem_parameters = self.get_parameters("HEM_PARAMETERS")
-
-        try:
-            hem_parameters = json.loads(hem_parameters)
-            if isinstance(hem_parameters, (list, tuple)):
-                if isinstance(hem_parameters[0], dict):
-                    hem_parameters = {
-                        p["key"]: p.get("value", "")
-                        for p in hem_parameters if "key" in p
-                    }
-                else:
-                    hem_parameters = dict(hem_parameters)
-        except Exception:
-            hem_parameters = None
-
-        if hem is None:
-            hem = self.config.get("hem_name") or "IBT"
-
-        if hem_parameters is None:
-            hem_parameters = {}
-        self.hard_example_mining_algorithm = ClassFactory.get_cls(
-            ClassType.HEM, hem)(**hem_parameters)
+        self.hard_example_mining_algorithm = self.initial_hem
 
     def train(self, train_data,
               valid_data=None,
@@ -99,7 +77,7 @@ class IncrementalLearning(JobBase):
         is_hard_example = False
 
         if self.hard_example_mining_algorithm:
-            is_hard_example = self.hard_example_mining_algorithm(infer_res)
+            is_hard_example = self.hard_example_mining_algorithm(res)
         return infer_res, res, is_hard_example
 
     def evaluate(self, data, post_process=None, **kwargs):

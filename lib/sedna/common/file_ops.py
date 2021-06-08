@@ -22,6 +22,28 @@ import pickle
 import shutil
 import tempfile
 import hashlib
+from urllib.parse import urlparse
+
+from .utils import singleton
+
+
+@singleton
+def _create_minio_client():
+    import minio
+
+    _url = os.getenv("S3_ENDPOINT_URL", "http://s3.amazonaws.com")
+    if not (_url.startswith("http://") or _url.startswith("https://")):
+        _url = f"https://{_url}"
+    url = urlparse(_url)
+    use_ssl = url.scheme == 'https' if url.scheme else True
+
+    s3 = minio.Minio(
+        url.netloc,
+        access_key=os.getenv("ACCESS_KEY_ID", ""),
+        secret_key=os.getenv("SECRET_ACCESS_KEY", ""),
+        secure=use_ssl
+    )
+    return s3
 
 
 class FileOps:
@@ -239,11 +261,11 @@ class FileOps:
         if tar:
             cls._tar(src, f"{src}.tar.gz")
             src = f"{src}.tar.gz"
-        if src.startswith(cls._GCS_PREFIX):
+        if dst.startswith(cls._GCS_PREFIX):
             cls.gcs_upload(src, dst)
-        elif src.startswith(cls._S3_PREFIX):
+        elif dst.startswith(cls._S3_PREFIX):
             cls.s3_upload(src, dst)
-        elif cls.is_local(src):
+        elif cls.is_local(dst):
             cls.copy_file(src, dst)
         return dst
 
@@ -287,18 +309,7 @@ class FileOps:
 
     @classmethod
     def s3_download(cls, src, dst):
-        import minio
-        from urllib.parse import urlparse
-
-        url = urlparse(os.getenv("S3_ENDPOINT_URL", "http://s3.amazonaws.com"))
-        use_ssl = url.scheme == 'https' if url.scheme else True
-
-        s3 = minio.Minio(
-            url.netloc,
-            access_key=os.getenv("ACCESS_KEY_ID", ""),
-            secret_key=os.getenv("SECRET_ACCESS_KEY", ""),
-            secure=use_ssl
-        )
+        s3 = _create_minio_client()
         count = cls._download_s3(s3, src, dst)
         if count == 0:
             raise RuntimeError("Failed to fetch files."
@@ -306,29 +317,30 @@ class FileOps:
 
     @classmethod
     def s3_upload(cls, src, dst):
-        import minio
-        from urllib.parse import urlparse
 
-        url = urlparse(os.getenv("S3_ENDPOINT_URL", "http://s3.amazonaws.com"))
-        use_ssl = url.scheme == 'https' if url.scheme else True
-
-        s3 = minio.Minio(
-            url.netloc,
-            access_key=os.getenv("ACCESS_KEY_ID", ""),
-            secret_key=os.getenv("SECRET_ACCESS_KEY", ""),
-            secure=use_ssl
-        )
+        s3 = _create_minio_client()
         parsed = urlparse(dst, scheme='s3')
         bucket_name = parsed.netloc
+
+        def _s3_upload(_file, fname=""):
+            _file_handle = open(_file, 'rb')
+            _file_handle.seek(0, os.SEEK_END)
+            size = _file_handle.tell()
+            _file_handle.seek(0)
+            if not fname:
+                fname = os.path.basename(fname)
+            s3.put_object(bucket_name, fname, _file_handle, size)
+            _file_handle.close()
+            return size
+
         if os.path.isdir(src):
             for root, _, files in os.walk(src):
                 for file in files:
                     filepath = os.path.join(root, file)
-                    with open(filepath, 'rb') as data:
-                        s3.put_object(bucket_name, file, data, -1)
+                    name = os.path.relpath(filepath, src)
+                    _s3_upload(filepath, name)
         elif os.path.isfile(src):
-            with open(src, 'rb') as data:
-                s3.put_object(bucket_name, os.path.basename(src), data, -1)
+            _s3_upload(src, parsed.path.lstrip("/"))
 
     @classmethod
     def http_download(cls, src, dst):

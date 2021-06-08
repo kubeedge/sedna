@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import os
-
+import json
 from copy import deepcopy
 
 from sedna.common.utils import get_host_ip
@@ -81,8 +81,8 @@ class JointInference(JobBase):
         self.job_kind = K8sResourceKind.JOINT_INFERENCE_SERVICE.value
         self.local_ip = get_host_ip()
         self.remote_ip = self.get_parameters(
-            "BIG_MODEL_BIND_IP", self.local_ip)
-        self.port = int(self.get_parameters("BIG_MODEL_BIND_PORT", "5000"))
+            "BIG_MODEL_IP", self.local_ip)
+        self.port = int(self.get_parameters("BIG_MODEL_PORT", "5000"))
 
         report_msg = {
             "name": self.worker_name,
@@ -93,7 +93,8 @@ class JointInference(JobBase):
             "results": []
         }
         period_interval = int(self.get_parameters("LC_PERIOD", "30"))
-        self.lc_reporter = LCReporter(message=report_msg,
+        self.lc_reporter = LCReporter(lc_server=self.config.lc_server,
+                                      message=report_msg,
                                       period_interval=period_interval)
         self.lc_reporter.setDaemon(True)
         self.lc_reporter.start()
@@ -106,6 +107,7 @@ class JointInference(JobBase):
             self.estimator.load(self.model_path)
         self.cloud = ModelClient(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
+        self.hard_example_mining_algorithm = self.initial_hem
 
     def train(self, train_data,
               valid_data=None,
@@ -128,24 +130,12 @@ class JointInference(JobBase):
             res = callback_func(res)
 
         self.lc_reporter.update_for_edge_inference()
-        hem = self.get_parameters("HEM_NAME")
-        hem_parameters = self.get_parameters("HEM_PARAMETERS")
-        if hem is None:
-            hem = self.config.get("hem_name") or "IBT"
-        if hem_parameters is None:
-            hem_parameters = {}
 
         is_hard_example = False
         cloud_result = None
 
-        try:
-            hard_example_mining_algorithm = ClassFactory.get_cls(
-                ClassType.HEM, hem)()
-        except ValueError as err:
-            self.log.error("Joint Inference [HEM] : {}".format(err))
-        else:
-            is_hard_example = hard_example_mining_algorithm(
-                res, **hem_parameters)
+        if self.hard_example_mining_algorithm:
+            is_hard_example = self.hard_example_mining_algorithm(res)
             if is_hard_example:
                 cloud_result = self.cloud.inference(
                     data.tolist(), post_process=post_process, **kwargs)

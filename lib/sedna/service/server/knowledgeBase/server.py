@@ -134,8 +134,12 @@ class KBServer(BaseServer):
                                         f"kb_index_{self.latest}.pkl")
         task_info = joblib.load(_index_path)
         new_task_group = []
+
+        default_task = task_info["task_groups"][0]
+        # todo: get from transfer learning
         for task_group in task_info["task_groups"]:
             if not ((task_group.entry in tasks) == deploy):
+                new_task_group.append(default_task)
                 continue
             new_task_group.append(task_group)
         task_info["task_groups"] = new_task_group

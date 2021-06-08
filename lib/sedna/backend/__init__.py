@@ -27,24 +27,32 @@ def set_backend(estimator=None, config=None):
     if config is None:
         config = BaseConfig()
     use_cuda = False
+    backend_type = os.getenv(
+        'BACKEND_TYPE', config.get("backend_type", "UNKNOWN")
+    )
+    backend_type = str(backend_type).upper()
+    device_category = os.getenv(
+        'DEVICE_CATEGORY', config.get("device_category", "CPU")
+    )
     if 'CUDA_VISIBLE_DEVICES' in os.environ:
         os.environ['DEVICE_CATEGORY'] = 'GPU'
         use_cuda = True
-    if config.get("device_category"):
-        os.environ['DEVICE_CATEGORY'] = config.get("device_category")
-    if config.is_tf_backend():
+    else:
+        os.environ['DEVICE_CATEGORY'] = device_category
+
+    if backend_type == "TENSORFLOW":
         from sedna.backend.tensorflow import TFBackend as REGISTER
-    elif config.is_kr_backend():
+    elif backend_type == "KERAS":
         from sedna.backend.tensorflow import KerasBackend as REGISTER
     else:
-        backend_type = config.get("backend_type") or "UNKNOWN"
         warnings.warn(f"{backend_type} Not Support yet, use itself")
         from sedna.backend.base import BackendBase as REGISTER
-    model_save_url = config.model_url
+    model_save_url = config.get("model_url")
     base_model_save = config.get("base_model_save") or model_save_url
-    model_save_name = config.model_name
-    return REGISTER(estimator=estimator, use_cuda=use_cuda,
-                    model_save_path=base_model_save,
-                    model_name=model_save_name,
-                    model_save_url=model_save_url
-                    )
+    model_save_name = config.get("model_name")
+    return REGISTER(
+        estimator=estimator, use_cuda=use_cuda,
+        model_save_path=base_model_save,
+        model_name=model_save_name,
+        model_save_url=model_save_url
+    )

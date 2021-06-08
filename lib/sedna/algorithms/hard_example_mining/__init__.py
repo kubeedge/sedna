@@ -13,9 +13,7 @@
 # limitations under the License.
 
 """Hard Example Mining Algorithms"""
-
 import abc
-
 import math
 
 from sedna.common.class_factory import ClassFactory, ClassType
@@ -51,10 +49,13 @@ class ThresholdFilter(BaseFilter, abc.ABC):
         :param infer_result: [N, 6], (x0, y0, x1, y1, score, class)
         :return: `True` means hard sample, `False` means not a hard sample.
         """
-        if not infer_result:
-            return True
+        # if invalid input, return False
+        if not (infer_result
+                and all(map(lambda x: len(x) > 4, infer_result))):
+            return False
 
         image_score = 0
+
         for bbox in infer_result:
             image_score += bbox[4]
 
@@ -87,23 +88,24 @@ class CrossEntropyFilter(BaseFilter, abc.ABC):
                  not in [0,1].
         :return: `True` means a hard sample, `False` means not a hard sample.
         """
-        if infer_result is None:
+
+        if not infer_result:
+            # if invalid input, return False
             return False
-        elif len(infer_result) == 0:
+
+        log_sum = 0.0
+        data_check_list = [class_probability for class_probability
+                           in infer_result
+                           if self.data_check(class_probability)]
+
+        if len(data_check_list) != len(infer_result):
             return False
-        else:
-            log_sum = 0.0
-            data_check_list = [class_probability for class_probability
-                               in infer_result
-                               if self.data_check(class_probability)]
-            if len(data_check_list) == len(infer_result):
-                for class_data in data_check_list:
-                    log_sum += class_data * math.log(class_data)
-                confidence_score = 1 + 1.0 * log_sum / math.log(
-                    len(infer_result))
-                return confidence_score < self.threshold_cross_entropy
-            else:
-                return False
+
+        for class_data in data_check_list:
+            log_sum += class_data * math.log(class_data)
+        confidence_score = 1 + 1.0 * log_sum / math.log(
+            len(infer_result))
+        return confidence_score < self.threshold_cross_entropy
 
 
 @ClassFactory.register(ClassType.HEM, alias="IBT")
@@ -133,21 +135,19 @@ class IBTFilter(BaseFilter, abc.ABC):
                 in [0,1].
         :return: `True` means a hard sample, `False` means not a hard sample.
         """
-        if infer_result is None:
+
+        if not (infer_result
+                and all(map(lambda x: len(x) > 4, infer_result))):
+            # if invalid input, return False
             return False
-        elif len(infer_result) == 0:
+
+        data_check_list = [bbox[4] for bbox in infer_result
+                           if self.data_check(bbox[4])]
+        if len(data_check_list) != len(infer_result):
             return False
-        else:
-            data_check_list = [bbox[4] for bbox in infer_result
-                               if self.data_check(bbox[4])]
-            if len(data_check_list) == len(infer_result):
-                confidence_score_list = [
-                    float(box_score) for box_score in data_check_list
-                    if float(box_score) <= self.threshold_box]
-                if (len(confidence_score_list) / len(infer_result)
-                        >= (1 - self.threshold_img)):
-                    return True
-                else:
-                    return False
-            else:
-                return False
+
+        confidence_score_list = [
+            float(box_score) for box_score in data_check_list
+            if float(box_score) <= self.threshold_box]
+        return (len(confidence_score_list) / len(infer_result)
+                >= (1 - self.threshold_img))
