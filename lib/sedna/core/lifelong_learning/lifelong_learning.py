@@ -97,30 +97,44 @@ class LifelongLearning(JobBase):
             **kwargs
         )  # todo: Distinguishing incremental update and fully overwrite
 
-        task_groups = self.estimator.estimator.task_groups
-        extractor_file = FileOps.join_path(
-            os.path.dirname(self.estimator.estimator.task_index_url),
-            "kb_extractor.pkl"
-        )
-        try:
-            extractor_file = self.kb_server.upload_file(extractor_file)
-        except Exception as err:
-            self.log.error(
-                f"Upload task extractor_file fail {extractor_file}: {err}")
-            extractor_file = joblib.load(extractor_file)
+        task_index_url = self.estimator.estimator.task_index_url
+        task_index = joblib.load(task_index_url)
+
+        extractor = task_index['extractor']
+        task_groups = task_index['task_groups']
+
         for task in task_groups:
+            model_file = task.model.model
             try:
-                model = self.kb_server.upload_file(task.model.model)
-            except Exception:
+                save_model = FileOps.join_path(
+                    self.config.output_url,
+                    os.path.basename(model_file)
+                )
+                FileOps.upload(model_file, save_model)
+                model = self.kb_server.upload_file(save_model)
+            except Exception as err:
+                self.log.error(f"Upload task model of {model_file} fail: {err}")
                 model_obj = set_backend(
                     estimator=self.estimator.estimator.base_model
                 )
-                model = model_obj.load(task.model.model)
+                model = model_obj.load(model_file)
             task.model.model = model
+
+            for _task in task.tasks:
+                sample_dir = FileOps.join_path(
+                    self.config.output_url,
+                    f"{_task.samples.data_type}_{_task.entry}.sample")
+                task.samples.save(sample_dir)
+                try:
+                    sample_dir = self.kb_server.upload_file(sample_dir)
+                except Exception as err:
+                    self.log.error(
+                        f"Upload task samples of {_task.entry} fail: {err}")
+                _task.samples.data_url = sample_dir
 
         task_info = {
             "task_groups": task_groups,
-            "extractor": extractor_file
+            "extractor": extractor
         }
         fd, name = tempfile.mkstemp()
         joblib.dump(task_info, name)
@@ -129,11 +143,8 @@ class LifelongLearning(JobBase):
         if not index_file:
             self.log.error(f"KB update Fail !")
             index_file = name
-
         FileOps.upload(index_file, self.config.task_index)
-        if os.path.isfile(name):
-            os.close(fd)
-            os.remove(name)
+
         task_info_res = self.estimator.model_info(
             self.config.task_index, result=res,
             relpath=self.config.data_path_prefix)
@@ -170,7 +181,7 @@ class LifelongLearning(JobBase):
         for detail in tasks_detail:
             scores = detail.scores
             entry = detail.entry
-            self.log.info(f"{entry} socres: {scores}")
+            self.log.info(f"{entry} scores: {scores}")
             if any(map(lambda x: float(x) < model_threshold, scores.values())):
                 self.log.warn(
                     f"{entry} will not be deploy "
