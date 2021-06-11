@@ -257,10 +257,11 @@ class KBClient:
         except Exception as err:
             LOGGER.error(f"Update kb error: {err}")
             outurl = None
-        if not FileOps.is_remote(outurl):
-            outurl = outurl.lstrip("/")
-            outurl = f"{self.kbserver}/{outurl}"
-        FileOps.delete(task_info_file)
+        else:
+            if not FileOps.is_remote(outurl):
+                outurl = outurl.lstrip("/")
+                outurl = f"{self.kbserver}/{outurl}"
+            FileOps.delete(task_info_file)
         return outurl
 
     def update_task_status(self, tasks: str, new_status=1):

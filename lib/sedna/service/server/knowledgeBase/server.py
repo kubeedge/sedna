@@ -52,7 +52,6 @@ class KBServer(BaseServer):
                                        http_port=http_port, workers=workers)
         self.save_dir = FileOps.clean_folder([save_dir], clean=False)[0]
         self.url = f"{self.url}/{servername}"
-        self.latest = 0
         self.app = FastAPI(
             routes=[
                 APIRoute(
@@ -95,7 +94,7 @@ class KBServer(BaseServer):
 
     def _get_db_index(self):
         _index_path = FileOps.join_path(self.save_dir,
-                                        f"kb_index_{self.latest}.pkl")
+                                        "kb_index.pkl")
         if not FileOps.exists(_index_path):  # todo: get from kb
             pass
         return _index_path
@@ -131,7 +130,7 @@ class KBServer(BaseServer):
 
         # todo: get from kb
         _index_path = FileOps.join_path(self.save_dir,
-                                        f"kb_index_{self.latest}.pkl")
+                                        "kb_index.pkl")
         task_info = joblib.load(_index_path)
         new_task_group = []
 
@@ -143,12 +142,10 @@ class KBServer(BaseServer):
                 continue
             new_task_group.append(task_group)
         task_info["task_groups"] = new_task_group
-        self.latest += 1
-
         _index_path = FileOps.join_path(self.save_dir,
-                                        f"kb_index_{self.latest}.pkl")
-        joblib.dump(task_info, _index_path)
-        res = f"/file/download?files=kb_index_{self.latest}.pkl&name=index.pkl"
+                                        "kb_index.pkl")
+        FileOps.dump(task_info, _index_path)
+        res = "/file/download?files=kb_index.pkl&name=index.pkl"
         return res
 
     def update(self, task: UploadFile = File(...)):
@@ -178,21 +175,16 @@ class KBServer(BaseServer):
                     if t_create:
                         session.add(t_obj)
 
-                    sampel_obj = Samples(
+                    sample_obj = Samples(
                         data_type=task.samples.data_type,
-                        sample_num=len(task.samples)
+                        sample_num=len(task.samples),
+                        data_url=getattr(task, 'data_url', '')
                     )
-                    session.add(sampel_obj)
+                    session.add(sample_obj)
 
                     session.flush()
                     session.commit()
-                    sample_dir = FileOps.join_path(
-                        self.save_dir,
-                        f"{sampel_obj.data_type}_{sampel_obj.id}.pkl")
-                    task.samples.save(sample_dir)
-                    sampel_obj.data_url = sample_dir
-
-                    tsample = TaskSample(sample=sampel_obj, task=t_obj)
+                    tsample = TaskSample(sample=sample_obj, task=t_obj)
                     session.add(tsample)
                     session.flush()
                     t_id.append(t_obj.id)
@@ -221,15 +213,10 @@ class KBServer(BaseServer):
 
             session.commit()
 
-        self.latest += 1
-        extractor_file = upload_info["extractor"]
-        extractor_path = FileOps.join_path(self.save_dir,
-                                           f"kb_extractor.pkl")
-        FileOps.upload(extractor_file, extractor_path)
-
         # todo: get from kb
         _index_path = FileOps.join_path(self.save_dir,
-                                        f"kb_index_{self.latest}.pkl")
-        FileOps.upload(name, _index_path)
-        res = f"/file/download?files=kb_index_{self.latest}.pkl&name=index.pkl"
+                                        "kb_index.pkl")
+        _index_path = FileOps.dump(upload_info, _index_path)
+
+        res = "/file/download?files=kb_index.pkl&name=index.pkl"
         return res
