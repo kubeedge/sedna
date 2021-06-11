@@ -105,12 +105,12 @@ class LifelongLearning(JobBase):
 
         for task in task_groups:
             model_file = task.model.model
+            save_model = FileOps.join_path(
+                self.config.output_url,
+                os.path.basename(model_file)
+            )
+            model_file = FileOps.upload(model_file, save_model)
             try:
-                save_model = FileOps.join_path(
-                    self.config.output_url,
-                    os.path.basename(model_file)
-                )
-                FileOps.upload(model_file, save_model)
                 model = self.kb_server.upload_file(save_model)
             except Exception as err:
                 self.log.error(f"Upload task model of {model_file} fail: {err}")

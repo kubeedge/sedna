@@ -228,7 +228,7 @@ class FileOps:
         :param str dst: destination path.
 
         """
-        if dst is None or dst == "":
+        if not dst:
             return
 
         if os.path.isfile(src):
