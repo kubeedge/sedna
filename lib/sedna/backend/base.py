@@ -107,7 +107,7 @@ class BackendBase:
             self.model_save_path, mname = os.path.split(self.model_save_path)
         model_path = FileOps.join_path(self.model_save_path, mname)
         if model_url:
-            FileOps.download(model_url, model_path)
+            model_path = FileOps.download(model_url, model_path)
         self.has_load = True
 
         return self.estimator.load(model_url=model_path)

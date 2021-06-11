@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 from abc import ABC
 
-import joblib
 import numpy as np
 import pandas as pd
 
@@ -51,7 +51,7 @@ class BaseDataSource:
         return self.data_type == "test"
 
     def save(self, output=""):
-        joblib.dump(self, output)
+        return FileOps.dump(self, output)
 
 
 class TxtDataParse(BaseDataSource, ABC):

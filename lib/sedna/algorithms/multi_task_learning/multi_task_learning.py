@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import json
 import joblib
 
@@ -20,7 +19,6 @@ from sedna.datasources import BaseDataSource
 from sedna.backend import set_backend
 from sedna.common.log import LOGGER
 from sedna.common.config import Context
-from sedna.common.file_ops import FileOps
 from sedna.common.class_factory import ClassFactory, ClassType
 
 from .task_jobs.artifact import Model, Task, TaskGroup
@@ -68,9 +66,7 @@ class MulTaskLearning:
         self.extractor = None
         self.base_model = estimator
         self.task_groups = None
-        self.task_index_url = Context.get_parameters(
-            "MODEL_URLS", '/tmp/index.pkl'
-        )
+        self.task_index_url = "index.pkl"
         self.min_train_sample = int(Context.get_parameters(
             "MIN_TRAIN_SAMPLE", '10'
         ))
@@ -211,13 +207,9 @@ class MulTaskLearning:
                 self.models[i] = model
                 feedback[entry] = res
                 self.task_groups[i] = task
-        extractor_file = FileOps.join_path(
-            os.path.dirname(self.task_index_url),
-            "kb_extractor.pkl"
-        )
-        joblib.dump(self.extractor, extractor_file)
+
         task_index = {
-            "extractor": extractor_file,
+            "extractor": self.extractor,
             "task_groups": self.task_groups
         }
         joblib.dump(task_index, self.task_index_url)
@@ -228,20 +220,13 @@ class MulTaskLearning:
 
     def predict(self, data: BaseDataSource,
                 post_process=None, **kwargs):
+
         if not (self.models and self.extractor):
             task_index = joblib.load(self.task_index_url)
-            extractor_file = FileOps.join_path(
-                os.path.dirname(self.task_index_url),
-                "kb_extractor.pkl"
-            )
-            if (not callable(task_index['extractor']) and
-                    isinstance(task_index['extractor'], str)):
-                FileOps.download(task_index['extractor'], extractor_file)
-                self.extractor = joblib.load(extractor_file)
-            else:
-                self.extractor = task_index['extractor']
+            self.extractor = task_index['extractor']
             self.task_groups = task_index['task_groups']
             self.models = [task.model for task in self.task_groups]
+
         data, mappings = self.task_mining(samples=data)
         samples, models = self.task_remodeling(samples=data, mappings=mappings)
 

@@ -26,6 +26,7 @@ from websockets.exceptions import InvalidStatusCode, WebSocketException
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from sedna.common.log import LOGGER
+from sedna.common.file_ops import FileOps
 
 
 @retry(stop_max_attempt_number=3,
@@ -98,8 +99,9 @@ class LCReporter(threading.Thread):
                     time.localtime()),
                 "inferenceNumber": self.inference_number,
                 "hardExampleNumber": self.hard_example_number,
-                "uploadCloudRatio": self.hard_example_number /
-                self.inference_number}
+                "uploadCloudRatio": (self.hard_example_number /
+                                     self.inference_number)
+            }
             self.message["ownerInfo"] = info
             LCClient.send(self.lc_server,
                           self.message["name"],
@@ -162,15 +164,15 @@ class AggregationClient:
             LOGGER.info(f"{self.uri} connection lost")
             raise
         except ConnectionClosedOK:
-            LOGGER.info(f"{self.uri } connection closed")
+            LOGGER.info(f"{self.uri} connection closed")
             raise
         except InvalidStatusCode as err:
             LOGGER.info(
-                f"{self.uri } websocket failed - "
+                f"{self.uri} websocket failed - "
                 f"with invalid status code {err.status_code}")
             raise
         except WebSocketException as err:
-            LOGGER.info(f"{self.uri } websocket failed - with {err}")
+            LOGGER.info(f"{self.uri} websocket failed - with {err}")
             raise
         except OSError as err:
             LOGGER.info(f"{self.uri} connection failed - with {err}")
@@ -237,10 +239,11 @@ class KBClient:
         with open(files, "rb") as fin:
             files = {"file": fin}
             outurl = http_request(url=_url, method="POST", files=files)
-        if outurl:
-            outurl = outurl.lstrip("/")
-            return f"{self.kbserver}/{outurl}"
-        return files
+        if FileOps.is_remote(outurl):
+            return outurl
+        outurl = outurl.lstrip("/")
+        FileOps.delete(files)
+        return f"{self.kbserver}/{outurl}"
 
     def update_db(self, task_info_file):
 
@@ -250,13 +253,15 @@ class KBClient:
             with open(task_info_file, "rb") as fin:
                 files = {"task": fin}
                 outurl = http_request(url=_url, method="POST", files=files)
-                outurl = outurl.lstrip("/")
-                _id = f"{self.kbserver}/{outurl}"
-            LOGGER.info(f"Update kb success: {_id}")
+
         except Exception as err:
             LOGGER.error(f"Update kb error: {err}")
-            _id = None
-        return _id
+            outurl = None
+        if not FileOps.is_remote(outurl):
+            outurl = outurl.lstrip("/")
+            outurl = f"{self.kbserver}/{outurl}"
+        FileOps.delete(task_info_file)
+        return outurl
 
     def update_task_status(self, tasks: str, new_status=1):
         data = {
@@ -266,11 +271,10 @@ class KBClient:
         _url = f"{self.kbserver}/update/status"
         try:
             outurl = http_request(url=_url, method="POST", json=data)
-            outurl = outurl.lstrip("/")
-            return f"{self.kbserver}/{outurl}"
         except Exception as err:
             LOGGER.error(f"Update kb error: {err}")
-        return None
-
-    def query_db(self, sample):
-        pass
+            outurl = None
+        if not FileOps.is_remote(outurl):
+            outurl = outurl.lstrip("/")
+            outurl = f"{self.kbserver}/{outurl}"
+        return outurl

@@ -17,11 +17,12 @@
 import os
 import re
 
+import joblib
 import codecs
 import pickle
 import shutil
-import tempfile
 import hashlib
+import tempfile
 from urllib.parse import urlparse
 
 from .utils import singleton
@@ -98,14 +99,22 @@ class FileOps:
             if not args[0]:
                 args[0] = os.path.sep
             _path = cls.join_path(*args)
-            if os.path.isdir(_path) and clean:
-                shutil.rmtree(_path)
+            if clean:
+                cls.delete(_path)
             if os.path.isfile(_path):
-                if clean:
-                    os.remove(_path)
                 _path = cls.join_path(*args[:len(args) - 1])
             os.makedirs(_path, exist_ok=True)
         return target
+
+    @classmethod
+    def delete(cls, path):
+        try:
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            if os.path.isfile(path):
+                os.remove(path)
+        except Exception:
+            pass
 
     @classmethod
     def make_base_dir(cls, *args):
@@ -219,7 +228,7 @@ class FileOps:
         :param str dst: destination path.
 
         """
-        if dst is None or dst == "":
+        if not dst:
             return
 
         if os.path.isfile(src):
@@ -237,10 +246,28 @@ class FileOps:
             cls.copy_folder(src, dst)
 
     @classmethod
-    def download(cls, src, dst, unzip=False) -> str:
-        if dst is None:
-            dst = tempfile.mkdtemp()
+    def dump(cls, obj, dst=None) -> str:
+        fd, name = tempfile.mkstemp()
+        os.close(fd)
+        joblib.dump(obj, name)
+        return FileOps.upload(name, dst)
 
+    @classmethod
+    def is_remote(cls, src):
+        if src.startswith((
+                cls._GCS_PREFIX,
+                cls._S3_PREFIX
+        )):
+            return True
+        if re.search(cls._URI_RE, src):
+            return True
+        return False
+
+    @classmethod
+    def download(cls, src, dst=None, unzip=False) -> str:
+        if dst is None:
+            fd, dst = tempfile.mkstemp()
+            os.close(fd)
         cls.clean_folder([os.path.dirname(dst)], clean=False)
         if src.startswith(cls._GCS_PREFIX):
             cls.gcs_download(src, dst)
@@ -255,18 +282,27 @@ class FileOps:
         return dst
 
     @classmethod
-    def upload(cls, src, dst, tar=False) -> str:
+    def upload(cls, src, dst, tar=False, clean=True) -> str:
         if dst is None:
-            dst = tempfile.mkdtemp()
+            fd, dst = tempfile.mkstemp()
+            os.close(fd)
+        if not cls.is_local(src):
+            fd, name = tempfile.mkstemp()
+            os.close(fd)
+            cls.download(src, name)
+            src = name
         if tar:
             cls._tar(src, f"{src}.tar.gz")
             src = f"{src}.tar.gz"
+
         if dst.startswith(cls._GCS_PREFIX):
             cls.gcs_upload(src, dst)
         elif dst.startswith(cls._S3_PREFIX):
             cls.s3_upload(src, dst)
-        elif cls.is_local(dst):
+        else:
             cls.copy_file(src, dst)
+        if cls.is_local(src) and clean:
+            cls.delete(src)
         return dst
 
     @classmethod
@@ -287,21 +323,24 @@ class FileOps:
         bucket_name = bucket_args[0]
         bucket_path = len(bucket_args) > 1 and bucket_args[1] or ""
 
-        objects = client.list_objects(bucket_name,
-                                      prefix=bucket_path,
-                                      recursive=True,
-                                      use_api_v1=True)
+        objects = list(client.list_objects(bucket_name,
+                                           prefix=bucket_path,
+                                           recursive=True,
+                                           use_api_v1=True))
         count = 0
-
+        num = len(objects)
         for obj in objects:
             # Replace any prefix from the object key with out_dir
             subdir_object_key = obj.object_name[len(bucket_path):].strip("/")
             # fget_object handles directory creation if does not exist
             if not obj.is_dir:
-                local_file = os.path.join(
-                    out_dir,
-                    subdir_object_key or os.path.basename(obj.object_name)
-                )
+                if num == 1 and not os.path.isdir(out_dir):
+                    local_file = out_dir
+                else:
+                    local_file = os.path.join(
+                        out_dir,
+                        subdir_object_key or os.path.basename(obj.object_name)
+                    )
                 client.fget_object(bucket_name, obj.object_name, local_file)
                 count += 1
 
@@ -311,9 +350,10 @@ class FileOps:
     def s3_download(cls, src, dst):
         s3 = _create_minio_client()
         count = cls._download_s3(s3, src, dst)
+
         if count == 0:
             raise RuntimeError("Failed to fetch files."
-                               "The path %s does not exist." % (src))
+                               "The path %s does not exist." % src)
 
     @classmethod
     def s3_upload(cls, src, dst):
