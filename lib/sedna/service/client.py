@@ -143,15 +143,18 @@ class AggregationClient:
             "ping_interval": interval,
             "max_size": min(max_size, 16 * 1024 * 1024)
         })
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(
+            asyncio.wait_for(self.connect(), timeout=timeout)
+        )
 
     async def connect(self):
         LOGGER.info(f"{self.uri} connection by {self.client_id}")
 
         try:
-            conn = websockets.connect(
+            self.ws = await asyncio.wait_for(websockets.connect(
                 self.uri, **self.kwargs
-            )
-            self.ws = await conn.__aenter__()
+            ), self._ws_timeout)
             await self.ws.send(json.dumps({'type': 'subscribe',
                                            'client_id': self.client_id}))
 
@@ -184,12 +187,16 @@ class AggregationClient:
     async def _send(self, data):
         for _ in range(self._retry):
             try:
-                await self.ws.send(data)
-                result = await self.ws.recv()
-                return result
-            except Exception:
+                await asyncio.wait_for(self.ws.send(data), self._ws_timeout)
+                return
+            except Exception as err:
+                LOGGER.info(f"{self.uri} send data failed - with {err}")
                 time.sleep(self._retry_interval_seconds)
-        return None
+        return
+
+    async def _recv(self):
+        result = await self.ws.recv()
+        return result
 
     def send(self, data, msg_type="message", job_name=""):
         loop = asyncio.get_event_loop()
@@ -197,11 +204,15 @@ class AggregationClient:
             "type": msg_type, "client": self.client_id,
             "data": data, "job_name": job_name
         })
-        data_json = loop.run_until_complete(self._send(j))
-        if data_json is None:
-            return
-        res = json.loads(data_json)
-        return res
+        loop.run_until_complete(self._send(j))
+
+    def recv(self):
+        loop = asyncio.get_event_loop()
+        data = loop.run_until_complete(self._recv())
+        try:
+            return json.loads(data)
+        except Exception:
+            return data
 
 
 class ModelClient:
