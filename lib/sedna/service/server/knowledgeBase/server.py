@@ -27,6 +27,7 @@ from starlette.responses import JSONResponse
 
 from sedna.service.server.base import BaseServer
 from sedna.common.file_ops import FileOps
+from sedna.common.constant import KBResourceConstant
 
 from .model import *
 
@@ -52,6 +53,7 @@ class KBServer(BaseServer):
                                        http_port=http_port, workers=workers)
         self.save_dir = FileOps.clean_folder([save_dir], clean=False)[0]
         self.url = f"{self.url}/{servername}"
+        self.kb_index = KBResourceConstant.KB_INDEX_NAME
         self.app = FastAPI(
             routes=[
                 APIRoute(
@@ -93,8 +95,7 @@ class KBServer(BaseServer):
         pass
 
     def _get_db_index(self):
-        _index_path = FileOps.join_path(self.save_dir,
-                                        "kb_index.pkl")
+        _index_path = FileOps.join_path(self.save_dir, self.kb_index)
         if not FileOps.exists(_index_path):  # todo: get from kb
             pass
         return _index_path
@@ -129,8 +130,7 @@ class KBServer(BaseServer):
             }, synchronize_session=False)
 
         # todo: get from kb
-        _index_path = FileOps.join_path(self.save_dir,
-                                        "kb_index.pkl")
+        _index_path = FileOps.join_path(self.save_dir, self.kb_index)
         task_info = joblib.load(_index_path)
         new_task_group = []
 
@@ -142,11 +142,9 @@ class KBServer(BaseServer):
                 continue
             new_task_group.append(task_group)
         task_info["task_groups"] = new_task_group
-        _index_path = FileOps.join_path(self.save_dir,
-                                        "kb_index.pkl")
+        _index_path = FileOps.join_path(self.save_dir, self.kb_index)
         FileOps.dump(task_info, _index_path)
-        res = "/file/download?files=kb_index.pkl&name=index.pkl"
-        return res
+        return f"/file/download?files={self.kb_index}&name={self.kb_index}"
 
     def update(self, task: UploadFile = File(...)):
         tasks = task.file.read()
@@ -214,9 +212,7 @@ class KBServer(BaseServer):
             session.commit()
 
         # todo: get from kb
-        _index_path = FileOps.join_path(self.save_dir,
-                                        "kb_index.pkl")
+        _index_path = FileOps.join_path(self.save_dir, self.kb_index)
         _index_path = FileOps.dump(upload_info, _index_path)
 
-        res = "/file/download?files=kb_index.pkl&name=index.pkl"
-        return res
+        return f"/file/download?files={self.kb_index}&name={self.kb_index}"

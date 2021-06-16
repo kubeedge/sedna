@@ -32,13 +32,22 @@ class TSBigModelService(JobBase):
     Provides RESTful interfaces for large-model inference.
     """
 
-    def __init__(self, estimator=None, config=None):
-        super(TSBigModelService, self).__init__(
-            estimator=estimator, config=config)
+    def __init__(self, estimator=None):
+        """
+        Initial a big model service for JointInference
+        :param estimator: Customize estimator
+        """
+
+        super(TSBigModelService, self).__init__(estimator=estimator)
         self.local_ip = self.get_parameters("BIG_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("BIG_MODEL_BIND_PORT", "5000"))
 
     def start(self):
+        """
+        Start inference rest server
+        :return:
+        """
+
         if callable(self.estimator):
             self.estimator = self.estimator()
         if not os.path.exists(self.model_path):
@@ -56,6 +65,14 @@ class TSBigModelService(JobBase):
         """todo: no support yet"""
 
     def inference(self, data=None, post_process=None, **kwargs):
+        """
+        Inference task for IncrementalLearning
+        :param data: inference sample
+        :param post_process: post process
+        :param kwargs: params for inference of big model
+        :return: inference result
+        """
+
         callback_func = None
         if callable(post_process):
             callback_func = post_process
@@ -75,9 +92,13 @@ class JointInference(JobBase):
    Joint inference
    """
 
-    def __init__(self, estimator=None, config=None):
-        super(JointInference, self).__init__(
-            estimator=estimator, config=config)
+    def __init__(self, estimator=None):
+        """
+        Initial a JointInference Job
+        :param estimator: Customize estimator
+        """
+
+        super(JointInference, self).__init__(estimator=estimator)
         self.job_kind = K8sResourceKind.JOINT_INFERENCE_SERVICE.value
         self.local_ip = get_host_ip()
         self.remote_ip = self.get_parameters(
@@ -116,6 +137,14 @@ class JointInference(JobBase):
         """todo: no support yet"""
 
     def inference(self, data=None, post_process=None, **kwargs):
+        """
+        Inference task for IncrementalLearning
+        :param data: inference sample
+        :param post_process: post process
+        :param kwargs: params for inference of customize estimator
+        :return: if is hard sample, real result, little model result, big model result
+        """
+
         callback_func = None
         if callable(post_process):
             callback_func = post_process

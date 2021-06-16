@@ -134,6 +134,8 @@ spec:
 EOF
 ```
 
+>**Notes**: As `outputDir` where saving artifacts (model,sample,etc...) set into s3, `credentialName` should be added into the yaml above.
+
 ### Check Lifelong Learning Job
 query the service status
 ```

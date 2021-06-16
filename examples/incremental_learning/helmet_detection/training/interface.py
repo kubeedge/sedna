@@ -89,7 +89,7 @@ class Estimator:
 
         data_gen = DataGen(yolo_config, train_data.x)
 
-        max_epochs = int(kwargs.get("max_epochs", "1"))
+        max_epochs = int(kwargs.get("epochs", "1"))
         config = tf.ConfigProto(allow_soft_placement=True)
         config.gpu_options.allow_growth = True
 

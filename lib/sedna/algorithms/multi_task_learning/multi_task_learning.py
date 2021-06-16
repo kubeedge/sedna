@@ -19,6 +19,7 @@ from sedna.datasources import BaseDataSource
 from sedna.backend import set_backend
 from sedna.common.log import LOGGER
 from sedna.common.config import Context
+from sedna.common.constant import KBResourceConstant
 from sedna.common.class_factory import ClassFactory, ClassType
 
 from .task_jobs.artifact import Model, Task, TaskGroup
@@ -34,115 +35,113 @@ class MulTaskLearning:
 
     def __init__(self,
                  estimator=None,
-                 task_definition="TaskDefinitionByDataAttr",
+                 task_definition=None,
                  task_relationship_discovery=None,
                  task_mining=None,
                  task_remodeling=None,
-                 inference_integrate=None,
-                 task_definition_param=None,
-                 relationship_discovery_param=None,
-                 task_mining_param=None,
-                 task_remodeling_param=None,
-                 inference_integrate_param=None
+                 inference_integrate=None
                  ):
-        if not task_relationship_discovery:
-            task_relationship_discovery = "DefaultTaskRelationDiscover"
-        if not task_remodeling:
-            task_remodeling = "DefaultTaskRemodeling"
-        if not inference_integrate:
-            inference_integrate = "DefaultInferenceIntegrate"
-        self.method_selection = dict(
-            task_definition=task_definition,
-            task_relationship_discovery=task_relationship_discovery,
-            task_mining=task_mining,
-            task_remodeling=task_remodeling,
-            inference_integrate=inference_integrate,
-            task_definition_param=task_definition_param,
-            task_relationship_discovery_param=relationship_discovery_param,
-            task_mining_param=task_mining_param,
-            task_remodeling_param=task_remodeling_param,
-            inference_integrate_param=inference_integrate_param)
+
+        self.task_definition = task_definition or {
+            "method": "TaskDefinitionByDataAttr"
+        }
+        self.task_relationship_discovery = task_relationship_discovery or {
+            "method": "DefaultTaskRelationDiscover"
+        }
+        self.task_mining = task_mining or {}
+        self.task_remodeling = task_remodeling or {
+            "method": "DefaultTaskRemodeling"
+        }
+        self.inference_integrate = inference_integrate or {
+            "method": "DefaultInferenceIntegrate"
+        }
         self.models = None
         self.extractor = None
         self.base_model = estimator
         self.task_groups = None
-        self.task_index_url = "index.pkl"
+        self.task_index_url = KBResourceConstant.KB_INDEX_NAME
         self.min_train_sample = int(Context.get_parameters(
-            "MIN_TRAIN_SAMPLE", '10'
+            "MIN_TRAIN_SAMPLE", KBResourceConstant.MIN_TRAIN_SAMPLE
         ))
 
     @staticmethod
     def parse_param(param_str):
         if not param_str:
             return {}
+        if isinstance(param_str, dict):
+            return param_str
         try:
             raw_dict = json.loads(param_str, encoding="utf-8")
         except json.JSONDecodeError:
             raw_dict = {}
         return raw_dict
 
-    def task_definition(self, samples):
+    def _task_definition(self, samples):
         """
         Task attribute extractor and multi-task definition
         """
-        method_name = self.method_selection.get(
-            "task_definition", "TaskDefinitionByDataAttr")
+        method_name = self.task_definition.get(
+            "method", "TaskDefinitionByDataAttr"
+        )
         extend_param = self.parse_param(
-            self.method_selection.get("task_definition_param"))
+            self.task_definition.get("param")
+        )
         method_cls = ClassFactory.get_cls(
             ClassType.MTL, method_name)(**extend_param)
         return method_cls(samples)
 
-    def task_relationship_discovery(self, tasks):
+    def _task_relationship_discovery(self, tasks):
         """
         Merge tasks from task_definition
         """
-        method_name = self.method_selection.get("task_relationship_discovery")
+        method_name = self.task_relationship_discovery.get("method")
         extend_param = self.parse_param(
-            self.method_selection.get("task_relationship_discovery_param")
+            self.task_relationship_discovery.get("param")
         )
         method_cls = ClassFactory.get_cls(
             ClassType.MTL, method_name)(**extend_param)
         return method_cls(tasks)
 
-    def task_mining(self, samples):
+    def _task_mining(self, samples):
         """
         Mining tasks of inference sample base on task attribute extractor
         """
-        method_name = self.method_selection.get("task_mining")
+        method_name = self.task_mining.get("method")
         extend_param = self.parse_param(
-            self.method_selection.get("task_mining_param"))
+            self.task_mining.get("param")
+        )
 
         if not method_name:
-            task_definition = self.method_selection.get(
-                "task_definition", "TaskDefinitionByDataAttr")
+            task_definition = self.task_definition.get(
+                "method", "TaskDefinitionByDataAttr"
+            )
             method_name = self._method_pair.get(task_definition,
                                                 'TaskMiningByDataAttr')
             extend_param = self.parse_param(
-                self.method_selection.get("task_definition_param"))
+                self.task_definition.get("param"))
         method_cls = ClassFactory.get_cls(ClassType.MTL, method_name)(
             task_extractor=self.extractor, **extend_param
         )
         return method_cls(samples=samples)
 
-    def task_remodeling(self, samples, mappings):
+    def _task_remodeling(self, samples, mappings):
         """
         Remodeling tasks from task mining
         """
-        method_name = self.method_selection.get("task_remodeling")
+        method_name = self.task_remodeling.get("method")
         extend_param = self.parse_param(
-            self.method_selection.get("task_remodeling_param"))
+            self.task_remodeling.get("param"))
         method_cls = ClassFactory.get_cls(ClassType.MTL, method_name)(
             models=self.models, **extend_param)
         return method_cls(samples=samples, mappings=mappings)
 
-    def inference_integrate(self, tasks):
+    def _inference_integrate(self, tasks):
         """
         Aggregate inference results from target models
         """
-        method_name = self.method_selection.get("inference_integrate")
+        method_name = self.inference_integrate.get("method")
         extend_param = self.parse_param(
-            self.method_selection.get("inference_integrate_param"))
+            self.inference_integrate.get("param"))
         method_cls = ClassFactory.get_cls(ClassType.MTL, method_name)(
             models=self.models, **extend_param)
         return method_cls(tasks=tasks) if method_cls else tasks
@@ -150,9 +149,9 @@ class MulTaskLearning:
     def train(self, train_data: BaseDataSource,
               valid_data: BaseDataSource = None,
               post_process=None, **kwargs):
-        tasks, task_extractor, train_data = self.task_definition(train_data)
+        tasks, task_extractor, train_data = self._task_definition(train_data)
         self.extractor = task_extractor
-        task_groups = self.task_relationship_discovery(tasks)
+        task_groups = self._task_relationship_discovery(tasks)
         self.models = []
         callback = None
         if post_process:
@@ -227,8 +226,8 @@ class MulTaskLearning:
             self.task_groups = task_index['task_groups']
             self.models = [task.model for task in self.task_groups]
 
-        data, mappings = self.task_mining(samples=data)
-        samples, models = self.task_remodeling(samples=data, mappings=mappings)
+        data, mappings = self._task_mining(samples=data)
+        samples, models = self._task_remodeling(samples=data, mappings=mappings)
 
         callback = None
         if post_process:
@@ -249,7 +248,7 @@ class MulTaskLearning:
             task.result = pred
             task.model = m
             tasks.append(task)
-        res = self.inference_integrate(tasks)
+        res = self._inference_integrate(tasks)
         return res, tasks
 
     def evaluate(self, data: BaseDataSource,
@@ -278,7 +277,7 @@ class MulTaskLearning:
                 m_dict = {
                     metrics: getattr(sk_metrics, metrics, sk_metrics.log_loss)
                 }
-            elif isinstance(metrics, dict):   # if metrics with name
+            elif isinstance(metrics, dict):  # if metrics with name
                 for k, v in metrics.items():
                     if isinstance(v, str):
                         v = getattr(sk_metrics, v)

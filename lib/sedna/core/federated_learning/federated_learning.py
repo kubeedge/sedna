@@ -30,6 +30,12 @@ class FederatedLearning(JobBase):
     """
 
     def __init__(self, estimator, aggregation="FedAvg"):
+        """
+        Initial a FederatedLearning job
+        :param estimator: Customize estimator
+        :param aggregation: aggregation algorithm for FederatedLearning
+        """
+
         protocol = Context.get_parameters("AGG_PROTOCOL", "ws")
         agg_ip = Context.get_parameters("AGG_IP", "127.0.0.1")
         agg_port = int(Context.get_parameters("AGG_PORT", "7363"))
@@ -45,14 +51,14 @@ class FederatedLearning(JobBase):
         self.aggregation = ClassFactory.get_cls(ClassType.FL_AGG, aggregation)
         self.node = None
 
-    def register(self):
+    def register(self, timeout=300):
         self.log.info(
             f"Node {self.worker_name} connect to : {self.config.agg_uri}")
         self.node = AggregationClient(
             url=self.config.agg_uri, client_id=self.worker_name)
         loop = asyncio.get_event_loop()
         res = loop.run_until_complete(
-            asyncio.wait_for(self.node.connect(), timeout=300))
+            asyncio.wait_for(self.node.connect(), timeout=timeout))
 
         FileOps.clean_folder([self.config.model_url], clean=False)
         self.aggregation = self.aggregation()
@@ -64,6 +70,15 @@ class FederatedLearning(JobBase):
               valid_data=None,
               post_process=None,
               **kwargs):
+        """
+        Training task for FederatedLearning
+        :param train_data: datasource use for train
+        :param valid_data: datasource use for evaluation
+        :param post_process: post process
+        :param kwargs: params for training of customize estimator
+        """
+
+
         callback_func = None
         if post_process is not None:
             callback_func = ClassFactory.get_cls(
