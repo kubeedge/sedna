@@ -177,10 +177,12 @@ python setup.py install --user
 .
 |-- algorithms                  # All algorithms build in the sedna framework
 |   |-- __init__.py
-|   |-- aggregation             # Aggregation algorithms for federated learning
-|   |   `-- __init__.py
-|   |-- hard_example_mining     # Hard example mining algorithms for incremental learning and joint_inferencejoint inference
-|   |   `-- __init__.py
+|   |-- aggregation
+|   |   |-- __init__.py
+|   |   `-- aggregation.py             # Aggregation algorithms for federated learning
+|   |-- hard_example_mining
+|   |   |-- __init__.py
+|   |   `-- hard_example_mining.py     # Hard example mining algorithms for incremental learning and joint_inferencejoint inference
 |   |-- multi_task_learning     # Multitask transfer learning algorithms
 |   |   |-- __init__.py
 |   |   |-- multi_task_learning.py
@@ -192,8 +194,9 @@ python setup.py install --user
 |   |       |-- task_mining.py  # Mining target tasks of inference samples
 |   |       |-- task_relation_discover.py  # Discover the relation of tasks which generated from task_definition
 |   |       `-- task_remodeling.py  # Remodeling tasks
-|   `-- unseen_task_detect      # Unseen task detect algorithms for lifelong learning
-|       `-- __init__.py
+|   `-- unseen_task_detect
+|       |-- __init__.py
+|       `-- unseen_task_detect.py      # Unseen task detect algorithms for lifelong learning
 |-- backend                     # Encapsulated the general ML frameworks, decoupled the core algorithms of sedna from the framework
 |   |-- __init__.py
 |   |-- base.py
@@ -236,7 +239,7 @@ python setup.py install --user
         `-- knowledgeBase      # Knoledgebase Service
             |-- __init__.py
             |-- database.py
-            |-- model.py       # ORM
+            |-- model.py       # Knoledgebase table ORM
             `-- server.py
 ```
 
