@@ -438,9 +438,9 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 	aggWorkerParam.mounts = append(aggWorkerParam.mounts,
 		WorkerMount{
 			URL: &MountURL{
-				URL:    model.Spec.URL,
-				Mode:   workerMountWriteOnly,
-				Secret: modelSecret,
+				URL:                   model.Spec.URL,
+				Secret:                modelSecret,
+				DownloadByInitializer: false,
 			},
 			EnvName: "MODEL_URL",
 		},

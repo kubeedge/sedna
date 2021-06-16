@@ -440,8 +440,9 @@ func (jc *JointInferenceServiceController) createCloudWorker(service *sednav1.Jo
 	}
 	workerParam.mounts = append(workerParam.mounts, WorkerMount{
 		URL: &MountURL{
-			URL:    cloudModel.Spec.URL,
-			Secret: modelSecret,
+			URL:                   cloudModel.Spec.URL,
+			Secret:                modelSecret,
+			DownloadByInitializer: true,
 		},
 		Name:    "model",
 		EnvName: "MODEL_URL",
@@ -497,8 +498,9 @@ func (jc *JointInferenceServiceController) createEdgeWorker(service *sednav1.Joi
 
 	workerParam.mounts = append(workerParam.mounts, WorkerMount{
 		URL: &MountURL{
-			URL:    edgeModel.Spec.URL,
-			Secret: modelSecret,
+			URL:                   edgeModel.Spec.URL,
+			Secret:                modelSecret,
+			DownloadByInitializer: true,
 		},
 		Name:    "model",
 		EnvName: "MODEL_URL",

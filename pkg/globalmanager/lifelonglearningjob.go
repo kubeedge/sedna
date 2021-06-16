@@ -562,17 +562,18 @@ func (jc *LifelongLearningJobController) createPod(job *sednav1.LifelongLearning
 		workerParam.mounts = append(workerParam.mounts,
 			WorkerMount{
 				URL: &MountURL{
-					URL:    cond.Input.OutputDir,
-					Secret: jobSecret,
-					Mode:   workerMountWriteOnly,
+					URL:                   cond.Input.OutputDir,
+					Secret:                jobSecret,
+					DownloadByInitializer: false,
 				},
 				EnvName: "OUTPUT_URL",
 			},
 
 			WorkerMount{
 				URL: &MountURL{
-					URL:    dataURL,
-					Secret: jobSecret,
+					URL:                   dataURL,
+					Secret:                jobSecret,
+					DownloadByInitializer: true,
 				},
 				EnvName: "TRAIN_DATASET_URL",
 			},
@@ -580,9 +581,10 @@ func (jc *LifelongLearningJobController) createPod(job *sednav1.LifelongLearning
 			// see https://github.com/kubeedge/sedna/issues/35
 			WorkerMount{
 				URL: &MountURL{
-					Secret:   datasetSecret,
-					URL:      originalDataURLOrIndex,
-					Indirect: dataset.Spec.URL != originalDataURLOrIndex,
+					Secret:                datasetSecret,
+					URL:                   originalDataURLOrIndex,
+					Indirect:              dataset.Spec.URL != originalDataURLOrIndex,
+					DownloadByInitializer: true,
 				},
 				EnvName: "ORIGINAL_DATASET_URL",
 			},
@@ -604,8 +606,9 @@ func (jc *LifelongLearningJobController) createPod(job *sednav1.LifelongLearning
 		var modelMountURLs []MountURL
 		for _, url := range inputmodelURLs {
 			modelMountURLs = append(modelMountURLs, MountURL{
-				URL:    url,
-				Secret: jobSecret,
+				URL:                   url,
+				Secret:                jobSecret,
+				DownloadByInitializer: true,
 			})
 		}
 		workerParam.mounts = append(workerParam.mounts,
@@ -617,17 +620,18 @@ func (jc *LifelongLearningJobController) createPod(job *sednav1.LifelongLearning
 
 			WorkerMount{
 				URL: &MountURL{
-					URL:    cond.Input.OutputDir,
-					Secret: jobSecret,
-					Mode:   workerMountWriteOnly,
+					URL:                   cond.Input.OutputDir,
+					Secret:                jobSecret,
+					DownloadByInitializer: false,
 				},
 				EnvName: "OUTPUT_URL",
 			},
 
 			WorkerMount{
 				URL: &MountURL{
-					URL:    dataURL,
-					Secret: datasetSecret,
+					URL:                   dataURL,
+					Secret:                datasetSecret,
+					DownloadByInitializer: true,
 				},
 				Name:    "datasets",
 				EnvName: "TEST_DATASET_URL",
@@ -635,9 +639,10 @@ func (jc *LifelongLearningJobController) createPod(job *sednav1.LifelongLearning
 
 			WorkerMount{
 				URL: &MountURL{
-					Secret:   datasetSecret,
-					URL:      originalDataURLOrIndex,
-					Indirect: dataset.Spec.URL != originalDataURLOrIndex,
+					Secret:                datasetSecret,
+					URL:                   originalDataURLOrIndex,
+					DownloadByInitializer: true,
+					Indirect:              dataset.Spec.URL != originalDataURLOrIndex,
 				},
 				Name:    "origin-dataset",
 				EnvName: "ORIGINAL_DATASET_URL",
@@ -673,8 +678,9 @@ func (jc *LifelongLearningJobController) createInferPod(job *sednav1.LifelongLea
 	workerParam.mounts = append(workerParam.mounts,
 		WorkerMount{
 			URL: &MountURL{
-				URL:    inferModelURL,
-				Secret: jobSecret,
+				URL:                   inferModelURL,
+				Secret:                jobSecret,
+				DownloadByInitializer: false,
 			},
 			Name:    "models",
 			EnvName: "MODEL_URLS",
