@@ -59,9 +59,9 @@ class MulTaskLearning:
         self.extractor = None
         self.base_model = estimator
         self.task_groups = None
-        self.task_index_url = KBResourceConstant.KB_INDEX_NAME
+        self.task_index_url = KBResourceConstant.KB_INDEX_NAME.value
         self.min_train_sample = int(Context.get_parameters(
-            "MIN_TRAIN_SAMPLE", KBResourceConstant.MIN_TRAIN_SAMPLE
+            "MIN_TRAIN_SAMPLE", KBResourceConstant.MIN_TRAIN_SAMPLE.value
         ))
 
     @staticmethod
@@ -227,7 +227,8 @@ class MulTaskLearning:
             self.models = [task.model for task in self.task_groups]
 
         data, mappings = self._task_mining(samples=data)
-        samples, models = self._task_remodeling(samples=data, mappings=mappings)
+        samples, models = self._task_remodeling(samples=data,
+                                                mappings=mappings)
 
         callback = None
         if post_process:

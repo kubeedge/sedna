@@ -53,7 +53,7 @@ class KBServer(BaseServer):
                                        http_port=http_port, workers=workers)
         self.save_dir = FileOps.clean_folder([save_dir], clean=False)[0]
         self.url = f"{self.url}/{servername}"
-        self.kb_index = KBResourceConstant.KB_INDEX_NAME
+        self.kb_index = KBResourceConstant.KB_INDEX_NAME.value
         self.app = FastAPI(
             routes=[
                 APIRoute(

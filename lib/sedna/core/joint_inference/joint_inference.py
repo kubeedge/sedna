@@ -142,7 +142,8 @@ class JointInference(JobBase):
         :param data: inference sample
         :param post_process: post process
         :param kwargs: params for inference of customize estimator
-        :return: if is hard sample, real result, little model result, big model result
+        :return: if is hard sample, real result,
+        little model result, big model result
         """
 
         callback_func = None

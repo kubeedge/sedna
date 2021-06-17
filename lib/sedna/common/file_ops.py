@@ -301,7 +301,7 @@ class FileOps:
             cls.s3_upload(src, dst)
         else:
             cls.copy_file(src, dst)
-        if cls.is_local(src) and clean:
+        if cls.is_local(src) and clean and not os.path.samefile(src, dst):
             cls.delete(src)
         return dst
 
