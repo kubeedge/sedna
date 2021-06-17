@@ -51,30 +51,6 @@ var supportStorageInitializerURLSchemes = [...]string{
 	"http", "https",
 }
 
-var supportURLSchemes = [...]string{
-	// s3 compatbile storage
-	"s3",
-
-	// http server, only for downloading
-	"http", "https",
-
-	// hostpath of node, for compatibility only
-	// "/opt/data/model.pb"
-	"",
-
-	// the local path of worker-container
-	"file",
-}
-
-type workerMountMode string
-
-const (
-	workerMountReadOnly  workerMountMode = "readonly"
-	workerMountWriteOnly workerMountMode = "writeonly"
-
-// no read-write support for mount url/directory now
-)
-
 type MountURL struct {
 	// URL is the url of dataset/model
 	URL string
@@ -86,8 +62,8 @@ type MountURL struct {
 	// default: false
 	Indirect bool
 
-	// Mode indicates the url mode, default is workerMountReadOnly
-	Mode workerMountMode
+	// DownloadByInitializer indicates whether the url need to be download by initializer.
+	DownloadByInitializer bool
 
 	// IsDir indicates that url is directory
 	IsDir bool
@@ -130,7 +106,7 @@ func (m *MountURL) Parse() {
 }
 
 func (m *MountURL) parseDownloadPath() {
-	if m.Mode == workerMountWriteOnly {
+	if !m.DownloadByInitializer {
 		// no storage-initializer for write only
 		// leave the write operation to worker
 		return
@@ -266,7 +242,7 @@ func injectWorkerSecrets(pod *v1.Pod, workerParam *WorkerParam) {
 	var secretEnvs []v1.EnvVar
 	for _, mount := range workerParam.mounts {
 		for _, m := range mount.URLs {
-			if m.Disable || m.Mode != workerMountWriteOnly {
+			if m.Disable || m.DownloadByInitializer {
 				continue
 			}
 			if len(m.SecretEnvs) > 0 {
