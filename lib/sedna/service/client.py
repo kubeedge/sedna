@@ -286,6 +286,8 @@ class KBClient:
         except Exception as err:
             LOGGER.error(f"Update kb error: {err}")
             outurl = None
+        if not outurl:
+            return None
         if not FileOps.is_remote(outurl):
             outurl = outurl.lstrip("/")
             outurl = f"{self.kbserver}/{outurl}"
