@@ -243,3 +243,43 @@ python setup.py install --user
             `-- server.py
 ```
 
+## Customize algorithm
+
+Sedna provide a class called `class_factory.py` in `common` package, only a few lines of changes are required to become a module of sedna.
+
+Two classes are defined in `class_factory.py`, namely `ClassType` and `ClassFactory`.
+
+`ClassFactory` can register the modules you want to reuse through decorators. For example, in the following code example, you have customized an **hard_example_mining algorithm**, you only need to add a line of `ClassFactory.register(ClassType.HEM)` to complete the registration.
+
+```python
+
+@ClassFactory.register(ClassType.HEM, alias="Threshold")
+class ThresholdFilter(BaseFilter, abc.ABC):
+    def __init__(self, threshold=0.5, **kwargs):
+        self.threshold = float(threshold)
+
+    def __call__(self, infer_result=None):
+        # if invalid input, return False
+        if not (infer_result
+                and all(map(lambda x: len(x) > 4, infer_result))):
+            return False
+
+        image_score = 0
+
+        for bbox in infer_result:
+            image_score += bbox[4]
+
+        average_score = image_score / (len(infer_result) or 1)
+        return average_score < self.threshold
+```
+
+After registration, you only need to change the name of the hem and parameters in the yaml file, and then the corresponding class will be automatically called according to the name.
+
+```yaml
+deploySpec:
+    hardExampleMining:
+      name: "Threshold"
+      parameters:
+        - key: "threshold"
+          value: "0.9"
+```
