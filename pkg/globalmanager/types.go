@@ -76,6 +76,9 @@ const (
 	EvalPodType = "eval"
 	// InferencePodType is type of inference pod
 	InferencePodType = "inference"
+
+	// AnnotationsKeyPrefix defines prefix of key in annotations
+	AnnotationsKeyPrefix = "sedna.io/"
 )
 
 func (m *Model) GetURL() string {

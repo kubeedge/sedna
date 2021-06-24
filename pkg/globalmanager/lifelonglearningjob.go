@@ -387,7 +387,7 @@ func (jc *LifelongLearningJobController) updateLifelongLearningJobConditions(lif
 func (jc *LifelongLearningJobController) updateLifelongLearningJobStatus(lifelonglearningjob *sednav1.LifelongLearningJob) error {
 	jobClient := jc.client.LifelongLearningJobs(lifelonglearningjob.Namespace)
 	var err error
-	for i := 0; i <= statusUpdateRetries; i = i + 1 {
+	for i := 0; i <= ResourceUpdateRetries; i = i + 1 {
 		var newLifelongLearningJob *sednav1.LifelongLearningJob
 		newLifelongLearningJob, err = jobClient.Get(context.TODO(), lifelonglearningjob.Name, metav1.GetOptions{})
 		if err != nil {

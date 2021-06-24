@@ -53,6 +53,7 @@ func (dc *DownstreamController) injectSecret(obj CommonInterface, secretName str
 	if secretName == "" {
 		return nil
 	}
+
 	secret, err := dc.kubeClient.CoreV1().Secrets(obj.GetNamespace()).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
 		klog.Warningf("failed to get the secret %s: %+v",
@@ -129,37 +130,81 @@ func (dc *DownstreamController) syncModelWithName(nodeName, modelName, namespace
 
 // syncIncrementalJob syncs the incremental learning jobs
 func (dc *DownstreamController) syncIncrementalJob(eventType watch.EventType, job *sednav1.IncrementalLearningJob) error {
-	// Here only propagate to the nodes with non empty name
-
-	// FIXME(llhuii): only the case that all workers having the same nodeName are support,
-	// will support Spec.NodeSelector and differenect nodeName.
-	nodeName := job.Spec.TrainSpec.Template.Spec.NodeName
-	if len(nodeName) == 0 {
-		return fmt.Errorf("empty node name")
+	jobConditions := job.Status.Conditions
+	if len(jobConditions) == 0 {
+		return nil
 	}
-	dc.injectSecret(job, job.Spec.CredentialName)
 
-	// Sync the model info to edgenode when the job is created
-	if eventType == watch.Added {
-		models := make(map[string]bool)
-		for _, modelName := range []string{
-			job.Spec.InitialModel.Name,
-			job.Spec.DeploySpec.Model.Name,
-		} {
-			models[modelName] = true
-		}
+	dataName := job.Spec.Dataset.Name
+	ds, err := dc.client.Datasets(job.Namespace).Get(context.TODO(), dataName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("dataset(%s/%s) not found", job.Namespace, dataName)
+	}
+	// LC has dataset object on this node that may call dataset node
+	dsNodeName := ds.Spec.NodeName
 
-		for modelName := range models {
-			err := dc.syncModelWithName(nodeName, modelName, job.Namespace)
-			if err != nil {
-				klog.Warningf("Error to sync model %s when sync incremental learning job %s to node %s: %v", modelName, job.Name, nodeName, err)
+	var trainNodeName string
+	var evalNodeName string
+
+	ann := job.GetAnnotations()
+	if ann != nil {
+		trainNodeName = ann[AnnotationsKeyPrefix+string(sednav1.ILJobTrain)]
+		evalNodeName = ann[AnnotationsKeyPrefix+string(sednav1.ILJobEval)]
+	}
+
+	if eventType == watch.Deleted {
+		// delete jobs from all LCs
+		for _, v := range []string{dsNodeName, trainNodeName, evalNodeName} {
+			if v != "" {
+				dc.messageLayer.SendResourceObject(v, eventType, job)
 			}
 		}
-	} else if eventType == watch.Deleted {
-		// noop
+		return nil
 	}
 
-	dc.messageLayer.SendResourceObject(nodeName, eventType, job)
+	latestCondition := jobConditions[len(jobConditions)-1]
+	currentType := latestCondition.Type
+	jobStage := latestCondition.Stage
+
+	syncModelWithName := func(modelName string) {
+		if err := dc.syncModelWithName(dsNodeName, modelName, job.Namespace); err != nil {
+			klog.Warningf("Error to sync model %s when sync incremental learning job %s to node %s: %v",
+				modelName, job.Name, dsNodeName, err)
+		}
+	}
+
+	syncJobWithNodeName := func(nodeName string) {
+		if err := dc.messageLayer.SendResourceObject(nodeName, eventType, job); err != nil {
+			klog.Warningf("Error to sync incremental learning job %s to node %s in stage %s: %v",
+				job.Name, nodeName, jobStage, err)
+		}
+	}
+
+	dc.injectSecret(job, job.Spec.CredentialName)
+
+	doJobStageEvent := func(modelName string, nodeName string) {
+		if currentType == sednav1.ILJobStageCondWaiting {
+			syncJobWithNodeName(dsNodeName)
+			syncModelWithName(modelName)
+		} else if currentType == sednav1.ILJobStageCondRunning {
+			if nodeName != "" {
+				syncJobWithNodeName(nodeName)
+			}
+		} else if currentType == sednav1.ILJobStageCondCompleted || currentType == sednav1.ILJobStageCondFailed {
+			if nodeName != dsNodeName {
+				// delete LC's job from nodeName that's different from dataset node when worker's status is completed or failed.
+				dc.messageLayer.SendResourceObject(nodeName, watch.Deleted, job)
+			}
+		}
+	}
+
+	switch jobStage {
+	case sednav1.ILJobTrain:
+		doJobStageEvent(job.Spec.InitialModel.Name, trainNodeName)
+	case sednav1.ILJobEval:
+		doJobStageEvent(job.Spec.DeploySpec.Model.Name, evalNodeName)
+	}
+
 	return nil
 }
 

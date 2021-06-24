@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -305,6 +306,44 @@ func (jc *IncrementalJobController) sync(key string) (bool, error) {
 	return forget, err
 }
 
+// setWorkerNodeNameOfJob sets the worker nodeName of the specified job
+// which is used for downstream to sync job info to the specified LC located in nodeName.
+func (jc *IncrementalJobController) setWorkerNodeNameOfJob(job *sednav1.IncrementalLearningJob, jobStage string, nodeName string) error {
+	key := AnnotationsKeyPrefix + jobStage
+
+	ann := job.GetAnnotations()
+	if ann != nil {
+		if ann[key] == nodeName {
+			// already set
+			return nil
+		}
+	}
+
+	jobClient := jc.client.IncrementalLearningJobs(job.Namespace)
+	var err error
+	for i := 0; i <= ResourceUpdateRetries; i++ {
+		var newJob *sednav1.IncrementalLearningJob
+		newJob, err = jobClient.Get(context.TODO(), job.Name, metav1.GetOptions{})
+		if err != nil {
+			break
+		}
+
+		annotations := newJob.GetAnnotations()
+		if annotations != nil {
+			if annotations[key] == nodeName {
+				return nil
+			}
+		}
+
+		dataStr := fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%s"}}}`, key, nodeName)
+		if _, err = jobClient.Patch(context.TODO(), job.Name, types.MergePatchType, []byte(dataStr), metav1.PatchOptions{}); err == nil {
+			break
+		}
+	}
+
+	return err
+}
+
 // updateIncrementalJobConditions ensures that conditions of incrementallearning job can be changed by podstatus
 func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljob *sednav1.IncrementalLearningJob) (bool, error) {
 	var initialType sednav1.ILJobStageConditionType
@@ -313,16 +352,16 @@ func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljo
 		Type:  initialType,
 	}
 	var newConditionType sednav1.ILJobStageConditionType
-	latestCondition.Stage = sednav1.ILJobTrain
 	var needUpdated = false
 	jobConditions := incrementaljob.Status.Conditions
 	var podStatus v1.PodPhase = v1.PodUnknown
+	var pod *v1.Pod
 	if len(jobConditions) > 0 {
 		// get latest pod and pod status
 		latestCondition = (jobConditions)[len(jobConditions)-1]
 		klog.V(2).Infof("incrementallearning job %v/%v latest stage %v:", incrementaljob.Namespace, incrementaljob.Name,
 			latestCondition.Stage)
-		pod := jc.getSpecifiedPods(incrementaljob, string(latestCondition.Stage))
+		pod = jc.getSpecifiedPods(incrementaljob, string(latestCondition.Stage))
 
 		if pod != nil {
 			podStatus = pod.Status.Phase
@@ -365,6 +404,11 @@ func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljo
 			} else {
 				// watch pod status, if pod running, set type running
 				newConditionType = sednav1.ILJobStageCondRunning
+
+				// add nodeName to job
+				if err := jc.setWorkerNodeNameOfJob(incrementaljob, string(jobStage), pod.Spec.NodeName); err != nil {
+					return needUpdated, err
+				}
 			}
 		} else if podStatus == v1.PodSucceeded {
 			// watch pod status, if pod completed, set type completed
@@ -398,7 +442,7 @@ func (jc *IncrementalJobController) updateIncrementalJobConditions(incrementaljo
 func (jc *IncrementalJobController) updateIncrementalJobStatus(incrementaljob *sednav1.IncrementalLearningJob) error {
 	jobClient := jc.client.IncrementalLearningJobs(incrementaljob.Namespace)
 	var err error
-	for i := 0; i <= statusUpdateRetries; i = i + 1 {
+	for i := 0; i <= ResourceUpdateRetries; i++ {
 		var newIncrementalJob *sednav1.IncrementalLearningJob
 		newIncrementalJob, err = jobClient.Get(context.TODO(), incrementaljob.Name, metav1.GetOptions{})
 		if err != nil {
