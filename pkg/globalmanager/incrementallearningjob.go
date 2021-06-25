@@ -603,25 +603,26 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 		workerParam.mounts = append(workerParam.mounts,
 			WorkerMount{
 				URL: &MountURL{
-					URL:    baseModelURL,
-					Secret: baseModelSecret,
+					URL:                   baseModelURL,
+					Secret:                baseModelSecret,
+					DownloadByInitializer: true,
 				},
 				EnvName: "BASE_MODEL_URL",
 			},
 			WorkerMount{
 				URL: &MountURL{
-					URL:    cond.Input.OutputDir,
-					Secret: jobSecret,
-					Mode:   workerMountWriteOnly,
+					URL:                   cond.Input.OutputDir,
+					Secret:                jobSecret,
+					DownloadByInitializer: false,
 				},
 				EnvName: "MODEL_URL",
 			},
 
 			WorkerMount{
 				URL: &MountURL{
-					URL: dataURL,
-
-					Secret: jobSecret,
+					URL:                   dataURL,
+					DownloadByInitializer: true,
+					Secret:                jobSecret,
 				},
 				EnvName: "TRAIN_DATASET_URL",
 			},
@@ -629,9 +630,10 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 			// see https://github.com/kubeedge/sedna/issues/35
 			WorkerMount{
 				URL: &MountURL{
-					Secret:   datasetSecret,
-					URL:      originalDataURLOrIndex,
-					Indirect: dataset.Spec.URL != originalDataURLOrIndex,
+					Secret:                datasetSecret,
+					URL:                   originalDataURLOrIndex,
+					DownloadByInitializer: true,
+					Indirect:              dataset.Spec.URL != originalDataURLOrIndex,
 				},
 				EnvName: "ORIGINAL_DATASET_URL",
 			},
@@ -666,8 +668,9 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 			}
 
 			modelMountURLs = append(modelMountURLs, MountURL{
-				URL:    url,
-				Secret: modelSecret,
+				URL:                   url,
+				Secret:                modelSecret,
+				DownloadByInitializer: true,
 			})
 		}
 		workerParam.mounts = append(workerParam.mounts,
@@ -679,8 +682,9 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 
 			WorkerMount{
 				URL: &MountURL{
-					URL:    dataURL,
-					Secret: datasetSecret,
+					URL:                   dataURL,
+					Secret:                datasetSecret,
+					DownloadByInitializer: true,
 				},
 				Name:    "datasets",
 				EnvName: "TEST_DATASET_URL",
@@ -688,9 +692,10 @@ func (jc *IncrementalJobController) createPod(job *sednav1.IncrementalLearningJo
 
 			WorkerMount{
 				URL: &MountURL{
-					Secret:   datasetSecret,
-					URL:      originalDataURLOrIndex,
-					Indirect: dataset.Spec.URL != originalDataURLOrIndex,
+					Secret:                datasetSecret,
+					URL:                   originalDataURLOrIndex,
+					DownloadByInitializer: true,
+					Indirect:              dataset.Spec.URL != originalDataURLOrIndex,
 				},
 				Name:    "origin-dataset",
 				EnvName: "ORIGINAL_DATASET_URL",
@@ -733,8 +738,9 @@ func (jc *IncrementalJobController) createInferPod(job *sednav1.IncrementalLearn
 	workerParam.mounts = append(workerParam.mounts,
 		WorkerMount{
 			URL: &MountURL{
-				URL:    inferModelURL,
-				Secret: modelSecret,
+				URL:                   inferModelURL,
+				Secret:                modelSecret,
+				DownloadByInitializer: true,
 			},
 			Name:    "model",
 			EnvName: "MODEL_URL",
