@@ -7,9 +7,11 @@ COPY ./lib/requirements.txt /home
 
 RUN pip install -r /home/requirements.txt
 
-ENV PYTHONPATH "/home/lib"
+ENV PYTHONPATH "/home/lib:/home/plato"
 
 COPY ./lib /home/lib
+COPY ./plato /home/plato
+
 WORKDIR /home/work
 COPY examples/federated_learning/surface_defect_detection/aggregation_worker/  /home/work/
 

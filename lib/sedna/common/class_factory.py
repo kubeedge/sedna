@@ -24,6 +24,7 @@ class ClassType:
     GENERAL = 'general'
     HEM = 'hard_example_mining'
     FL_AGG = 'aggregation'
+    TRANSMITTER = 'transmitter'
     MTL = 'multi_task_learening'
     UTD = 'unseen_task_detect'
 

@@ -54,6 +54,7 @@ def main():
     batch_size = int(Context.get_parameters("batch_size", 1))
     aggregation_algorithm = Context.get_parameters(
         "aggregation_algorithm", "FedAvg"
+
     )
     learning_rate = float(
         Context.get_parameters("learning_rate", 0.001)
@@ -64,7 +65,9 @@ def main():
 
     fl_model = FederatedLearning(
         estimator=Estimator,
-        aggregation=aggregation_algorithm)
+        # string, class
+        aggregation="FedAvg",
+        transmitter="test_transmitter",)
     fl_model.register()
     train_jobs = fl_model.train(
         train_data=train_data,

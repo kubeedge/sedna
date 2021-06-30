@@ -2,7 +2,7 @@
 
 Once you have docker running, you can create a local Sedna cluster with:
 ```
-bash hack/local-up.sh
+bash scripts/local-up.sh
 ```
 This script uses [kind](https://kind.sigs.k8s.io/docs/user/quick-start/) to create a 
 local k8s cluster with one master node, and boots one edge node by running KubeEdge.

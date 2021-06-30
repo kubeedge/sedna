@@ -29,7 +29,7 @@ class FederatedLearning(JobBase):
     Federated learning
     """
 
-    def __init__(self, estimator, aggregation="FedAvg"):
+    def __init__(self, estimator, aggregation="FedAvg", transmitter="test_transmitter"):
         protocol = Context.get_parameters("AGG_PROTOCOL", "ws")
         agg_ip = Context.get_parameters("AGG_IP", "127.0.0.1")
         agg_port = int(Context.get_parameters("AGG_PORT", "7363"))
@@ -43,6 +43,7 @@ class FederatedLearning(JobBase):
         super(FederatedLearning, self).__init__(
             estimator=estimator, config=config)
         self.aggregation = ClassFactory.get_cls(ClassType.FL_AGG, aggregation)
+        self.transmitter = ClassFactory.get_cls(ClassType.TRANSMITTER, transmitter)
         self.node = None
 
     def register(self):

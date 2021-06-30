@@ -13,3 +13,17 @@ pandas~=1.1.5  # BSD
 six~=1.15.0  # MIT
 minio~=7.0.3  # Apache-2.0
 uvicorn~=0.14.0  # BSD
+yapf
+mypy
+pylint
+python-socketio
+aiohttp
+requests
+matplotlib
+scipy
+wandb
+gym
+datasets
+transformers
+tensorflow
+tensorflow-datasets
