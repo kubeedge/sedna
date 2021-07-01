@@ -35,12 +35,6 @@ spec:
           value: "http://103.124.124.134/RPpredictor_v1.0.tar.gz"
   - workerSpec:
     metadata:
-      workerName: "decisionMaker"
-    spec:
-      containers:
-        image: kubeedge/sedna-example-multi-edge-inference-reid-decision-maker:v0.1.0
-  - workerSpec:
-    metadata:
       workerName: "detect-and-match"
     spec:
       containers:
