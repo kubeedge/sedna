@@ -7,6 +7,12 @@ spec:
   workers:
   - workerSpec:
     metadata:
+      workerName: "userWorker"
+    spec:
+      containers: 
+        image: kubeedge/sedna-example-multi-edge-inference-reid-user:v0.1.0
+  - workerSpec:
+    metadata:
       workerName: "dataLoadWoker0"
     spec:
       containers: 
@@ -46,14 +52,14 @@ spec:
           value: "http://103.124.124.134/matcher_v1.0.tar.gz"
       replicas: 5
   graph:
-      name: "decisionMaker"
+      name: "userWorker"
       endpoint:
         type: IP
       children:
         - spec:
           name: "dataLoadWoker0"
           endpoint:
-            type: HTTP
+            type: IP
           children:
             - spec:
               name: "detect-and-match"
@@ -62,7 +68,7 @@ spec:
         - spec:
           name: "dataLoadWoker1"
           endpoint:
-            type: HTTP
+            type: IP
           children:
             - spec:
               name: "detect-and-match"
