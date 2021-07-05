@@ -206,12 +206,15 @@ class AggregationClient:
         })
         loop.run_until_complete(self._send(j))
 
-    def recv(self):
+    def recv(self, wait_data_type=None):
         loop = asyncio.get_event_loop()
         data = loop.run_until_complete(self._recv())
         try:
-            return json.loads(data)
+            data = json.loads(data)
         except Exception:
+            pass
+        if not wait_data_type or (isinstance(data, dict) and
+                                  data.get("type", "") == wait_data_type):
             return data
 
 
