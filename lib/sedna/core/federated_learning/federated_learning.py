@@ -23,7 +23,6 @@ from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.service.client import AggregationClient
 from sedna.common.constant import K8sResourceKindStatus
 
-
 class FederatedLearning(JobBase):
     """
     Federated learning
@@ -126,3 +125,11 @@ class FederatedLearning(JobBase):
                     task_info,
                     K8sResourceKindStatus.RUNNING.value,
                     task_info_res)
+
+
+os.environ['config_file'] = 'client.yml'
+from plato.clients import simple
+class FLWorker(simple.Client):
+    def __init__(self, model=None, datasource=None, trainer=None):
+        super().__init__(model=model, datasource=datasource, trainer=trainer)
+

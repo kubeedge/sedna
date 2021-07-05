@@ -79,6 +79,19 @@ def main():
     )
     return train_jobs
 
+from sedna.core.federated_learning import FLWorker
+from torch import nn
 
 if __name__ == '__main__':
-    main()
+    # main()
+    model = nn.Sequential(
+        nn.Linear(28 * 28, 128),
+        nn.ReLU(),
+        nn.Linear(128, 128),
+        nn.ReLU(),
+        nn.Linear(128, 10),
+    )
+    client = FLWorker(model=model)
+    client.configure()
+    asyncio.run(client.start_client())
+    

@@ -31,5 +31,17 @@ def run_server():
     server.start()
 
 
+from sedna.service.server import PlatoServer
+from torch import nn
+
 if __name__ == '__main__':
-    run_server()
+    # run_server()
+    model = nn.Sequential(
+        nn.Linear(28 * 28, 128),
+        nn.ReLU(),
+        nn.Linear(128, 128),
+        nn.ReLU(),
+        nn.Linear(128, 10),
+    )
+    server = PlatoServer(model=model)
+    server.run()

@@ -1,0 +1,63 @@
+clients:
+    # Type
+    type: simple
+
+    # The total number of clients, server
+    total_clients: 0
+
+    # The number of clients selected in each round
+    per_round: 1
+
+    # Should the clients compute test accuracy locally?
+    do_test: true
+
+server:
+    address: 127.0.0.1
+    port: 7363
+
+data:
+    # The training and testing dataset
+    datasource: MNIST
+
+    # Where the dataset is located
+    data_path: ./data
+
+    # Number of samples in each partition
+    partition_size: 20000
+
+    # IID or non-IID?
+    sampler: iid
+
+    # The random seed for sampling data
+    random_seed: 1
+
+trainer:
+    # The type of the trainer
+    type: basic
+
+    # The maximum number of training rounds
+    rounds: 5
+
+    # Whether the training should use multiple GPUs if available
+    parallelized: false
+
+    # The maximum number of clients running concurrently
+    max_concurrency: 1
+
+    # The target accuracy
+    target_accuracy: 0.94
+
+    # Number of epoches for local training in each communication round
+    epochs: 5
+    batch_size: 32
+    optimizer: SGD
+    learning_rate: 0.01
+    momentum: 0.9
+    weight_decay: 0.0
+
+    # The machine learning model
+    model_name: lenet5
+
+algorithm:
+    # Aggregation algorithm
+    type: fedavg

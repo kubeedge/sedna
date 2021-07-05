@@ -268,3 +268,11 @@ class AggregationServer(BaseServer):
         if client_id:
             return server.get_client(client_id)
         return WSClientInfoList(clients=server.client_list)
+
+
+os.environ['config_file'] = 'server.yml'
+from plato.servers import fedavg
+
+class PlatoServer(fedavg.Server):
+    def __init__(self):
+        self.server = CustomServer(model=model)
