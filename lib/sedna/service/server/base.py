@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
+import time
+import threading
+import asyncio
+
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,9 +24,27 @@ from sedna.common.log import LOGGER
 from sedna.common.utils import get_host_ip
 
 
+class Server(uvicorn.Server):
+    def install_signal_handlers(self):
+        pass
+
+    @contextlib.contextmanager
+    def run_in_thread(self):
+        thread = threading.Thread(target=self.run)
+        thread.start()
+        try:
+            while not self.started:
+                time.sleep(1e-3)
+            yield
+        finally:
+            self.should_exit = True
+            thread.join()
+
+
 class BaseServer:
     # pylint: disable=too-many-instance-attributes,too-many-arguments
     DEBUG = True
+    WAIT_TIME = 15
 
     def __init__(
             self,
@@ -50,14 +73,15 @@ class BaseServer:
         self.url = f"{protocal}://{self.host}:{self.http_port}"
 
     def run(self, app, **kwargs):
-        app.add_middleware(
-            CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-            allow_methods=["*"], allow_headers=["*"],
-        )
+        if hasattr(app, "add_middleware"):
+            app.add_middleware(
+                CORSMiddleware, allow_origins=["*"], allow_credentials=True,
+                allow_methods=["*"], allow_headers=["*"],
+            )
 
         LOGGER.info(f"Start {self.server_name} server over {self.url}")
 
-        uvicorn.run(
+        config = uvicorn.Config(
             app,
             host=self.host,
             port=self.http_port,
@@ -65,7 +89,22 @@ class BaseServer:
             ssl_certfile=self.certfile,
             workers=self.workers,
             timeout_keep_alive=self.timeout,
+            log_level="info",
             **kwargs)
+        server = Server(config=config)
+        with server.run_in_thread():
+            loop = asyncio.get_event_loop()
+            stop = loop.create_task(self.wait_stop(loop.create_future()))
+            loop.run_until_complete(stop)
+            return
+
+    async def wait_stop(self, stop):
+        """wait the stop flag to shutdown the server"""
+        while 1:
+            await asyncio.sleep(self.WAIT_TIME)
+            if getattr(self.app, "shutdown", False):
+                stop.set_result(1)
+                return
 
     def get_all_urls(self):
         url_list = [{"path": route.path, "name": route.name}

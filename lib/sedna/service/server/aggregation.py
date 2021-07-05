@@ -27,6 +27,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from sedna.common.log import LOGGER
 from sedna.common.utils import get_host_ip
+from sedna.common.class_factory import ClassFactory, ClassType
 
 from .base import BaseServer
 
@@ -57,6 +58,8 @@ class WSEventMiddleware:  # pylint: disable=too-few-public-methods
             servername = scope["path"].lstrip("/")
             scope[servername] = self._server
         await self._app(scope, receive, send)
+        # exit agg server if job complete
+        scope["app"].shutdown = self._server.exit_check() and self._server.empty
 
 
 class WSServerBase:
@@ -103,7 +106,6 @@ class WSServerBase:
         return self._client_meta.get(client_id)
 
     async def send_message(self, client_id: str, msg: Dict):
-        self._client_meta[client_id].job_count += 1
         for to_client, websocket in self._clients.items():
             if to_client == client_id:
                 continue
@@ -115,40 +117,57 @@ class WSServerBase:
             await websocket.send_json({"type": "CLIENT_JOIN",
                                        "data": client_id})
 
-    async def client_left(self, client_id: str):
-        for to_client, websocket in self._clients.items():
-            if to_client == client_id:
-                continue
-            await websocket.send_json({"type": "CLIENT_LEAVE",
-                                       "data": client_id})
-
 
 class Aggregator(WSServerBase):
     def __init__(self, **kwargs):
         super(Aggregator, self).__init__()
         self.exit_round = int(kwargs.get("exit_round", 3))
-        self.current_round = {}
+        aggregation = kwargs.get("aggregation", "FedAvg")
+        self.aggregation = ClassFactory.get_cls(ClassType.FL_AGG, aggregation)
+        if callable(self.aggregation):
+            self.aggregation = self.aggregation()
+        self.participants_count = int(kwargs.get("participants_count", "1"))
+        self.current_round = 0
+        self.job_wait = True
 
     async def send_message(self, client_id: str, msg: Dict):
-        self._client_meta[client_id].job_count += 1
-        clients = list(self._clients.items())
-        for to_client, websocket in clients:
+        data = msg.get("data")
+        if data and msg.get("type", "") == "update_weight":
 
-            if msg.get("type", "") == "update_weight":
-                if to_client == client_id:
-                    continue
-                self.current_round[to_client] = self.current_round.get(
-                    to_client, 0) + 1
-                exit_flag = "ok" if self.exit_check(to_client) else "continue"
-                msg["exit_flag"] = exit_flag
+            # exit while aggregation job is NOT start
+            if self.job_wait and len(self._clients) < self.participants_count:
+                return
+            self.job_wait = False
+            num_samples = int(data["num_samples"])
+            self._client_meta[client_id].job_count = num_samples
+            total_sample = sum([x.job_count for x in
+                                self._client_meta.values()])
+            if total_sample == num_samples:
+                return
+            self.current_round += 1
+
+            self.aggregation.total_size = total_sample
+            weights = self.aggregation.aggregate(
+                data["weights"], num_samples
+            )
+            exit_flag = "ok" if self.exit_check() else "continue"
+
+            msg["type"] = "recv_weight"
+            msg["round_number"] = self.current_round
+            msg["data"] = {
+                "total_sample": total_sample,
+                "round_number": self.current_round,
+                "weight": weights,
+                "exit_flag": exit_flag
+            }
+        for to_client, websocket in self._clients.items():
             try:
                 await websocket.send_json(msg)
             except Exception as err:
                 LOGGER.error(err)
 
-    def exit_check(self, client_id):
-        current_round = self.current_round.get(client_id, 0)
-        return current_round >= self.exit_round
+    def exit_check(self):
+        return self.current_round >= self.exit_round
 
 
 class BroadcastWs(WebSocketEndpoint):
@@ -176,7 +195,6 @@ class BroadcastWs(WebSocketEndpoint):
                 "on_disconnect() called without a valid client_id"
             )
         self.server.remove_client(self.client_id)
-        await self.server.client_left(self.client_id)
 
     async def on_receive(self, _websocket: WebSocket, msg: Dict):
         command = msg.get("type", "")
@@ -185,50 +203,59 @@ class BroadcastWs(WebSocketEndpoint):
             await self.server.client_joined(self.client_id)
             self.server.add_client(self.client_id, _websocket)
         if self.client_id is None:
-            raise RuntimeError("on_receive() called without a valid client_id")
+            raise RuntimeError(
+                "on_receive() called without a valid client_id")
         await self.server.send_message(self.client_id, msg)
 
 
 class AggregationServer(BaseServer):
     def __init__(
             self,
-            servername: str,
+            aggregation: str,
             host: str = None,
             http_port: int = 7363,
             exit_round: int = 1,
-            ws_size: int = 10 *
-            1024 *
-            1024):
+            participants_count: int = 1,
+            ws_size: int = 10 * 1024 * 1024):
         if not host:
             host = get_host_ip()
         super(
             AggregationServer,
             self).__init__(
-            servername=servername,
+            servername=aggregation,
             host=host,
             http_port=http_port,
             ws_size=ws_size)
-        self.server_name = servername
+        self.aggregation = aggregation
+        self.participants_count = participants_count
         self.exit_round = max(int(exit_round), 1)
         self.app = FastAPI(
             routes=[
                 APIRoute(
-                    f"/{servername}",
+                    f"/{aggregation}",
                     self.client_info,
                     response_class=JSONResponse,
                 ),
                 WebSocketRoute(
-                    f"/{servername}",
+                    f"/{aggregation}",
                     BroadcastWs
                 )
             ],
         )
+        self.app.shutdown = False
 
     def start(self):
         """
         Start the server
         """
-        self.app.add_middleware(WSEventMiddleware, exit_round=self.exit_round)
+
+        self.app.add_middleware(
+            WSEventMiddleware,
+            exit_round=self.exit_round,
+            aggregation=self.aggregation,
+            participants_count=self.participants_count
+        )  # define the aggregation method and exit condition
+
         self.run(self.app, ws_max_size=self.ws_size)
 
     async def client_info(self, request: Request):
