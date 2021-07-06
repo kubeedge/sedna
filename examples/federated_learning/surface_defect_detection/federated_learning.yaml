@@ -1,0 +1,60 @@
+apiVersion: sedna.io/v1alpha1
+kind: FederatedLearningJob
+metadata:
+  name: surface-defect-detection
+spec:
+  aggregationWorker:
+    model:
+      name: "surface-defect-detection-model"
+    template:
+      spec:
+        nodeName: fraporion00001
+        containers:
+          - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-aggregation:v0.3.0
+            name:  agg-worker
+            imagePullPolicy: IfNotPresent
+            env: # user defined environments
+              - name: "exit_round"
+                value: "3"
+            resources:  # user defined resources
+              limits:
+                memory: 2Gi
+  trainingWorkers:
+    - dataset:
+        name: "edge1-surface-defect-detection-dataset"
+      template:
+        spec:
+          nodeName: frapedge00001
+          containers:
+            - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-train:v0.3.0
+              name:  train-worker
+              imagePullPolicy: IfNotPresent
+              env:  # user defined environments
+                - name: "batch_size"
+                  value: "32"
+                - name: "learning_rate"
+                  value: "0.001"
+                - name: "epochs"
+                  value: "2"
+              resources:  # user defined resources
+                limits:
+                  memory: 2Gi
+    - dataset:
+        name: "edge2-surface-defect-detection-dataset"
+      template:
+        spec:
+          nodeName: fraprigel00001
+          containers:
+            - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-train:v0.3.0
+              name:  train-worker
+              imagePullPolicy: IfNotPresent
+              env:  # user defined environments
+                - name: "batch_size"
+                  value: "32"
+                - name: "learning_rate"
+                  value: "0.001"
+                - name: "epochs"
+                  value: "2"
+              resources:  # user defined resources
+                limits:
+                  memory: 2Gi

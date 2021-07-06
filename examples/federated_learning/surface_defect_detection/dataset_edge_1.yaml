@@ -1,0 +1,8 @@
+apiVersion: sedna.io/v1alpha1
+kind: Dataset
+metadata:
+  name: "edge1-surface-defect-detection-dataset"
+spec:
+  url: "/data/1.txt"
+  format: "txt"
+  nodeName: frapedge00001

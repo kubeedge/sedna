@@ -1,0 +1,7 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: "surface-defect-detection-model"
+spec:
+  url: "/model"
+  format: "pb"
