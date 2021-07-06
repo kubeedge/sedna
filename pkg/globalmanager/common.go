@@ -33,10 +33,10 @@ const (
 	// DefaultBackOff is the default backoff period
 	DefaultBackOff = 10 * time.Second
 	// MaxBackOff is the max backoff period
-	MaxBackOff          = 360 * time.Second
-	statusUpdateRetries = 3
-
+	MaxBackOff         = 360 * time.Second
 	bigModelPort int32 = 5000
+	// ResourceUpdateRetries defines times of retrying to update resource
+	ResourceUpdateRetries = 3
 )
 
 // GetNodeIPByName get node ip by node name
