@@ -130,3 +130,23 @@ class CSVDataParse(BaseDataSource, ABC):
             return
         self.x = pd.concat(x_data)
         self.y = pd.concat(y_data)
+
+# import os
+# os.environ['config_file'] = '/home/work/client.yml'
+# from plato.datasources import base
+# class PlatoDataSource(base.DataSource):
+#     """A custom datasource with custom training and validation
+#        datasets.
+#     """
+#     def __init__(self):
+#         super().__init__()
+
+#         self.trainset = MNIST("./data",
+#                               train=True,
+#                               download=True,
+#                               transform=ToTensor())
+#         self.testset = MNIST("./data",
+#                              train=False,
+#                              download=True,
+#                              transform=ToTensor())
+

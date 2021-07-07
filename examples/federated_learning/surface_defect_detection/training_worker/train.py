@@ -79,8 +79,11 @@ def main():
     )
     return train_jobs
 
+import sedna.core.federated_learning
 from sedna.core.federated_learning import FLWorker
 from torch import nn
+import asyncio
+from interface import Trainer
 
 if __name__ == '__main__':
     # main()
@@ -91,7 +94,12 @@ if __name__ == '__main__':
         nn.ReLU(),
         nn.Linear(128, 10),
     )
-    client = FLWorker(model=model)
+    trainer = Trainer(model=model)
+    client = FLWorker(model=model, trainer=trainer)
     client.configure()
-    asyncio.run(client.start_client())
+    # for 3.7
+    # asyncio.run(client.start_client())
+    # for 3.6
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(client.start_client())
     

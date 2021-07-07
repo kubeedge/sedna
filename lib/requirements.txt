@@ -18,7 +18,6 @@ mypy
 pylint
 python-socketio
 aiohttp
-requests
 matplotlib
 scipy
 wandb

@@ -14,3 +14,4 @@
 
 from .federated_learning import FederatedLearning
 from .federated_learning import FLWorker
+from .federated_learning import MistWorker

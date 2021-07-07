@@ -126,10 +126,15 @@ class FederatedLearning(JobBase):
                     K8sResourceKindStatus.RUNNING.value,
                     task_info_res)
 
-
-os.environ['config_file'] = 'client.yml'
+import os
+os.environ['config_file'] = '/home/work/client.yml'
 from plato.clients import simple
 class FLWorker(simple.Client):
+    def __init__(self, model=None, datasource=None, trainer=None):
+        super().__init__(model=model, datasource=datasource, trainer=trainer)
+
+from plato.clients import mistnet
+class MistWorker(mistnet.Client):
     def __init__(self, model=None, datasource=None, trainer=None):
         super().__init__(model=model, datasource=datasource, trainer=trainer)
 
