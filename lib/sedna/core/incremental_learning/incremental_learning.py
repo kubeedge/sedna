@@ -28,10 +28,12 @@ class IncrementalLearning(JobBase):
     Incremental learning
     """
 
-    def __init__(self, estimator):
+    def __init__(self, estimator, hard_example_mining: dict = None):
         """
         Initial a IncrementalLearning job
         :param estimator: Customize estimator
+        :param hard_example_mining: dict, hard example mining
+        algorithms with parameters
         """
 
         super(IncrementalLearning, self).__init__(estimator=estimator)
@@ -40,7 +42,13 @@ class IncrementalLearning(JobBase):
             "MODEL_URLS")  # use in evaluation
         self.job_kind = K8sResourceKind.INCREMENTAL_JOB.value
         FileOps.clean_folder([self.config.model_url], clean=False)
-        self.hard_example_mining_algorithm = self.initial_hem
+        self.hard_example_mining_algorithm = None
+        if hard_example_mining:
+            hem = hard_example_mining.get("method", "IBT")
+            hem_parameters = hard_example_mining.get("param", {})
+            self.hard_example_mining_algorithm = ClassFactory.get_cls(
+                ClassType.HEM, hem
+            )(**hem_parameters)
 
     def train(self, train_data,
               valid_data=None,

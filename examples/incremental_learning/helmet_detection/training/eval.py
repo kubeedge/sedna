@@ -20,8 +20,6 @@ from sedna.datasources import TxtDataParse
 
 from interface import Estimator
 
-max_epochs = 1
-
 
 def _load_txt_dataset(dataset_url):
     # use original dataset url,
@@ -43,9 +41,9 @@ def main():
     input_shape = Context.get_parameters("input_shape")
     input_shape = tuple(int(shape) for shape in input_shape.split(','))
 
-    model = IncrementalLearning(estimator=Estimator)
-    return model.evaluate(valid_data, class_names=class_names,
-                          input_shape=input_shape)
+    incremental_instance = IncrementalLearning(estimator=Estimator)
+    return incremental_instance.evaluate(valid_data, class_names=class_names,
+                                         input_shape=input_shape)
 
 
 if __name__ == '__main__':

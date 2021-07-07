@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import json
 import time
 import warnings
 
@@ -104,10 +105,29 @@ def deal_infer_rsl(model_output):
 def run():
     camera_address = Context.get_parameters('video_url')
 
+    hard_example_name = Context.get_parameters('HEM_NAME', "IBT")
+    hem_parameters = Context.get_parameters('HEM_PARAMETERS')
+
+    try:
+        hem_parameters = json.loads(hem_parameters)
+        hem_parameters = {
+            p["key"]: p.get("value", "")
+            for p in hem_parameters if "key" in p
+        }
+    except:
+        hem_parameters = {}
+
+    hard_example_mining = {
+        "method": hard_example_name,
+        "param": hem_parameters
+    }
+
     input_shape_str = Context.get_parameters("input_shape")
     input_shape = tuple(int(v) for v in input_shape_str.split(","))
-    # create little model object
-    model = IncrementalLearning(estimator=Estimator)
+    # create Incremental Learning instance
+    incremental_instance = IncrementalLearning(
+        estimator=Estimator, hard_example_mining=hard_example_mining
+    )
     # use video streams for testing
     camera = cv2.VideoCapture(camera_address)
     fps = 10
@@ -127,7 +147,7 @@ def run():
         img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
         nframe += 1
         warnings.warn(f"camera is open, current frame index is {nframe}")
-        results, _, is_hard_example = model.inference(
+        results, _, is_hard_example = incremental_instance.inference(
             img_rgb, post_process=deal_infer_rsl, input_shape=input_shape)
         output_deal(is_hard_example, results, nframe, img_rgb)
 
