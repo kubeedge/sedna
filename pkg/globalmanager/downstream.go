@@ -81,12 +81,18 @@ func (dc *DownstreamController) syncDataset(eventType watch.EventType, dataset *
 func (dc *DownstreamController) syncJointInferenceService(eventType watch.EventType, joint *sednav1.JointInferenceService) error {
 	// Here only propagate to the nodes with non empty name
 	// FIXME: only the case that Spec.NodeName specified is support
-	nodeName := joint.Spec.EdgeWorker.Template.Spec.NodeName
-	if len(nodeName) == 0 {
-		return fmt.Errorf("empty node name")
+	for _, edgeWorker := range joint.Spec.EdgeWorker {
+		nodeName := edgeWorker.Template.Spec.NodeName
+
+		if len(nodeName) == 0 {
+			return fmt.Errorf("empty node name")
+		}
+
+		dc.messageLayer.SendResourceObject(nodeName, eventType, joint)
+
 	}
 
-	return dc.messageLayer.SendResourceObject(nodeName, eventType, joint)
+	return nil
 }
 
 // syncFederatedLearningJob syncs the federated resources

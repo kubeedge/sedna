@@ -90,7 +90,7 @@ func (jc *JointInferenceServiceController) Start() error {
 	go func() {
 		defer utilruntime.HandleCrash()
 		defer jc.queue.ShutDown()
-		klog.Infof("Starting joint inference service controller")
+		klog.Infof("Starting joint inference service controller..")
 		defer klog.Infof("Shutting down joint inference service controller")
 
 		if !cache.WaitForNamedCacheSync("jointinferenceservice", stopCh, jc.podStoreSynced, jc.serviceStoreSynced) {
@@ -469,66 +469,72 @@ func (jc *JointInferenceServiceController) createCloudWorker(service *sednav1.Jo
 func (jc *JointInferenceServiceController) createEdgeWorker(service *sednav1.JointInferenceService, bigServicePort int32) error {
 	// deliver pod for edgeworker
 	ctx := context.Background()
-	edgeModelName := service.Spec.EdgeWorker.Model.Name
-	edgeModel, err := jc.client.Models(service.Namespace).Get(ctx, edgeModelName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get edge model %s: %w",
-			edgeModelName, err)
-	}
-
-	secretName := edgeModel.Spec.CredentialName
-	var modelSecret *v1.Secret
-	if secretName != "" {
-		modelSecret, _ = jc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
-	}
-
-	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
-	// will support Spec.NodeSelector.
-	// get bigModelIP from nodeName in cloudWorker
-	bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
-	if err != nil {
-		return fmt.Errorf("failed to get node ip: %w", err)
-	}
-
 	edgeWorker := service.Spec.EdgeWorker
-	HEMParameterJSON, _ := json.Marshal(edgeWorker.HardExampleMining.Parameters)
-	HEMParameterString := string(HEMParameterJSON)
+	var perr error
 
-	var workerParam WorkerParam
+	for _, edgeNode := range edgeWorker {
 
-	workerParam.mounts = append(workerParam.mounts, WorkerMount{
-		URL: &MountURL{
-			URL:                   edgeModel.Spec.URL,
-			Secret:                modelSecret,
-			DownloadByInitializer: true,
-		},
-		Name:    "model",
-		EnvName: "MODEL_URL",
-	})
+		edgeModelName := edgeNode.Model.Name
+		edgeModel, err := jc.client.Models(service.Namespace).Get(ctx, edgeModelName, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get edge model %s: %w",
+				edgeModelName, err)
+		}
 
-	workerParam.env = map[string]string{
-		"NAMESPACE":    service.Namespace,
-		"SERVICE_NAME": service.Name,
-		"WORKER_NAME":  "edgeworker-" + utilrand.String(5),
+		secretName := edgeModel.Spec.CredentialName
+		var modelSecret *v1.Secret
+		if secretName != "" {
+			modelSecret, _ = jc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+		}
 
-		"BIG_MODEL_IP":   bigModelIP,
-		"BIG_MODEL_PORT": strconv.Itoa(int(bigServicePort)),
+		// FIXME(llhuii): only the case that Spec.NodeName specified is support,
+		// will support Spec.NodeSelector.
+		// get bigModelIP from nodeName in cloudWorker
+		bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
+		if err != nil {
+			return fmt.Errorf("failed to get node ip: %w", err)
+		}
 
-		"HEM_NAME":       edgeWorker.HardExampleMining.Name,
-		"HEM_PARAMETERS": HEMParameterString,
+		HEMParameterJSON, _ := json.Marshal(edgeNode.HardExampleMining.Parameters)
+		HEMParameterString := string(HEMParameterJSON)
+		var workerParam WorkerParam
 
-		"LC_SERVER": jc.cfg.LC.Server,
+		workerParam.mounts = append(workerParam.mounts, WorkerMount{
+			URL: &MountURL{
+				URL:                   edgeModel.Spec.URL,
+				Secret:                modelSecret,
+				DownloadByInitializer: true,
+			},
+			Name:    "model",
+			EnvName: "MODEL_URL",
+		})
+
+		workerParam.env = map[string]string{
+			"NAMESPACE":    service.Namespace,
+			"SERVICE_NAME": service.Name,
+			"WORKER_NAME":  "edgeworker-" + utilrand.String(5),
+
+			"BIG_MODEL_IP":   bigModelIP,
+			"BIG_MODEL_PORT": strconv.Itoa(int(bigServicePort)),
+
+			"HEM_NAME":       edgeNode.HardExampleMining.Name,
+			"HEM_PARAMETERS": HEMParameterString,
+
+			"LC_SERVER": jc.cfg.LC.Server,
+		}
+
+		workerParam.workerType = jointInferenceForEdge
+		workerParam.hostNetwork = true
+
+		// create edge pod
+		_, perr = createPodWithTemplate(jc.kubeClient,
+			service,
+			&edgeNode.Template,
+			&workerParam)
+
 	}
 
-	workerParam.workerType = jointInferenceForEdge
-	workerParam.hostNetwork = true
-
-	// create edge pod
-	_, err = createPodWithTemplate(jc.kubeClient,
-		service,
-		&service.Spec.EdgeWorker.Template,
-		&workerParam)
-	return err
+	return perr
 }
 
 // GetName returns the name of the joint inference controller

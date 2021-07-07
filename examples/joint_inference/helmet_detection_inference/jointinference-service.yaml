@@ -4,6 +4,7 @@ metadata:
   name: helmet-detection-inference-example
 spec:
   edgeWorker:
+  -  
     model:
       name: "helmet-detection-inference-little-model"
     hardExampleMining:
@@ -16,6 +17,49 @@ spec:
     template:
       spec:
         nodeName: "frapedge00001"
+        containers:
+        - image: kubeedge/sedna-example-joint-inference-helmet-detection-little:v0.3.0
+          imagePullPolicy: IfNotPresent
+          name:  little-model
+          env:  # user defined environments
+          - name: input_shape
+            value: "416,736"
+          - name: "video_url"
+            value: "rtsp://localhost/video"
+          - name: "all_examples_inference_output"
+            value: "/data/output"
+          - name: "hard_example_cloud_inference_output"
+            value: "/data/hard_example_cloud_inference_output"
+          - name: "hard_example_edge_inference_output"
+            value: "/data/hard_example_edge_inference_output"
+          resources:  # user defined resources
+            requests:
+              memory: 64M
+              cpu: 100m
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: outputdir
+              mountPath: /data/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /data/output/
+              type: Directory
+  - 
+    model:
+      name: "helmet-detection-inference-little-model"
+    hardExampleMining:
+      name: "IBT"
+      parameters:
+        - key: "threshold_img"
+          value: "0.9"
+        - key: "threshold_box"
+          value: "0.9"
+    template:
+      spec:
+        nodeName: "fraprigel00001"
         containers:
         - image: kubeedge/sedna-example-joint-inference-helmet-detection-little:v0.3.0
           imagePullPolicy: IfNotPresent
