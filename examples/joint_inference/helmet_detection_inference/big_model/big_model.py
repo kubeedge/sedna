@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from sedna.core.joint_inference import TSBigModelService
+from sedna.core.joint_inference import BigModelService
 
 from interface import Estimator
 
 
 def run():
-    inference_instance = TSBigModelService(estimator=Estimator)
+    inference_instance = BigModelService(estimator=Estimator)
     inference_instance.start()
 
 
