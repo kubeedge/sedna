@@ -1,0 +1,4 @@
+# Run this on the edge node to see the inference results as they appear in the destination folder.
+# It requires the package 'feh'
+
+feh -Y -q -D .5 -B black -r -R .5 /data/output/hard_example_cloud_inference_output
