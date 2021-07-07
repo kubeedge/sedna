@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-import json
 from copy import deepcopy
 
 from sedna.common.utils import get_host_ip
@@ -23,22 +22,31 @@ from sedna.service.client import ModelClient, LCReporter
 from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
 
-__all__ = ("JointInference", "TSBigModelService")
+__all__ = ("JointInference", "BigModelService")
 
 
-class TSBigModelService(JobBase):
+class BigModelService(JobBase):
     """
     Large model services implemented
     Provides RESTful interfaces for large-model inference.
     """
 
-    def __init__(self, estimator=None, config=None):
-        super(TSBigModelService, self).__init__(
-            estimator=estimator, config=config)
+    def __init__(self, estimator=None):
+        """
+        Initial a big model service for JointInference
+        :param estimator: Customize estimator
+        """
+
+        super(BigModelService, self).__init__(estimator=estimator)
         self.local_ip = self.get_parameters("BIG_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("BIG_MODEL_BIND_PORT", "5000"))
 
     def start(self):
+        """
+        Start inference rest server
+        :return:
+        """
+
         if callable(self.estimator):
             self.estimator = self.estimator()
         if not os.path.exists(self.model_path):
@@ -56,6 +64,14 @@ class TSBigModelService(JobBase):
         """todo: no support yet"""
 
     def inference(self, data=None, post_process=None, **kwargs):
+        """
+        Inference task for IncrementalLearning
+        :param data: inference sample
+        :param post_process: post process
+        :param kwargs: params for inference of big model
+        :return: inference result
+        """
+
         callback_func = None
         if callable(post_process):
             callback_func = post_process
@@ -64,7 +80,6 @@ class TSBigModelService(JobBase):
                 ClassType.CALLBACK, post_process)
 
         res = self.estimator.predict(data, **kwargs)
-
         if callback_func:
             res = callback_func(res)
         return res
@@ -75,9 +90,14 @@ class JointInference(JobBase):
    Joint inference
    """
 
-    def __init__(self, estimator=None, config=None):
-        super(JointInference, self).__init__(
-            estimator=estimator, config=config)
+    def __init__(self, estimator=None, hard_example_mining: dict = None):
+        """
+        Initial a JointInference Job
+        :param estimator: Customize estimator
+        :param hard_example_mining: dict, hard example mining
+        """
+
+        super(JointInference, self).__init__(estimator=estimator)
         self.job_kind = K8sResourceKind.JOINT_INFERENCE_SERVICE.value
         self.local_ip = get_host_ip()
         self.remote_ip = self.get_parameters(
@@ -107,15 +127,24 @@ class JointInference(JobBase):
             self.estimator.load(self.model_path)
         self.cloud = ModelClient(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
-        self.hard_example_mining_algorithm = self.initial_hem
-
-    def train(self, train_data,
-              valid_data=None,
-              post_process=None,
-              **kwargs):
-        """todo: no support yet"""
+        self.hard_example_mining_algorithm = None
+        if hard_example_mining:
+            hem = hard_example_mining.get("method", "IBT")
+            hem_parameters = hard_example_mining.get("param", {})
+            self.hard_example_mining_algorithm = ClassFactory.get_cls(
+                ClassType.HEM, hem
+            )(**hem_parameters)
 
     def inference(self, data=None, post_process=None, **kwargs):
+        """
+        Inference task for IncrementalLearning
+        :param data: inference sample
+        :param post_process: post process
+        :param kwargs: params for inference of customize estimator
+        :return: if is hard sample, real result,
+        little model result, big model result
+        """
+
         callback_func = None
         if callable(post_process):
             callback_func = post_process
@@ -137,7 +166,13 @@ class JointInference(JobBase):
         if self.hard_example_mining_algorithm:
             is_hard_example = self.hard_example_mining_algorithm(res)
             if is_hard_example:
-                cloud_result = self.cloud.inference(
-                    data.tolist(), post_process=post_process, **kwargs)
+                try:
+                    cloud_data = self.cloud.inference(
+                        data.tolist(), post_process=post_process, **kwargs)
+                    cloud_result = cloud_data["result"]
+                except Exception as err:
+                    self.log.error(f"get cloud result error: {err}")
+                else:
+                    res = cloud_result
                 self.lc_reporter.update_for_collaboration_inference()
         return [is_hard_example, res, edge_result, cloud_result]
