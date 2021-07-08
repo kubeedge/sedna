@@ -12,23 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from sedna.common.config import Context
-from sedna.service.server import AggregationServer
-
-
-def run_server():
-    aggregation_algorithm = Context.get_parameters(
-        "aggregation_algorithm", "FedAvg"
-    )
-    exit_round = int(Context.get_parameters(
-        "exit_round", 3
-    ))
-
-    server = AggregationServer(
-        servername=aggregation_algorithm,
-        ws_size=20 * 1024 * 1024
-    )
-    server.start()
+from sedna.core.federated_learning import FLWorker
+from torch import nn
+import asyncio
+from interface import Trainer
 
 if __name__ == '__main__':
-    run_server()
+    # main()
+    model = nn.Sequential(
+        nn.Linear(28 * 28, 128),
+        nn.ReLU(),
+        nn.Linear(128, 128),
+        nn.ReLU(),
+        nn.Linear(128, 10),
+    )
+    trainer = Trainer(model=model)
+    client = FLWorker(model=model, trainer=trainer)
+    client.configure()
+    # for 3.7
+    # asyncio.run(client.start_client())
+    # for 3.6
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(client.start_client())
+    

@@ -1,4 +1,3 @@
-import sedna.core.federated_learning
 from sedna.core.federated_learning import MistWorker
 import asyncio
 

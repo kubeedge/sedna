@@ -48,7 +48,7 @@ class FedAvg(BaseAggregation, abc.ABC):
         # self.fedavg_server = fedavg.Server(model=model)
         pass
 
-    def aggregate0(self, weights, size=0):
+    def aggregate(self, weights, size=0):
         total_sample = self.total_size + size
         if not total_sample:
             return self.weights
