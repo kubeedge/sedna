@@ -24,7 +24,6 @@ from interface import Estimator
 
 
 def _load_txt_dataset(dataset_url):
-
     # use original dataset url,
     # see https://github.com/kubeedge/sedna/issues/35
     original_dataset_url = Context.get_parameters('original_dataset_url')
@@ -93,13 +92,13 @@ def main():
     tf.flags.DEFINE_string('result_url', default=None,
                            help='result url for training')
 
-    model = IncrementalLearning(estimator=Estimator)
-    return model.train(train_data=train_data, epochs=epochs,
-                       batch_size=batch_size,
-                       class_names=class_names,
-                       input_shape=input_shape,
-                       obj_threshold=obj_threshold,
-                       nms_threshold=nms_threshold)
+    incremental_instance = IncrementalLearning(estimator=Estimator)
+    return incremental_instance.train(train_data=train_data, epochs=epochs,
+                                      batch_size=batch_size,
+                                      class_names=class_names,
+                                      input_shape=input_shape,
+                                      obj_threshold=obj_threshold,
+                                      nms_threshold=nms_threshold)
 
 
 if __name__ == '__main__':
