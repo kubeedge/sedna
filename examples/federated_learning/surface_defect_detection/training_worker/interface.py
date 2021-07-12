@@ -20,7 +20,6 @@ from keras.models import Sequential
 
 os.environ['BACKEND_TYPE'] = 'KERAS'
 
-
 class Estimator:
     def __init__(self, **kwargs):
         """Model init"""

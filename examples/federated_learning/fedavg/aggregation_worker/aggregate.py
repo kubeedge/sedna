@@ -12,23 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from sedna.common.config import Context
-from sedna.service.server import AggregationServer
-
-
-def run_server():
-    aggregation_algorithm = Context.get_parameters(
-        "aggregation_algorithm", "FedAvg"
-    )
-    exit_round = int(Context.get_parameters(
-        "exit_round", 3
-    ))
-
-    server = AggregationServer(
-        servername=aggregation_algorithm,
-        ws_size=20 * 1024 * 1024
-    )
-    server.start()
+from sedna.service.server import PlatoServer
+from torch import nn
 
 if __name__ == '__main__':
-    run_server()
+    # run_server()
+    
+    model = nn.Sequential(
+        nn.Linear(28 * 28, 128),
+        nn.ReLU(),
+        nn.Linear(128, 128),
+        nn.ReLU(),
+        nn.Linear(128, 10),
+    )
+    server = PlatoServer(model=model)
+    server.run()

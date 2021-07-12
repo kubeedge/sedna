@@ -37,10 +37,16 @@ class BaseAggregation(metaclass=abc.ABCMeta):
         :param size: numbers of sample in each loop
         """
 
+# os.environ['config_file'] = '/home/plato/examples/configs/server.yml'
+# from plato.servers import fedavg
 
 @ClassFactory.register(ClassType.FL_AGG)
 class FedAvg(BaseAggregation, abc.ABC):
     """Federated averaging algorithm"""
+
+    def __init__(self, model):
+        # self.fedavg_server = fedavg.Server(model=model)
+        pass
 
     def aggregate(self, weights, size=0):
         total_sample = self.total_size + size
@@ -54,3 +60,7 @@ class FedAvg(BaseAggregation, abc.ABC):
             updates.append(row_weight)
         self.weights = deepcopy(updates)
         return updates
+
+    # def aggregate(self, weights, size=0):
+    #     updated_weights = fedavg_server.aggregate_weights(weights)
+    #     self.weights = updated_weights

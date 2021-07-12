@@ -23,13 +23,12 @@ from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.service.client import AggregationClient
 from sedna.common.constant import K8sResourceKindStatus
 
-
 class FederatedLearning(JobBase):
     """
     Federated learning
     """
 
-    def __init__(self, estimator, aggregation="FedAvg"):
+    def __init__(self, estimator, aggregation="FedAvg", transmitter="test_transmitter"):
         protocol = Context.get_parameters("AGG_PROTOCOL", "ws")
         agg_ip = Context.get_parameters("AGG_IP", "127.0.0.1")
         agg_port = int(Context.get_parameters("AGG_PORT", "7363"))
@@ -43,6 +42,7 @@ class FederatedLearning(JobBase):
         super(FederatedLearning, self).__init__(
             estimator=estimator, config=config)
         self.aggregation = ClassFactory.get_cls(ClassType.FL_AGG, aggregation)
+        self.transmitter = ClassFactory.get_cls(ClassType.TRANSMITTER, transmitter)
         self.node = None
 
     def register(self):
@@ -125,3 +125,16 @@ class FederatedLearning(JobBase):
                     task_info,
                     K8sResourceKindStatus.RUNNING.value,
                     task_info_res)
+
+import os
+os.environ['config_file'] = '/home/work/client.yml'
+from plato.clients import simple
+class FLWorker(simple.Client):
+    def __init__(self, model=None, datasource=None, trainer=None):
+        super().__init__(model=model, datasource=datasource, trainer=trainer)
+
+from plato.clients import mistnet
+class MistWorker(mistnet.Client):
+    def __init__(self, model=None, datasource=None, trainer=None):
+        super().__init__(model=model, datasource=datasource, trainer=trainer)
+

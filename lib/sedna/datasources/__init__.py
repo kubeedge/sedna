@@ -130,3 +130,5 @@ class CSVDataParse(BaseDataSource, ABC):
             return
         self.x = pd.concat(x_data)
         self.y = pd.concat(y_data)
+
+

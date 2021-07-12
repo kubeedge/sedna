@@ -15,6 +15,6 @@ COPY ./lib /home/lib
 COPY ./plato /home/plato
 
 WORKDIR /home/work
-COPY examples/federated_learning/surface_defect_detection/training_worker/ /home/work/
+COPY examples/federated_learning/fedavg/training_worker/ /home/work/
 
 ENTRYPOINT ["python", "train.py"]

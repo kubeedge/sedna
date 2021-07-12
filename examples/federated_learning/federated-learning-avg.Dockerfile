@@ -13,6 +13,6 @@ COPY ./lib /home/lib
 COPY ./plato /home/plato
 
 WORKDIR /home/work
-COPY examples/federated_learning/surface_defect_detection/aggregation_worker/  /home/work/
+COPY examples/federated_learning/fedavg/aggregation_worker/  /home/work/
 
 ENTRYPOINT ["python", "aggregate.py"]
