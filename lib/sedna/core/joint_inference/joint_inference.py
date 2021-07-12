@@ -22,6 +22,7 @@ from sedna.service.server import InferenceServer
 from sedna.service.client import ModelClient, LCReporter
 from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
+from sedna.common.benchmark import FTimer
 
 __all__ = ("JointInference", "TSBigModelService")
 
@@ -62,8 +63,9 @@ class TSBigModelService(JobBase):
         elif post_process is not None:
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
-
-        res = self.estimator.predict(data, **kwargs)
+        
+        with FTimer("cloud_inference"):
+            res = self.estimator.predict(data, **kwargs)
 
         if callback_func:
             res = callback_func(res)
@@ -122,8 +124,9 @@ class JointInference(JobBase):
         elif post_process is not None:
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
-
-        res = self.estimator.predict(data, **kwargs)
+        
+        with FTimer("edge_inference"):
+            res = self.estimator.predict(data, **kwargs)
         edge_result = deepcopy(res)
 
         if callback_func:
@@ -137,7 +140,8 @@ class JointInference(JobBase):
         if self.hard_example_mining_algorithm:
             is_hard_example = self.hard_example_mining_algorithm(res)
             if is_hard_example:
-                cloud_result = self.cloud.inference(
-                    data.tolist(), post_process=post_process, **kwargs)
+                with FTimer("cloud_inference_and_transmission"):
+                    cloud_result = self.cloud.inference(
+                        data.tolist(), post_process=post_process, **kwargs)
                 self.lc_reporter.update_for_collaboration_inference()
         return [is_hard_example, res, edge_result, cloud_result]

@@ -280,9 +280,9 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 
 	active := calcActivePodCount(pods)
 	var failed int32 = 0
-	// neededCounts means that two pods should be created successfully in a jointinference service currently
-	// two pods consist of edge pod and cloud pod
-	var neededCounts int32 = 2
+	// neededCounts requires that N pods should be created successfully
+	// N is given by the sum of (# edge pods) + (cloud pod)
+	var neededCounts int32 = int32(len(sharedJointinferenceservice.Spec.EdgeWorker)) + 1
 	// jointinferenceservice first start
 	if jointinferenceservice.Status.StartTime == nil {
 		now := metav1.Now()

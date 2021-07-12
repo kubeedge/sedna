@@ -22,12 +22,12 @@ IMAGE_TAG=${IMAGE_TAG:-v0.3.0}
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 
 dockerfiles=(
-federated-learning-surface-defect-detection-aggregation.Dockerfile
-federated-learning-surface-defect-detection-train.Dockerfile
-incremental-learning-helmet-detection.Dockerfile
+# federated-learning-surface-defect-detection-aggregation.Dockerfile
+# federated-learning-surface-defect-detection-train.Dockerfile
+# incremental-learning-helmet-detection.Dockerfile
 joint-inference-helmet-detection-big.Dockerfile
 joint-inference-helmet-detection-little.Dockerfile
-lifelong-learning-atcii-classifier.Dockerfile
+# lifelong-learning-atcii-classifier.Dockerfile
 )
 
 for dockerfile in ${dockerfiles[@]}; do

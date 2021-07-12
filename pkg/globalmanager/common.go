@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -92,6 +93,7 @@ func calcActivePodCount(pods []*v1.Pod) int32 {
 			result++
 		}
 	}
+	klog.Infof("Active pods: %d", result)
 	return result
 }
 
