@@ -148,8 +148,8 @@ class JointInference(JobBase):
                 with FTimer(f"{os.uname()[1]}_cloud_inference_and_transmission"):
                     cloud_result = self.cloud.inference(
                         data.tolist(), post_process=post_process, **kwargs)
-                                  
+
                 size = sys.getsizeof(0) * len(flatten_nested_list(cloud_result))
-                self.log.info(f"Received data: {size} bytes")
+                self.log.info(f"Received data: {size} bytes. {cloud_result}")
                 self.lc_reporter.update_for_collaboration_inference()
         return [is_hard_example, res, edge_result, cloud_result]
