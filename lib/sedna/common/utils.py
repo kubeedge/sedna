@@ -69,3 +69,13 @@ def model_layer_reshape(flatten_weights, shapes):
     for idx, flatten_layer in enumerate(flatten_weights):
         shaped_model.append(flatten_layer.reshape(shapes[idx]))
     return shaped_model
+
+
+def flatten_nested_list(ls):
+    result = []
+    for el in ls:
+        if hasattr(el, "__iter__") and not isinstance(el, str):
+            result.extend(flatten_nested_list(el))
+        else:
+            result.append(el)
+    return result

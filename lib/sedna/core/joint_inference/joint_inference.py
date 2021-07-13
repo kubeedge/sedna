@@ -15,8 +15,9 @@
 import os
 import json
 from copy import deepcopy
+import sys
 
-from sedna.common.utils import get_host_ip
+from sedna.common.utils import get_host_ip, flatten_nested_list
 from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.service.server import InferenceServer
 from sedna.service.client import ModelClient, LCReporter
@@ -65,9 +66,14 @@ class TSBigModelService(JobBase):
                 ClassType.CALLBACK, post_process)
 
         res = self.estimator.predict(data, **kwargs)
+        
 
         if callback_func:
             res = callback_func(res)
+
+        # Dirty trick to calculate the actual size of res (which is a tensor/nested list)
+        print(sys.getsizeof(0) * len(flatten_nested_list(res)) + "bytes")
+
         return res
 
 
@@ -142,5 +148,6 @@ class JointInference(JobBase):
                 with FTimer(f"{os.uname()[1]}_cloud_inference_and_transmission"):
                     cloud_result = self.cloud.inference(
                         data.tolist(), post_process=post_process, **kwargs)
+                print(f"Received data:%d", len(flatten_nested_list(cloud_result)))
                 self.lc_reporter.update_for_collaboration_inference()
         return [is_hard_example, res, edge_result, cloud_result]
