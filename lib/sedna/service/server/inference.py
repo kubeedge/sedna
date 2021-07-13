@@ -20,7 +20,6 @@ from fastapi.routing import APIRoute
 from starlette.responses import JSONResponse
 
 from .base import BaseServer
-from ...common.benchmark import FTimer
 
 __all__ = ('InferenceServer', )
 
