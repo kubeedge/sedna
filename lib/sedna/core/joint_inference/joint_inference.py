@@ -72,7 +72,7 @@ class TSBigModelService(JobBase):
             res = callback_func(res)
 
         # Dirty trick to calculate the actual size of res (which is a tensor/nested list)
-        print(sys.getsizeof(0) * len(flatten_nested_list(res)) + "bytes")
+        print(f"{sys.getsizeof(0) * len(flatten_nested_list(res))} bytes")
 
         return res
 
@@ -148,6 +148,6 @@ class JointInference(JobBase):
                 with FTimer(f"{os.uname()[1]}_cloud_inference_and_transmission"):
                     cloud_result = self.cloud.inference(
                         data.tolist(), post_process=post_process, **kwargs)
-                print(f"Received data:%d", len(flatten_nested_list(cloud_result)))
+                print(f"Received data: {len(flatten_nested_list(cloud_result))}")
                 self.lc_reporter.update_for_collaboration_inference()
         return [is_hard_example, res, edge_result, cloud_result]
