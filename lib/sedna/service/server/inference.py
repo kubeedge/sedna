@@ -97,8 +97,7 @@ class InferenceServer(BaseServer):  # pylint: disable=too-many-arguments
         return ServeModelInfoResult(infos=self.get_all_urls())
 
     def predict(self, data: InferenceItem, request: Request):
-        with FTimer(f"[{request.client}]cloud_inference"):
-            inference_res = self.model.inference(
-                data.data, post_process=data.callback)
+        inference_res = self.model.inference(
+            data.data, post_process=data.callback)
         
         return ServePredictResult(result=inference_res)
