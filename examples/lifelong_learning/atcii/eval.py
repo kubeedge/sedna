@@ -15,7 +15,7 @@
 import json
 
 from sedna.datasources import CSVDataParse
-from sedna.common.config import Context, BaseConfig
+from sedna.common.config import BaseConfig
 from sedna.core.lifelong_learning import LifelongLearning
 
 from interface import DATACONF, Estimator, feature_process
@@ -26,17 +26,24 @@ def main():
     valid_data = CSVDataParse(data_type="valid", func=feature_process)
     valid_data.parse(test_dataset_url, label=DATACONF["LABEL"])
     attribute = json.dumps({"attribute": DATACONF["ATTRIBUTES"]})
-    model_threshold = float(Context.get_parameters('model_threshold', 0))
+
+    task_definition = {
+        "method": "TaskDefinitionByDataAttr",
+        "param": attribute
+    }
 
     ll_job = LifelongLearning(
         estimator=Estimator,
-        task_definition="TaskDefinitionByDataAttr",
-        task_definition_param=attribute
+        task_definition=task_definition,
+        task_relationship_discovery=None,
+        task_mining=None,
+        task_remodeling=None,
+        inference_integrate=None,
+        unseen_task_detect=None
     )
     eval_experiment = ll_job.evaluate(
         data=valid_data, metrics="precision_score",
-        metrics_param={"average": "micro"},
-        model_threshold=model_threshold
+        metrics_param={"average": "micro"}
     )
     return eval_experiment
 

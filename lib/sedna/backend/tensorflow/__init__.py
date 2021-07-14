@@ -24,10 +24,12 @@ if hasattr(tf, "compat"):
     # version 2.0 tf
     ConfigProto = tf.compat.v1.ConfigProto
     Session = tf.compat.v1.Session
+    reset_default_graph = tf.compat.v1.reset_default_graph
 else:
     # version 1
     ConfigProto = tf.ConfigProto
     Session = tf.Session
+    reset_default_graph = tf.reset_default_graph
 
 
 class TFBackend(BackendBase):
@@ -63,24 +65,27 @@ class TFBackend(BackendBase):
             self.estimator = self.estimator()
         if self.fine_tune and FileOps.exists(self.model_save_path):
             self.finetune()
-
+        self.has_load = True
+        varkw = self.parse_kwargs(self.estimator.train, **kwargs)
         return self.estimator.train(
             train_data=train_data,
             valid_data=valid_data,
-            **kwargs
+            **varkw
         )
 
     def predict(self, data, **kwargs):
         if not self.has_load:
-            tf.reset_default_graph()
+            reset_default_graph()
             self.sess = self.load()
-        return self.estimator.predict(data=data, **kwargs)
+        varkw = self.parse_kwargs(self.estimator.predict, **kwargs)
+        return self.estimator.predict(data=data, **varkw)
 
     def evaluate(self, data, **kwargs):
         if not self.has_load:
-            tf.reset_default_graph()
+            reset_default_graph()
             self.sess = self.load()
-        return self.estimator.evaluate(data, **kwargs)
+        varkw = self.parse_kwargs(self.estimator.evaluate, **kwargs)
+        return self.estimator.evaluate(data, **varkw)
 
     def finetune(self):
         """todo: no support yet"""

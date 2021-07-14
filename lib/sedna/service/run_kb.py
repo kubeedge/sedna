@@ -22,13 +22,14 @@ from sedna.service.server.knowledgeBase.server import KBServer
 def main():
     init_db()
     server = os.getenv("KnowledgeBaseServer", "")
+    kb_dir = os.getenv("KnowledgeBasePath", "")
     match = re.compile(
         "(https?)://([0-9]{1,3}(?:\\.[0-9]{1,3}){3}):([0-9]+)").match(server)
     if match:
         _, host, port = match.groups()
     else:
         host, port = '0.0.0.0', 9020
-    KBServer(host=host, http_port=int(port)).start()
+    KBServer(host=host, http_port=int(port), save_dir=kb_dir).start()
 
 
 if __name__ == '__main__':
