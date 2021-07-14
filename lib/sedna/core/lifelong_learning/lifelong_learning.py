@@ -99,14 +99,16 @@ class LifelongLearning(JobBase):
         if post_process is not None:
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
-        res = self.estimator.train(
+        res, task_index_url = self.estimator.train(
             train_data=train_data,
             valid_data=valid_data,
             **kwargs
         )  # todo: Distinguishing incremental update and fully overwrite
 
-        task_index_url = self.estimator.estimator.task_index_url
-        task_index = joblib.load(task_index_url)
+        if isinstance(task_index_url, str) and FileOps.exists(task_index_url):
+            task_index = joblib.load(task_index_url)
+        else:
+            task_index = task_index_url
 
         extractor = task_index['extractor']
         task_groups = task_index['task_groups']
