@@ -35,7 +35,7 @@ class BackendBase:
         if self.default_name:
             return self.default_name
         model_postfix = {"pytorch": ".pth",
-                         "keras": ".h5", "tensorflow": ".pb"}
+                         "keras": ".pb", "tensorflow": ".pb"}
         continue_flag = "_finetune_" if self.fine_tune else ""
         post_fix = model_postfix.get(self.framework, ".pkl")
         return f"model{continue_flag}{self.framework}{post_fix}"
@@ -109,7 +109,9 @@ class BackendBase:
         if model_url:
             model_path = FileOps.download(model_url, model_path)
         self.has_load = True
-
+        if not (hasattr(self.estimator, "load")
+                and os.path.exists(model_path)):
+            return
         return self.estimator.load(model_url=model_path)
 
     def set_weights(self, weights):

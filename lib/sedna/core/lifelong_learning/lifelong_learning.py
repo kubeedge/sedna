@@ -21,6 +21,7 @@ from sedna.backend import set_backend
 from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
+from sedna.common.constant import KBResourceConstant
 from sedna.common.config import Context
 from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.algorithms.multi_task_learning import MulTaskLearning
@@ -75,7 +76,8 @@ class LifelongLearning(JobBase):
             ll_kb_server=Context.get_parameters("KB_SERVER"),
             output_url=Context.get_parameters("OUTPUT_URL", "/tmp")
         )
-        task_index = FileOps.join_path(config['output_url'], 'index.pkl')
+        task_index = FileOps.join_path(config['output_url'],
+                                       KBResourceConstant.KB_INDEX_NAME)
         config['task_index'] = task_index
         super(LifelongLearning, self).__init__(
             estimator=e, config=config
@@ -99,14 +101,16 @@ class LifelongLearning(JobBase):
         if post_process is not None:
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
-        res = self.estimator.train(
+        res, task_index_url = self.estimator.train(
             train_data=train_data,
             valid_data=valid_data,
             **kwargs
         )  # todo: Distinguishing incremental update and fully overwrite
 
-        task_index_url = self.estimator.estimator.task_index_url
-        task_index = joblib.load(task_index_url)
+        if isinstance(task_index_url, str) and FileOps.exists(task_index_url):
+            task_index = joblib.load(task_index_url)
+        else:
+            task_index = task_index_url
 
         extractor = task_index['extractor']
         task_groups = task_index['task_groups']
@@ -147,6 +151,15 @@ class LifelongLearning(JobBase):
                         f"Upload task samples of {_task.entry} fail: {err}")
                 _task.samples.data_url = sample_dir
 
+        save_extractor = FileOps.join_path(
+            self.config.output_url,
+            KBResourceConstant.TASK_EXTRACTOR_NAME
+        )
+        extractor = FileOps.dump(extractor, save_extractor)
+        try:
+            extractor = self.kb_server.upload_file(extractor)
+        except Exception as err:
+            self.log.error(f"Upload task extractor fail: {err}")
         task_info = {
             "task_groups": task_groups,
             "extractor": extractor
@@ -161,7 +174,7 @@ class LifelongLearning(JobBase):
         FileOps.upload(index_file, self.config.task_index)
 
         task_info_res = self.estimator.model_info(
-            self.config.task_index, result=res,
+            self.config.task_index,
             relpath=self.config.data_path_prefix)
         self.report_task_info(
             None, K8sResourceKindStatus.COMPLETED.value, task_info_res)

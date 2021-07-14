@@ -24,10 +24,12 @@ if hasattr(tf, "compat"):
     # version 2.0 tf
     ConfigProto = tf.compat.v1.ConfigProto
     Session = tf.compat.v1.Session
+    reset_default_graph = tf.compat.v1.reset_default_graph
 else:
     # version 1
     ConfigProto = tf.ConfigProto
     Session = tf.Session
+    reset_default_graph = tf.reset_default_graph
 
 
 class TFBackend(BackendBase):
@@ -63,24 +65,27 @@ class TFBackend(BackendBase):
             self.estimator = self.estimator()
         if self.fine_tune and FileOps.exists(self.model_save_path):
             self.finetune()
-
+        self.has_load = True
+        varkw = self.parse_kwargs(self.estimator.train, **kwargs)
         return self.estimator.train(
             train_data=train_data,
             valid_data=valid_data,
-            **kwargs
+            **varkw
         )
 
     def predict(self, data, **kwargs):
         if not self.has_load:
-            tf.reset_default_graph()
-            self.sess = self.load()
-        return self.estimator.predict(data=data, **kwargs)
+            reset_default_graph()
+            self.load()
+        varkw = self.parse_kwargs(self.estimator.predict, **kwargs)
+        return self.estimator.predict(data=data, **varkw)
 
     def evaluate(self, data, **kwargs):
         if not self.has_load:
-            tf.reset_default_graph()
-            self.sess = self.load()
-        return self.estimator.evaluate(data, **kwargs)
+            reset_default_graph()
+            self.load()
+        varkw = self.parse_kwargs(self.estimator.evaluate, **kwargs)
+        return self.estimator.evaluate(data, **varkw)
 
     def finetune(self):
         """todo: no support yet"""
@@ -98,23 +103,25 @@ class TFBackend(BackendBase):
 
     def model_info(self, model, relpath=None, result=None):
         ckpt = os.path.dirname(model)
+        _, _type = os.path.splitext(model)
         if relpath:
             _url = FileOps.remove_path_prefix(model, relpath)
             ckpt_url = FileOps.remove_path_prefix(ckpt, relpath)
         else:
             _url = model
             ckpt_url = ckpt
-        results = [
-            {
-                "format": "pb",
+        _type - _type.lstrip(".").lower()
+        results = [{
+                "format": _type,
                 "url": _url,
                 "metrics": result
-            }, {
+            }]
+        if _type == "pb":  # report ckpt path when model save as pb file
+            results.append({
                 "format": "ckpt",
                 "url": ckpt_url,
                 "metrics": result
-            }
-        ]
+            })
         return results
 
 

@@ -15,6 +15,7 @@
 from typing import List
 
 import numpy as np
+import pandas as pd
 
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassFactory, ClassType
@@ -34,11 +35,18 @@ class DefaultTaskRemodeling:
         for m in np.unique(mappings):
             task_df = BaseDataSource(data_type=d_type)
             _inx = np.where(mappings == m)
-            task_df.x = samples.x.iloc[_inx]
+            if isinstance(samples.x, pd.DataFrame):
+                task_df.x = samples.x.iloc[_inx]
+            else:
+                task_df.x = np.array(samples.x)[_inx]
             if d_type != "test":
-                task_df.y = samples.y.iloc[_inx]
+                if isinstance(samples.x, pd.DataFrame):
+                    task_df.y = samples.y.iloc[_inx]
+                else:
+                    task_df.y = np.array(samples.y)[_inx]
             task_df.inx = _inx[0].tolist()
-            task_df.meta_attr = samples.meta_attr.iloc[_inx].values
+            if samples.meta_attr is not None:
+                task_df.meta_attr = np.array(samples.meta_attr)[_inx]
             data.append(task_df)
             model = self.models[m] or self.models[0]
             models.append(model)

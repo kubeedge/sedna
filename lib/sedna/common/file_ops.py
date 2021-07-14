@@ -188,6 +188,7 @@ class FileOps:
         :rtype: object or None.
 
         """
+        filename = cls.download(filename)
         if not os.path.isfile(filename):
             return None
         with open(filename, "rb") as f:
@@ -212,8 +213,7 @@ class FileOps:
                 name = os.path.join(src, files)
                 back_name = os.path.join(dst, files)
                 if os.path.isfile(name):
-                    if os.path.isfile(back_name):
-                        shutil.copy(name, back_name)
+                    shutil.copy(name, back_name)
                 else:
                     if not os.path.isdir(back_name):
                         shutil.copytree(name, back_name)
@@ -250,7 +250,13 @@ class FileOps:
         fd, name = tempfile.mkstemp()
         os.close(fd)
         joblib.dump(obj, name)
-        return FileOps.upload(name, dst)
+        return cls.upload(name, dst)
+
+    @classmethod
+    def load(cls, src: str):
+        src = cls.download(src)
+        obj = joblib.load(src)
+        return obj
 
     @classmethod
     def is_remote(cls, src):
