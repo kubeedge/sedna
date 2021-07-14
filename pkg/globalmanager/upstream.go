@@ -126,6 +126,71 @@ func convertToMetrics(m map[string]interface{}) []sednav1.Metric {
 	return l
 }
 
+func (uc *UpstreamController) updateMultiEdgeTrackingMetrics(name, namespace string, metrics []sednav1.Metric) error {
+	client := uc.client.MultiEdgeTrackingServices(namespace)
+
+	return retryUpdateStatus(name, namespace, func() error {
+		joint, err := client.Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		joint.Status.Metrics = metrics
+		_, err = client.UpdateStatus(context.TODO(), joint, metav1.UpdateOptions{})
+		return err
+	})
+}
+
+// updateJointInferenceFromEdge syncs the edge updates to k8s
+func (uc *UpstreamController) updateMultiEdgeTrackingFromEdge(name, namespace, operation string, content []byte) error {
+	err := checkUpstreamOperation(operation)
+	if err != nil {
+		return err
+	}
+
+	// Output defines owner output information
+	type Output struct {
+		ServiceInfo map[string]interface{} `json:"ownerInfo"`
+	}
+
+	var status struct {
+		// Phase always should be "inference"
+		Phase  string  `json:"phase"`
+		Status string  `json:"status"`
+		Output *Output `json:"output"`
+	}
+
+	err = json.Unmarshal(content, &status)
+	if err != nil {
+		return newUnmarshalError(namespace, name, operation, content)
+	}
+
+	// TODO: propagate status.Status to k8s
+
+	output := status.Output
+	if output == nil || output.ServiceInfo == nil {
+		// no output info
+		klog.Warningf("empty status info for joint inference service %s/%s", namespace, name)
+		return nil
+	}
+
+	info := output.ServiceInfo
+
+	for _, ignoreTimeKey := range []string{
+		"startTime",
+		"updateTime",
+	} {
+		delete(info, ignoreTimeKey)
+	}
+
+	metrics := convertToMetrics(info)
+
+	err = uc.updateMultiEdgeTrackingMetrics(name, namespace, metrics)
+	if err != nil {
+		return fmt.Errorf("failed to update metrics, err:%+w", err)
+	}
+	return nil
+}
+
 func (uc *UpstreamController) updateJointInferenceMetrics(name, namespace string, metrics []sednav1.Metric) error {
 	client := uc.client.JointInferenceServices(namespace)
 

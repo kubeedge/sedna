@@ -25,20 +25,20 @@ from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
 from sedna.common.benchmark import FTimer
 
-__all__ = ("JointInference", "TSBigModelService")
+__all__ = ("MultiObjectTracking", "ReIDService")
 
 
-class TSBigModelService(JobBase):
+class ReIDService(JobBase):
     """
-    Large model services implemented
-    Provides RESTful interfaces for large-model inference.
+    Re-Identification model services
+    Provides RESTful interfaces to execute the object ReIdentification.
     """
 
     def __init__(self, estimator=None, config=None):
-        super(TSBigModelService, self).__init__(
+        super(ReIDService, self).__init__(
             estimator=estimator, config=config)
-        self.local_ip = self.get_parameters("BIG_MODEL_BIND_IP", get_host_ip())
-        self.port = int(self.get_parameters("BIG_MODEL_BIND_PORT", "5000"))
+        self.local_ip = self.get_parameters("REID_MODEL_BIND_IP", get_host_ip())
+        self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
 
     def start(self):
         if callable(self.estimator):
@@ -74,19 +74,19 @@ class TSBigModelService(JobBase):
         return res
 
 
-class JointInference(JobBase):
+class MultiObjectTracking(JobBase):
     """
-   Joint inference
+   MultiObject Tracking service.
    """
 
     def __init__(self, estimator=None, config=None):
-        super(JointInference, self).__init__(
+        super(MultiObjectTracking, self).__init__(
             estimator=estimator, config=config)
-        self.job_kind = K8sResourceKind.JOINT_INFERENCE_SERVICE.value
+        self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         self.local_ip = get_host_ip()
         self.remote_ip = self.get_parameters(
-            "BIG_MODEL_IP", self.local_ip)
-        self.port = int(self.get_parameters("BIG_MODEL_PORT", "5000"))
+            "REID_MODEL_BIND_IP", self.local_ip)
+        self.port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
 
         report_msg = {
             "name": self.worker_name,
@@ -127,7 +127,7 @@ class JointInference(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{os.uname()[1]}_edge_inference"):
+        with FTimer(f"{os.uname()[1]}_mot"):
             res = self.estimator.predict(data, **kwargs)
         edge_result = deepcopy(res)
 
@@ -135,9 +135,9 @@ class JointInference(JobBase):
             res = callback_func(res)
 
         self.lc_reporter.update_for_edge_inference()
-
-        is_hard_example = False
-        cloud_result = None
+        # Send detection+tracking results to cloud
+        # edge_result
+        self.cloud.inference(data.tolist(), post_process=post_process, **kwargs)
 
         if self.hard_example_mining_algorithm:
             is_hard_example = self.hard_example_mining_algorithm(res)
