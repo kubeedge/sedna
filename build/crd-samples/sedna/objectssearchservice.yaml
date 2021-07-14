@@ -1,0 +1,52 @@
+apiVersion: sedna.io/v1alpha1
+kind: ObjectsSearchService
+metadata:
+  name: pedestrian-search
+  namespace: default
+spec:
+  userWorker:
+    metadata:
+      name: userWorker
+    spec:
+      containers: 
+        - name: userWorker
+          image: kubeedge/sedna-example-objects-search-apiServer:v0.1.0
+  trackingWorkers:
+    - workerSpec:
+        metadata:
+          name: trackingWoker0
+        spec:
+          containers: 
+            - name: trackingWoker0
+              image: kubeedge/sedna-example-multi-edge-inference-reid-dataLoad-and-tracking:v0.1.0
+              env:
+                - name: "dataSources"
+                  value: [192.168.0.12,192.168.0.13]
+                - name: "modelUri"
+                  value: "http://103.124.124.134/tracking_v1.0.tar.gz"
+    - workerSpec:
+        metadata:
+          name: tracingWoker1
+        spec:
+          containers: 
+            - name: trackingWoker1
+              image: kubeedge/sedna-example-multi-edge-inference-reid-dataLoad-and-tracking:v0.1.0
+              env:
+                - name: "dataSources"
+                  value: [192.168.0.10,192.168.0.11]
+                - name: "modelUri"
+                  value: "http://103.124.124.134/tracking_v1.0.tar.gz"
+  reidWorkers:
+    - workerSpec:
+        replicas: 5
+        template:
+          metadata:
+            labels:
+              app: reid
+          spec:
+            containers:
+              - name: reid
+                image: kubeedge/sedna-example-multi-edge-inference-reid:v0.1.0
+                env:
+                  - name: "matcherModelUri"
+                    value: "http://103.124.124.134/matcher_v1.0.tar.gz"
