@@ -1,0 +1,8 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: mot-model
+  namespace: default
+spec:
+  url: "/data/mot/mot_model.pb"
+  format: "pb"

@@ -1,0 +1,8 @@
+apiVersion: sedna.io/v1alpha1
+kind:  Model
+metadata:
+  name: reid-model
+  namespace: default
+spec:
+  url: "/data/reid/reid.pb"
+  format: "pb"

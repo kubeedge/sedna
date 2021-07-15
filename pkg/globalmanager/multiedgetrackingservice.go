@@ -265,7 +265,7 @@ func (jc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 
 	// set kind for jointinferenceservice in case that the kind is None
 	// more details at https://github.com/kubernetes/kubernetes/issues/3030
-	MultiEdgeTrackingService.SetGroupVersionKind(jointServiceControllerKind)
+	MultiEdgeTrackingService.SetGroupVersionKind(MultiEdgeTrackingServiceKind)
 
 	selector, _ := GenerateSelector(&MultiEdgeTrackingService)
 	pods, err := jc.podStore.Pods(MultiEdgeTrackingService.Namespace).List(selector)

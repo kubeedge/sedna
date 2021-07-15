@@ -25,9 +25,11 @@ dockerfiles=(
 # federated-learning-surface-defect-detection-aggregation.Dockerfile
 # federated-learning-surface-defect-detection-train.Dockerfile
 # incremental-learning-helmet-detection.Dockerfile
-joint-inference-helmet-detection-big.Dockerfile
-joint-inference-helmet-detection-little.Dockerfile
+# joint-inference-helmet-detection-big.Dockerfile
+# joint-inference-helmet-detection-little.Dockerfile
 # lifelong-learning-atcii-classifier.Dockerfile
+multi-edge-tracking-mot.Dockerfile
+multi-edge-tracking-reid.Dockerfile
 )
 
 for dockerfile in ${dockerfiles[@]}; do

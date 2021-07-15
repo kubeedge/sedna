@@ -1,0 +1,95 @@
+apiVersion: sedna.io/v1alpha1
+kind: MultiEdgeTrackingService
+metadata:
+  name: containers-tracking
+spec:
+  multiObjectTrackingWorker:
+  -  
+    model:
+      name: "mot-model"
+    template:
+      spec:
+        nodeName: "frapedge00001"
+        containers:
+        - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
+          imagePullPolicy: IfNotPresent
+          name:  mot
+          env:  # user defined environments
+          - name: input_shape
+            value: "416,736"
+          - name: "video_url"
+            value: "rtsp://localhost/video"
+          - name: "all_examples_inference_output"
+            value: "/data/output"
+          - name: "hard_example_cloud_inference_output"
+            value: "/data/hard_example_cloud_inference_output"
+          - name: "hard_example_edge_inference_output"
+            value: "/data/hard_example_edge_inference_output"
+          resources:  # user defined resources
+            requests:
+              memory: 64M
+              cpu: 100m
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: outputdir
+              mountPath: /data/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /data/output/
+              type: Directory
+  - 
+    model:
+      name: "mot-model"
+    template:
+      spec:
+        nodeName: "fraprigel00001"
+        containers:
+        - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
+          imagePullPolicy: IfNotPresent
+          name:  mot
+          env:  # user defined environments
+          - name: input_shape
+            value: "416,736"
+          - name: "video_url"
+            value: "rtsp://localhost/video"
+          - name: "all_examples_inference_output"
+            value: "/data/output"
+          - name: "hard_example_cloud_inference_output"
+            value: "/data/hard_example_cloud_inference_output"
+          - name: "hard_example_edge_inference_output"
+            value: "/data/hard_example_edge_inference_output"
+          resources:  # user defined resources
+            requests:
+              memory: 64M
+              cpu: 100m
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: outputdir
+              mountPath: /data/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /data/output/
+              type: Directory
+
+  reIDWorker:
+    model:
+      name: "reid-model"
+    template:
+      spec:
+        nodeName: "fraporion00001"
+        containers:
+          - image: kubeedge/sedna-example-multi-edge-tracking-reid:v0.3.0
+            name:  reid
+            imagePullPolicy: IfNotPresent
+            env:  # user defined environments
+              - name: "input_shape"
+                value: "544,544"
+            resources:  # user defined resources
+              requests:
+                memory: 2Gi
