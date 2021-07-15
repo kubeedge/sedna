@@ -31,25 +31,24 @@ type MultiEdgeTrackingService struct {
 
 	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   MultiEdgeTrackingSpec   `json:"spec"`
-	Status MultiEdgeTrackingStatus `json:"status,omitempty"`
+	Spec   MultiEdgeTrackingServiceSpec   `json:"spec"`
+	Status MultiEdgeTrackingServiceStatus `json:"status,omitempty"`
 }
 
 // MultiEdgeTrackingSpec is a description of a MultiEdgeTracking
-type MultiEdgeTrackingSpec struct {
-	mEdgeWorker  []EdgeWorker `json:"edgeWorker"`
-	mCloudWorker CloudWorker  `json:"cloudWorker"`
+type MultiEdgeTrackingServiceSpec struct {
+	MultiObjectTrackingWorker []MultiObjectTrackingWorker `json:"multiObjectTrackingWorker"`
+	ReIDWorker                ReIDWorker                  `json:"reIDWorker"`
 }
 
 // EdgeWorker describes the data a edge worker should have
-type mEdgeWorker struct {
-	Model             MultiObjectTrackingModel `json:"model"`
-	HardExampleMining HardExampleMining        `json:"hardExampleMining"`
-	Template          v1.PodTemplateSpec       `json:"template"`
+type MultiObjectTrackingWorker struct {
+	Model    MultiObjectTrackingModel `json:"model"`
+	Template v1.PodTemplateSpec       `json:"template"`
 }
 
 // CloudWorker describes the data a cloud worker should have
-type mCloudWorker struct {
+type ReIDWorker struct {
 	Model    ReIDModel          `json:"model"`
 	Template v1.PodTemplateSpec `json:"template"`
 }
@@ -67,18 +66,18 @@ type ReIDModel struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MultiEdgeTrackingList is a list of MultiEdgeTrackings.
-type MultiEdgeTrackingList struct {
+type MultiEdgeTrackingServiceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 	Items           []MultiEdgeTrackingService `json:"items"`
 }
 
 // MultiEdgeTrackingStatus represents the current state of a joint inference service.
-type MultiEdgeTrackingStatus struct {
+type MultiEdgeTrackingServiceStatus struct {
 
 	// The latest available observations of a joint inference service's current state.
 	// +optional
-	Conditions []MultiEdgeTrackingCondition `json:"conditions,omitempty"`
+	Conditions []MultiEdgeTrackingServiceCondition `json:"conditions,omitempty"`
 
 	// Represents time when the service was acknowledged by the service controller.
 	// It is not guaranteed to be set in happens-before order across separate operations.
@@ -99,24 +98,24 @@ type MultiEdgeTrackingStatus struct {
 }
 
 // MultiEdgeTrackingConditionType defines the condition type
-type MultiEdgeTrackingConditionType string
+type MultiEdgeTrackingServiceConditionType string
 
 // These are valid conditions of a service.
 const (
 	// MultiEdgeTrackingCondPending means the service has been accepted by the system,
 	// but one or more of the workers has not been started.
-	MultiEdgeTrackingCondPending MultiEdgeTrackingConditionType = "Pending"
+	MultiEdgeTrackingServiceCondPending MultiEdgeTrackingServiceConditionType = "Pending"
 	// MultiEdgeTrackingCondFailed means the service has failed its execution.
-	MultiEdgeTrackingCondFailed MultiEdgeTrackingConditionType = "Failed"
+	MultiEdgeTrackingServiceCondFailed MultiEdgeTrackingServiceConditionType = "Failed"
 	// MultiEdgeTrackingReady means the service has been ready.
-	MultiEdgeTrackingCondRunning MultiEdgeTrackingConditionType = "Running"
+	MultiEdgeTrackingServiceCondRunning MultiEdgeTrackingServiceConditionType = "Running"
 )
 
 // MultiEdgeTrackingCondition describes current state of a service.
 // see https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties for details.
-type MultiEdgeTrackingCondition struct {
+type MultiEdgeTrackingServiceCondition struct {
 	// Type of service condition, Complete or Failed.
-	Type MultiEdgeTrackingConditionType `json:"type"`
+	Type MultiEdgeTrackingServiceConditionType `json:"type"`
 	// Status of the condition, one of True, False, Unknown.
 	Status v1.ConditionStatus `json:"status"`
 	// last time we got an update on a given condition

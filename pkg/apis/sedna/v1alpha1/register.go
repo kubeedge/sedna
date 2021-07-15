@@ -60,7 +60,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&LifelongLearningJob{},
 		&LifelongLearningJobList{},
 		&MultiEdgeTrackingService{},
-		&MultiEdgeTrackingList{},
+		&MultiEdgeTrackingServiceList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

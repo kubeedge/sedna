@@ -99,7 +99,7 @@ func (dc *DownstreamController) syncJointInferenceService(eventType watch.EventT
 func (dc *DownstreamController) syncMultiEdgeTrackingService(eventType watch.EventType, joint *sednav1.MultiEdgeTrackingService) error {
 	// Here only propagate to the nodes with non empty name
 	// FIXME: only the case that Spec.NodeName specified is support
-	for _, edgeWorker := range joint.Spec.EdgeWorker {
+	for _, edgeWorker := range joint.Spec.MultiObjectTrackingWorker {
 		nodeName := edgeWorker.Template.Spec.NodeName
 
 		if len(nodeName) == 0 {

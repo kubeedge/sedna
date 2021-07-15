@@ -26,3 +26,14 @@ ${SEDNA_ROOT}/hack/generate-groups.sh "deepcopy,client,informer,lister" \
 ${SEDNA_GO_PACKAGE}/pkg/client ${SEDNA_GO_PACKAGE}/pkg/apis \
 "sedna:v1alpha1" \
 --go-header-file ${SEDNA_ROOT}/hack/boilerplate/boilerplate.generatego.txt
+
+# Copy generated code into SEDNA_ROOT
+echo "Copying generated code from ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/ to ${SEDNA_ROOT}/ ..."
+cp -Rf ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg ${SEDNA_ROOT}/
+if [ $? -eq 0 ]; then
+   echo "Copy successful!"
+else
+   echo "Error during copy!"
+fi
+
+

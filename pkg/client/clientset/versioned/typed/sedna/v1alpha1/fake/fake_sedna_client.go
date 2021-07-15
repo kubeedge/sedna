@@ -52,6 +52,10 @@ func (c *FakeSednaV1alpha1) Models(namespace string) v1alpha1.ModelInterface {
 	return &FakeModels{c, namespace}
 }
 
+func (c *FakeSednaV1alpha1) MultiEdgeTrackingServices(namespace string) v1alpha1.MultiEdgeTrackingServiceInterface {
+	return &FakeMultiEdgeTrackingServices{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeSednaV1alpha1) RESTClient() rest.Interface {
