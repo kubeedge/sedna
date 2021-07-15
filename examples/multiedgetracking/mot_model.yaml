@@ -4,5 +4,5 @@ metadata:
   name: mot-model
   namespace: default
 spec:
-  url: "/data/mot/mot_model.pb"
+  url: "/home/v00609018/dev/data/mot_model.pb"
   format: "pb"

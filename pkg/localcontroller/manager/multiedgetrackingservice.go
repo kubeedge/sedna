@@ -34,7 +34,7 @@ type MultiEdgeTrackingManager struct {
 }
 
 const (
-	// JointInferenceServiceKind is kind of joint-inference-service resource
+	// MultiEdgeTrackingService is kind of joint-inference-service resource
 	MultiEdgeTrackingServiceKind = "multiedgetrackingservice"
 )
 

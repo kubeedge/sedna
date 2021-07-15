@@ -14,3 +14,4 @@
 
 from .inference import *
 from .aggregation import *
+from .reid import *

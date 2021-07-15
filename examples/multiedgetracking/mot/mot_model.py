@@ -22,7 +22,7 @@ import numpy as np
 
 from sedna.common.config import Context
 from sedna.common.file_ops import FileOps
-from sedna.core.joint_inference import JointInference
+from sedna.core.multi_edge_tracking import MultiObjectTracking
 
 from interface import Estimator
 
@@ -140,7 +140,7 @@ def output_deal(inference_result: InferenceResult, nframe, img_rgb):
 def main():
     tf.set_random_seed(22)
 
-    inference_instance = JointInference(estimator=Estimator)
+    inference_instance = MultiObjectTracking(estimator=Estimator)
 
     camera = cv2.VideoCapture(camera_address)
     fps = 10

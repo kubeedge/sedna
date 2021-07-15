@@ -16,7 +16,7 @@ spec:
           name:  mot
           env:  # user defined environments
           - name: input_shape
-            value: "416,736"
+            value: "416,416"
           - name: "video_url"
             value: "rtsp://localhost/video"
           - name: "all_examples_inference_output"
@@ -52,7 +52,7 @@ spec:
           name:  mot
           env:  # user defined environments
           - name: input_shape
-            value: "416,736"
+            value: "416,416"
           - name: "video_url"
             value: "rtsp://localhost/video"
           - name: "all_examples_inference_output"
@@ -89,7 +89,7 @@ spec:
             imagePullPolicy: IfNotPresent
             env:  # user defined environments
               - name: "input_shape"
-                value: "544,544"
+                value: "416,416"
             resources:  # user defined resources
               requests:
                 memory: 2Gi

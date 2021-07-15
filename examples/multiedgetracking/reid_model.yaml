@@ -4,5 +4,5 @@ metadata:
   name: reid-model
   namespace: default
 spec:
-  url: "/data/reid/reid.pb"
+  url: "/home/v00609018/dev/data/reid.pb"
   format: "pb"

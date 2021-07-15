@@ -19,8 +19,9 @@ import sys
 
 from sedna.common.utils import get_host_ip, flatten_nested_list
 from sedna.common.class_factory import ClassFactory, ClassType
-from sedna.service.server import InferenceServer
-from sedna.service.client import ModelClient, LCReporter
+from sedna.service.server import ReIDServer
+from sedna.service.reid_endpoint import ReID
+from sedna.service.client import LCReporter
 from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
 from sedna.common.benchmark import FTimer
@@ -47,7 +48,7 @@ class ReIDService(JobBase):
             raise FileExistsError(f"{self.model_path} miss")
         else:
             self.estimator.load(self.model_path)
-        app_server = InferenceServer(model=self, servername=self.job_name,
+        app_server = ReIDServer(model=self, servername=self.job_name,
                                      host=self.local_ip, http_port=self.port)
         app_server.start()
 
@@ -109,9 +110,8 @@ class MultiObjectTracking(JobBase):
             raise FileExistsError(f"{self.model_path} miss")
         else:
             self.estimator.load(self.model_path)
-        self.cloud = ModelClient(service_name=self.job_name,
+        self.cloud = ReID(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
-        self.hard_example_mining_algorithm = self.initial_hem
 
     def train(self, train_data,
               valid_data=None,
@@ -137,16 +137,20 @@ class MultiObjectTracking(JobBase):
         self.lc_reporter.update_for_edge_inference()
         # Send detection+tracking results to cloud
         # edge_result
-        self.cloud.inference(data.tolist(), post_process=post_process, **kwargs)
+        
+        if edge_result:
+            self.cloud.reid(data.tolist(), post_process=post_process, **kwargs)
 
-        if self.hard_example_mining_algorithm:
-            is_hard_example = self.hard_example_mining_algorithm(res)
-            if is_hard_example:
-                with FTimer(f"{os.uname()[1]}_cloud_inference_and_transmission"):
-                    cloud_result = self.cloud.inference(
-                        data.tolist(), post_process=post_process, **kwargs)
+        return [False, res, edge_result, None]
 
-                size = sys.getsizeof(0) * len(flatten_nested_list(cloud_result['result']))
-                self.log.info(f"Received data: {size} bytes.")
-                self.lc_reporter.update_for_collaboration_inference()
-        return [is_hard_example, res, edge_result, cloud_result]
+        # if self.hard_example_mining_algorithm:
+        #     is_hard_example = self.hard_example_mining_algorithm(res)
+        #     if is_hard_example:
+        #         with FTimer(f"{os.uname()[1]}_cloud_inference_and_transmission"):
+        #             cloud_result = self.cloud.reid(
+        #                 data.tolist(), post_process=post_process, **kwargs)
+
+        #         size = sys.getsizeof(0) * len(flatten_nested_list(cloud_result['result']))
+        #         self.log.info(f"Received data: {size} bytes.")
+        #         self.lc_reporter.update_for_collaboration_inference()
+        # return [is_hard_example, res, edge_result, cloud_result]

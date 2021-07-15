@@ -83,17 +83,17 @@ type MultiEdgeTrackingServiceController struct {
 }
 
 // Start starts the main goroutine responsible for watching and syncing services.
-func (jc *MultiEdgeTrackingServiceController) Start() error {
+func (mc *MultiEdgeTrackingServiceController) Start() error {
 	workers := 1
 	stopCh := messageContext.Done()
 
 	go func() {
 		defer utilruntime.HandleCrash()
-		defer jc.queue.ShutDown()
+		defer mc.queue.ShutDown()
 		klog.Infof("Starting multi-edge tracking (MOT) service controller")
 		defer klog.Infof("Shutting down multi-edge tracking (MOT) service controller")
 
-		if !cache.WaitForNamedCacheSync("multiedgetrackingservice", stopCh, jc.podStoreSynced, jc.serviceStoreSynced) {
+		if !cache.WaitForNamedCacheSync("multiedgetrackingservice", stopCh, mc.podStoreSynced, mc.serviceStoreSynced) {
 			klog.Errorf("Error in cache synchronization for MOT service!")
 
 			return
@@ -101,7 +101,7 @@ func (jc *MultiEdgeTrackingServiceController) Start() error {
 
 		klog.Infof("Starting MOT service workers...")
 		for i := 0; i < workers; i++ {
-			go wait.Until(jc.worker, time.Second, stopCh)
+			go wait.Until(mc.worker, time.Second, stopCh)
 		}
 
 		<-stopCh
@@ -110,7 +110,7 @@ func (jc *MultiEdgeTrackingServiceController) Start() error {
 }
 
 // enqueueByPod enqueues the jointInferenceService object of the specified pod.
-func (jc *MultiEdgeTrackingServiceController) enqueueByPod(pod *v1.Pod, immediate bool) {
+func (mc *MultiEdgeTrackingServiceController) enqueueByPod(pod *v1.Pod, immediate bool) {
 	controllerRef := metav1.GetControllerOf(pod)
 
 	if controllerRef == nil {
@@ -121,7 +121,7 @@ func (jc *MultiEdgeTrackingServiceController) enqueueByPod(pod *v1.Pod, immediat
 		return
 	}
 
-	service, err := jc.serviceLister.MultiEdgeTrackingServices(pod.Namespace).Get(controllerRef.Name)
+	service, err := mc.serviceLister.MultiEdgeTrackingServices(pod.Namespace).Get(controllerRef.Name)
 	if err != nil {
 		return
 	}
@@ -130,27 +130,27 @@ func (jc *MultiEdgeTrackingServiceController) enqueueByPod(pod *v1.Pod, immediat
 		return
 	}
 
-	jc.enqueueController(service, immediate)
+	mc.enqueueController(service, immediate)
 }
 
 // When a pod is created, enqueue the controller that manages it and update it's expectations.
-func (jc *MultiEdgeTrackingServiceController) addPod(obj interface{}) {
+func (mc *MultiEdgeTrackingServiceController) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	if pod.DeletionTimestamp != nil {
 		// on a restart of the controller, it's possible a new pod shows up in a state that
 		// is already pending deletion. Prevent the pod from being a creation observation.
-		jc.deletePod(pod)
+		mc.deletePod(pod)
 		return
 	}
 
 	// backoff to queue when PodFailed
 	immediate := pod.Status.Phase != v1.PodFailed
 
-	jc.enqueueByPod(pod, immediate)
+	mc.enqueueByPod(pod, immediate)
 }
 
 // When a pod is updated, figure out what joint inference service manage it and wake them up.
-func (jc *MultiEdgeTrackingServiceController) updatePod(old, cur interface{}) {
+func (mc *MultiEdgeTrackingServiceController) updatePod(old, cur interface{}) {
 	curPod := cur.(*v1.Pod)
 	oldPod := old.(*v1.Pod)
 
@@ -159,11 +159,11 @@ func (jc *MultiEdgeTrackingServiceController) updatePod(old, cur interface{}) {
 		return
 	}
 
-	jc.addPod(curPod)
+	mc.addPod(curPod)
 }
 
 // deletePod enqueues the jointinferenceservice obj When a pod is deleted
-func (jc *MultiEdgeTrackingServiceController) deletePod(obj interface{}) {
+func (mc *MultiEdgeTrackingServiceController) deletePod(obj interface{}) {
 	pod, ok := obj.(*v1.Pod)
 
 	// comment from https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/job/job_controller.go
@@ -184,13 +184,13 @@ func (jc *MultiEdgeTrackingServiceController) deletePod(obj interface{}) {
 			return
 		}
 	}
-	jc.enqueueByPod(pod, true)
+	mc.enqueueByPod(pod, true)
 }
 
 // obj could be an *sednav1.JointInferenceService, or a DeletionFinalStateUnknown marker item,
 // immediate tells the controller to update the status right away, and should
 // happen ONLY when there was a successful pod run.
-func (jc *MultiEdgeTrackingServiceController) enqueueController(obj interface{}, immediate bool) {
+func (mc *MultiEdgeTrackingServiceController) enqueueController(obj interface{}, immediate bool) {
 	key, err := k8scontroller.KeyFunc(obj)
 	if err != nil {
 		klog.Warningf("Couldn't get key for object %+v: %v", obj, err)
@@ -199,42 +199,42 @@ func (jc *MultiEdgeTrackingServiceController) enqueueController(obj interface{},
 
 	backoff := time.Duration(0)
 	if !immediate {
-		backoff = getBackoff(jc.queue, key)
+		backoff = getBackoff(mc.queue, key)
 	}
-	jc.queue.AddAfter(key, backoff)
+	mc.queue.AddAfter(key, backoff)
 }
 
 // worker runs a worker thread that just dequeues items, processes them, and marks them done.
 // It enforces that the sync is never invoked concurrently with the same key.
-func (jc *MultiEdgeTrackingServiceController) worker() {
-	for jc.processNextWorkItem() {
+func (mc *MultiEdgeTrackingServiceController) worker() {
+	for mc.processNextWorkItem() {
 	}
 }
 
-func (jc *MultiEdgeTrackingServiceController) processNextWorkItem() bool {
-	key, quit := jc.queue.Get()
+func (mc *MultiEdgeTrackingServiceController) processNextWorkItem() bool {
+	key, quit := mc.queue.Get()
 	if quit {
 		return false
 	}
-	defer jc.queue.Done(key)
+	defer mc.queue.Done(key)
 
-	forget, err := jc.sync(key.(string))
+	forget, err := mc.sync(key.(string))
 	if err == nil {
 		if forget {
-			jc.queue.Forget(key)
+			mc.queue.Forget(key)
 		}
 		return true
 	}
 
 	klog.Warningf("Error syncing MOT service: %v", err)
-	jc.queue.AddRateLimited(key)
+	mc.queue.AddRateLimited(key)
 
 	return true
 }
 
 // sync will sync the jointinferenceservice with the given key.
 // This function is not meant to be invoked concurrently with the same key.
-func (jc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
+func (mc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 	startTime := time.Now()
 	defer func() {
 		klog.V(4).Infof("Finished syncing MOT service %q (%v)", key, time.Since(startTime))
@@ -247,7 +247,7 @@ func (jc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 	if len(ns) == 0 || len(name) == 0 {
 		return false, fmt.Errorf("Invalid MOT service key %q: either namespace or name is missing", key)
 	}
-	sharedMultiEdgeTrackingService, err := jc.serviceLister.MultiEdgeTrackingServices(ns).Get(name)
+	sharedMultiEdgeTrackingService, err := mc.serviceLister.MultiEdgeTrackingServices(ns).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("MultiEdgeTrackingService has been deleted: %v", key)
@@ -268,7 +268,7 @@ func (jc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 	MultiEdgeTrackingService.SetGroupVersionKind(MultiEdgeTrackingServiceKind)
 
 	selector, _ := GenerateSelector(&MultiEdgeTrackingService)
-	pods, err := jc.podStore.Pods(MultiEdgeTrackingService.Namespace).List(selector)
+	pods, err := mc.podStore.Pods(MultiEdgeTrackingService.Namespace).List(selector)
 
 	if err != nil {
 		return false, err
@@ -313,10 +313,10 @@ func (jc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 		reason = "workerFailed"
 		message = "the worker of MultiEdgeTrackingService failed"
 		newCondtionType = sednav1.MultiEdgeTrackingServiceCondFailed
-		jc.recorder.Event(&MultiEdgeTrackingService, v1.EventTypeWarning, reason, message)
+		mc.recorder.Event(&MultiEdgeTrackingService, v1.EventTypeWarning, reason, message)
 	} else {
 		if len(pods) == 0 {
-			active, manageServiceErr = jc.createWorkers(&MultiEdgeTrackingService)
+			active, manageServiceErr = mc.createWorkers(&MultiEdgeTrackingService)
 		}
 		if manageServiceErr != nil {
 			serviceFailed = true
@@ -340,7 +340,7 @@ func (jc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 		MultiEdgeTrackingService.Status.Active = active
 		MultiEdgeTrackingService.Status.Failed = failed
 
-		if err := jc.updateStatus(&MultiEdgeTrackingService); err != nil {
+		if err := mc.updateStatus(&MultiEdgeTrackingService); err != nil {
 			return forget, err
 		}
 
@@ -367,8 +367,8 @@ func NewMultiEdgeTrackingServiceCondition(conditionType sednav1.MultiEdgeTrackin
 	}
 }
 
-func (jc *MultiEdgeTrackingServiceController) updateStatus(MultiEdgeTrackingService *sednav1.MultiEdgeTrackingService) error {
-	serviceClient := jc.client.MultiEdgeTrackingServices(MultiEdgeTrackingService.Namespace)
+func (mc *MultiEdgeTrackingServiceController) updateStatus(MultiEdgeTrackingService *sednav1.MultiEdgeTrackingService) error {
+	serviceClient := mc.client.MultiEdgeTrackingServices(MultiEdgeTrackingService.Namespace)
 	var err error
 	for i := 0; i <= ResourceUpdateRetries; i = i + 1 {
 		var newMultiEdgeTrackingService *sednav1.MultiEdgeTrackingService
@@ -393,11 +393,11 @@ func isMultiEdgeTrackingServiceFinished(j *sednav1.MultiEdgeTrackingService) boo
 	return false
 }
 
-func (jc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.MultiEdgeTrackingService) (active int32, err error) {
+func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.MultiEdgeTrackingService) (active int32, err error) {
 	active = 0
 
 	// create cloud worker
-	err = jc.createCloudWorker(service)
+	err = mc.createCloudWorker(service)
 	if err != nil {
 		return active, err
 	}
@@ -406,14 +406,14 @@ func (jc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	// create k8s service for cloudPod
 	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 	// will support Spec.NodeSelector.
-	reIDIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
-	reIDPort, err := CreateKubernetesService(jc.kubeClient, service, ReID, reIDPort, reIDIP)
+	reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
+	reIDPort, err := CreateKubernetesService(mc.kubeClient, service, ReID, reIDPort, reIDIP)
 	if err != nil {
 		return active, err
 	}
 
 	// create edge worker
-	err = jc.createEdgeWorker(service, reIDPort)
+	err = mc.createEdgeWorker(service, reIDPort)
 	if err != nil {
 		return active, err
 	}
@@ -422,10 +422,10 @@ func (jc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	return active, err
 }
 
-func (jc *MultiEdgeTrackingServiceController) createCloudWorker(service *sednav1.MultiEdgeTrackingService) error {
+func (mc *MultiEdgeTrackingServiceController) createCloudWorker(service *sednav1.MultiEdgeTrackingService) error {
 	// deliver pod for cloudworker
 	cloudModelName := service.Spec.ReIDWorker.Model.Name
-	cloudModel, err := jc.client.Models(service.Namespace).Get(context.Background(), cloudModelName, metav1.GetOptions{})
+	cloudModel, err := mc.client.Models(service.Namespace).Get(context.Background(), cloudModelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get cloud model %s: %w",
 			cloudModelName, err)
@@ -436,7 +436,7 @@ func (jc *MultiEdgeTrackingServiceController) createCloudWorker(service *sednav1
 	secretName := cloudModel.Spec.CredentialName
 	var modelSecret *v1.Secret
 	if secretName != "" {
-		modelSecret, _ = jc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+		modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	}
 	workerParam.mounts = append(workerParam.mounts, WorkerMount{
 		URL: &MountURL{
@@ -459,14 +459,14 @@ func (jc *MultiEdgeTrackingServiceController) createCloudWorker(service *sednav1
 	workerParam.workerType = ReID
 
 	// create cloud pod
-	_, err = createPodWithTemplate(jc.kubeClient,
+	_, err = createPodWithTemplate(mc.kubeClient,
 		service,
 		&service.Spec.ReIDWorker.Template,
 		&workerParam)
 	return err
 }
 
-func (jc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.MultiEdgeTrackingService, reIDPort int32) error {
+func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.MultiEdgeTrackingService, reIDPort int32) error {
 	// deliver pod for edgeworker
 	ctx := context.Background()
 	edgeWorker := service.Spec.MultiObjectTrackingWorker
@@ -475,7 +475,7 @@ func (jc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.
 	for _, edgeNode := range edgeWorker {
 
 		edgeModelName := edgeNode.Model.Name
-		edgeModel, err := jc.client.Models(service.Namespace).Get(ctx, edgeModelName, metav1.GetOptions{})
+		edgeModel, err := mc.client.Models(service.Namespace).Get(ctx, edgeModelName, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get edge model %s: %w",
 				edgeModelName, err)
@@ -484,13 +484,13 @@ func (jc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.
 		secretName := edgeModel.Spec.CredentialName
 		var modelSecret *v1.Secret
 		if secretName != "" {
-			modelSecret, _ = jc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+			modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 		}
 
 		// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 		// will support Spec.NodeSelector.
 		// get bigModelIP from nodeName in cloudWorker
-		reIDIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
+		reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
 		if err != nil {
 			return fmt.Errorf("failed to get node ip: %w", err)
 		}
@@ -515,14 +515,14 @@ func (jc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.
 			"REID_MODEL_IP":   reIDIP,
 			"REID_MODEL_PORT": strconv.Itoa(int(reIDPort)),
 
-			"LC_SERVER": jc.cfg.LC.Server,
+			"LC_SERVER": mc.cfg.LC.Server,
 		}
 
 		workerParam.workerType = MultiObjectTracking
 		workerParam.hostNetwork = true
 
 		// create edge pod
-		_, perr = createPodWithTemplate(jc.kubeClient,
+		_, perr = createPodWithTemplate(mc.kubeClient,
 			service,
 			&edgeNode.Template,
 			&workerParam)
@@ -533,7 +533,7 @@ func (jc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.
 }
 
 // GetName returns the name of the joint inference controller
-func (jc *MultiEdgeTrackingServiceController) GetName() string {
+func (mc *MultiEdgeTrackingServiceController) GetName() string {
 	return "MultiEdgeTrackingServiceController"
 }
 
@@ -559,7 +559,7 @@ func NewMultiEdgeTrackingServiceController(cfg *config.ControllerConfig) (Featur
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
 
-	jc := &MultiEdgeTrackingServiceController{
+	mc := &MultiEdgeTrackingServiceController{
 		kubeClient: kubeClient,
 		client:     crdclient.SednaV1alpha1(),
 
@@ -570,32 +570,32 @@ func NewMultiEdgeTrackingServiceController(cfg *config.ControllerConfig) (Featur
 
 	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			jc.enqueueController(obj, true)
+			mc.enqueueController(obj, true)
 		},
 
 		UpdateFunc: func(old, cur interface{}) {
-			jc.enqueueController(cur, true)
+			mc.enqueueController(cur, true)
 		},
 
 		DeleteFunc: func(obj interface{}) {
-			jc.enqueueController(obj, true)
+			mc.enqueueController(obj, true)
 		},
 	})
 
-	jc.serviceLister = serviceInformer.Lister()
-	jc.serviceStoreSynced = serviceInformer.Informer().HasSynced
+	mc.serviceLister = serviceInformer.Lister()
+	mc.serviceStoreSynced = serviceInformer.Informer().HasSynced
 
 	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    jc.addPod,
-		UpdateFunc: jc.updatePod,
-		DeleteFunc: jc.deletePod,
+		AddFunc:    mc.addPod,
+		UpdateFunc: mc.updatePod,
+		DeleteFunc: mc.deletePod,
 	})
 
-	jc.podStore = podInformer.Lister()
-	jc.podStoreSynced = podInformer.Informer().HasSynced
+	mc.podStore = podInformer.Lister()
+	mc.podStoreSynced = podInformer.Informer().HasSynced
 
 	stopCh := messageContext.Done()
 	kubeInformerFactory.Start(stopCh)
 	serviceInformerFactory.Start(stopCh)
-	return jc, err
+	return mc, err
 }
