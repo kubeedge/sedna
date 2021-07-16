@@ -232,7 +232,7 @@ func (mc *MultiEdgeTrackingServiceController) processNextWorkItem() bool {
 	return true
 }
 
-// sync will sync the jointinferenceservice with the given key.
+// sync will sync the MultiEdgeTrackingService with the given key.
 // This function is not meant to be invoked concurrently with the same key.
 func (mc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 	startTime := time.Now()
