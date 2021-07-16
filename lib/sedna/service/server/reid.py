@@ -79,7 +79,7 @@ class ReIDServer(BaseServer):  # pylint: disable=too-many-arguments
                 ),
                 APIRoute(
                     f"/{servername}/reid",
-                    self.predict,
+                    self.reid,
                     response_model=ServePredictResult,
                     response_class=JSONResponse,
                     methods=["POST"],

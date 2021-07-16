@@ -16,15 +16,11 @@ spec:
           name:  mot
           env:  # user defined environments
           - name: input_shape
-            value: "416,416"
+            value: "416,736"
           - name: "video_url"
             value: "rtsp://localhost/video"
           - name: "all_examples_inference_output"
             value: "/data/output"
-          - name: "hard_example_cloud_inference_output"
-            value: "/data/hard_example_cloud_inference_output"
-          - name: "hard_example_edge_inference_output"
-            value: "/data/hard_example_edge_inference_output"
           resources:  # user defined resources
             requests:
               memory: 64M
@@ -52,15 +48,11 @@ spec:
           name:  mot
           env:  # user defined environments
           - name: input_shape
-            value: "416,416"
+            value: "416,736"
           - name: "video_url"
             value: "rtsp://localhost/video"
           - name: "all_examples_inference_output"
             value: "/data/output"
-          - name: "hard_example_cloud_inference_output"
-            value: "/data/hard_example_cloud_inference_output"
-          - name: "hard_example_edge_inference_output"
-            value: "/data/hard_example_edge_inference_output"
           resources:  # user defined resources
             requests:
               memory: 64M
@@ -89,7 +81,7 @@ spec:
             imagePullPolicy: IfNotPresent
             env:  # user defined environments
               - name: "input_shape"
-                value: "416,416"
+                value: "416,736"
             resources:  # user defined resources
               requests:
                 memory: 2Gi

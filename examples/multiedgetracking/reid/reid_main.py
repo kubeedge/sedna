@@ -57,21 +57,24 @@ class Estimator:
         initialize logging configuration
         """
         graph = tf.Graph()
-        config = tf.ConfigProto(allow_soft_placement=True)
+        config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
         config.gpu_options.allow_growth = True
         config.gpu_options.per_process_gpu_memory_fraction = 0.1
-        self.session = tf.Session(graph=graph, config=config)
+        self.session = tf.compat.v1.Session(graph=graph, config=config)
         self.input_shape = [416, 736]
         self.create_input_feed = create_input_feed
         self.create_output_fetch = create_output_fetch
 
     def load(self, model_url=""):
+        # This requires some more work as the model is loaded in the form of an AutoTrackable object.
+        #new_model = tf.saved_model.load_v2("/home/data/home/v00609018/dev/data/object_detector")
+
         with self.session.as_default():
             with self.session.graph.as_default():
-                with tf.gfile.FastGFile(model_url, 'rb') as handle:
+                with tf.io.gfile.GFile(model_url, 'rb') as handle:
                     LOG.info(f"Load model {model_url}, "
                              f"ParseFromString start .......")
-                    graph_def = tf.GraphDef()
+                    graph_def = tf.compat.v1.GraphDef()
                     graph_def.ParseFromString(handle.read())
                     LOG.info("ParseFromString end .......")
 
