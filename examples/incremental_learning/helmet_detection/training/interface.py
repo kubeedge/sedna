@@ -36,8 +36,8 @@ if not (s3_url.startswith("http://") or s3_url.startswith("https://")):
 s3_url = urlparse(s3_url)
 s3_use_ssl = s3_url.scheme == 'https' if s3_url.scheme else True
 
-os.environ["AWS_ACCESS_KEY_ID"] = os.getenv("ACCESS_KEY_ID")
-os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("SECRET_ACCESS_KEY")
+os.environ["AWS_ACCESS_KEY_ID"] = os.getenv("ACCESS_KEY_ID", "")
+os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("SECRET_ACCESS_KEY", "")
 os.environ["S3_ENDPOINT"] = s3_url.netloc
 os.environ["S3_USE_HTTPS"] = "1" if s3_use_ssl else "0"
 LOG = logging.getLogger(__name__)
