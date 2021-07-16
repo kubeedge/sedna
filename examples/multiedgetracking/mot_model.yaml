@@ -4,5 +4,5 @@ metadata:
   name: mot-model
   namespace: default
 spec:
-  url: "/home/v00609018/dev/data/yolov3_darknet.pb"
+  url: "/home/v00609018/dev/data/yolov3_resnet18.pb"
   format: "pb"

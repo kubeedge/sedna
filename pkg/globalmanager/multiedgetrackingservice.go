@@ -512,8 +512,8 @@ func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.
 			"SERVICE_NAME": service.Name,
 			"WORKER_NAME":  "edgeworker-" + utilrand.String(5),
 
-			"REID_MODEL_IP":   reIDIP,
-			"REID_MODEL_PORT": strconv.Itoa(int(reIDPort)),
+			"REID_MODEL_BIND_IP":   reIDIP,
+			"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
 
 			"LC_SERVER": mc.cfg.LC.Server,
 		}
