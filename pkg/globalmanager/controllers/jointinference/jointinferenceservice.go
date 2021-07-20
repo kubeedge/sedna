@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package globalmanager
+package jointinference
 
 import (
 	"context"
@@ -47,20 +47,26 @@ import (
 	sednav1listers "github.com/kubeedge/sedna/pkg/client/listers/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
 	messageContext "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/ws"
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
+)
+
+const (
+	Name = "JointInference"
 )
 
 const (
 	jointInferenceForEdge  = "Edge"
 	jointInferenceForCloud = "Cloud"
+	bigModelPort           = 5000
 )
 
-// jointServiceControllerKind contains the schema.GroupVersionKind for this controller type.
-var jointServiceControllerKind = sednav1.SchemeGroupVersion.WithKind("JointInferenceService")
+// Kind contains the schema.GroupVersionKind for this controller type.
+var Kind = sednav1.SchemeGroupVersion.WithKind("JointInferenceService")
 
-// JointInferenceServiceController ensures that all JointInferenceService objects
+// Controller ensures that all JointInferenceService objects
 // have corresponding pods to run their configured workload.
-type JointInferenceServiceController struct {
+type Controller struct {
 	kubeClient kubernetes.Interface
 	client     sednaclientset.SednaV1alpha1Interface
 
@@ -83,17 +89,17 @@ type JointInferenceServiceController struct {
 }
 
 // Start starts the main goroutine responsible for watching and syncing services.
-func (jc *JointInferenceServiceController) Start() error {
+func (c *Controller) Start() error {
 	workers := 1
 	stopCh := messageContext.Done()
 
 	go func() {
 		defer utilruntime.HandleCrash()
-		defer jc.queue.ShutDown()
+		defer c.queue.ShutDown()
 		klog.Infof("Starting joint inference service controller")
 		defer klog.Infof("Shutting down joint inference service controller")
 
-		if !cache.WaitForNamedCacheSync("jointinferenceservice", stopCh, jc.podStoreSynced, jc.serviceStoreSynced) {
+		if !cache.WaitForNamedCacheSync("jointinferenceservice", stopCh, c.podStoreSynced, c.serviceStoreSynced) {
 			klog.Errorf("failed to wait for joint inferce service caches to sync")
 
 			return
@@ -101,7 +107,7 @@ func (jc *JointInferenceServiceController) Start() error {
 
 		klog.Infof("Starting joint inference service workers")
 		for i := 0; i < workers; i++ {
-			go wait.Until(jc.worker, time.Second, stopCh)
+			go wait.Until(c.worker, time.Second, stopCh)
 		}
 
 		<-stopCh
@@ -110,18 +116,18 @@ func (jc *JointInferenceServiceController) Start() error {
 }
 
 // enqueueByPod enqueues the jointInferenceService object of the specified pod.
-func (jc *JointInferenceServiceController) enqueueByPod(pod *v1.Pod, immediate bool) {
+func (c *Controller) enqueueByPod(pod *v1.Pod, immediate bool) {
 	controllerRef := metav1.GetControllerOf(pod)
 
 	if controllerRef == nil {
 		return
 	}
 
-	if controllerRef.Kind != jointServiceControllerKind.Kind {
+	if controllerRef.Kind != Kind.Kind {
 		return
 	}
 
-	service, err := jc.serviceLister.JointInferenceServices(pod.Namespace).Get(controllerRef.Name)
+	service, err := c.serviceLister.JointInferenceServices(pod.Namespace).Get(controllerRef.Name)
 	if err != nil {
 		return
 	}
@@ -130,27 +136,27 @@ func (jc *JointInferenceServiceController) enqueueByPod(pod *v1.Pod, immediate b
 		return
 	}
 
-	jc.enqueueController(service, immediate)
+	c.enqueueController(service, immediate)
 }
 
 // When a pod is created, enqueue the controller that manages it and update it's expectations.
-func (jc *JointInferenceServiceController) addPod(obj interface{}) {
+func (c *Controller) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	if pod.DeletionTimestamp != nil {
 		// on a restart of the controller, it's possible a new pod shows up in a state that
 		// is already pending deletion. Prevent the pod from being a creation observation.
-		jc.deletePod(pod)
+		c.deletePod(pod)
 		return
 	}
 
 	// backoff to queue when PodFailed
 	immediate := pod.Status.Phase != v1.PodFailed
 
-	jc.enqueueByPod(pod, immediate)
+	c.enqueueByPod(pod, immediate)
 }
 
 // When a pod is updated, figure out what joint inference service manage it and wake them up.
-func (jc *JointInferenceServiceController) updatePod(old, cur interface{}) {
+func (c *Controller) updatePod(old, cur interface{}) {
 	curPod := cur.(*v1.Pod)
 	oldPod := old.(*v1.Pod)
 
@@ -159,11 +165,11 @@ func (jc *JointInferenceServiceController) updatePod(old, cur interface{}) {
 		return
 	}
 
-	jc.addPod(curPod)
+	c.addPod(curPod)
 }
 
 // deletePod enqueues the jointinferenceservice obj When a pod is deleted
-func (jc *JointInferenceServiceController) deletePod(obj interface{}) {
+func (c *Controller) deletePod(obj interface{}) {
 	pod, ok := obj.(*v1.Pod)
 
 	// comment from https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/job/job_controller.go
@@ -184,13 +190,13 @@ func (jc *JointInferenceServiceController) deletePod(obj interface{}) {
 			return
 		}
 	}
-	jc.enqueueByPod(pod, true)
+	c.enqueueByPod(pod, true)
 }
 
 // obj could be an *sednav1.JointInferenceService, or a DeletionFinalStateUnknown marker item,
 // immediate tells the controller to update the status right away, and should
 // happen ONLY when there was a successful pod run.
-func (jc *JointInferenceServiceController) enqueueController(obj interface{}, immediate bool) {
+func (c *Controller) enqueueController(obj interface{}, immediate bool) {
 	key, err := k8scontroller.KeyFunc(obj)
 	if err != nil {
 		klog.Warningf("Couldn't get key for object %+v: %v", obj, err)
@@ -199,42 +205,42 @@ func (jc *JointInferenceServiceController) enqueueController(obj interface{}, im
 
 	backoff := time.Duration(0)
 	if !immediate {
-		backoff = getBackoff(jc.queue, key)
+		backoff = runtime.GetBackoff(c.queue, key)
 	}
-	jc.queue.AddAfter(key, backoff)
+	c.queue.AddAfter(key, backoff)
 }
 
 // worker runs a worker thread that just dequeues items, processes them, and marks them done.
 // It enforces that the sync is never invoked concurrently with the same key.
-func (jc *JointInferenceServiceController) worker() {
-	for jc.processNextWorkItem() {
+func (c *Controller) worker() {
+	for c.processNextWorkItem() {
 	}
 }
 
-func (jc *JointInferenceServiceController) processNextWorkItem() bool {
-	key, quit := jc.queue.Get()
+func (c *Controller) processNextWorkItem() bool {
+	key, quit := c.queue.Get()
 	if quit {
 		return false
 	}
-	defer jc.queue.Done(key)
+	defer c.queue.Done(key)
 
-	forget, err := jc.sync(key.(string))
+	forget, err := c.sync(key.(string))
 	if err == nil {
 		if forget {
-			jc.queue.Forget(key)
+			c.queue.Forget(key)
 		}
 		return true
 	}
 
 	klog.Warningf("Error syncing jointinference service: %v", err)
-	jc.queue.AddRateLimited(key)
+	c.queue.AddRateLimited(key)
 
 	return true
 }
 
 // sync will sync the jointinferenceservice with the given key.
 // This function is not meant to be invoked concurrently with the same key.
-func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
+func (c *Controller) sync(key string) (bool, error) {
 	startTime := time.Now()
 	defer func() {
 		klog.V(4).Infof("Finished syncing jointinference service %q (%v)", key, time.Since(startTime))
@@ -247,7 +253,7 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 	if len(ns) == 0 || len(name) == 0 {
 		return false, fmt.Errorf("invalid jointinference service key %q: either namespace or name is missing", key)
 	}
-	sharedJointinferenceservice, err := jc.serviceLister.JointInferenceServices(ns).Get(name)
+	sharedJointinferenceservice, err := c.serviceLister.JointInferenceServices(ns).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("JointInferenceService has been deleted: %v", key)
@@ -265,10 +271,10 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 
 	// set kind for jointinferenceservice in case that the kind is None
 	// more details at https://github.com/kubernetes/kubernetes/issues/3030
-	jointinferenceservice.SetGroupVersionKind(jointServiceControllerKind)
+	jointinferenceservice.SetGroupVersionKind(Kind)
 
-	selector, _ := GenerateSelector(&jointinferenceservice)
-	pods, err := jc.podStore.Pods(jointinferenceservice.Namespace).List(selector)
+	selector, _ := runtime.GenerateSelector(&jointinferenceservice)
+	pods, err := c.podStore.Pods(jointinferenceservice.Namespace).List(selector)
 
 	if err != nil {
 		return false, err
@@ -278,7 +284,7 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 
 	latestConditionLen := len(jointinferenceservice.Status.Conditions)
 
-	active := calcActivePodCount(pods)
+	active := runtime.CalcActivePodCount(pods)
 	var failed int32 = 0
 	// neededCounts means that two pods should be created successfully in a jointinference service currently
 	// two pods consist of edge pod and cloud pod
@@ -313,10 +319,10 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 		reason = "workerFailed"
 		message = "the worker of Jointinferenceservice failed"
 		newCondtionType = sednav1.JointInferenceServiceCondFailed
-		jc.recorder.Event(&jointinferenceservice, v1.EventTypeWarning, reason, message)
+		c.recorder.Event(&jointinferenceservice, v1.EventTypeWarning, reason, message)
 	} else {
 		if len(pods) == 0 {
-			active, manageServiceErr = jc.createWorkers(&jointinferenceservice)
+			active, manageServiceErr = c.createWorkers(&jointinferenceservice)
 		}
 		if manageServiceErr != nil {
 			serviceFailed = true
@@ -340,7 +346,7 @@ func (jc *JointInferenceServiceController) sync(key string) (bool, error) {
 		jointinferenceservice.Status.Active = active
 		jointinferenceservice.Status.Failed = failed
 
-		if err := jc.updateStatus(&jointinferenceservice); err != nil {
+		if err := c.updateStatus(&jointinferenceservice); err != nil {
 			return forget, err
 		}
 
@@ -367,10 +373,10 @@ func NewJointInferenceServiceCondition(conditionType sednav1.JointInferenceServi
 	}
 }
 
-func (jc *JointInferenceServiceController) updateStatus(jointinferenceservice *sednav1.JointInferenceService) error {
-	serviceClient := jc.client.JointInferenceServices(jointinferenceservice.Namespace)
+func (c *Controller) updateStatus(jointinferenceservice *sednav1.JointInferenceService) error {
+	serviceClient := c.client.JointInferenceServices(jointinferenceservice.Namespace)
 	var err error
-	for i := 0; i <= ResourceUpdateRetries; i = i + 1 {
+	for i := 0; i <= runtime.ResourceUpdateRetries; i = i + 1 {
 		var newJointinferenceservice *sednav1.JointInferenceService
 		newJointinferenceservice, err = serviceClient.Get(context.TODO(), jointinferenceservice.Name, metav1.GetOptions{})
 		if err != nil {
@@ -393,11 +399,11 @@ func isJointinferenceserviceFinished(j *sednav1.JointInferenceService) bool {
 	return false
 }
 
-func (jc *JointInferenceServiceController) createWorkers(service *sednav1.JointInferenceService) (active int32, err error) {
+func (c *Controller) createWorkers(service *sednav1.JointInferenceService) (active int32, err error) {
 	active = 0
 
 	// create cloud worker
-	err = jc.createCloudWorker(service)
+	err = c.createCloudWorker(service)
 	if err != nil {
 		return active, err
 	}
@@ -406,14 +412,14 @@ func (jc *JointInferenceServiceController) createWorkers(service *sednav1.JointI
 	// create k8s service for cloudPod
 	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 	// will support Spec.NodeSelector.
-	bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
-	bigServicePort, err := CreateKubernetesService(jc.kubeClient, service, jointInferenceForCloud, bigModelPort, bigModelIP)
+	bigModelIP, err := runtime.GetNodeIPByName(c.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
+	bigServicePort, err := runtime.CreateKubernetesService(c.kubeClient, service, jointInferenceForCloud, bigModelPort, bigModelIP)
 	if err != nil {
 		return active, err
 	}
 
 	// create edge worker
-	err = jc.createEdgeWorker(service, bigServicePort)
+	err = c.createEdgeWorker(service, bigServicePort)
 	if err != nil {
 		return active, err
 	}
@@ -422,24 +428,24 @@ func (jc *JointInferenceServiceController) createWorkers(service *sednav1.JointI
 	return active, err
 }
 
-func (jc *JointInferenceServiceController) createCloudWorker(service *sednav1.JointInferenceService) error {
+func (c *Controller) createCloudWorker(service *sednav1.JointInferenceService) error {
 	// deliver pod for cloudworker
 	cloudModelName := service.Spec.CloudWorker.Model.Name
-	cloudModel, err := jc.client.Models(service.Namespace).Get(context.Background(), cloudModelName, metav1.GetOptions{})
+	cloudModel, err := c.client.Models(service.Namespace).Get(context.Background(), cloudModelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get cloud model %s: %w",
 			cloudModelName, err)
 	}
 
-	var workerParam WorkerParam
+	var workerParam runtime.WorkerParam
 
 	secretName := cloudModel.Spec.CredentialName
 	var modelSecret *v1.Secret
 	if secretName != "" {
-		modelSecret, _ = jc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+		modelSecret, _ = c.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	}
-	workerParam.mounts = append(workerParam.mounts, WorkerMount{
-		URL: &MountURL{
+	workerParam.Mounts = append(workerParam.Mounts, runtime.WorkerMount{
+		URL: &runtime.MountURL{
 			URL:                   cloudModel.Spec.URL,
 			Secret:                modelSecret,
 			DownloadByInitializer: true,
@@ -448,7 +454,7 @@ func (jc *JointInferenceServiceController) createCloudWorker(service *sednav1.Jo
 		EnvName: "MODEL_URL",
 	})
 
-	workerParam.env = map[string]string{
+	workerParam.Env = map[string]string{
 		"NAMESPACE":    service.Namespace,
 		"SERVICE_NAME": service.Name,
 		"WORKER_NAME":  "cloudworker-" + utilrand.String(5),
@@ -456,21 +462,21 @@ func (jc *JointInferenceServiceController) createCloudWorker(service *sednav1.Jo
 		"BIG_MODEL_BIND_PORT": strconv.Itoa(int(bigModelPort)),
 	}
 
-	workerParam.workerType = jointInferenceForCloud
+	workerParam.WorkerType = jointInferenceForCloud
 
 	// create cloud pod
-	_, err = createPodWithTemplate(jc.kubeClient,
+	_, err = runtime.CreatePodWithTemplate(c.kubeClient,
 		service,
 		&service.Spec.CloudWorker.Template,
 		&workerParam)
 	return err
 }
 
-func (jc *JointInferenceServiceController) createEdgeWorker(service *sednav1.JointInferenceService, bigServicePort int32) error {
+func (c *Controller) createEdgeWorker(service *sednav1.JointInferenceService, bigServicePort int32) error {
 	// deliver pod for edgeworker
 	ctx := context.Background()
 	edgeModelName := service.Spec.EdgeWorker.Model.Name
-	edgeModel, err := jc.client.Models(service.Namespace).Get(ctx, edgeModelName, metav1.GetOptions{})
+	edgeModel, err := c.client.Models(service.Namespace).Get(ctx, edgeModelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get edge model %s: %w",
 			edgeModelName, err)
@@ -479,13 +485,13 @@ func (jc *JointInferenceServiceController) createEdgeWorker(service *sednav1.Joi
 	secretName := edgeModel.Spec.CredentialName
 	var modelSecret *v1.Secret
 	if secretName != "" {
-		modelSecret, _ = jc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+		modelSecret, _ = c.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	}
 
 	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 	// will support Spec.NodeSelector.
 	// get bigModelIP from nodeName in cloudWorker
-	bigModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
+	bigModelIP, err := runtime.GetNodeIPByName(c.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
 	if err != nil {
 		return fmt.Errorf("failed to get node ip: %w", err)
 	}
@@ -494,10 +500,10 @@ func (jc *JointInferenceServiceController) createEdgeWorker(service *sednav1.Joi
 	HEMParameterJSON, _ := json.Marshal(edgeWorker.HardExampleMining.Parameters)
 	HEMParameterString := string(HEMParameterJSON)
 
-	var workerParam WorkerParam
+	var workerParam runtime.WorkerParam
 
-	workerParam.mounts = append(workerParam.mounts, WorkerMount{
-		URL: &MountURL{
+	workerParam.Mounts = append(workerParam.Mounts, runtime.WorkerMount{
+		URL: &runtime.MountURL{
 			URL:                   edgeModel.Spec.URL,
 			Secret:                modelSecret,
 			DownloadByInitializer: true,
@@ -506,7 +512,7 @@ func (jc *JointInferenceServiceController) createEdgeWorker(service *sednav1.Joi
 		EnvName: "MODEL_URL",
 	})
 
-	workerParam.env = map[string]string{
+	workerParam.Env = map[string]string{
 		"NAMESPACE":    service.Namespace,
 		"SERVICE_NAME": service.Name,
 		"WORKER_NAME":  "edgeworker-" + utilrand.String(5),
@@ -517,28 +523,23 @@ func (jc *JointInferenceServiceController) createEdgeWorker(service *sednav1.Joi
 		"HEM_NAME":       edgeWorker.HardExampleMining.Name,
 		"HEM_PARAMETERS": HEMParameterString,
 
-		"LC_SERVER": jc.cfg.LC.Server,
+		"LC_SERVER": c.cfg.LC.Server,
 	}
 
-	workerParam.workerType = jointInferenceForEdge
-	workerParam.hostNetwork = true
+	workerParam.WorkerType = jointInferenceForEdge
+	workerParam.HostNetwork = true
 
 	// create edge pod
-	_, err = createPodWithTemplate(jc.kubeClient,
+	_, err = runtime.CreatePodWithTemplate(c.kubeClient,
 		service,
 		&service.Spec.EdgeWorker.Template,
 		&workerParam)
 	return err
 }
 
-// GetName returns the name of the joint inference controller
-func (jc *JointInferenceServiceController) GetName() string {
-	return "JointInferenceServiceController"
-}
-
-// NewJointController creates a new JointInferenceService controller that keeps the relevant pods
+// New creates a new JointInferenceService controller that keeps the relevant pods
 // in sync with their corresponding JointInferenceService objects.
-func NewJointController(cfg *config.ControllerConfig) (FeatureControllerI, error) {
+func New(cfg *config.ControllerConfig) (runtime.FeatureControllerI, error) {
 	var err error
 	namespace := cfg.Namespace
 	if namespace == "" {
@@ -558,11 +559,11 @@ func NewJointController(cfg *config.ControllerConfig) (FeatureControllerI, error
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
 
-	jc := &JointInferenceServiceController{
+	jc := &Controller{
 		kubeClient: kubeClient,
 		client:     crdclient.SednaV1alpha1(),
 
-		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(DefaultBackOff, MaxBackOff), "jointinferenceservice"),
+		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), "jointinferenceservice"),
 		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "jointinferenceservice-controller"}),
 		cfg:      cfg,
 	}

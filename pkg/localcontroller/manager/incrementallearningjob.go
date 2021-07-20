@@ -31,7 +31,7 @@ import (
 
 	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
-	"github.com/kubeedge/sedna/pkg/globalmanager"
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	"github.com/kubeedge/sedna/pkg/localcontroller/db"
 	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
 	"github.com/kubeedge/sedna/pkg/localcontroller/storage"
@@ -437,11 +437,11 @@ func newTrigger(t sednav1.Trigger) (trigger.Base, error) {
 func (im *IncrementalJobManager) getTrainOrEvalModel(job *IncrementalLearningJob, jobStage sednav1.ILJobStage) *ModelInfo {
 	jobConditions := job.Status.Conditions
 
-	// TODO: globalmanager.type changes to common.type for gm and lc
-	var models []globalmanager.Model
+	// TODO: runtime.type changes to common.type for gm and lc
+	var models []runtime.Model
 
 	for i := len(jobConditions) - 1; i >= 0; i-- {
-		var cond globalmanager.IncrementalCondData
+		var cond runtime.IncrementalCondData
 		jobCond := jobConditions[i]
 		if jobCond.Stage == sednav1.ILJobTrain && jobCond.Type == sednav1.ILJobStageCondCompleted {
 			if err := (&cond).Unmarshal([]byte(jobCond.Data)); err != nil {

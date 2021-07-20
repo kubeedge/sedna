@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package globalmanager
+package runtime
 
 import (
 	"context"
@@ -33,8 +33,7 @@ const (
 	// DefaultBackOff is the default backoff period
 	DefaultBackOff = 10 * time.Second
 	// MaxBackOff is the max backoff period
-	MaxBackOff         = 360 * time.Second
-	bigModelPort int32 = 5000
+	MaxBackOff = 360 * time.Second
 	// ResourceUpdateRetries defines times of retrying to update resource
 	ResourceUpdateRetries = 3
 )
@@ -62,8 +61,8 @@ func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, erro
 	return "", fmt.Errorf("can't found node ip for node %s", name)
 }
 
-// getBackoff calc the next wait time for the key
-func getBackoff(queue workqueue.RateLimitingInterface, key interface{}) time.Duration {
+// GetBackoff calc the next wait time for the key
+func GetBackoff(queue workqueue.RateLimitingInterface, key interface{}) time.Duration {
 	exp := queue.NumRequeues(key)
 
 	if exp <= 0 {
@@ -83,7 +82,7 @@ func getBackoff(queue workqueue.RateLimitingInterface, key interface{}) time.Dur
 	return calculated
 }
 
-func calcActivePodCount(pods []*v1.Pod) int32 {
+func CalcActivePodCount(pods []*v1.Pod) int32 {
 	var result int32 = 0
 	for _, p := range pods {
 		if v1.PodSucceeded != p.Status.Phase &&

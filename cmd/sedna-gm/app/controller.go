@@ -18,6 +18,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -27,7 +28,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kubeedge/sedna/cmd/sedna-gm/app/options"
-	controller "github.com/kubeedge/sedna/pkg/globalmanager"
+	controller "github.com/kubeedge/sedna/pkg/globalmanager/controllers"
 	"github.com/kubeedge/sedna/pkg/util"
 	"github.com/kubeedge/sedna/pkg/version/verflag"
 )
@@ -61,8 +62,12 @@ func NewControllerCommand() *cobra.Command {
 			if errs := config.Validate(); len(errs) > 0 {
 				klog.Fatal(util.SpliceErrors(errs.ToAggregate().Errors()))
 			}
-			c := controller.NewController(config)
-			c.Start()
+			c := controller.New(config)
+			err = c.Start()
+			if err != nil {
+				klog.Errorf("failed to start controller: %v", err)
+				os.Exit(1)
+			}
 		},
 	}
 	fs := cmd.Flags()

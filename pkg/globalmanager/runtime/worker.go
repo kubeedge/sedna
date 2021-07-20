@@ -1,4 +1,4 @@
-package globalmanager
+package runtime
 
 import (
 	"context"
@@ -27,15 +27,15 @@ type WorkerMount struct {
 
 // WorkerParam describes the system-defined parameters of worker
 type WorkerParam struct {
-	mounts []WorkerMount
+	Mounts []WorkerMount
 
-	env        map[string]string
-	workerType string
+	Env        map[string]string
+	WorkerType string
 
 	// if true, force to use hostNetwork
-	hostNetwork bool
+	HostNetwork bool
 
-	restartPolicy v1.RestartPolicy
+	RestartPolicy v1.RestartPolicy
 }
 
 // generateLabels generates labels for an object
@@ -105,11 +105,11 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 	return service.Spec.Ports[0].NodePort, nil
 }
 
-// injectWorkerParam modifies pod in-place
+// injectWorkerParam.Modifies pod in-place
 func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInterface) {
 	InjectStorageInitializer(pod, workerParam)
 
-	envs := createEnvVars(workerParam.env)
+	envs := createEnvVars(workerParam.Env)
 	for idx := range pod.Spec.Containers {
 		pod.Spec.Containers[idx].Env = append(
 			pod.Spec.Containers[idx].Env, envs...,
@@ -121,27 +121,27 @@ func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInter
 		pod.Labels = make(map[string]string)
 	}
 
-	for k, v := range generateLabels(object, workerParam.workerType) {
+	for k, v := range generateLabels(object, workerParam.WorkerType) {
 		pod.Labels[k] = v
 	}
 
-	pod.GenerateName = object.GetName() + "-" + strings.ToLower(workerParam.workerType) + "-"
+	pod.GenerateName = object.GetName() + "-" + strings.ToLower(workerParam.WorkerType) + "-"
 
 	pod.Namespace = object.GetNamespace()
 
-	if workerParam.hostNetwork {
+	if workerParam.HostNetwork {
 		// FIXME
 		// force to set hostnetwork
 		pod.Spec.HostNetwork = true
 	}
 
 	if pod.Spec.RestartPolicy == "" {
-		pod.Spec.RestartPolicy = workerParam.restartPolicy
+		pod.Spec.RestartPolicy = workerParam.RestartPolicy
 	}
 }
 
-// createPodWithTemplate creates and returns a pod object given a crd object, pod template, and workerParam
-func createPodWithTemplate(client kubernetes.Interface, object CommonInterface, spec *v1.PodTemplateSpec, workerParam *WorkerParam) (*v1.Pod, error) {
+// CreatePodWithTemplate creates and returns a pod object given a crd object, pod template, and workerParam
+func CreatePodWithTemplate(client kubernetes.Interface, object CommonInterface, spec *v1.PodTemplateSpec, workerParam *WorkerParam) (*v1.Pod, error) {
 	objectKind := object.GroupVersionKind()
 	pod, _ := k8scontroller.GetPodFromTemplate(spec, object, metav1.NewControllerRef(object, objectKind))
 	injectWorkerParam(pod, workerParam, object)
@@ -149,7 +149,7 @@ func createPodWithTemplate(client kubernetes.Interface, object CommonInterface, 
 	createdPod, err := client.CoreV1().Pods(object.GetNamespace()).Create(context.TODO(), pod, metav1.CreateOptions{})
 	objectName := object.GetNamespace() + "/" + object.GetName()
 	if err != nil {
-		klog.Warningf("failed to create pod(type=%s) for %s %s, err:%s", workerParam.workerType, objectKind, objectName, err)
+		klog.Warningf("failed to create pod(type=%s) for %s %s, err:%s", workerParam.WorkerType, objectKind, objectName, err)
 		return nil, err
 	}
 	klog.V(2).Infof("pod %s is created successfully for %s %s", createdPod.Name, objectKind, objectName)

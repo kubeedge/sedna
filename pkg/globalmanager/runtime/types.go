@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package globalmanager
+package runtime
 
 import (
 	"encoding/json"
@@ -34,7 +34,6 @@ type CommonInterface interface {
 // FeatureControllerI defines the interface of an AI Feature controller
 type FeatureControllerI interface {
 	Start() error
-	GetName() string
 }
 
 type Model struct {

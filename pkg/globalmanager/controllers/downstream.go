@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package globalmanager
+package controllers
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -33,6 +33,7 @@ import (
 	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
 	"github.com/kubeedge/sedna/pkg/globalmanager/messagelayer"
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
@@ -49,7 +50,7 @@ type DownstreamController struct {
 	messageLayer messagelayer.MessageLayer
 }
 
-func (dc *DownstreamController) injectSecret(obj CommonInterface, secretName string) error {
+func (dc *DownstreamController) injectSecret(obj runtime.CommonInterface, secretName string) error {
 	if secretName == "" {
 		return nil
 	}
@@ -61,7 +62,7 @@ func (dc *DownstreamController) injectSecret(obj CommonInterface, secretName str
 
 		return err
 	}
-	InjectSecretObj(obj, secret)
+	runtime.InjectSecretObj(obj, secret)
 	return err
 }
 
@@ -148,8 +149,8 @@ func (dc *DownstreamController) syncIncrementalJob(eventType watch.EventType, jo
 
 	ann := job.GetAnnotations()
 	if ann != nil {
-		trainNodeName = ann[AnnotationsKeyPrefix+string(sednav1.ILJobTrain)]
-		evalNodeName = ann[AnnotationsKeyPrefix+string(sednav1.ILJobEval)]
+		trainNodeName = ann[runtime.AnnotationsKeyPrefix+string(sednav1.ILJobTrain)]
+		evalNodeName = ann[runtime.AnnotationsKeyPrefix+string(sednav1.ILJobEval)]
 	}
 
 	if eventType == watch.Deleted {
@@ -303,7 +304,7 @@ func (dc *DownstreamController) sync(stopCh <-chan struct{}) {
 func (dc *DownstreamController) watch(stopCh <-chan struct{}) {
 	rh := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			eventObj := obj.(runtime.Object)
+			eventObj := obj.(k8sruntime.Object)
 			dc.events <- watch.Event{Type: watch.Added, Object: eventObj}
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -313,10 +314,10 @@ func (dc *DownstreamController) watch(stopCh <-chan struct{}) {
 			// Update:
 			// We sync it to edge when using self-built websocket, and
 			// this sync isn't needed when we switch out self-built websocket.
-			dc.events <- watch.Event{Type: watch.Added, Object: cur.(runtime.Object)}
+			dc.events <- watch.Event{Type: watch.Added, Object: cur.(k8sruntime.Object)}
 		},
 		DeleteFunc: func(obj interface{}) {
-			eventObj := obj.(runtime.Object)
+			eventObj := obj.(k8sruntime.Object)
 			dc.events <- watch.Event{Type: watch.Deleted, Object: eventObj}
 		},
 	}
@@ -328,7 +329,7 @@ func (dc *DownstreamController) watch(stopCh <-chan struct{}) {
 	namespace := dc.cfg.Namespace
 
 	// TODO: use the informer
-	for resourceName, object := range map[string]runtime.Object{
+	for resourceName, object := range map[string]k8sruntime.Object{
 		"datasets":                &sednav1.Dataset{},
 		"jointinferenceservices":  &sednav1.JointInferenceService{},
 		"federatedlearningjobs":   &sednav1.FederatedLearningJob{},
@@ -361,7 +362,7 @@ func (dc *DownstreamController) GetName() string {
 }
 
 // NewDownstreamController creates a controller DownstreamController from config
-func NewDownstreamController(cfg *config.ControllerConfig) (FeatureControllerI, error) {
+func NewDownstreamController(cfg *config.ControllerConfig) (runtime.FeatureControllerI, error) {
 	// TODO: make bufferSize configurable
 	bufferSize := 10
 	events := make(chan watch.Event, bufferSize)

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package globalmanager
+package controllers
 
 import (
 	"context"
@@ -29,7 +29,9 @@ import (
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
+	fl "github.com/kubeedge/sedna/pkg/globalmanager/controllers/federatedlearning"
 	"github.com/kubeedge/sedna/pkg/globalmanager/messagelayer"
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
@@ -250,8 +252,8 @@ func (uc *UpstreamController) updateFederatedLearningJobFromEdge(name, namespace
 
 	// Output defines job output information
 	type Output struct {
-		Models  []Model  `json:"models"`
-		JobInfo *JobInfo `json:"ownerInfo"`
+		Models  []runtime.Model `json:"models"`
+		JobInfo *JobInfo        `json:"ownerInfo"`
 	}
 
 	var status struct {
@@ -286,7 +288,7 @@ func (uc *UpstreamController) updateFederatedLearningJobFromEdge(name, namespace
 			// TODO: more meaningful reason/message
 			reason := "DoTraining"
 			message := fmt.Sprintf("Round %v reaches at %s", jobInfo.CurrentRound, jobInfo.UpdateTime)
-			cond := NewFLJobCondition(sednav1.FLJobCondTraining, reason, message)
+			cond := fl.NewFLJobCondition(sednav1.FLJobCondTraining, reason, message)
 			uc.appendFederatedLearningJobStatusCondition(name, namespace, cond)
 		}
 	}
@@ -325,7 +327,7 @@ func (uc *UpstreamController) updateIncrementalLearningFromEdge(name, namespace,
 
 	// Get the condition data.
 	// Here unmarshal and marshal immediately to skip the unnecessary fields
-	var condData IncrementalCondData
+	var condData runtime.IncrementalCondData
 	err = json.Unmarshal(content, &condData)
 	if err != nil {
 		return newUnmarshalError(namespace, name, operation, content)
@@ -402,7 +404,7 @@ func (uc *UpstreamController) updateLifelongLearningJobFromEdge(name, namespace,
 
 	// Get the condition data.
 	// Here unmarshal and marshal immediately to skip the unnecessary fields
-	var condData LifelongLearningCondData
+	var condData runtime.LifelongLearningCondData
 	err = json.Unmarshal(content, &condData)
 	if err != nil {
 		return newUnmarshalError(namespace, name, operation, content)
@@ -495,7 +497,7 @@ func (uc *UpstreamController) GetName() string {
 }
 
 // NewUpstreamController creates a new Upstream controller from config
-func NewUpstreamController(cfg *config.ControllerConfig) (FeatureControllerI, error) {
+func NewUpstreamController(cfg *config.ControllerConfig) (runtime.FeatureControllerI, error) {
 	client, err := utils.NewCRDClient()
 	if err != nil {
 		return nil, fmt.Errorf("create crd client failed with error: %w", err)
