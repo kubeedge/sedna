@@ -19,6 +19,7 @@ package runtime
 import (
 	"encoding/json"
 
+	"github.com/kubeedge/sedna/pkg/globalmanager/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -164,4 +165,16 @@ func (cd *LifelongLearningCondData) GetInputModelURLs() []string {
 
 func (cd *LifelongLearningCondData) GetOutputModelURLs() []string {
 	return cd.joinModelURLs(cd.Output.Model, cd.Output.Models)
+}
+
+// updateHandler handles the updates from LC(running at edge) to update the
+// corresponding resource
+type UpstreamUpdateHandler func(namespace, name, operation string, content []byte) error
+type UpstreamControllerI interface {
+	Add(kind string, updateHandler UpstreamUpdateHandler) error
+}
+
+type ControllerContext struct {
+	Config             *config.ControllerConfig
+	UpstreamController UpstreamControllerI
 }

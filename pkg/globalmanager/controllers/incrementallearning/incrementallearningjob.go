@@ -53,11 +53,15 @@ import (
 )
 
 const (
-	Name = "IncrementalLearningJob"
+	// KindName is the kind name of CR this controller controls
+	KindName = "IncrementalLearningJob"
+
+	// Name is this controller name
+	Name = "IncrementalLearning"
 )
 
 // Kind contains the schema.GroupVersionKind for this controller type.
-var Kind = sednav1.SchemeGroupVersion.WithKind("IncrementalLearningJob")
+var Kind = sednav1.SchemeGroupVersion.WithKind(KindName)
 
 // Controller ensures that all IncrementalLearningJob objects have corresponding pods to
 // run their configured workload.
@@ -815,9 +819,83 @@ func (c *Controller) createInferPod(job *sednav1.IncrementalLearningJob) error {
 	return err
 }
 
+func (c *Controller) appendStatusCondition(name, namespace string, cond sednav1.ILJobCondition) error {
+	client := c.client.IncrementalLearningJobs(namespace)
+	return runtime.RetryUpdateStatus(name, namespace, (func() error {
+		job, err := client.Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		job.Status.Conditions = append(job.Status.Conditions, cond)
+		_, err = client.UpdateStatus(context.TODO(), job, metav1.UpdateOptions{})
+		return err
+	}))
+}
+
+// updateFromEdge syncs the edge updates to k8s
+func (c *Controller) updateFromEdge(name, namespace, operation string, content []byte) error {
+	var jobStatus struct {
+		Phase  string `json:"phase"`
+		Status string `json:"status"`
+	}
+
+	err := json.Unmarshal(content, &jobStatus)
+	if err != nil {
+		return err
+	}
+
+	// Get the condition data.
+	// Here unmarshal and marshal immediately to skip the unnecessary fields
+	var condData runtime.IncrementalCondData
+	err = json.Unmarshal(content, &condData)
+	if err != nil {
+		return err
+	}
+	condDataBytes, _ := json.Marshal(&condData)
+
+	cond := sednav1.ILJobCondition{
+		Status:             v1.ConditionTrue,
+		LastHeartbeatTime:  metav1.Now(),
+		LastTransitionTime: metav1.Now(),
+		Data:               string(condDataBytes),
+		Message:            "reported by lc",
+	}
+
+	switch strings.ToLower(jobStatus.Phase) {
+	case "train":
+		cond.Stage = sednav1.ILJobTrain
+	case "eval":
+		cond.Stage = sednav1.ILJobEval
+	case "deploy":
+		cond.Stage = sednav1.ILJobDeploy
+	default:
+		return fmt.Errorf("invalid condition stage: %v", jobStatus.Phase)
+	}
+
+	switch strings.ToLower(jobStatus.Status) {
+	case "ready":
+		cond.Type = sednav1.ILJobStageCondReady
+	case "completed":
+		cond.Type = sednav1.ILJobStageCondCompleted
+	case "failed":
+		cond.Type = sednav1.ILJobStageCondFailed
+	case "waiting":
+		cond.Type = sednav1.ILJobStageCondWaiting
+	default:
+		return fmt.Errorf("invalid condition type: %v", jobStatus.Status)
+	}
+
+	err = c.appendStatusCondition(name, namespace, cond)
+	if err != nil {
+		return fmt.Errorf("failed to append condition, err:%+w", err)
+	}
+	return nil
+}
+
 // New creates a new IncrementalJob controller that keeps the relevant pods
 // in sync with their corresponding IncrementalJob objects.
-func New(cfg *config.ControllerConfig) (runtime.FeatureControllerI, error) {
+func New(controllerContext *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
+	cfg := controllerContext.Config
 	namespace := cfg.Namespace
 	if namespace == "" {
 		namespace = metav1.NamespaceAll
@@ -880,5 +958,8 @@ func New(cfg *config.ControllerConfig) (runtime.FeatureControllerI, error) {
 	stopCh := make(chan struct{})
 	kubeInformerFactory.Start(stopCh)
 	jobInformerFactory.Start(stopCh)
+
+	controllerContext.UpstreamController.Add(KindName, jc.updateFromEdge)
+
 	return jc, err
 }

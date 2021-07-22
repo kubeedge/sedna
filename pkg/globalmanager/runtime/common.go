@@ -18,6 +18,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -27,6 +28,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
+
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 )
 
 const (
@@ -127,4 +131,38 @@ func ConvertK8SValidName(name string) string {
 	}
 
 	return string(fixName)
+}
+
+// ConvertMapToMetrics converts the metric map to list of resource Metric
+func ConvertMapToMetrics(metric map[string]interface{}) []sednav1.Metric {
+	var l []sednav1.Metric
+	for k, v := range metric {
+		var displayValue string
+		switch t := v.(type) {
+		case string:
+			displayValue = t
+		default:
+			// ignore the json marshal error
+			b, _ := json.Marshal(v)
+			displayValue = string(b)
+		}
+
+		l = append(l, sednav1.Metric{Key: k, Value: displayValue})
+	}
+	return l
+}
+
+const upstreamStatusUpdateRetries = 3
+
+// RetryUpdateStatus simply retries to call the status update func
+func RetryUpdateStatus(name, namespace string, updateStatusFunc func() error) error {
+	var err error
+	for retry := 0; retry <= upstreamStatusUpdateRetries; retry++ {
+		err = updateStatusFunc()
+		if err == nil {
+			return nil
+		}
+		klog.Warningf("Error to update %s/%s status, retried %d times: %+v", namespace, name, retry, err)
+	}
+	return err
 }

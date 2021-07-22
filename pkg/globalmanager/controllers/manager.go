@@ -23,6 +23,7 @@ import (
 
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
 	websocket "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/ws"
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
 
 // Manager defines the controller manager
@@ -44,9 +45,13 @@ func (m *Manager) Start() error {
 	dc, _ := NewDownstreamController(m.Config)
 	uc.Start()
 	dc.Start()
+	context := &runtime.ControllerContext{
+		UpstreamController: uc,
+		Config:             m.Config,
+	}
 
 	for name, factory := range NewRegistry() {
-		f, err := factory(m.Config)
+		f, err := factory(context)
 		if err != nil {
 			return fmt.Errorf("failed to initialize controller %s: %v", name, err)
 		}

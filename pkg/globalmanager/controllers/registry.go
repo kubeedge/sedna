@@ -3,7 +3,6 @@ package controllers
 import (
 	"fmt"
 
-	"github.com/kubeedge/sedna/pkg/globalmanager/config"
 	fl "github.com/kubeedge/sedna/pkg/globalmanager/controllers/federatedlearning"
 	il "github.com/kubeedge/sedna/pkg/globalmanager/controllers/incrementallearning"
 	ji "github.com/kubeedge/sedna/pkg/globalmanager/controllers/jointinference"
@@ -11,7 +10,7 @@ import (
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
 
-type FeatureFactory = func(cfg *config.ControllerConfig) (runtime.FeatureControllerI, error)
+type FeatureFactory = func(*runtime.ControllerContext) (runtime.FeatureControllerI, error)
 
 type Registry map[string]FeatureFactory
 
