@@ -94,8 +94,7 @@ class FederatedLearning(JobBase):
                 round_number += 1
                 start = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 self.log.info(
-                    f"Federated learning start at {start},"
-                    f" round_number={round_number}")
+                    f"Federated learning start, round_number={round_number}")
                 res = self.estimator.train(
                     train_data=train_data, valid_data=valid_data, **kwargs)
 

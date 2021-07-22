@@ -30,12 +30,10 @@ class Server(uvicorn.Server):
 
     @contextlib.contextmanager
     def run_in_thread(self):
-        thread = threading.Thread(target=self.run)
+        thread = threading.Thread(target=self.run, daemon=True)
         thread.start()
         try:
-            while not self.started:
-                time.sleep(1e-3)
-            yield
+            yield thread
         finally:
             self.should_exit = True
             thread.join()
@@ -92,18 +90,16 @@ class BaseServer:
             log_level="info",
             **kwargs)
         server = Server(config=config)
-        with server.run_in_thread():
-            loop = asyncio.get_event_loop()
-            stop = loop.create_task(self.wait_stop(loop.create_future()))
-            loop.run_until_complete(stop)
-            return
+        with server.run_in_thread() as current_thread:
+            return self.wait_stop(current=current_thread)
 
-    async def wait_stop(self, stop):
+    def wait_stop(self, current):
         """wait the stop flag to shutdown the server"""
         while 1:
-            await asyncio.sleep(self.WAIT_TIME)
+            time.sleep(self.WAIT_TIME)
+            if not current.isAlive():
+                return
             if getattr(self.app, "shutdown", False):
-                stop.set_result(1)
                 return
 
     def get_all_urls(self):
