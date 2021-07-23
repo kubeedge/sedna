@@ -29,7 +29,6 @@ import (
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -41,14 +40,10 @@ import (
 	k8scontroller "k8s.io/kubernetes/pkg/controller"
 
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
-	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned"
 	sednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
-	informers "github.com/kubeedge/sedna/pkg/client/informers/externalversions"
 	sednav1listers "github.com/kubeedge/sedna/pkg/client/listers/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
-	messageContext "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/ws"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
-	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
 const (
@@ -93,31 +88,28 @@ type Controller struct {
 	cfg *config.ControllerConfig
 }
 
-// Run the main goroutine responsible for watching and syncing jobs.
-func (c *Controller) Start() error {
+// Run starts the main goroutine responsible for watching and syncing jobs.
+func (c *Controller) Run(stopCh <-chan struct{}) {
 	workers := 1
-	stopCh := messageContext.Done()
 
-	go func() {
-		defer utilruntime.HandleCrash()
-		defer c.queue.ShutDown()
-		klog.Infof("Starting federatedlearning job controller")
-		defer klog.Infof("Shutting down federatedlearning job controller")
+	defer utilruntime.HandleCrash()
+	defer c.queue.ShutDown()
 
-		if !cache.WaitForNamedCacheSync("federatedlearning job", stopCh, c.podStoreSynced, c.jobStoreSynced) {
-			klog.Errorf("failed to wait for caches to sync")
+	klog.Infof("Starting %s controller", Name)
+	defer klog.Infof("Shutting down %s controller", Name)
 
-			return
-		}
+	if !cache.WaitForNamedCacheSync(Name, stopCh, c.podStoreSynced, c.jobStoreSynced) {
+		klog.Errorf("failed to wait for %s caches to sync", Name)
 
-		klog.Infof("Starting federatedlearning job workers")
-		for i := 0; i < workers; i++ {
-			go wait.Until(c.worker, time.Second, stopCh)
-		}
+		return
+	}
 
-		<-stopCh
-	}()
-	return nil
+	klog.Infof("Starting %s workers", Name)
+	for i := 0; i < workers; i++ {
+		go wait.Until(c.worker, time.Second, stopCh)
+	}
+
+	<-stopCh
 }
 
 // enqueueByPod enqueues the FederatedLearningJob object of the specified pod.
@@ -629,28 +621,19 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 
 // New creates a new federated learning job controller that keeps the relevant pods
 // in sync with their corresponding FederatedLearningJob objects.
-func New(controllerContext *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
-	cfg := controllerContext.Config
-	namespace := cfg.Namespace
-	if namespace == "" {
-		namespace = metav1.NamespaceAll
-	}
-	kubeClient, err := utils.KubeClient()
-	kubecfg, _ := utils.KubeConfig()
-	crdclient, err := clientset.NewForConfig(kubecfg)
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, time.Second*30, kubeinformers.WithNamespace(namespace))
+func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
+	cfg := cc.Config
 
-	podInformer := kubeInformerFactory.Core().V1().Pods()
+	podInformer := cc.KubeInformerFactory.Core().V1().Pods()
 
-	jobInformerFactory := informers.NewSharedInformerFactoryWithOptions(crdclient, time.Second*30, informers.WithNamespace(namespace))
-	jobInformer := jobInformerFactory.Sedna().V1alpha1().FederatedLearningJobs()
+	jobInformer := cc.SednaInformerFactory.Sedna().V1alpha1().FederatedLearningJobs()
 
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: cc.KubeClient.CoreV1().Events("")})
 
 	fc := &Controller{
-		kubeClient: kubeClient,
-		client:     crdclient.SednaV1alpha1(),
+		kubeClient: cc.KubeClient,
+		client:     cc.SednaClient.SednaV1alpha1(),
 
 		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), "flJob"),
 		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "flJob-controller"}),
@@ -679,11 +662,7 @@ func New(controllerContext *runtime.ControllerContext) (runtime.FeatureControlle
 	fc.podStore = podInformer.Lister()
 	fc.podStoreSynced = podInformer.Informer().HasSynced
 
-	stopCh := make(chan struct{})
-	kubeInformerFactory.Start(stopCh)
-	jobInformerFactory.Start(stopCh)
+	cc.UpstreamController.Add(KindName, fc.updateFromEdge)
 
-	controllerContext.UpstreamController.Add(KindName, fc.updateFromEdge)
-
-	return fc, err
+	return fc, nil
 }

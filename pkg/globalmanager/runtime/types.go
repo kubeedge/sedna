@@ -21,20 +21,25 @@ import (
 
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	kubeinformers "k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+
+	sednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned"
+	sednainformers "github.com/kubeedge/sedna/pkg/client/informers/externalversions"
 )
 
 // CommonInterface describes the commom interface of CRs
 type CommonInterface interface {
 	metav1.Object
 	schema.ObjectKind
-	runtime.Object
+	k8sruntime.Object
 }
 
 // FeatureControllerI defines the interface of an AI Feature controller
 type FeatureControllerI interface {
-	Start() error
+	Run(stopCh <-chan struct{})
 }
 
 type Model struct {
@@ -170,11 +175,19 @@ func (cd *LifelongLearningCondData) GetOutputModelURLs() []string {
 // updateHandler handles the updates from LC(running at edge) to update the
 // corresponding resource
 type UpstreamUpdateHandler func(namespace, name, operation string, content []byte) error
+
 type UpstreamControllerI interface {
+	FeatureControllerI
 	Add(kind string, updateHandler UpstreamUpdateHandler) error
 }
 
 type ControllerContext struct {
 	Config             *config.ControllerConfig
 	UpstreamController UpstreamControllerI
+
+	KubeClient          kubernetes.Interface
+	KubeInformerFactory kubeinformers.SharedInformerFactory
+
+	SednaClient          sednaclientset.Interface
+	SednaInformerFactory sednainformers.SharedInformerFactory
 }

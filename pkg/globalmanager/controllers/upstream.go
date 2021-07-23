@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kubeedge/sedna/pkg/globalmanager/config"
+	"k8s.io/klog/v2"
+
 	"github.com/kubeedge/sedna/pkg/globalmanager/messagelayer"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
-	"k8s.io/klog/v2"
 )
 
 // UpstreamController subscribes the updates from edge and syncs to k8s api server
@@ -77,17 +77,12 @@ func (uc *UpstreamController) syncEdgeUpdate() {
 	}
 }
 
-// Start the upstream controller
-func (uc *UpstreamController) Start() error {
+// Run starts the upstream controller
+func (uc *UpstreamController) Run(stopCh <-chan struct{}) {
 	klog.Info("Start the sedna upstream controller")
 
-	go uc.syncEdgeUpdate()
-	return nil
-}
-
-// GetName returns the name of the upstream controller
-func (uc *UpstreamController) GetName() string {
-	return "UpstreamController"
+	uc.syncEdgeUpdate()
+	<-stopCh
 }
 
 func (uc *UpstreamController) Add(kind string, handler runtime.UpstreamUpdateHandler) error {
@@ -101,7 +96,7 @@ func (uc *UpstreamController) Add(kind string, handler runtime.UpstreamUpdateHan
 }
 
 // NewUpstreamController creates a new Upstream controller from config
-func NewUpstreamController(cfg *config.ControllerConfig) (*UpstreamController, error) {
+func NewUpstreamController(cc *runtime.ControllerContext) (runtime.UpstreamControllerI, error) {
 	uc := &UpstreamController{
 		messageLayer:   messagelayer.NewContextMessageLayer(),
 		updateHandlers: make(map[string]runtime.UpstreamUpdateHandler),

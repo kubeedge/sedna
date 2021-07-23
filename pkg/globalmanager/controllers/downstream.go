@@ -34,7 +34,6 @@ import (
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
 	"github.com/kubeedge/sedna/pkg/globalmanager/messagelayer"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
-	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
 // DownstreamController watch kubernetes api server and send the controller resource change to edge
@@ -44,7 +43,7 @@ type DownstreamController struct {
 
 	cfg *config.ControllerConfig
 
-	client     *clientset.SednaV1alpha1Client
+	client     clientset.SednaV1alpha1Interface
 	kubeClient kubernetes.Interface
 
 	messageLayer messagelayer.MessageLayer
@@ -344,44 +343,25 @@ func (dc *DownstreamController) watch(stopCh <-chan struct{}) {
 }
 
 // Start starts the controller
-func (dc *DownstreamController) Start() error {
-	stopCh := dc.messageLayer.Done()
-
+func (dc *DownstreamController) Run(stopCh <-chan struct{}) {
 	// watch is an asynchronous call
 	dc.watch(stopCh)
 
 	// sync is a synchronous call
-	go dc.sync(stopCh)
-
-	return nil
-}
-
-// GetName returns the name of the downstream controller
-func (dc *DownstreamController) GetName() string {
-	return "DownstreamController"
+	dc.sync(stopCh)
 }
 
 // NewDownstreamController creates a controller DownstreamController from config
-func NewDownstreamController(cfg *config.ControllerConfig) (runtime.FeatureControllerI, error) {
+func NewDownstreamController(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	// TODO: make bufferSize configurable
 	bufferSize := 10
 	events := make(chan watch.Event, bufferSize)
 
-	crdclient, err := utils.NewCRDClient()
-	if err != nil {
-		return nil, fmt.Errorf("create crd client failed with error: %w", err)
-	}
-
-	kubeClient, err := utils.KubeClient()
-	if err != nil {
-		return nil, err
-	}
-
 	dc := &DownstreamController{
-		cfg:          cfg,
+		cfg:          cc.Config,
 		events:       events,
-		client:       crdclient,
-		kubeClient:   kubeClient,
+		client:       cc.SednaClient.SednaV1alpha1(),
+		kubeClient:   cc.KubeClient,
 		messageLayer: messagelayer.NewContextMessageLayer(),
 	}
 

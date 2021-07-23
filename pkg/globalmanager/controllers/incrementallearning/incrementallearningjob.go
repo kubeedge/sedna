@@ -30,7 +30,6 @@ import (
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -42,22 +41,18 @@ import (
 	k8scontroller "k8s.io/kubernetes/pkg/controller"
 
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
-	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned"
 	sednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
-	informers "github.com/kubeedge/sedna/pkg/client/informers/externalversions"
 	sednav1listers "github.com/kubeedge/sedna/pkg/client/listers/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
-	messageContext "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/ws"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
-	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
 const (
-	// KindName is the kind name of CR this controller controls
-	KindName = "IncrementalLearningJob"
-
 	// Name is this controller name
 	Name = "IncrementalLearning"
+
+	// KindName is the kind name of CR this controller controls
+	KindName = "IncrementalLearningJob"
 )
 
 // Kind contains the schema.GroupVersionKind for this controller type.
@@ -90,30 +85,28 @@ type Controller struct {
 	cfg *config.ControllerConfig
 }
 
-// Run the main goroutine responsible for watching and syncing jobs.
-func (c *Controller) Start() error {
+// Run starts the main goroutine responsible for watching and syncing jobs.
+func (c *Controller) Run(stopCh <-chan struct{}) {
+	// TODO: make workers parameter
 	workers := 1
-	stopCh := messageContext.Done()
 
-	go func() {
-		defer utilruntime.HandleCrash()
-		defer c.queue.ShutDown()
-		klog.Infof("Starting incrementallearning job controller")
-		defer klog.Infof("Shutting down incrementallearning job controller")
+	defer utilruntime.HandleCrash()
+	defer c.queue.ShutDown()
 
-		if !cache.WaitForNamedCacheSync("incrementallearningjob", stopCh, c.podStoreSynced, c.jobStoreSynced) {
-			klog.Errorf("failed to wait for caches to sync")
+	klog.Infof("Starting %s controller", Name)
+	defer klog.Infof("Shutting down %s controller", Name)
 
-			return
-		}
-		klog.Infof("Starting incrementallearning job workers")
-		for i := 0; i < workers; i++ {
-			go wait.Until(c.worker, time.Second, stopCh)
-		}
+	if !cache.WaitForNamedCacheSync(Name, stopCh, c.podStoreSynced, c.jobStoreSynced) {
+		klog.Errorf("failed to wait for %s caches to sync", Name)
 
-		<-stopCh
-	}()
-	return nil
+		return
+	}
+	klog.Infof("Starting %s job workers", Name)
+	for i := 0; i < workers; i++ {
+		go wait.Until(c.worker, time.Second, stopCh)
+	}
+
+	<-stopCh
 }
 
 // enqueueByPod enqueues the jointInferenceService object of the specified pod.
@@ -894,43 +887,21 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 
 // New creates a new IncrementalJob controller that keeps the relevant pods
 // in sync with their corresponding IncrementalJob objects.
-func New(controllerContext *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
-	cfg := controllerContext.Config
-	namespace := cfg.Namespace
-	if namespace == "" {
-		namespace = metav1.NamespaceAll
-	}
-	kubeClient, err := utils.KubeClient()
-	if err != nil {
-		return nil, err
-	}
+func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
+	podInformer := cc.KubeInformerFactory.Core().V1().Pods()
 
-	kubecfg, err := utils.KubeConfig()
-	if err != nil {
-		return nil, err
-	}
-	crdclient, err := clientset.NewForConfig(kubecfg)
-	if err != nil {
-		return nil, err
-	}
-
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, time.Second*30, kubeinformers.WithNamespace(namespace))
-
-	podInformer := kubeInformerFactory.Core().V1().Pods()
-
-	jobInformerFactory := informers.NewSharedInformerFactoryWithOptions(crdclient, time.Second*30, informers.WithNamespace(namespace))
-	jobInformer := jobInformerFactory.Sedna().V1alpha1().IncrementalLearningJobs()
+	jobInformer := cc.SednaInformerFactory.Sedna().V1alpha1().IncrementalLearningJobs()
 
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: cc.KubeClient.CoreV1().Events("")})
 
 	jc := &Controller{
-		kubeClient: kubeClient,
-		client:     crdclient.SednaV1alpha1(),
+		kubeClient: cc.KubeClient,
+		client:     cc.SednaClient.SednaV1alpha1(),
 
 		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), "incrementallearningjob"),
 		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "incrementallearningjob-controller"}),
-		cfg:      cfg,
+		cfg:      cc.Config,
 	}
 
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -955,11 +926,7 @@ func New(controllerContext *runtime.ControllerContext) (runtime.FeatureControlle
 	jc.podStore = podInformer.Lister()
 	jc.podStoreSynced = podInformer.Informer().HasSynced
 
-	stopCh := make(chan struct{})
-	kubeInformerFactory.Start(stopCh)
-	jobInformerFactory.Start(stopCh)
+	cc.UpstreamController.Add(KindName, jc.updateFromEdge)
 
-	controllerContext.UpstreamController.Add(KindName, jc.updateFromEdge)
-
-	return jc, err
+	return jc, nil
 }
