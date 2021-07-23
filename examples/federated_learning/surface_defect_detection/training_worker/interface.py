@@ -15,10 +15,29 @@
 import os
 import keras
 import numpy as np
+import keras.preprocessing.image as img_preprocessing
 from keras.layers import Dense, MaxPooling2D, Conv2D, Flatten, Dropout
 from keras.models import Sequential
 
+from sedna.common.config import BaseConfig
+
+
 os.environ['BACKEND_TYPE'] = 'KERAS'
+
+
+def image_process(line):
+    file_path, label = line.split(',')
+    original_dataset_url = (
+        BaseConfig.original_dataset_url or BaseConfig.train_dataset_url
+    )
+    root_path = os.path.dirname(original_dataset_url)
+    file_path = os.path.join(root_path, file_path)
+    img = img_preprocessing.load_img(file_path).resize((128, 128))
+    data = img_preprocessing.img_to_array(img) / 255.0
+    label = [0, 1] if int(label) == 0 else [1, 0]
+    data = np.array(data)
+    label = np.array(label)
+    return [data, label]
 
 
 class Estimator:
@@ -87,13 +106,18 @@ class Estimator:
         return self.model.load_weights(model)
 
     def predict(self, datas):
-        return self.model.predict(datas)
+        return self.model.predict_classes(datas)
 
     def evaluate(self, test_data, **kwargs):
-        pass
+        y_pred = self.model.predict(test_data.x)
+        y_true = np.argmax(test_data.y, axis=1)
+        return keras.backend.eval(
+            keras.metrics.binary_crossentropy(y_true, y_pred)
+        )
 
     def load(self, model_url):
-        return self.load_weights(model_url)
+        self.model = keras.models.load_model(model_url)
+        return self.model
 
     def save(self, model_path=None):
         """

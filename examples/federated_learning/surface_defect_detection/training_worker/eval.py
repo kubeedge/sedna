@@ -23,10 +23,10 @@ def main():
 
     # load dataset.
 
-    test_data = TxtDataParse(data_type="test", func=image_process)
-    test_data.parse(fl_instance.config.test_dataset_url)
+    valid_data = TxtDataParse(data_type="valid", func=image_process)
+    valid_data.parse(fl_instance.config.test_dataset_url)
 
-    return fl_instance.inference(test_data.x)
+    return fl_instance.evaluate(valid_data)
 
 
 if __name__ == '__main__':
