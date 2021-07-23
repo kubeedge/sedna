@@ -32,7 +32,7 @@ type UpstreamController struct {
 	updateHandlers map[string]runtime.UpstreamUpdateHandler
 }
 
-func (uc *UpstreamController)checkOperation(operation string) error {
+func (uc *UpstreamController) checkOperation(operation string) error {
 	// current only support the 'status' operation
 	if operation != "status" {
 		return fmt.Errorf("unknown operation %s", operation)
@@ -52,13 +52,12 @@ func (uc *UpstreamController) syncEdgeUpdate() {
 
 		update, err := uc.messageLayer.ReceiveResourceUpdate()
 		if err == nil {
-			err = uc.checkOperation(update.operation)
+			err = uc.checkOperation(update.Operation)
 		}
-		if err != nil && err :=  {
+		if err != nil {
 			klog.Warningf("Ignore update since this err: %+v", err)
 			continue
 		}
-		if err != nil 
 
 		kind := update.Kind
 		namespace := update.Namespace

@@ -17,8 +17,6 @@ limitations under the License.
 package runtime
 
 import (
-	"encoding/json"
-
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -48,32 +46,6 @@ type Model struct {
 	Metrics map[string]interface{} `json:"metrics,omitempty"`
 }
 
-// the data of this condition including the input/output to do the next step
-type IncrementalCondData struct {
-	Input *struct {
-		// Only one model cases
-		Model  *Model  `json:"model,omitempty"`
-		Models []Model `json:"models,omitempty"`
-
-		DataURL string `json:"dataURL,omitempty"`
-
-		// the data samples reference will be stored into this URL.
-		// The content of this url would be:
-		// # the first uncomment line means the directory
-		// s3://dataset/
-		// mnist/0.jpg
-		// mnist/1.jpg
-		DataIndexURL string `json:"dataIndexURL,omitempty"`
-
-		OutputDir string `json:"outputDir,omitempty"`
-	} `json:"input,omitempty"`
-
-	Output *struct {
-		Model  *Model  `json:"model,omitempty"`
-		Models []Model `json:"models,omitempty"`
-	} `json:"output,omitempty"`
-}
-
 const (
 	// TrainPodType is type of train pod
 	TrainPodType = "train"
@@ -88,88 +60,6 @@ const (
 
 func (m *Model) GetURL() string {
 	return m.URL
-}
-
-func (cd *IncrementalCondData) joinModelURLs(model *Model, models []Model) []string {
-	var modelURLs []string
-	if model != nil {
-		modelURLs = append(modelURLs, model.GetURL())
-	} else {
-		for _, m := range models {
-			modelURLs = append(modelURLs, m.GetURL())
-		}
-	}
-	return modelURLs
-}
-
-func (cd *IncrementalCondData) GetInputModelURLs() []string {
-	return cd.joinModelURLs(cd.Input.Model, cd.Input.Models)
-}
-
-func (cd *IncrementalCondData) GetOutputModelURLs() []string {
-	return cd.joinModelURLs(cd.Output.Model, cd.Output.Models)
-}
-
-func (cd *IncrementalCondData) Unmarshal(data []byte) error {
-	return json.Unmarshal(data, cd)
-}
-
-func (cd IncrementalCondData) Marshal() ([]byte, error) {
-	return json.Marshal(cd)
-}
-
-// the data of this condition including the input/output to do the next step
-type LifelongLearningCondData struct {
-	Input *struct {
-		// Only one model cases
-		Model  *Model  `json:"model,omitempty"`
-		Models []Model `json:"models,omitempty"`
-
-		DataURL string `json:"dataURL,omitempty"`
-
-		// the data samples reference will be stored into this URL.
-		// The content of this url would be:
-		// # the first uncomment line means the directory
-		// s3://dataset/
-		// mnist/0.jpg
-		// mnist/1.jpg
-		DataIndexURL string `json:"dataIndexURL,omitempty"`
-
-		OutputDir string `json:"outputDir,omitempty"`
-	} `json:"input,omitempty"`
-
-	Output *struct {
-		Model  *Model  `json:"model,omitempty"`
-		Models []Model `json:"models,omitempty"`
-	} `json:"output,omitempty"`
-}
-
-func (cd *LifelongLearningCondData) joinModelURLs(model *Model, models []Model) []string {
-	var modelURLs []string
-	if model != nil {
-		modelURLs = append(modelURLs, model.GetURL())
-	} else {
-		for _, m := range models {
-			modelURLs = append(modelURLs, m.GetURL())
-		}
-	}
-	return modelURLs
-}
-
-func (cd *LifelongLearningCondData) Unmarshal(data []byte) error {
-	return json.Unmarshal(data, cd)
-}
-
-func (cd LifelongLearningCondData) Marshal() ([]byte, error) {
-	return json.Marshal(cd)
-}
-
-func (cd *LifelongLearningCondData) GetInputModelURLs() []string {
-	return cd.joinModelURLs(cd.Input.Model, cd.Input.Models)
-}
-
-func (cd *LifelongLearningCondData) GetOutputModelURLs() []string {
-	return cd.joinModelURLs(cd.Output.Model, cd.Output.Models)
 }
 
 // updateHandler handles the updates from LC(running at edge) to update the

@@ -17,8 +17,6 @@ limitations under the License.
 package controllers
 
 import (
-	"fmt"
-
 	"github.com/kubeedge/sedna/pkg/globalmanager/controllers/dataset"
 	fl "github.com/kubeedge/sedna/pkg/globalmanager/controllers/federatedlearning"
 	il "github.com/kubeedge/sedna/pkg/globalmanager/controllers/incrementallearning"

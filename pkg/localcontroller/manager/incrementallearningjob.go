@@ -31,6 +31,7 @@ import (
 
 	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	gmtypes "github.com/kubeedge/sedna/pkg/globalmanager/controllers/incrementallearning"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	"github.com/kubeedge/sedna/pkg/localcontroller/db"
 	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
@@ -441,7 +442,7 @@ func (im *IncrementalJobManager) getTrainOrEvalModel(job *IncrementalLearningJob
 	var models []runtime.Model
 
 	for i := len(jobConditions) - 1; i >= 0; i-- {
-		var cond runtime.IncrementalCondData
+		var cond gmtypes.IncrementalCondData
 		jobCond := jobConditions[i]
 		if jobCond.Stage == sednav1.ILJobTrain && jobCond.Type == sednav1.ILJobStageCondCompleted {
 			if err := (&cond).Unmarshal([]byte(jobCond.Data)); err != nil {

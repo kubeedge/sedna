@@ -18,7 +18,6 @@ package lifelonglearning
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -527,7 +526,7 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 	// get all url for train and eval from data in condition
 	condDataStr := job.Status.Conditions[len(job.Status.Conditions)-1].Data
 	klog.V(2).Infof("lifelonglearning job %v/%v data condition:%s", job.Namespace, job.Name, condDataStr)
-	var cond runtime.LifelongLearningCondData
+	var cond LifelongLearningCondData
 	(&cond).Unmarshal([]byte(condDataStr))
 	if cond.Input == nil {
 		return fmt.Errorf("empty input from condData")
@@ -704,80 +703,6 @@ func (c *Controller) createInferPod(job *sednav1.LifelongLearningJob) error {
 	return err
 }
 
-func (c *Controller) appendStatusCondition(name, namespace string, cond sednav1.LLJobCondition) error {
-	client := c.client.LifelongLearningJobs(namespace)
-	return runtime.RetryUpdateStatus(name, namespace, func() error {
-		job, err := client.Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		job.Status.Conditions = append(job.Status.Conditions, cond)
-		_, err = client.UpdateStatus(context.TODO(), job, metav1.UpdateOptions{})
-		return err
-	})
-}
-
-// updateFromEdge syncs the edge updates to k8s
-func (c *Controller) updateFromEdge(name, namespace, operation string, content []byte) error {
-	var jobStatus struct {
-		Phase  string `json:"phase"`
-		Status string `json:"status"`
-	}
-
-	err := json.Unmarshal(content, &jobStatus)
-	if err != nil {
-		return err
-	}
-
-	// Get the condition data.
-	// Here unmarshal and marshal immediately to skip the unnecessary fields
-	var condData runtime.LifelongLearningCondData
-	err = json.Unmarshal(content, &condData)
-	if err != nil {
-		return err
-	}
-
-	condDataBytes, _ := json.Marshal(&condData)
-
-	cond := sednav1.LLJobCondition{
-		Status:             v1.ConditionTrue,
-		LastHeartbeatTime:  metav1.Now(),
-		LastTransitionTime: metav1.Now(),
-		Data:               string(condDataBytes),
-		Message:            "reported by lc",
-	}
-
-	switch strings.ToLower(jobStatus.Phase) {
-	case "train":
-		cond.Stage = sednav1.LLJobTrain
-	case "eval":
-		cond.Stage = sednav1.LLJobEval
-	case "deploy":
-		cond.Stage = sednav1.LLJobDeploy
-	default:
-		return fmt.Errorf("invalid condition stage: %v", jobStatus.Phase)
-	}
-
-	switch strings.ToLower(jobStatus.Status) {
-	case "ready":
-		cond.Type = sednav1.LLJobStageCondReady
-	case "completed":
-		cond.Type = sednav1.LLJobStageCondCompleted
-	case "failed":
-		cond.Type = sednav1.LLJobStageCondFailed
-	case "waiting":
-		cond.Type = sednav1.LLJobStageCondWaiting
-	default:
-		return fmt.Errorf("invalid condition type: %v", jobStatus.Status)
-	}
-
-	err = c.appendStatusCondition(name, namespace, cond)
-	if err != nil {
-		return fmt.Errorf("failed to append condition, err:%+w", err)
-	}
-	return nil
-}
-
 // New creates a new LifelongLearningJob controller that keeps the relevant pods
 // in sync with their corresponding LifelongLearningJob objects.
 func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
@@ -820,7 +745,7 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	jc.podStore = podInformer.Lister()
 	jc.podStoreSynced = podInformer.Informer().HasSynced
 
-	cc.UpstreamController.Add(KindName, jc.updateFromEdge)
+	jc.addUpstreamHandler(cc)
 
 	return jc, nil
 }
