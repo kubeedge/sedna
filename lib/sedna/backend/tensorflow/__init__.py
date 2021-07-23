@@ -14,6 +14,7 @@
 
 import os
 
+import numpy as np
 import tensorflow as tf
 
 from sedna.backend.base import BackendBase
@@ -74,7 +75,7 @@ class TFBackend(BackendBase):
         if not self.has_load:
             tf.reset_default_graph()
             self.sess = self.load()
-        return self.estimator.predict(data=data, **kwargs)
+        return self.estimator.predict(data, **kwargs)
 
     def evaluate(self, data, **kwargs):
         if not self.has_load:
@@ -135,4 +136,5 @@ class KerasBackend(TFBackend):
         return list(map(lambda x: x.tolist(), self.estimator.get_weights()))
 
     def set_weights(self, weights):
+        weights = [np.array(x) for x in weights]
         self.estimator.set_weights(weights)

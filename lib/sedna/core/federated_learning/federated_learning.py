@@ -14,8 +14,6 @@
 
 import time
 
-import asyncio
-
 from sedna.core.base import JobBase
 from sedna.common.config import Context
 from sedna.common.file_ops import FileOps
@@ -30,6 +28,12 @@ class FederatedLearning(JobBase):
     """
 
     def __init__(self, estimator, aggregation="FedAvg"):
+        """
+        Initial a FederatedLearning job
+        :param estimator: Customize estimator
+        :param aggregation: aggregation algorithm for FederatedLearning
+        """
+
         protocol = Context.get_parameters("AGG_PROTOCOL", "ws")
         agg_ip = Context.get_parameters("AGG_IP", "127.0.0.1")
         agg_port = int(Context.get_parameters("AGG_PORT", "7363"))
@@ -43,20 +47,23 @@ class FederatedLearning(JobBase):
         super(FederatedLearning, self).__init__(
             estimator=estimator, config=config)
         self.aggregation = ClassFactory.get_cls(ClassType.FL_AGG, aggregation)
-        self.node = None
 
-    def register(self):
+        connect_timeout = int(Context.get_parameters("CONNECT_TIMEOUT", "300"))
+        self.node = None
+        self.register(timeout=connect_timeout)
+
+    def register(self, timeout=300):
         self.log.info(
             f"Node {self.worker_name} connect to : {self.config.agg_uri}")
         self.node = AggregationClient(
-            url=self.config.agg_uri, client_id=self.worker_name)
-        loop = asyncio.get_event_loop()
-        res = loop.run_until_complete(
-            asyncio.wait_for(self.node.connect(), timeout=300))
+            url=self.config.agg_uri,
+            client_id=self.worker_name,
+            ping_timeout=timeout
+        )
 
         FileOps.clean_folder([self.config.model_url], clean=False)
         self.aggregation = self.aggregation()
-        self.log.info(f"Federated learning Jobs model prepared -- {res}")
+        self.log.info(f"{self.worker_name} model prepared")
         if callable(self.estimator):
             self.estimator = self.estimator()
 
@@ -64,55 +71,66 @@ class FederatedLearning(JobBase):
               valid_data=None,
               post_process=None,
               **kwargs):
+        """
+        Training task for FederatedLearning
+        :param train_data: datasource use for train
+        :param valid_data: datasource use for evaluation
+        :param post_process: post process
+        :param kwargs: params for training of customize estimator
+        """
+
         callback_func = None
-        if post_process is not None:
+        if post_process:
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
         round_number = 0
         num_samples = len(train_data)
-        self.aggregation.total_size += num_samples
-
+        _flag = True
+        start = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        res = None
         while 1:
-            round_number += 1
-            start = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            self.log.info(
-                f"Federated learning start at {start},"
-                f" round_number={round_number}")
-            res = self.estimator.train(
-                train_data=train_data, valid_data=valid_data, **kwargs)
-
-            self.aggregation.weights = self.estimator.get_weights()
-            send_data = {"num_samples": num_samples,
-                         "weights": self.aggregation.weights}
-            received = self.node.send(
-                send_data, msg_type="update_weight", job_name=self.job_name)
-            exit_flag = False
-            if (received and received["type"] == "update_weight"
-                    and received["job_name"] == self.job_name):
-                recv = received["data"]
-
-                rec_client = received["client"]
-                rec_sample = recv["num_samples"]
-
+            if _flag:
+                round_number += 1
+                start = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 self.log.info(
-                    f"Federated learning get weight from "
-                    f"[{rec_client}] : {rec_sample}")
-                n_weight = self.aggregation.aggregate(
-                    recv["weights"], rec_sample)
-                self.estimator.set_weights(n_weight)
-                exit_flag = received.get("exit_flag", "") == "ok"
+                    f"Federated learning start, round_number={round_number}")
+                res = self.estimator.train(
+                    train_data=train_data, valid_data=valid_data, **kwargs)
+
+                current_weights = self.estimator.get_weights()
+                send_data = {"num_samples": num_samples,
+                             "weights": current_weights}
+                self.node.send(
+                    send_data, msg_type="update_weight", job_name=self.job_name
+                )
+            received = self.node.recv(wait_data_type="recv_weight")
+            if not received:
+                _flag = False
+                continue
+            _flag = True
+
+            rec_data = received.get("data", {})
+            exit_flag = rec_data.get("exit_flag", "")
+            server_round = int(rec_data.get("round_number"))
+            total_size = int(rec_data.get("total_sample"))
+            self.log.info(
+                f"Federated learning recv weight, "
+                f"round: {server_round}, total_sample: {total_size}"
+            )
+            n_weight = rec_data.get("weights")
+            self.estimator.set_weights(n_weight)
             task_info = {
                 'currentRound': round_number,
-                'sampleCount': self.aggregation.total_size,
+                'sampleCount': total_size,
                 'startTime': start,
                 'updateTime': time.strftime(
-                    "%Y-%m-%d %H:%M:%S",
-                    time.localtime())}
+                    "%Y-%m-%d %H:%M:%S", time.localtime())
+            }
             model_paths = self.estimator.save()
             task_info_res = self.estimator.model_info(
                 model_paths, result=res, relpath=self.config.data_path_prefix)
-            if exit_flag:
+            if exit_flag == "ok":
                 self.report_task_info(
                     task_info,
                     K8sResourceKindStatus.COMPLETED.value,
