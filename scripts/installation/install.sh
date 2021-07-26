@@ -299,7 +299,7 @@ spec:
             - name: GM_ADDRESS
               value: $GM_ADDRESS
             - name: BIND_PORT
-              value: "${LC_BIND_PORT:-9100}"
+              value: "${SEDNA_LC_BIND_PORT:-9100}"
             - name: NODENAME
               valueFrom:
                 fieldRef:

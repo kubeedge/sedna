@@ -364,7 +364,7 @@ func getStatus(pods []*v1.Pod) (succeeded, failed int32) {
 func (fc *FederatedController) updateFLJobStatus(flJob *sednav1.FederatedLearningJob) error {
 	jobClient := fc.client.FederatedLearningJobs(flJob.Namespace)
 	var err error
-	for i := 0; i <= statusUpdateRetries; i = i + 1 {
+	for i := 0; i <= ResourceUpdateRetries; i = i + 1 {
 		var newFLJob *sednav1.FederatedLearningJob
 		newFLJob, err = jobClient.Get(context.TODO(), flJob.Name, metav1.GetOptions{})
 		if err != nil {

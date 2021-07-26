@@ -370,7 +370,7 @@ func NewJointInferenceServiceCondition(conditionType sednav1.JointInferenceServi
 func (jc *JointInferenceServiceController) updateStatus(jointinferenceservice *sednav1.JointInferenceService) error {
 	serviceClient := jc.client.JointInferenceServices(jointinferenceservice.Namespace)
 	var err error
-	for i := 0; i <= statusUpdateRetries; i = i + 1 {
+	for i := 0; i <= ResourceUpdateRetries; i = i + 1 {
 		var newJointinferenceservice *sednav1.JointInferenceService
 		newJointinferenceservice, err = serviceClient.Get(context.TODO(), jointinferenceservice.Name, metav1.GetOptions{})
 		if err != nil {

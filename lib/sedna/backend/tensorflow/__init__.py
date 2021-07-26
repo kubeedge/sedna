@@ -14,6 +14,7 @@
 
 import os
 
+import numpy as np
 import tensorflow as tf
 
 from sedna.backend.base import BackendBase
@@ -142,4 +143,5 @@ class KerasBackend(TFBackend):
         return list(map(lambda x: x.tolist(), self.estimator.get_weights()))
 
     def set_weights(self, weights):
+        weights = [np.array(x) for x in weights]
         self.estimator.set_weights(weights)
