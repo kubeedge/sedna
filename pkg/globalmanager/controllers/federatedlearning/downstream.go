@@ -14,40 +14,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package dataset
+package federatedlearning
 
 import (
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/watch"
 
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
 
-// syncToEdge syncs the dataset resources
 func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) error {
-	dataset, ok := obj.(*sednav1.Dataset)
+	job, ok := obj.(*sednav1.FederatedLearningJob)
 	if !ok {
 		return nil
 	}
 
-	// Here only propagate to the nodes with non empty name
-	nodeName := dataset.Spec.NodeName
-	if len(nodeName) == 0 {
-		return fmt.Errorf("empty node name")
+	// broadcast to all nodes specified in spec
+	nodeset := make(map[string]bool)
+	for _, trainingWorker := range job.Spec.TrainingWorkers {
+		// Here only propagate to the nodes with non empty name
+		if len(trainingWorker.Template.Spec.NodeName) > 0 {
+			nodeset[trainingWorker.Template.Spec.NodeName] = true
+		}
 	}
 
-	// Since t.Kind may be empty,
-	// we need to fix the kind here if missing.
-	// more details at https://github.com/kubernetes/kubernetes/issues/3030
-	if len(dataset.Kind) == 0 {
-		dataset.Kind = KindName
+	for nodeName := range nodeset {
+		c.sendToEdgeFunc(nodeName, eventType, job)
 	}
-
-	runtime.InjectSecretAnnotations(c.kubeClient, dataset, dataset.Spec.CredentialName)
-
-	return c.sendToEdgeFunc(nodeName, eventType, dataset)
+	return nil
 }
 
 func (c *Controller) SetDownstreamSendFunc(f runtime.DownstreamSendFunc) error {

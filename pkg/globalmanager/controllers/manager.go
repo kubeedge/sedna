@@ -28,6 +28,7 @@ import (
 	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned"
 	sednainformers "github.com/kubeedge/sedna/pkg/client/informers/externalversions"
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
+	"github.com/kubeedge/sedna/pkg/globalmanager/messagelayer"
 	websocket "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/ws"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
@@ -93,8 +94,9 @@ func (m *Manager) Start() error {
 	}
 
 	uc, _ := NewUpstreamController(context)
-	dc, _ := NewDownstreamController(context)
 	context.UpstreamController = uc
+
+	downstreamSendFunc := messagelayer.NewContextMessageLayer().SendResourceObject
 
 	stopCh := make(chan struct{})
 
@@ -102,13 +104,14 @@ func (m *Manager) Start() error {
 	sednaInformerFactory.Start(stopCh)
 
 	go uc.Run(stopCh)
-	go dc.Run(stopCh)
 
 	for name, factory := range NewRegistry() {
 		f, err := factory(context)
 		if err != nil {
 			return fmt.Errorf("failed to initialize controller %s: %v", name, err)
 		}
+		f.SetDownstreamSendFunc(downstreamSendFunc)
+
 		go f.Run(stopCh)
 		klog.Infof("started controller %s", name)
 	}

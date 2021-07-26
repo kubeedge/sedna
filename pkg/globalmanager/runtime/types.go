@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 
@@ -35,9 +36,15 @@ type CommonInterface interface {
 	k8sruntime.Object
 }
 
+// BaseControllerI defines the interface of an controller
+type BaseControllerI interface {
+	Run(stopCh <-chan struct{})
+}
+
 // FeatureControllerI defines the interface of an AI Feature controller
 type FeatureControllerI interface {
-	Run(stopCh <-chan struct{})
+	BaseControllerI
+	SetDownstreamSendFunc(f DownstreamSendFunc) error
 }
 
 type Model struct {
@@ -67,9 +74,11 @@ func (m *Model) GetURL() string {
 type UpstreamUpdateHandler func(namespace, name, operation string, content []byte) error
 
 type UpstreamControllerI interface {
-	FeatureControllerI
+	BaseControllerI
 	Add(kind string, updateHandler UpstreamUpdateHandler) error
 }
+
+type DownstreamSendFunc = func(nodeName string, eventType watch.EventType, obj interface{}) error
 
 type ControllerContext struct {
 	Config             *config.ControllerConfig

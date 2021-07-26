@@ -29,6 +29,7 @@ import (
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -85,6 +86,8 @@ type Controller struct {
 	recorder record.EventRecorder
 
 	cfg *config.ControllerConfig
+
+	sendToEdgeFunc runtime.DownstreamSendFunc
 }
 
 // Run starts the main goroutine responsible for watching and syncing services.
@@ -557,14 +560,17 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			jc.enqueueController(obj, true)
+			jc.syncToEdge(watch.Added, obj)
 		},
 
 		UpdateFunc: func(old, cur interface{}) {
 			jc.enqueueController(cur, true)
+			jc.syncToEdge(watch.Added, cur)
 		},
 
 		DeleteFunc: func(obj interface{}) {
 			jc.enqueueController(obj, true)
+			jc.syncToEdge(watch.Deleted, obj)
 		},
 	})
 

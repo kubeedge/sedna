@@ -17,9 +17,12 @@ limitations under the License.
 package dataset
 
 import (
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+
 	sednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
-
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
 
@@ -33,9 +36,12 @@ const (
 
 // Controller handles all dataset objects including: syncing to edge and update from edge.
 type Controller struct {
-	client sednaclientset.SednaV1alpha1Interface
+	kubeClient kubernetes.Interface
+	client     sednaclientset.SednaV1alpha1Interface
 
 	cfg *config.ControllerConfig
+
+	sendToEdgeFunc runtime.DownstreamSendFunc
 }
 
 func (c *Controller) Run(stopCh <-chan struct{}) {
@@ -45,8 +51,24 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 // New creates a dataset controller
 func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	c := &Controller{
-		client: cc.SednaClient.SednaV1alpha1(),
+		client:     cc.SednaClient.SednaV1alpha1(),
+		kubeClient: cc.KubeClient,
 	}
+	informer := cc.SednaInformerFactory.Sedna().V1alpha1().Datasets().Informer()
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+
+		AddFunc: func(obj interface{}) {
+			c.syncToEdge(watch.Added, obj)
+		},
+
+		UpdateFunc: func(old, cur interface{}) {
+			c.syncToEdge(watch.Added, cur)
+		},
+
+		DeleteFunc: func(obj interface{}) {
+			c.syncToEdge(watch.Deleted, obj)
+		},
+	})
 
 	c.addUpstreamHandler(cc)
 

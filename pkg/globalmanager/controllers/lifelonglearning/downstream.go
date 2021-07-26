@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package dataset
+package lifelonglearning
 
 import (
 	"fmt"
@@ -25,33 +25,25 @@ import (
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
 
-// syncToEdge syncs the dataset resources
 func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) error {
-	dataset, ok := obj.(*sednav1.Dataset)
+	job, ok := obj.(*sednav1.LifelongLearningJob)
 	if !ok {
 		return nil
 	}
-
 	// Here only propagate to the nodes with non empty name
-	nodeName := dataset.Spec.NodeName
+
+	// FIXME(llhuii): only the case that all workers having the same nodeName are support,
+	// will support Spec.NodeSelector and differenect nodeName.
+	nodeName := job.Spec.TrainSpec.Template.Spec.NodeName
 	if len(nodeName) == 0 {
 		return fmt.Errorf("empty node name")
 	}
 
-	// Since t.Kind may be empty,
-	// we need to fix the kind here if missing.
-	// more details at https://github.com/kubernetes/kubernetes/issues/3030
-	if len(dataset.Kind) == 0 {
-		dataset.Kind = KindName
-	}
-
-	runtime.InjectSecretAnnotations(c.kubeClient, dataset, dataset.Spec.CredentialName)
-
-	return c.sendToEdgeFunc(nodeName, eventType, dataset)
+	runtime.InjectSecretAnnotations(c.kubeClient, job, job.Spec.CredentialName)
+	return c.sendToEdgeFunc(nodeName, eventType, job)
 }
 
 func (c *Controller) SetDownstreamSendFunc(f runtime.DownstreamSendFunc) error {
 	c.sendToEdgeFunc = f
-
 	return nil
 }
