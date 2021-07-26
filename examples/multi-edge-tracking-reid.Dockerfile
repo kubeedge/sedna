@@ -16,6 +16,9 @@ RUN apt install -y git
 RUN apt install -y gfortran libopenblas-dev liblapack-dev
 RUN git config --global http.sslVerify false
 
+# Needed by OpenCV
+RUN apt-get install ffmpeg libsm6 libxext6 -y
+
 ## Install git-lfs
 RUN wget -O git-lfs.deb \
     https://packagecloud.io/github/git-lfs/packages/debian/buster/git-lfs_2.13.3_amd64.deb/download \
@@ -53,11 +56,14 @@ RUN pip install -r /home/requirements.txt
 
 ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 
+RUN ls
+
 WORKDIR /home/work
 COPY ./lib /home/lib
 
 ENTRYPOINT ["python"]
-COPY examples/multiedgetracking/reid/reid_main.py  /home/work/cloud.py
+
+COPY examples/multiedgetracking/reid/cloud_worker.py  /code/deep-efficient-person-reid/dertorch/cloud.py
 
 WORKDIR /code/deep-efficient-person-reid/dertorch
 

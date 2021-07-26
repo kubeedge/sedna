@@ -14,15 +14,13 @@
 
 import time
 import cv2
-import copy
 import logging
 import numpy as np
 
 from sedna.common.config import Context
-from sedna.common.file_ops import FileOps
 from sedna.core.multi_edge_tracking import MultiObjectTracking
 
-from interface import Estimator
+from edge_worker import Estimator
 
 
 #TODO: Change the code below for MOT!

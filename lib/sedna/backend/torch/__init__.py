@@ -2,7 +2,7 @@ import os
 
 import torch
 
-from nn import *
+from .nn import *
 from sedna.backend.base import BackendBase
 from sedna.common.file_ops import FileOps
 

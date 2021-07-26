@@ -14,16 +14,12 @@
 
 import numpy as np
 import os
-import sys
 import torch
-import argparse
-import random
 import time
 import torchvision.transforms as T
 
 from utils.getter import *
 from torch.backends import cudnn
-from PIL import Image
 
 from sedna.backend.torch.nn import Backbone
 from sedna.common.config import Context

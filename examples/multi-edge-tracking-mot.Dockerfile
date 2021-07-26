@@ -59,8 +59,8 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
-COPY examples/multiedgetracking/mot/mot_model.py  /home/work/edge.py
-COPY examples/multiedgetracking/mot/interface.py  /home/work/interface.py
+COPY examples/multiedgetracking/mot/main.py  /home/work/edge.py
+COPY examples/multiedgetracking/mot/edge_worker.py  /home/work/edge_worker.py
 
 WORKDIR /code/deep-efficient-person-reid/dertorch
 
