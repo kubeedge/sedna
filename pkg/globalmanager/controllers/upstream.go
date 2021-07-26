@@ -29,13 +29,13 @@ import (
 // UpstreamController subscribes the updates from edge and syncs to k8s api server
 type UpstreamController struct {
 	messageLayer   messagelayer.MessageLayer
-	updateHandlers map[string]runtime.UpstreamUpdateHandler
+	updateHandlers map[string]runtime.UpstreamHandler
 }
 
 func (uc *UpstreamController) checkOperation(operation string) error {
 	// current only support the 'status' operation
 	if operation != "status" {
-		return fmt.Errorf("unknown operation %s", operation)
+		return fmt.Errorf("unknown operation '%s'", operation)
 	}
 	return nil
 }
@@ -84,7 +84,7 @@ func (uc *UpstreamController) Run(stopCh <-chan struct{}) {
 	<-stopCh
 }
 
-func (uc *UpstreamController) Add(kind string, handler runtime.UpstreamUpdateHandler) error {
+func (uc *UpstreamController) Add(kind string, handler runtime.UpstreamHandler) error {
 	kind = strings.ToLower(kind)
 	if _, ok := uc.updateHandlers[kind]; ok {
 		return fmt.Errorf("a upstream handler for kind %s already exists", kind)
@@ -95,10 +95,10 @@ func (uc *UpstreamController) Add(kind string, handler runtime.UpstreamUpdateHan
 }
 
 // NewUpstreamController creates a new Upstream controller from config
-func NewUpstreamController(cc *runtime.ControllerContext) (runtime.UpstreamControllerI, error) {
+func NewUpstreamController(cc *runtime.ControllerContext) (*UpstreamController, error) {
 	uc := &UpstreamController{
 		messageLayer:   messagelayer.NewContextMessageLayer(),
-		updateHandlers: make(map[string]runtime.UpstreamUpdateHandler),
+		updateHandlers: make(map[string]runtime.UpstreamHandler),
 	}
 
 	return uc, nil

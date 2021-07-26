@@ -75,7 +75,7 @@ type Controller struct {
 	// A store of pods
 	podStore corelisters.PodLister
 
-	// serviceStoreSynced returns true if the jointinferenceservice store has been synced at least once.
+	// serviceStoreSynced returns true if the JointInferenceService store has been synced at least once.
 	serviceStoreSynced cache.InformerSynced
 	// A store of service
 	serviceLister sednav1listers.JointInferenceServiceLister
@@ -114,7 +114,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 	<-stopCh
 }
 
-// enqueueByPod enqueues the jointInferenceService object of the specified pod.
+// enqueueByPod enqueues the JointInferenceService object of the specified pod.
 func (c *Controller) enqueueByPod(pod *v1.Pod, immediate bool) {
 	controllerRef := metav1.GetControllerOf(pod)
 
@@ -167,7 +167,7 @@ func (c *Controller) updatePod(old, cur interface{}) {
 	c.addPod(curPod)
 }
 
-// deletePod enqueues the jointinferenceservice obj When a pod is deleted
+// deletePod enqueues the JointinferenceService obj When a pod is deleted
 func (c *Controller) deletePod(obj interface{}) {
 	pod, ok := obj.(*v1.Pod)
 
@@ -176,7 +176,7 @@ func (c *Controller) deletePod(obj interface{}) {
 	// When a delete is dropped, the relist will notice a pod in the store not
 	// in the list, leading to the insertion of a tombstone object which contains
 	// the deleted key/value. Note that this value might be stale. If the pod
-	// changed labels the new jointinferenceservice will not be woken up till the periodic resync.
+	// changed labels the new JointInferenceService will not be woken up till the periodic resync.
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
@@ -252,7 +252,7 @@ func (c *Controller) sync(key string) (bool, error) {
 	if len(ns) == 0 || len(name) == 0 {
 		return false, fmt.Errorf("invalid jointinference service key %q: either namespace or name is missing", key)
 	}
-	sharedJointinferenceservice, err := c.serviceLister.JointInferenceServices(ns).Get(name)
+	sharedService, err := c.serviceLister.JointInferenceServices(ns).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("JointInferenceService has been deleted: %v", key)
@@ -261,37 +261,38 @@ func (c *Controller) sync(key string) (bool, error) {
 		return false, err
 	}
 
-	jointinferenceservice := *sharedJointinferenceservice
+	service := *sharedService
 
-	// if jointinferenceservice was finished previously, we don't want to redo the termination
-	if isJointinferenceserviceFinished(&jointinferenceservice) {
+	// if service was finished previously, we don't want to redo the termination
+	if isServiceFinished(&service) {
 		return true, nil
 	}
 
-	// set kind for jointinferenceservice in case that the kind is None
+	// set kind for service in case that the kind is None
 	// more details at https://github.com/kubernetes/kubernetes/issues/3030
-	jointinferenceservice.SetGroupVersionKind(Kind)
+	service.SetGroupVersionKind(Kind)
 
-	selector, _ := runtime.GenerateSelector(&jointinferenceservice)
-	pods, err := c.podStore.Pods(jointinferenceservice.Namespace).List(selector)
+	selector, _ := runtime.GenerateSelector(&service)
+	pods, err := c.podStore.Pods(service.Namespace).List(selector)
 
 	if err != nil {
 		return false, err
 	}
 
-	klog.V(4).Infof("list jointinference service %v/%v, %v pods: %v", jointinferenceservice.Namespace, jointinferenceservice.Name, len(pods), pods)
+	klog.V(4).Infof("list jointinference service %v/%v, %v pods: %v", service.Namespace, service.Name, len(pods), pods)
 
-	latestConditionLen := len(jointinferenceservice.Status.Conditions)
+	latestConditionLen := len(service.Status.Conditions)
 
 	active := runtime.CalcActivePodCount(pods)
 	var failed int32 = 0
+
 	// neededCounts means that two pods should be created successfully in a jointinference service currently
 	// two pods consist of edge pod and cloud pod
 	var neededCounts int32 = 2
-	// jointinferenceservice first start
-	if jointinferenceservice.Status.StartTime == nil {
+
+	if service.Status.StartTime == nil {
 		now := metav1.Now()
-		jointinferenceservice.Status.StartTime = &now
+		service.Status.StartTime = &now
 	} else {
 		failed = neededCounts - active
 	}
@@ -303,7 +304,7 @@ func (c *Controller) sync(key string) (bool, error) {
 
 	// get the latest condition type
 	// based on that condition updated is appended, not inserted.
-	jobConditions := jointinferenceservice.Status.Conditions
+	jobConditions := service.Status.Conditions
 	if len(jobConditions) > 0 {
 		latestConditionType = (jobConditions)[len(jobConditions)-1].Type
 	}
@@ -316,12 +317,12 @@ func (c *Controller) sync(key string) (bool, error) {
 		serviceFailed = true
 		// TODO: get the failed worker, and knows that which worker fails, edge inference worker or cloud inference worker
 		reason = "workerFailed"
-		message = "the worker of Jointinferenceservice failed"
+		message = "the worker of service failed"
 		newCondtionType = sednav1.JointInferenceServiceCondFailed
-		c.recorder.Event(&jointinferenceservice, v1.EventTypeWarning, reason, message)
+		c.recorder.Event(&service, v1.EventTypeWarning, reason, message)
 	} else {
 		if len(pods) == 0 {
-			active, manageServiceErr = c.createWorkers(&jointinferenceservice)
+			active, manageServiceErr = c.createWorkers(&service)
 		}
 		if manageServiceErr != nil {
 			serviceFailed = true
@@ -336,20 +337,20 @@ func (c *Controller) sync(key string) (bool, error) {
 
 	//
 	if newCondtionType != latestConditionType {
-		jointinferenceservice.Status.Conditions = append(jointinferenceservice.Status.Conditions, NewJointInferenceServiceCondition(newCondtionType, reason, message))
+		service.Status.Conditions = append(service.Status.Conditions, newServiceCondition(newCondtionType, reason, message))
 	}
 	forget := false
 
 	// no need to update the jointinferenceservice if the status hasn't changed since last time
-	if jointinferenceservice.Status.Active != active || jointinferenceservice.Status.Failed != failed || len(jointinferenceservice.Status.Conditions) != latestConditionLen {
-		jointinferenceservice.Status.Active = active
-		jointinferenceservice.Status.Failed = failed
+	if service.Status.Active != active || service.Status.Failed != failed || len(service.Status.Conditions) != latestConditionLen {
+		service.Status.Active = active
+		service.Status.Failed = failed
 
-		if err := c.updateStatus(&jointinferenceservice); err != nil {
+		if err := c.updateStatus(&service); err != nil {
 			return forget, err
 		}
 
-		if serviceFailed && !isJointinferenceserviceFinished(&jointinferenceservice) {
+		if serviceFailed && !isServiceFinished(&service) {
 			// returning an error will re-enqueue jointinferenceservice after the backoff period
 			return forget, fmt.Errorf("failed pod(s) detected for jointinference service key %q", key)
 		}
@@ -360,8 +361,8 @@ func (c *Controller) sync(key string) (bool, error) {
 	return forget, manageServiceErr
 }
 
-// NewJointInferenceServiceCondition creates a new joint condition
-func NewJointInferenceServiceCondition(conditionType sednav1.JointInferenceServiceConditionType, reason, message string) sednav1.JointInferenceServiceCondition {
+// newServiceCondition creates a new joint condition
+func newServiceCondition(conditionType sednav1.JointInferenceServiceConditionType, reason, message string) sednav1.JointInferenceServiceCondition {
 	return sednav1.JointInferenceServiceCondition{
 		Type:               conditionType,
 		Status:             v1.ConditionTrue,
@@ -372,24 +373,20 @@ func NewJointInferenceServiceCondition(conditionType sednav1.JointInferenceServi
 	}
 }
 
-func (c *Controller) updateStatus(jointinferenceservice *sednav1.JointInferenceService) error {
-	serviceClient := c.client.JointInferenceServices(jointinferenceservice.Namespace)
-	var err error
-	for i := 0; i <= runtime.ResourceUpdateRetries; i = i + 1 {
-		var newJointinferenceservice *sednav1.JointInferenceService
-		newJointinferenceservice, err = serviceClient.Get(context.TODO(), jointinferenceservice.Name, metav1.GetOptions{})
+func (c *Controller) updateStatus(service *sednav1.JointInferenceService) error {
+	client := c.client.JointInferenceServices(service.Namespace)
+	return runtime.RetryUpdateStatus(service.Name, service.Namespace, func() error {
+		newService, err := client.Get(context.TODO(), service.Name, metav1.GetOptions{})
 		if err != nil {
-			break
+			return err
 		}
-		newJointinferenceservice.Status = jointinferenceservice.Status
-		if _, err = serviceClient.UpdateStatus(context.TODO(), newJointinferenceservice, metav1.UpdateOptions{}); err == nil {
-			break
-		}
-	}
-	return nil
+		newService.Status = service.Status
+		_, err = client.UpdateStatus(context.TODO(), newService, metav1.UpdateOptions{})
+		return err
+	})
 }
 
-func isJointinferenceserviceFinished(j *sednav1.JointInferenceService) bool {
+func isServiceFinished(j *sednav1.JointInferenceService) bool {
 	for _, c := range j.Status.Conditions {
 		if (c.Type == sednav1.JointInferenceServiceCondFailed) && c.Status == v1.ConditionTrue {
 			return true
@@ -585,8 +582,6 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 
 	jc.podStore = podInformer.Lister()
 	jc.podStoreSynced = podInformer.Informer().HasSynced
-
-	jc.addUpstreamHandler(cc)
 
 	return jc, nil
 }

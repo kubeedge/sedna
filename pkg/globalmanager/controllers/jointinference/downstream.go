@@ -31,6 +31,11 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 		return nil
 	}
 
+	// Since Kind may be empty,
+	// we need to fix the kind here if missing.
+	// more details at https://github.com/kubernetes/kubernetes/issues/3030
+	joint.Kind = KindName
+
 	// Here only propagate to the nodes with non empty name
 	// FIXME: only the case that Spec.NodeName specified is support
 	nodeName := joint.Spec.EdgeWorker.Template.Spec.NodeName

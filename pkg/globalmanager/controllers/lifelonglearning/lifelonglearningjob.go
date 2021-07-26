@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -77,8 +76,6 @@ type Controller struct {
 
 	// LifelongLearningJobs that need to be updated
 	queue workqueue.RateLimitingInterface
-
-	recorder record.EventRecorder
 
 	cfg *config.ControllerConfig
 
@@ -248,7 +245,7 @@ func (c *Controller) sync(key string) (bool, error) {
 	if len(ns) == 0 || len(name) == 0 {
 		return false, fmt.Errorf("invalid lifelonglearning job key %q: either namespace or name is missing", key)
 	}
-	sharedLifelongLearningJob, err := c.jobLister.LifelongLearningJobs(ns).Get(name)
+	sharedJob, err := c.jobLister.LifelongLearningJobs(ns).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("lifelonglearning job has been deleted: %v", key)
@@ -256,18 +253,18 @@ func (c *Controller) sync(key string) (bool, error) {
 		}
 		return false, err
 	}
-	lifelonglearningjob := *sharedLifelongLearningJob
+	job := *sharedJob
 	// set kind for lifelonglearningjob in case that the kind is None
-	lifelonglearningjob.SetGroupVersionKind(sednav1.SchemeGroupVersion.WithKind("LifelongLearningJob"))
+	job.SetGroupVersionKind(Kind)
 
-	// lifelonglearningjob first start
-	if lifelonglearningjob.Status.StartTime == nil {
+	if job.Status.StartTime == nil {
+		// job is first in
 		now := metav1.Now()
-		lifelonglearningjob.Status.StartTime = &now
+		job.Status.StartTime = &now
 	}
 
-	// if lifelonglearningjob was finished previously, we don't want to redo the termination
-	if IsLifelongLearningJobFinished(&lifelonglearningjob) {
+	// if job was finished previously, we don't want to redo the termination
+	if IsJobFinished(&job) {
 		return true, nil
 	}
 
@@ -275,18 +272,18 @@ func (c *Controller) sync(key string) (bool, error) {
 	jobFailed := false
 	needUpdated := false
 
-	// update conditions of lifelonglearning job
-	needUpdated, err = c.updateLifelongLearningJobConditions(&lifelonglearningjob)
+	// transit this job's state machine
+	needUpdated, err = c.transitJobState(&job)
 	if err != nil {
-		klog.V(2).Infof("lifelonglearning job %v/%v faied to be updated, err:%s", lifelonglearningjob.Namespace, lifelonglearningjob.Name, err)
+		klog.V(2).Infof("lifelonglearning job %v/%v faied to be updated, err:%s", job.Namespace, job.Name, err)
 	}
 
 	if needUpdated {
-		if err := c.updateLifelongLearningJobStatus(&lifelonglearningjob); err != nil {
+		if err := c.updateJobStatus(&job); err != nil {
 			return forget, err
 		}
 
-		if jobFailed && !IsLifelongLearningJobFinished(&lifelonglearningjob) {
+		if jobFailed && !IsJobFinished(&job) {
 			// returning an error will re-enqueue LifelongLearningJob after the backoff period
 			return forget, fmt.Errorf("failed pod(s) detected for lifelonglearningjob key %q", key)
 		}
@@ -297,24 +294,25 @@ func (c *Controller) sync(key string) (bool, error) {
 	return forget, err
 }
 
-// updateLifelongLearningJobConditions ensures that conditions of lifelonglearning job can be changed by podstatus
-func (c *Controller) updateLifelongLearningJobConditions(lifelonglearningjob *sednav1.LifelongLearningJob) (bool, error) {
+// transitJobState transit job to next state
+func (c *Controller) transitJobState(job *sednav1.LifelongLearningJob) (bool, error) {
 	var initialType sednav1.LLJobStageConditionType
 	var latestCondition sednav1.LLJobCondition = sednav1.LLJobCondition{
 		Stage: sednav1.LLJobTrain,
 		Type:  initialType,
 	}
+
 	var newConditionType sednav1.LLJobStageConditionType
-	latestCondition.Stage = sednav1.LLJobTrain
 	var needUpdated = false
-	jobConditions := lifelonglearningjob.Status.Conditions
+
 	var podStatus v1.PodPhase = v1.PodUnknown
+	jobConditions := job.Status.Conditions
 	if len(jobConditions) > 0 {
 		// get latest pod and pod status
 		latestCondition = (jobConditions)[len(jobConditions)-1]
-		klog.V(2).Infof("lifelonglearning job %v/%v latest stage %v:", lifelonglearningjob.Namespace, lifelonglearningjob.Name,
+		klog.V(2).Infof("lifelonglearning job %v/%v latest stage %v:", job.Namespace, job.Name,
 			latestCondition.Stage)
-		pod := c.getSpecifiedPods(lifelonglearningjob, string(latestCondition.Stage))
+		pod := c.getSpecifiedPods(job, string(latestCondition.Stage))
 
 		if pod != nil {
 			podStatus = pod.Status.Phase
@@ -336,14 +334,14 @@ func (c *Controller) updateLifelongLearningJobConditions(lifelonglearningjob *se
 		// include train, eval, deploy pod
 		var err error
 		if jobStage == sednav1.LLJobDeploy {
-			err = c.restartInferPod(lifelonglearningjob)
+			err = c.restartInferPod(job)
 			if err != nil {
-				klog.V(2).Infof("lifelonglearning job %v/%v inference pod failed to restart, err:%s", lifelonglearningjob.Namespace, lifelonglearningjob.Name, err)
+				klog.V(2).Infof("lifelonglearning job %v/%v inference pod failed to restart, err:%s", job.Namespace, job.Name, err)
 			} else {
-				klog.V(2).Infof("lifelonglearning job %v/%v inference pod restarts successfully", lifelonglearningjob.Namespace, lifelonglearningjob.Name)
+				klog.V(2).Infof("lifelonglearning job %v/%v inference pod restarts successfully", job.Namespace, job.Name)
 			}
 		} else if podStatus != v1.PodPending && podStatus != v1.PodRunning {
-			err = c.createPod(lifelonglearningjob, jobStage)
+			err = c.createPod(job, jobStage)
 		}
 		if err != nil {
 			return needUpdated, err
@@ -361,10 +359,10 @@ func (c *Controller) updateLifelongLearningJobConditions(lifelonglearningjob *se
 		} else if podStatus == v1.PodSucceeded {
 			// watch pod status, if pod completed, set type completed
 			newConditionType = sednav1.LLJobStageCondCompleted
-			klog.V(2).Infof("lifelonglearning job %v/%v %v stage completed!", lifelonglearningjob.Namespace, lifelonglearningjob.Name, jobStage)
+			klog.V(2).Infof("lifelonglearning job %v/%v %v stage completed!", job.Namespace, job.Name, jobStage)
 		} else if podStatus == v1.PodFailed {
 			newConditionType = sednav1.LLJobStageCondFailed
-			klog.V(2).Infof("lifelonglearning job %v/%v %v stage failed!", lifelonglearningjob.Namespace, lifelonglearningjob.Name, jobStage)
+			klog.V(2).Infof("lifelonglearning job %v/%v %v stage failed!", job.Namespace, job.Name, jobStage)
 		}
 	case sednav1.LLJobStageCondCompleted:
 		jobStage = c.getNextStage(jobStage)
@@ -377,34 +375,31 @@ func (c *Controller) updateLifelongLearningJobConditions(lifelonglearningjob *se
 	default:
 		// do nothing when given other type out of cases
 	}
-	klog.V(2).Infof("lifelonglearning job %v/%v, conditions: %v", lifelonglearningjob.Namespace, lifelonglearningjob.Name, jobConditions)
+
+	klog.V(2).Infof("lifelonglearning job %v/%v, conditions: %v", job.Namespace, job.Name, jobConditions)
 	if latestCondition.Type != newConditionType {
-		lifelonglearningjob.Status.Conditions = append(lifelonglearningjob.Status.Conditions, NewLifelongLearningJobCondition(newConditionType, jobStage))
+		job.Status.Conditions = append(job.Status.Conditions, NewJobCondition(newConditionType, jobStage))
 		needUpdated = true
 		return needUpdated, nil
 	}
 	return needUpdated, nil
 }
 
-// updateLifelongLearningJobStatus ensures that jobstatus can be updated rightly
-func (c *Controller) updateLifelongLearningJobStatus(lifelonglearningjob *sednav1.LifelongLearningJob) error {
-	jobClient := c.client.LifelongLearningJobs(lifelonglearningjob.Namespace)
-	var err error
-	for i := 0; i <= runtime.ResourceUpdateRetries; i = i + 1 {
-		var newLifelongLearningJob *sednav1.LifelongLearningJob
-		newLifelongLearningJob, err = jobClient.Get(context.TODO(), lifelonglearningjob.Name, metav1.GetOptions{})
+// updateJobStatus ensures that jobstatus can be updated rightly
+func (c *Controller) updateJobStatus(job *sednav1.LifelongLearningJob) error {
+	jobClient := c.client.LifelongLearningJobs(job.Namespace)
+	return runtime.RetryUpdateStatus(job.Name, job.Namespace, func() error {
+		newJob, err := jobClient.Get(context.TODO(), job.Name, metav1.GetOptions{})
 		if err != nil {
-			break
+			return err
 		}
-		newLifelongLearningJob.Status = lifelonglearningjob.Status
-		if _, err = jobClient.UpdateStatus(context.TODO(), newLifelongLearningJob, metav1.UpdateOptions{}); err == nil {
-			break
-		}
-	}
-	return err
+		newJob.Status = job.Status
+		_, err = jobClient.UpdateStatus(context.TODO(), newJob, metav1.UpdateOptions{})
+		return err
+	})
 }
 
-func NewLifelongLearningJobCondition(conditionType sednav1.LLJobStageConditionType, jobStage sednav1.LLJobStage) sednav1.LLJobCondition {
+func NewJobCondition(conditionType sednav1.LLJobStageConditionType, jobStage sednav1.LLJobStage) sednav1.LLJobCondition {
 	return sednav1.LLJobCondition{
 		Type:               conditionType,
 		Status:             v1.ConditionTrue,
@@ -492,7 +487,7 @@ func (c *Controller) getSecret(namespace, name string, ownerStr string) (secret 
 	return
 }
 
-func IsLifelongLearningJobFinished(j *sednav1.LifelongLearningJob) bool {
+func IsJobFinished(j *sednav1.LifelongLearningJob) bool {
 	// TODO
 	return false
 }
@@ -529,7 +524,7 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 	// get all url for train and eval from data in condition
 	condDataStr := job.Status.Conditions[len(job.Status.Conditions)-1].Data
 	klog.V(2).Infof("lifelonglearning job %v/%v data condition:%s", job.Namespace, job.Name, condDataStr)
-	var cond LifelongLearningCondData
+	var cond ConditionData
 	(&cond).Unmarshal([]byte(condDataStr))
 	if cond.Input == nil {
 		return fmt.Errorf("empty input from condData")
@@ -596,7 +591,7 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 		podTemplate = &job.Spec.EvalSpec.Template
 		workerParam.WorkerType = "Eval"
 
-		// Configure Env information for eval by initial runtime.WorkerParam
+		// Configure Env information for eval by initial WorkerParam
 		workerParam.Env = map[string]string{
 			"NAMESPACE":   job.Namespace,
 			"JOB_NAME":    job.Name,
@@ -721,8 +716,7 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	jc := &Controller{
 		kubeClient: cc.KubeClient,
 		client:     cc.SednaClient.SednaV1alpha1(),
-		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), "lifelonglearningjob"),
-		recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "lifelonglearningjob-controller"}),
+		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), Name),
 		cfg:        cfg,
 	}
 
@@ -750,8 +744,6 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	})
 	jc.podStore = podInformer.Lister()
 	jc.podStoreSynced = podInformer.Informer().HasSynced
-
-	jc.addUpstreamHandler(cc)
 
 	return jc, nil
 }

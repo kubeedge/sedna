@@ -32,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -68,7 +67,7 @@ type Controller struct {
 	// podStoreSynced returns true if the pod store has been synced at least once.
 	// Added as a member to the struct to allow injection for testing.
 	podStoreSynced cache.InformerSynced
-	// jobStoreSynced returns true if the incrementaljob store has been synced at least once.
+	// jobStoreSynced returns true if the job store has been synced at least once.
 	// Added as a member to the struct to allow injection for testing.
 	jobStoreSynced cache.InformerSynced
 
@@ -80,8 +79,6 @@ type Controller struct {
 
 	// IncrementalLearningJobs that need to be updated
 	queue workqueue.RateLimitingInterface
-
-	recorder record.EventRecorder
 
 	cfg *config.ControllerConfig
 
@@ -104,6 +101,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 
 		return
 	}
+
 	klog.Infof("Starting %s job workers", Name)
 	for i := 0; i < workers; i++ {
 		go wait.Until(c.worker, time.Second, stopCh)
@@ -252,7 +250,8 @@ func (c *Controller) sync(key string) (bool, error) {
 	if len(ns) == 0 || len(name) == 0 {
 		return false, fmt.Errorf("invalid incrementallearning job key %q: either namespace or name is missing", key)
 	}
-	sharedIncrementalJob, err := c.jobLister.IncrementalLearningJobs(ns).Get(name)
+
+	sharedJob, err := c.jobLister.IncrementalLearningJobs(ns).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("incrementallearning job has been deleted: %v", key)
@@ -260,19 +259,21 @@ func (c *Controller) sync(key string) (bool, error) {
 		}
 		return false, err
 	}
-	incrementaljob := *sharedIncrementalJob
-	// set kind for incrementaljob in case that the kind is None
-	incrementaljob.SetGroupVersionKind(sednav1.SchemeGroupVersion.WithKind("IncrementalLearningJob"))
-	// incrementaljob first start, create pod for inference
-	if incrementaljob.Status.StartTime == nil {
+
+	job := *sharedJob
+	// set kind in case that the kind is None
+	job.SetGroupVersionKind(Kind)
+
+	// when job is handled at first, create pod for inference
+	if job.Status.StartTime == nil {
 		now := metav1.Now()
-		incrementaljob.Status.StartTime = &now
-		pod := c.getSpecifiedPods(&incrementaljob, runtime.InferencePodType)
+		job.Status.StartTime = &now
+		pod := c.getSpecifiedPods(&job, runtime.InferencePodType)
 		if pod == nil {
-			err = c.createInferPod(&incrementaljob)
+			err = c.createInferPod(&job)
 		} else {
 			if pod.Status.Phase != v1.PodRunning && pod.Status.Phase != v1.PodPending {
-				err = c.createInferPod(&incrementaljob)
+				err = c.createInferPod(&job)
 			}
 		}
 		if err != nil {
@@ -280,8 +281,8 @@ func (c *Controller) sync(key string) (bool, error) {
 		}
 	}
 
-	// if incrementaljob was finished previously, we don't want to redo the termination
-	if IsIncrementalJobFinished(&incrementaljob) {
+	// if job was finished previously, we don't want to redo the termination
+	if IsJobFinished(&job) {
 		return true, nil
 	}
 
@@ -289,20 +290,20 @@ func (c *Controller) sync(key string) (bool, error) {
 	jobFailed := false
 	needUpdated := false
 
-	// update conditions of incremental job
-	needUpdated, err = c.updateIncrementalJobConditions(&incrementaljob)
+	// transit this job's state machine
+	needUpdated, err = c.transitJobState(&job)
 	if err != nil {
-		klog.V(2).Infof("incrementallearning job %v/%v faied to be updated, err:%s", incrementaljob.Namespace, incrementaljob.Name, err)
+		klog.V(2).Infof("incrementallearning job %v/%v failed to be updated, err:%s", job.Namespace, job.Name, err)
 	}
 
 	if needUpdated {
-		if err := c.updateIncrementalJobStatus(&incrementaljob); err != nil {
+		if err := c.updateJobStatus(&job); err != nil {
 			return forget, err
 		}
 
-		if jobFailed && !IsIncrementalJobFinished(&incrementaljob) {
-			// returning an error will re-enqueue IncrementalJob after the backoff period
-			return forget, fmt.Errorf("failed pod(s) detected for incrementaljob key %q", key)
+		if jobFailed && !IsJobFinished(&job) {
+			// returning an error will re-enqueue IncrementalLearningJob after the backoff period
+			return forget, fmt.Errorf("failed pod(s) detected for incrementallearning job key %q", key)
 		}
 
 		forget = true
@@ -317,61 +318,56 @@ func (c *Controller) setWorkerNodeNameOfJob(job *sednav1.IncrementalLearningJob,
 	key := runtime.AnnotationsKeyPrefix + jobStage
 
 	ann := job.GetAnnotations()
-	if ann != nil {
-		if ann[key] == nodeName {
-			// already set
-			return nil
-		}
+	if ann[key] == nodeName {
+		// already set
+		return nil
 	}
+	dataStr := fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%s"}}}`, key, nodeName)
 
 	jobClient := c.client.IncrementalLearningJobs(job.Namespace)
-	var err error
-	for i := 0; i <= runtime.ResourceUpdateRetries; i++ {
-		var newJob *sednav1.IncrementalLearningJob
-		newJob, err = jobClient.Get(context.TODO(), job.Name, metav1.GetOptions{})
+	return runtime.RetryUpdateStatus(job.Name, job.Namespace, func() error {
+		newJob, err := jobClient.Get(context.TODO(), job.Name, metav1.GetOptions{})
 		if err != nil {
-			break
+			return err
 		}
 
 		annotations := newJob.GetAnnotations()
-		if annotations != nil {
-			if annotations[key] == nodeName {
-				return nil
-			}
+		if annotations[key] == nodeName {
+			return nil
 		}
 
-		dataStr := fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%s"}}}`, key, nodeName)
-		if _, err = jobClient.Patch(context.TODO(), job.Name, types.MergePatchType, []byte(dataStr), metav1.PatchOptions{}); err == nil {
-			break
-		}
-	}
-
-	return err
+		_, err = jobClient.Patch(context.TODO(), job.Name, types.MergePatchType, []byte(dataStr), metav1.PatchOptions{})
+		return err
+	})
 }
 
-// updateIncrementalJobConditions ensures that conditions of incrementallearning job can be changed by podstatus
-func (c *Controller) updateIncrementalJobConditions(incrementaljob *sednav1.IncrementalLearningJob) (bool, error) {
+// transitJobState transit job to next state
+func (c *Controller) transitJobState(job *sednav1.IncrementalLearningJob) (bool, error) {
 	var initialType sednav1.ILJobStageConditionType
 	var latestCondition sednav1.ILJobCondition = sednav1.ILJobCondition{
 		Stage: sednav1.ILJobTrain,
 		Type:  initialType,
 	}
+
 	var newConditionType sednav1.ILJobStageConditionType
 	var needUpdated = false
-	jobConditions := incrementaljob.Status.Conditions
+
 	var podStatus v1.PodPhase = v1.PodUnknown
 	var pod *v1.Pod
+
+	jobConditions := job.Status.Conditions
 	if len(jobConditions) > 0 {
 		// get latest pod and pod status
 		latestCondition = (jobConditions)[len(jobConditions)-1]
-		klog.V(2).Infof("incrementallearning job %v/%v latest stage %v:", incrementaljob.Namespace, incrementaljob.Name,
+		klog.V(2).Infof("incrementallearning job %v/%v latest stage %v:", job.Namespace, job.Name,
 			latestCondition.Stage)
-		pod = c.getSpecifiedPods(incrementaljob, string(latestCondition.Stage))
+		pod = c.getSpecifiedPods(job, string(latestCondition.Stage))
 
 		if pod != nil {
 			podStatus = pod.Status.Phase
 		}
 	}
+
 	jobStage := latestCondition.Stage
 	currentType := latestCondition.Type
 	newConditionType = currentType
@@ -388,14 +384,14 @@ func (c *Controller) updateIncrementalJobConditions(incrementaljob *sednav1.Incr
 		// include train, eval, deploy pod
 		var err error
 		if jobStage == sednav1.ILJobDeploy {
-			err = c.restartInferPod(incrementaljob)
+			err = c.restartInferPod(job)
 			if err != nil {
-				klog.V(2).Infof("incrementallearning job %v/%v inference pod failed to restart, err:%s", incrementaljob.Namespace, incrementaljob.Name, err)
+				klog.V(2).Infof("incrementallearning job %v/%v inference pod failed to restart, err:%s", job.Namespace, job.Name, err)
 			} else {
-				klog.V(2).Infof("incrementallearning job %v/%v inference pod restarts successfully", incrementaljob.Namespace, incrementaljob.Name)
+				klog.V(2).Infof("incrementallearning job %v/%v inference pod restarts successfully", job.Namespace, job.Name)
 			}
 		} else if podStatus != v1.PodPending && podStatus != v1.PodRunning {
-			err = c.createPod(incrementaljob, jobStage)
+			err = c.createPod(job, jobStage)
 		}
 		if err != nil {
 			return needUpdated, err
@@ -411,17 +407,17 @@ func (c *Controller) updateIncrementalJobConditions(incrementaljob *sednav1.Incr
 				newConditionType = sednav1.ILJobStageCondRunning
 
 				// add nodeName to job
-				if err := c.setWorkerNodeNameOfJob(incrementaljob, string(jobStage), pod.Spec.NodeName); err != nil {
+				if err := c.setWorkerNodeNameOfJob(job, string(jobStage), pod.Spec.NodeName); err != nil {
 					return needUpdated, err
 				}
 			}
 		} else if podStatus == v1.PodSucceeded {
 			// watch pod status, if pod completed, set type completed
 			newConditionType = sednav1.ILJobStageCondCompleted
-			klog.V(2).Infof("incrementallearning job %v/%v %v stage completed!", incrementaljob.Namespace, incrementaljob.Name, jobStage)
+			klog.V(2).Infof("incrementallearning job %v/%v %v stage completed!", job.Namespace, job.Name, jobStage)
 		} else if podStatus == v1.PodFailed {
 			newConditionType = sednav1.ILJobStageCondFailed
-			klog.V(2).Infof("incrementallearning job %v/%v %v stage failed!", incrementaljob.Namespace, incrementaljob.Name, jobStage)
+			klog.V(2).Infof("incrementallearning job %v/%v %v stage failed!", job.Namespace, job.Name, jobStage)
 		}
 	case sednav1.ILJobStageCondCompleted:
 		jobStage = getNextStage(jobStage)
@@ -434,31 +430,29 @@ func (c *Controller) updateIncrementalJobConditions(incrementaljob *sednav1.Incr
 	default:
 		// do nothing when given other type out of cases
 	}
-	klog.V(2).Infof("incrementallearning job %v/%v, conditions: %v", incrementaljob.Namespace, incrementaljob.Name, jobConditions)
+
+	klog.V(2).Infof("incrementallearning job %v/%v, conditions: %v", job.Namespace, job.Name, jobConditions)
 	if latestCondition.Type != newConditionType {
-		incrementaljob.Status.Conditions = append(incrementaljob.Status.Conditions, NewIncrementalJobCondition(newConditionType, jobStage))
+		job.Status.Conditions = append(job.Status.Conditions, NewIncrementalJobCondition(newConditionType, jobStage))
 		needUpdated = true
-		return needUpdated, nil
 	}
+
 	return needUpdated, nil
 }
 
-// updateIncrementalJobStatus ensures that jobstatus can be updated rightly
-func (c *Controller) updateIncrementalJobStatus(incrementaljob *sednav1.IncrementalLearningJob) error {
-	jobClient := c.client.IncrementalLearningJobs(incrementaljob.Namespace)
-	var err error
-	for i := 0; i <= runtime.ResourceUpdateRetries; i++ {
-		var newIncrementalJob *sednav1.IncrementalLearningJob
-		newIncrementalJob, err = jobClient.Get(context.TODO(), incrementaljob.Name, metav1.GetOptions{})
+// updateJobStatus ensures that job status can be updated rightly
+func (c *Controller) updateJobStatus(job *sednav1.IncrementalLearningJob) error {
+	jobClient := c.client.IncrementalLearningJobs(job.Namespace)
+	return runtime.RetryUpdateStatus(job.Name, job.Namespace, func() error {
+		newJob, err := jobClient.Get(context.TODO(), job.Name, metav1.GetOptions{})
 		if err != nil {
-			break
+			return err
 		}
-		newIncrementalJob.Status = incrementaljob.Status
-		if _, err = jobClient.UpdateStatus(context.TODO(), newIncrementalJob, metav1.UpdateOptions{}); err == nil {
-			break
-		}
-	}
-	return err
+
+		newJob.Status = job.Status
+		_, err = jobClient.UpdateStatus(context.TODO(), newJob, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func NewIncrementalJobCondition(conditionType sednav1.ILJobStageConditionType, jobStage sednav1.ILJobStage) sednav1.ILJobCondition {
@@ -478,21 +472,24 @@ func (c *Controller) generatePodName(jobName string, workerType string) string {
 }
 
 func (c *Controller) getSpecifiedPods(job *sednav1.IncrementalLearningJob, podType string) *v1.Pod {
-	if podType == "Deploy" {
-		podType = runtime.InferencePodType
-	}
 	var latestPod *v1.Pod
 	selector, _ := runtime.GenerateSelector(job)
 	pods, err := c.podStore.Pods(job.Namespace).List(selector)
 	if len(pods) == 0 || err != nil {
 		return nil
 	}
+
 	var matchTag = false
 	latestPod = pods[0]
+
+	if podType == "Deploy" {
+		podType = runtime.InferencePodType
+	}
+
 	for _, pod := range pods {
 		s := strings.Split(pod.Name, "-")
-		CurrentPodType := s[len(s)-2]
-		if (latestPod.CreationTimestamp.Before(&pod.CreationTimestamp) || latestPod.CreationTimestamp.Equal(&pod.CreationTimestamp)) && CurrentPodType == strings.ToLower(podType) {
+		currentPodType := s[len(s)-2]
+		if (latestPod.CreationTimestamp.Before(&pod.CreationTimestamp) || latestPod.CreationTimestamp.Equal(&pod.CreationTimestamp)) && currentPodType == strings.ToLower(podType) {
 			latestPod = pod
 			matchTag = true
 		}
@@ -510,12 +507,14 @@ func (c *Controller) restartInferPod(job *sednav1.IncrementalLearningJob) error 
 		err := c.createInferPod(job)
 		return err
 	}
+
 	ctx := context.Background()
 	err := c.kubeClient.CoreV1().Pods(job.Namespace).Delete(ctx, inferPod.Name, metav1.DeleteOptions{})
 	if err != nil {
 		klog.Warningf("failed to delete inference pod %s for incrementallearning job %v/%v, err:%s", inferPod.Name, job.Namespace, job.Name, err)
 		return err
 	}
+
 	err = c.createInferPod(job)
 	if err != nil {
 		klog.Warningf("failed to create inference pod %s for incrementallearning job %v/%v, err:%s", inferPod.Name, job.Namespace, job.Name, err)
@@ -537,7 +536,7 @@ func getNextStage(currentStage sednav1.ILJobStage) sednav1.ILJobStage {
 	}
 }
 
-func IsIncrementalJobFinished(j *sednav1.IncrementalLearningJob) bool {
+func IsJobFinished(j *sednav1.IncrementalLearningJob) bool {
 	// TODO
 	return false
 }
@@ -600,13 +599,14 @@ func (c *Controller) createPod(job *sednav1.IncrementalLearningJob, podtype sedn
 	}
 
 	// get all url for train and eval from data in condition
+	var cond IncrementalCondData
 	condDataStr := job.Status.Conditions[len(job.Status.Conditions)-1].Data
 	klog.V(2).Infof("incrementallearning job %v/%v data condition:%s", job.Namespace, job.Name, condDataStr)
-	var cond IncrementalCondData
 	(&cond).Unmarshal([]byte(condDataStr))
 	if cond.Input == nil {
 		return fmt.Errorf("empty input from condData")
 	}
+
 	dataURL := cond.Input.DataURL
 	inputmodelURLs := cond.GetInputModelURLs()
 
@@ -619,13 +619,14 @@ func (c *Controller) createPod(job *sednav1.IncrementalLearningJob, podtype sedn
 		originalDataURLOrIndex = dataset.Spec.URL
 	}
 
-	var workerParam *runtime.WorkerParam = new(runtime.WorkerParam)
+	var workerParam runtime.WorkerParam
+
 	if podtype == sednav1.ILJobTrain {
 		workerParam.WorkerType = runtime.TrainPodType
 
 		podTemplate = &job.Spec.TrainSpec.Template
-		// Env parameters for train
 
+		// Env parameters for train
 		workerParam.Env = map[string]string{
 			"NAMESPACE":   job.Namespace,
 			"JOB_NAME":    job.Name,
@@ -688,10 +689,10 @@ func (c *Controller) createPod(job *sednav1.IncrementalLearningJob, podtype sedn
 			},
 		)
 	} else {
+		// Configure eval worker's mounts and envs
 		podTemplate = &job.Spec.EvalSpec.Template
 		workerParam.WorkerType = "Eval"
 
-		// Configure Env information for eval by initial runtime.WorkerParam
 		workerParam.Env = map[string]string{
 			"NAMESPACE":   job.Namespace,
 			"JOB_NAME":    job.Name,
@@ -757,10 +758,7 @@ func (c *Controller) createPod(job *sednav1.IncrementalLearningJob, podtype sedn
 	workerParam.HostNetwork = true
 
 	// create pod based on podtype
-	_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, podTemplate, workerParam)
-	if err != nil {
-		return err
-	}
+	_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, podTemplate, &workerParam)
 	return
 }
 
@@ -771,19 +769,20 @@ func (c *Controller) createInferPod(job *sednav1.IncrementalLearningJob) error {
 		return fmt.Errorf("failed to get infer model %s: %w",
 			infermodelName, err)
 	}
+
 	inferModelURL := inferModel.Spec.URL
 
-	// Env parameters for edge
 	HEMParameterJSON, _ := json.Marshal(job.Spec.DeploySpec.HardExampleMining.Parameters)
 	HEMParameterString := string(HEMParameterJSON)
 
-	// Configure container mounting and Env information by initial runtime.WorkerParam
 	modelSecret, err := c.getSecret(
 		job.Namespace,
 		inferModel.Spec.CredentialName,
 		fmt.Sprintf("model %s", inferModel.Name),
 	)
-	var workerParam *runtime.WorkerParam = new(runtime.WorkerParam)
+
+	// Configure inference worker's mounts and envs
+	var workerParam runtime.WorkerParam
 	workerParam.Mounts = append(workerParam.Mounts,
 		runtime.WorkerMount{
 			URL: &runtime.MountURL{
@@ -810,13 +809,13 @@ func (c *Controller) createInferPod(job *sednav1.IncrementalLearningJob) error {
 	workerParam.WorkerType = runtime.InferencePodType
 	workerParam.HostNetwork = true
 
-	// create edge pod
-	_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, &job.Spec.DeploySpec.Template, workerParam)
+	// create the inference worker
+	_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, &job.Spec.DeploySpec.Template, &workerParam)
 	return err
 }
 
-// New creates a new IncrementalJob controller that keeps the relevant pods
-// in sync with their corresponding IncrementalJob objects.
+// New creates a new incremental learning job controller that keeps the relevant pods
+// in sync with the corresponding IncrementalLearningJob objects.
 func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	podInformer := cc.KubeInformerFactory.Core().V1().Pods()
 
@@ -829,9 +828,9 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 		kubeClient: cc.KubeClient,
 		client:     cc.SednaClient.SednaV1alpha1(),
 
-		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), "incrementallearningjob"),
-		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "incrementallearningjob-controller"}),
-		cfg:      cc.Config,
+		queue: workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), Name),
+
+		cfg: cc.Config,
 	}
 
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -858,8 +857,6 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	})
 	jc.podStore = podInformer.Lister()
 	jc.podStoreSynced = podInformer.Informer().HasSynced
-
-	jc.addUpstreamHandler(cc)
 
 	return jc, nil
 }

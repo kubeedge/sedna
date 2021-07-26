@@ -70,7 +70,5 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 		},
 	})
 
-	c.addUpstreamHandler(cc)
-
 	return c, nil
 }

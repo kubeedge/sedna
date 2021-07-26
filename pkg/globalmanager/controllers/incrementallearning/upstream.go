@@ -157,6 +157,6 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 	return nil
 }
 
-func (c *Controller) addUpstreamHandler(cc *runtime.ControllerContext) error {
-	return cc.UpstreamController.Add(KindName, c.updateFromEdge)
+func (c *Controller) SetUpstreamHandler(addFunc runtime.UpstreamHandlerAddFunc) error {
+	return addFunc(KindName, c.updateFromEdge)
 }

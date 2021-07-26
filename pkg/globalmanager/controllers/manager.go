@@ -76,7 +76,7 @@ func (m *Manager) Start() error {
 		namespace = metav1.NamespaceAll
 	}
 
-	// make this period configurable
+	// TODO(llhuii): make this period configurable
 	minResyncPeriod := time.Second * 30
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, genResyncPeriod(minResyncPeriod), kubeinformers.WithNamespace(namespace))
@@ -94,14 +94,10 @@ func (m *Manager) Start() error {
 	}
 
 	uc, _ := NewUpstreamController(context)
-	context.UpstreamController = uc
 
 	downstreamSendFunc := messagelayer.NewContextMessageLayer().SendResourceObject
 
 	stopCh := make(chan struct{})
-
-	kubeInformerFactory.Start(stopCh)
-	sednaInformerFactory.Start(stopCh)
 
 	go uc.Run(stopCh)
 
@@ -111,10 +107,14 @@ func (m *Manager) Start() error {
 			return fmt.Errorf("failed to initialize controller %s: %v", name, err)
 		}
 		f.SetDownstreamSendFunc(downstreamSendFunc)
+		f.SetUpstreamHandler(uc.Add)
 
+		klog.Infof("initialized controller %s", name)
 		go f.Run(stopCh)
-		klog.Infof("started controller %s", name)
 	}
+
+	kubeInformerFactory.Start(stopCh)
+	sednaInformerFactory.Start(stopCh)
 
 	addr := fmt.Sprintf("%s:%d", m.Config.WebSocket.Address, m.Config.WebSocket.Port)
 

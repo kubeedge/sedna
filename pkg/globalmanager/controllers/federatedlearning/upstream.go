@@ -110,7 +110,7 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 			// TODO: more meaningful reason/message
 			reason := "DoTraining"
 			message := fmt.Sprintf("Round %v reaches at %s", jobInfo.CurrentRound, jobInfo.UpdateTime)
-			cond := NewFLJobCondition(sednav1.FLJobCondTraining, reason, message)
+			cond := NewJobCondition(sednav1.FLJobCondTraining, reason, message)
 			c.appendStatusCondition(name, namespace, cond)
 		}
 	}
@@ -118,6 +118,6 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 	return nil
 }
 
-func (c *Controller) addUpstreamHandler(cc *runtime.ControllerContext) error {
-	return cc.UpstreamController.Add(KindName, c.updateFromEdge)
+func (c *Controller) SetUpstreamHandler(addFunc runtime.UpstreamHandlerAddFunc) error {
+	return addFunc(KindName, c.updateFromEdge)
 }

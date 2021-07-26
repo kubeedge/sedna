@@ -32,7 +32,7 @@ import (
 type Model = runtime.Model
 
 // the data of this condition including the input/output to do the next step
-type LifelongLearningCondData struct {
+type ConditionData struct {
 	Input *struct {
 		// Only one model cases
 		Model  *Model  `json:"model,omitempty"`
@@ -57,7 +57,7 @@ type LifelongLearningCondData struct {
 	} `json:"output,omitempty"`
 }
 
-func (cd *LifelongLearningCondData) joinModelURLs(model *Model, models []Model) []string {
+func (cd *ConditionData) joinModelURLs(model *Model, models []Model) []string {
 	var modelURLs []string
 	if model != nil {
 		modelURLs = append(modelURLs, model.GetURL())
@@ -69,19 +69,19 @@ func (cd *LifelongLearningCondData) joinModelURLs(model *Model, models []Model) 
 	return modelURLs
 }
 
-func (cd *LifelongLearningCondData) Unmarshal(data []byte) error {
+func (cd *ConditionData) Unmarshal(data []byte) error {
 	return json.Unmarshal(data, cd)
 }
 
-func (cd LifelongLearningCondData) Marshal() ([]byte, error) {
+func (cd ConditionData) Marshal() ([]byte, error) {
 	return json.Marshal(cd)
 }
 
-func (cd *LifelongLearningCondData) GetInputModelURLs() []string {
+func (cd *ConditionData) GetInputModelURLs() []string {
 	return cd.joinModelURLs(cd.Input.Model, cd.Input.Models)
 }
 
-func (cd *LifelongLearningCondData) GetOutputModelURLs() []string {
+func (cd *ConditionData) GetOutputModelURLs() []string {
 	return cd.joinModelURLs(cd.Output.Model, cd.Output.Models)
 }
 
@@ -112,7 +112,7 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 
 	// Get the condition data.
 	// Here unmarshal and marshal immediately to skip the unnecessary fields
-	var condData LifelongLearningCondData
+	var condData ConditionData
 	err = json.Unmarshal(content, &condData)
 	if err != nil {
 		return err
@@ -159,6 +159,6 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 	return nil
 }
 
-func (c *Controller) addUpstreamHandler(cc *runtime.ControllerContext) error {
-	return cc.UpstreamController.Add(KindName, c.updateFromEdge)
+func (c *Controller) SetUpstreamHandler(addFunc runtime.UpstreamHandlerAddFunc) error {
+	return addFunc(KindName, c.updateFromEdge)
 }

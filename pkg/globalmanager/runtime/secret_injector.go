@@ -121,7 +121,6 @@ func InjectSecretAnnotations(client kubernetes.Interface, obj CommonInterface, s
 }
 
 func injectSecretObj(obj CommonInterface, secret *v1.Secret) (err error) {
-
 	secretData := secret.GetAnnotations()
 
 	for k, v := range secret.Data {

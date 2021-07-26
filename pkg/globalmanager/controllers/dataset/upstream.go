@@ -57,6 +57,6 @@ func (c *Controller) updateStatus(name, namespace string, status sednav1.Dataset
 	})
 }
 
-func (c *Controller) addUpstreamHandler(cc *runtime.ControllerContext) error {
-	return cc.UpstreamController.Add(KindName, c.updateFromEdge)
+func (c *Controller) SetUpstreamHandler(addFunc runtime.UpstreamHandlerAddFunc) error {
+	return addFunc(KindName, c.updateFromEdge)
 }

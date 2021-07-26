@@ -105,7 +105,7 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 	return service.Spec.Ports[0].NodePort, nil
 }
 
-// injectWorkerParam.Modifies pod in-place
+// injectWorkerParam modifies pod in-place
 func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInterface) {
 	InjectStorageInitializer(pod, workerParam)
 

@@ -32,17 +32,15 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 		return nil
 	}
 
+	// Since t.Kind may be empty,
+	// we need to fix the kind here if missing.
+	// more details at https://github.com/kubernetes/kubernetes/issues/3030
+	dataset.Kind = KindName
+
 	// Here only propagate to the nodes with non empty name
 	nodeName := dataset.Spec.NodeName
 	if len(nodeName) == 0 {
 		return fmt.Errorf("empty node name")
-	}
-
-	// Since t.Kind may be empty,
-	// we need to fix the kind here if missing.
-	// more details at https://github.com/kubernetes/kubernetes/issues/3030
-	if len(dataset.Kind) == 0 {
-		dataset.Kind = KindName
 	}
 
 	runtime.InjectSecretAnnotations(c.kubeClient, dataset, dataset.Spec.CredentialName)
@@ -52,6 +50,5 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 
 func (c *Controller) SetDownstreamSendFunc(f runtime.DownstreamSendFunc) error {
 	c.sendToEdgeFunc = f
-
 	return nil
 }

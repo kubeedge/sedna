@@ -29,6 +29,11 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 		return nil
 	}
 
+	// Since Kind may be empty,
+	// we need to fix the kind here if missing.
+	// more details at https://github.com/kubernetes/kubernetes/issues/3030
+	job.Kind = KindName
+
 	// broadcast to all nodes specified in spec
 	nodeset := make(map[string]bool)
 	for _, trainingWorker := range job.Spec.TrainingWorkers {

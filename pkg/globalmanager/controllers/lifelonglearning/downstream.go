@@ -30,6 +30,12 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 	if !ok {
 		return nil
 	}
+
+	// Since Kind may be empty,
+	// we need to fix the kind here if missing.
+	// more details at https://github.com/kubernetes/kubernetes/issues/3030
+	job.Kind = KindName
+
 	// Here only propagate to the nodes with non empty name
 
 	// FIXME(llhuii): only the case that all workers having the same nodeName are support,

@@ -34,12 +34,8 @@ import (
 )
 
 const (
-	// DefaultBackOff is the default backoff period
-	DefaultBackOff = 10 * time.Second
-	// MaxBackOff is the max backoff period
-	MaxBackOff = 360 * time.Second
-	// ResourceUpdateRetries defines times of retrying to update resource
-	ResourceUpdateRetries = 3
+	// resourceUpdateTries defines times of trying to update resource
+	resourceUpdateTries = 3
 )
 
 // GetNodeIPByName get node ip by node name
@@ -152,17 +148,15 @@ func ConvertMapToMetrics(metric map[string]interface{}) []sednav1.Metric {
 	return l
 }
 
-const upstreamStatusUpdateRetries = 3
-
 // RetryUpdateStatus simply retries to call the status update func
 func RetryUpdateStatus(name, namespace string, updateStatusFunc func() error) error {
 	var err error
-	for retry := 0; retry <= upstreamStatusUpdateRetries; retry++ {
+	for try := 1; try <= resourceUpdateTries; try++ {
 		err = updateStatusFunc()
 		if err == nil {
 			return nil
 		}
-		klog.Warningf("Error to update %s/%s status, retried %d times: %+v", namespace, name, retry, err)
+		klog.Warningf("Error to update %s/%s status, tried %d times: %+v", namespace, name, try, err)
 	}
 	return err
 }
