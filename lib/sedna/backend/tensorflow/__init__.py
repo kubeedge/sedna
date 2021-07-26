@@ -29,6 +29,19 @@ else:
     ConfigProto = tf.ConfigProto
     Session = tf.Session
 
+class TorchBackend(BackendBase):
+    def __init__(self, estimator, fine_tune=True, **kwargs):
+        super(TorchBackend, self).__init__(
+            estimator=estimator, fine_tune=fine_tune, **kwargs)
+        self.framework = "pytorch"
+        sess_config = self._init_gpu_session_config(
+        ) if self.use_cuda else self._init_cpu_session_config()
+
+        with self.graph.as_default():
+            self.sess = Session(config=sess_config)
+        if callable(self.estimator):
+            self.estimator = self.estimator()
+
 
 class TFBackend(BackendBase):
 

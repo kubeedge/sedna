@@ -52,12 +52,6 @@ class ReIDService(JobBase):
                                      host=self.local_ip, http_port=self.port)
         app_server.start()
 
-    def train(self, train_data,
-              valid_data=None,
-              post_process=None,
-              **kwargs):
-        """todo: no support yet"""
-
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
         if callable(post_process):
@@ -66,7 +60,7 @@ class ReIDService(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{self.worker_name}_cloud_inference"):
+        with FTimer(f"{self.worker_name}_reid"):
             res = self.estimator.predict(data, **kwargs)
 
         if callback_func:

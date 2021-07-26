@@ -12,122 +12,74 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import cv2
-import logging
-
 import numpy as np
-import tensorflow as tf
+import os
+import sys
+import argparse
+import random
+import time
+import torch
+
+from utils.getter import *
+from utils.logger import setup_logger
+from PIL import Image
+
 from sedna.core.multi_edge_tracking import ReIDService
+from sedna.common.config import Context
 
 LOG = logging.getLogger(__name__)
-os.environ['BACKEND_TYPE'] = 'TENSORFLOW'
-flags = tf.flags.FLAGS
+os.environ['BACKEND_TYPE'] = 'TORCH'
 
+log_dir = Context.get_parameters('reid_log_dir')
+gfeats = Context.get_parameters('gfeats')
+qfeats = Context.get_parameters('qfeats')
+imgpath = Context.get_parameters('imgpath')
+image_size = Context.get_parameters('input_shape')
 
-#TODO: Change the code below for ReID!
-
-def create_input_feed(sess, new_image, img_data):
-    """Create input feed for edge model inference"""
-    input_feed = {}
-
-    input_img_data = sess.graph.get_tensor_by_name('images:0')
-    input_feed[input_img_data] = new_image
-
-    input_img_shape = sess.graph.get_tensor_by_name('shapes:0')
-    input_feed[input_img_shape] = [img_data.shape[0], img_data.shape[1]]
-
-    return input_feed
-
-
-def create_output_fetch(sess):
-    """Create output fetch for edge model inference"""
-    output_classes = sess.graph.get_tensor_by_name('concat_19:0')
-    output_scores = sess.graph.get_tensor_by_name('concat_18:0')
-    output_boxes = sess.graph.get_tensor_by_name('concat_17:0')
-
-    output_fetch = [output_classes, output_scores, output_boxes]
-    return output_fetch
-
+sys.path.append('.')
 
 class Estimator:
 
     def __init__(self, **kwargs):
-        """
-        initialize logging configuration
-        """
-        graph = tf.Graph()
-        config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
-        config.gpu_options.allow_growth = True
-        config.gpu_options.per_process_gpu_memory_fraction = 0.1
-        self.session = tf.compat.v1.Session(graph=graph, config=config)
-        self.input_shape = [416, 736]
-        self.create_input_feed = create_input_feed
-        self.create_output_fetch = create_output_fetch
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.log_dir = log_dir
+        self.gallery_feats = torch.load(os.path.join(self.log_dir, gfeats), map_location=self.device )
+        self.img_path = np.load(os.path.join(self.log_dir, imgpath))
+        self.image_size = [image_size.split(",")[0], image_size.split(",")[1]] 
 
-    def load(self, model_url=""):
-        # This requires some more work as the model is loaded in the form of an AutoTrackable object.
-        #new_model = tf.saved_model.load_v2("/home/data/home/v00609018/dev/data/object_detector")
+        print('[gallery_feats.shape, len(img_path)]: ', self.gallery_feats.shape, len(self.img_path))
 
-        with self.session.as_default():
-            with self.session.graph.as_default():
-                with tf.io.gfile.GFile(model_url, 'rb') as handle:
-                    LOG.info(f"Load model {model_url}, "
-                             f"ParseFromString start .......")
-                    graph_def = tf.compat.v1.GraphDef()
-                    graph_def.ParseFromString(handle.read())
-                    LOG.info("ParseFromString end .......")
 
-                    tf.import_graph_def(graph_def, name='')
-                    LOG.info("Import_graph_def end .......")
+    def predict(self, query_img, **kwargs):
+        start = time.time()
+        dist_mat = cosine_similarity(self.query_feat, self.gallery_feats)
+        indices = np.argsort(dist_mat, axis=1)
+        end = time.time()
+        self.logger.info(f"cosine_similarity calc time: {end - start}")
+        
+        self.save_result(query_img, indices, camid='mixed', top_k=10,
+                img_size=self.image_size)
 
-        LOG.info("Import model from pb end .......")
+    def save_result(self, test_img, indices, camid, top_k=10, img_size=[128, 128]):
+        figure = np.asarray(self.query_img.resize((img_size[1], img_size[0])))
+        for k in range(top_k):
+            name = str(indices[0][k]).zfill(6)
+            img = np.asarray(Image.open(self.img_path[indices[0][k]]).resize(
+                (img_size[1], img_size[0])))
+            figure = np.hstack((figure, img))
+            title = name
+            print(title)
+        figure = cv2.cvtColor(figure, cv2.COLOR_BGR2RGB)
+        result_path = os.path.join(self.log_dir, "results")
 
-    @staticmethod
-    def preprocess(image, input_shape):
-        """Preprocess functions in edge model inference"""
+        if not os.path.exists(result_path):
+            print('Create a new folder named results in {}'.format(self.log_dir))
+            os.makedirs(result_path)
 
-        # resize image with unchanged aspect ratio using padding by opencv
+        cv2.imwrite(os.path.join(
+            result_path, "{}-cam{}.png".format(test_img, camid)), figure)
 
-        h, w, _ = image.shape
-
-        input_h, input_w = input_shape
-        scale = min(float(input_w) / float(w), float(input_h) / float(h))
-        nw = int(w * scale)
-        nh = int(h * scale)
-
-        image = cv2.resize(image.astype(np.float32), (nw, nh))
-
-        new_image = np.zeros((input_h, input_w, 3), np.float32)
-        new_image.fill(128)
-        bh, bw, _ = new_image.shape
-        new_image[int((bh - nh) / 2):(nh + int((bh - nh) / 2)),
-                  int((bw - nw) / 2):(nw + int((bw - nw) / 2)), :] = image
-
-        new_image /= 255.
-        new_image = np.expand_dims(new_image, 0)  # Add batch dimension.
-        return new_image
-
-    @staticmethod
-    def postprocess(model_output):
-        all_classes, all_scores, all_bboxes = model_output
-        bboxes = []
-        for c, s, bbox in zip(all_classes, all_scores, all_bboxes):
-            bbox[0], bbox[1], bbox[2], bbox[3] = bbox[1].tolist(
-            ), bbox[0].tolist(), bbox[3].tolist(), bbox[2].tolist()
-            bboxes.append(bbox.tolist() + [s.tolist(), c.tolist()])
-
-        return bboxes
-
-    def predict(self, data, **kwargs):
-        img_data_np = np.array(data)
-        with self.session.as_default():
-            new_image = self.preprocess(img_data_np, self.input_shape)
-            input_feed = self.create_input_feed(
-                self.session, new_image, img_data_np)
-            output_fetch = self.create_output_fetch(self.session)
-            output = self.session.run(output_fetch, input_feed)
-            return self.postprocess(output)
 
 # Starting the ReID module
 inference_instance = ReIDService(estimator=Estimator)

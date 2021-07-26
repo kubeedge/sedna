@@ -16,11 +16,13 @@ spec:
           name:  mot
           env:  # user defined environments
           - name: input_shape
-            value: "416,736"
+            value: "256,128"
           - name: "video_url"
             value: "rtsp://localhost/video"
-          - name: "all_examples_inference_output"
-            value: "/data/output"
+          - name: "model_name"
+            value: "efficientnet_v2"
+          - name: "edge_model_weights"
+            value: "/data/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
           resources:  # user defined resources
             requests:
               memory: 64M
@@ -30,12 +32,6 @@ spec:
           volumeMounts:
             - name: outputdir
               mountPath: /data/
-        volumes:   # user defined volumes
-          - name: outputdir
-            hostPath:
-              # user must create the directory in host
-              path: /data/output/
-              type: Directory
   - 
     model:
       name: "mot-model"
@@ -48,11 +44,13 @@ spec:
           name:  mot
           env:  # user defined environments
           - name: input_shape
-            value: "416,736"
+            value: "256,128"
           - name: "video_url"
             value: "rtsp://localhost/video"
-          - name: "all_examples_inference_output"
-            value: "/data/output"
+          - name: "model_name"
+            value: "efficientnet_v2"
+          - name: "edge_model_weights"
+            value: "/data/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
           resources:  # user defined resources
             requests:
               memory: 64M
@@ -62,12 +60,6 @@ spec:
           volumeMounts:
             - name: outputdir
               mountPath: /data/
-        volumes:   # user defined volumes
-          - name: outputdir
-            hostPath:
-              # user must create the directory in host
-              path: /data/output/
-              type: Directory
 
   reIDWorker:
     model:
@@ -80,8 +72,25 @@ spec:
             name:  reid
             imagePullPolicy: IfNotPresent
             env:  # user defined environments
-              - name: "input_shape"
-                value: "416,736"
+            - name: "model_name"
+              value: "efficientnet_v2"
+            - name: "reid_log_dir"
+              value: "/data/ai_models/deep_eff_reid/loggers/runs/efficientnetv2_market_2"
+              - name: "gfeats"
+              value: "gfeats.pth"
+              - name: "qfeats"
+              value: "qfeats.pth"
+              - name: "imgpath"
+              value: "imgpath.npy"
             resources:  # user defined resources
               requests:
                 memory: 2Gi
+            volumeMounts:
+            - name: outputdir
+              mountPath: /data/ai_models/deep_eff_reid/loggers/runs/efficientnetv2_market_2/results/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /data/ai_models/deep_eff_reid/loggers/runs/efficientnetv2_market_2/results/
+              type: Directory

@@ -12,114 +12,64 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import cv2
-import logging
-
 import numpy as np
-import tensorflow as tf
+import os
+import sys
+import torch
+import argparse
+import random
+import time
+import torchvision.transforms as T
+
+from utils.getter import *
+from torch.backends import cudnn
+from PIL import Image
+
+from sedna.backend.torch.nn import Backbone
+from sedna.common.config import Context
 
 LOG = logging.getLogger(__name__)
-os.environ['BACKEND_TYPE'] = 'TENSORFLOW'
-flags = tf.flags.FLAGS
+os.environ['BACKEND_TYPE'] = 'TORCH'
 
-#TODO: Change the code below for MOT!
-
-def create_input_feed(sess, new_image, img_data):
-    """Create input feed for edge model inference"""
-    input_feed = {}
-
-    input_img_data = sess.graph.get_tensor_by_name('images:0')
-    input_feed[input_img_data] = new_image
-
-    input_img_shape = sess.graph.get_tensor_by_name('shapes:0')
-    input_feed[input_img_shape] = [img_data.shape[0], img_data.shape[1]]
-
-    return input_feed
-
-
-def create_output_fetch(sess):
-    """Create output fetch for edge model inference"""
-    output_classes = sess.graph.get_tensor_by_name('concat_19:0')
-    output_scores = sess.graph.get_tensor_by_name('concat_18:0')
-    output_boxes = sess.graph.get_tensor_by_name('concat_17:0')
-
-    output_fetch = [output_classes, output_scores, output_boxes]
-    return output_fetch
-
+model_weights = Context.get_parameters('edge_model_weights')
+model_name = Context.get_parameters('edge_model_name')
+image_size = Context.get_parameters('input_shape')
 
 class Estimator:
 
     def __init__(self, **kwargs):
-        """
-        initialize logging configuration
-        """
-        graph = tf.Graph()
-        config = tf.ConfigProto(allow_soft_placement=True)
-        config.gpu_options.allow_growth = True
-        config.gpu_options.per_process_gpu_memory_fraction = 0.1
-        self.session = tf.Session(graph=graph, config=config)
-        self.input_shape = [416, 736]
-        self.create_input_feed = create_input_feed
-        self.create_output_fetch = create_output_fetch
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.image_size = [image_size.split(",")[0], image_size.split(",")[1]] 
+        cudnn.benchmark = True
 
+        self.transform = T.Compose([
+            T.Resize(self.image_size),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+    
     def load(self, model_url=""):
-        with self.session.as_default():
-            with self.session.graph.as_default():
-                with tf.gfile.FastGFile(model_url, 'rb') as handle:
-                    LOG.info(f"Load model {model_url}, "
-                             f"ParseFromString start .......")
-                    graph_def = tf.GraphDef()
-                    graph_def.ParseFromString(handle.read())
-                    LOG.info("ParseFromString end .......")
+        # The model should be provided by a CRD
+        self.model = Backbone(num_classes=255, model_name=model_name)
 
-                    tf.import_graph_def(graph_def, name='')
-                    LOG.info("Import_graph_def end .......")
+    def load_weights(self):
+        # Here we load the model weights from the attached volume (.yaml)
+        self.model.load_param(model_weights)
+        self.model = self.model.to(self.device)
 
-        LOG.info("Import model from pb end .......")
+    def evaluate(self):
+        return self.model.eval()
 
-    @staticmethod
-    def preprocess(image, input_shape):
-        """Preprocess functions in edge model inference"""
+    def predict(self, query_img, **kwargs):      
+        LOG.info('Finding ID {} ...'.format(query_img))
+        input = torch.unsqueeze(self.transform(query_img), 0)
+        input = input.to(self.device)
 
-        # resize image with unchanged aspect ratio using padding by opencv
+        start = time.time()
+        with torch.no_grad():
+            query_feat = self.model(input)
+        end = time.time()
+        LOG.info(f"Feature extraction from query image: {end - start}")
 
-        h, w, _ = image.shape
-
-        input_h, input_w = input_shape
-        scale = min(float(input_w) / float(w), float(input_h) / float(h))
-        nw = int(w * scale)
-        nh = int(h * scale)
-
-        image = cv2.resize(image.astype(np.float32), (nw, nh))
-
-        new_image = np.zeros((input_h, input_w, 3), np.float32)
-        new_image.fill(128)
-        bh, bw, _ = new_image.shape
-        new_image[int((bh - nh) / 2):(nh + int((bh - nh) / 2)),
-                  int((bw - nw) / 2):(nw + int((bw - nw) / 2)), :] = image
-
-        new_image /= 255.
-        new_image = np.expand_dims(new_image, 0)  # Add batch dimension.
-        return new_image
-
-    @staticmethod
-    def postprocess(model_output):
-        all_classes, all_scores, all_bboxes = model_output
-        bboxes = []
-        for c, s, bbox in zip(all_classes, all_scores, all_bboxes):
-            bbox[0], bbox[1], bbox[2], bbox[3] = bbox[1].tolist(
-            ), bbox[0].tolist(), bbox[3].tolist(), bbox[2].tolist()
-            bboxes.append(bbox.tolist() + [s.tolist(), c.tolist()])
-
-        return bboxes
-
-    def predict(self, data, **kwargs):
-        img_data_np = np.array(data)
-        with self.session.as_default():
-            new_image = self.preprocess(img_data_np, self.input_shape)
-            input_feed = self.create_input_feed(
-                self.session, new_image, img_data_np)
-            output_fetch = self.create_output_fetch(self.session)
-            output = self.session.run(output_fetch, input_feed)
-            return self.postprocess(output)
+        # It returns a tensor, it should be transformed into an array before TX
+        return query_feat
