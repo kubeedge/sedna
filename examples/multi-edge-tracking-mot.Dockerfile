@@ -4,9 +4,6 @@ FROM python:3.7
 # The token and the username can be passed using build-args such as:
 # docker build --build-arg GIT_USER=<your_user> --build-arg GIT_TOKEN=d0e4467c6.. - < Dockerfile
 
-# Required by OpenCV
-RUN apt install libgl1-mesa-glx -y
-
 WORKDIR /code
 
 ## Git args (https://stackoverflow.com/questions/50870161/can-we-include-git-commands-in-docker-image/50870967)
@@ -15,6 +12,10 @@ ARG GIT_TOKEN
 
 ## Install git
 RUN apt update 
+
+# Required by OpenCV
+RUN apt install libgl1-mesa-glx -y
+
 RUN apt install -y git
 RUN apt install -y gfortran libopenblas-dev liblapack-dev
 RUN git config --global http.sslVerify false

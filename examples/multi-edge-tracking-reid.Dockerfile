@@ -12,12 +12,13 @@ ARG GIT_TOKEN
 
 ## Install git
 RUN apt update 
+
+# Required by OpenCV
+RUN apt install libgl1-mesa-glx -y
+
 RUN apt install -y git
 RUN apt install -y gfortran libopenblas-dev liblapack-dev
 RUN git config --global http.sslVerify false
-
-# Needed by OpenCV
-RUN apt install libgl1-mesa-glx -y
 
 ## Install git-lfs
 RUN wget -O git-lfs.deb \
