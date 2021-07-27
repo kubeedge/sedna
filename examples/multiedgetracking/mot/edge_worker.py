@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
 model_weights = Context.get_parameters('edge_model_weights')
-model_name = Context.get_parameters('edge_model_name')
+model_name = Context.get_parameters('model_name')
 image_size = Context.get_parameters('input_shape')
 
 class Estimator:
