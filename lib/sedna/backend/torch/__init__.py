@@ -25,8 +25,9 @@ class TorchBackend(BackendBase):
     def predict(self, data, **kwargs):
         return self.estimator.predict(data=data, **kwargs)
 
-    def load(self, model_url, model_name, **kwargs):
+    def load(self, model_url="", model_name=None, **kwargs):
         model_path = FileOps.join_path(self.model_save_path, self.model_name)
+        print(model_path)
         if os.path.exists(model_path):
             return self.estimator.load(model_path)
 
