@@ -102,6 +102,9 @@ class MultiObjectTracking(JobBase):
         self.lc_reporter.setDaemon(True)
         self.lc_reporter.start()
 
+        if estimator is None:
+            LOGGER.error("ERROR! Estimator is not set!")
+
         if callable(self.estimator):
             self.estimator = self.estimator()
         if not os.path.exists(self.model_path):

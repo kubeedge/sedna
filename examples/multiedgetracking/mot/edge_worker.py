@@ -37,6 +37,7 @@ class Estimator:
 
     def __init__(self, **kwargs):
         LOGGER.info(f"Initializing edge worker for feature extraction ...")
+        self.model = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.image_size = [int(image_size.split(",")[0]), int(image_size.split(",")[1])] 
         

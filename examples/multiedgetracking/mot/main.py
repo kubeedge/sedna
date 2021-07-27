@@ -29,27 +29,23 @@ def main():
     fps = 10
     nframe = 0
     while 1:
-        try:
-            ret, input_yuv = camera.read()
-            if not ret:
-                LOGGER.info(
-                    f"camera is not open, camera_address={camera_address},"
-                    f" sleep 5 second.")
-                time.sleep(5)
-                camera = cv2.VideoCapture(camera_address)
-                continue
+        ret, input_yuv = camera.read()
+        if not ret:
+            LOGGER.info(
+                f"camera is not open, camera_address={camera_address},"
+                f" sleep 5 second.")
+            time.sleep(5)
+            camera = cv2.VideoCapture(camera_address)
+            continue
 
-            if nframe % fps:
-                nframe += 1
-                continue
-
-            img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
+        if nframe % fps:
             nframe += 1
-            LOGGER.info(f"camera is open, current frame index is {nframe}")
-            edge_worker.inference(img_rgb)
-        except Exception:
-            # Just skip, this is for testing
-            pass
+            continue
+
+        img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
+        nframe += 1
+        LOGGER.info(f"camera is open, current frame index is {nframe}")
+        edge_worker.inference(img_rgb)
 
 if __name__ == '__main__':
     main()
