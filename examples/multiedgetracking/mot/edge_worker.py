@@ -23,8 +23,10 @@ from torch.backends import cudnn
 
 from sedna.backend.torch.nn import Backbone
 from sedna.common.config import Context
+from sedna.common.benchmark import FTimer
+from PIL import Image
 
-LOG = logging.getLogger(__name__)
+from sedna.common.log import LOGGER
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
 model_weights = Context.get_parameters('edge_model_weights')
@@ -34,11 +36,11 @@ image_size = Context.get_parameters('input_shape')
 class Estimator:
 
     def __init__(self, **kwargs):
-        LOG.info(f"Initializing edge worker for feature extraction ...")
+        LOGGER.info(f"Initializing edge worker for feature extraction ...")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.image_size = [image_size.split(",")[0], image_size.split(",")[1]] 
         
-        LOG.info(f"Expected image format is {self.image_size}")
+        LOGGER.info(f"Expected image format is {self.image_size}")
         cudnn.benchmark = True
 
         self.transform = T.Compose([
@@ -49,12 +51,12 @@ class Estimator:
     
     def load(self, model_url="", model_name=None):
         # The model should be provided by a CRD
-        LOG.info(f"About to load model {model_name} with url {model_url}..")
+        LOGGER.info(f"About to load model {model_name} with url {model_url}..")
         self.model = Backbone(num_classes=255, model_name=model_name)
 
     def load_weights(self):
         # Here we load the model weights from the attached volume (.yaml)
-        LOG.info(f"About to load weights for the model {model_name}..")
+        LOGGER.info(f"About to load weights for the model {model_name}..")
         self.model.load_param(model_weights)
         self.model = self.model.to(self.device)
 
@@ -62,15 +64,16 @@ class Estimator:
         return self.model.eval()
 
     def predict(self, data, **kwargs):      
-        LOG.info('Finding ID {} ...'.format(data))
+        LOGGER.info('Finding ID {} ...'.format(data))
+        # We currently fetch the images from a video stream opened with OpenCV.
+        # We need to convert the output from OpenCV into a format processable by the model.
+        data = Image.fromarray(data)
         input = torch.unsqueeze(self.transform(data), 0)
         input = input.to(self.device)
 
-        start = time.time()
-        with torch.no_grad():
-            query_feat = self.model(input)
-        end = time.time()
-        LOG.info(f"Feature extraction from query image: {end - start}")
+        with FTimer(f"feature_extraction"):
+            with torch.no_grad():
+                query_feat = self.model(input)
 
         # It returns a tensor, it should be transformed into an array before TX
         return query_feat
