@@ -4,6 +4,9 @@ FROM python:3.7
 # The token and the username can be passed using build-args such as:
 # docker build --build-arg GIT_USER=<your_user> --build-arg GIT_TOKEN=d0e4467c6.. - < Dockerfile
 
+# Required by OpenCV
+RUN apt install libgl1-mesa-glx -y
+
 WORKDIR /code
 
 ## Git args (https://stackoverflow.com/questions/50870161/can-we-include-git-commands-in-docker-image/50870967)
@@ -63,8 +66,6 @@ COPY examples/multiedgetracking/mot/main.py  /code/deep-efficient-person-reid/de
 COPY examples/multiedgetracking/mot/edge_worker.py  /code/deep-efficient-person-reid/dertorch/edge_worker.py
 
 WORKDIR /code/deep-efficient-person-reid/dertorch
-
-RUN apt install libgl1-mesa-glx -y
 
 ENTRYPOINT ["python"]
 CMD ["edge.py", "--config_file=efficientnetv2_market"]

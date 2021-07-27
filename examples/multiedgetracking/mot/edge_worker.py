@@ -58,7 +58,7 @@ class Estimator:
         # Here we load the model weights from the attached volume (.yaml)
         LOGGER.info(f"About to load weights for the model {model_name}..")
         self.model.load_param(model_weights)
-        self.model = self.model.to(self.device)
+        self.model= self.model.to(self.device)
 
     def evaluate(self):
         return self.model.eval()
@@ -74,6 +74,7 @@ class Estimator:
         with FTimer(f"feature_extraction"):
             with torch.no_grad():
                 query_feat = self.model(input)
+                LOGGER.info(f"Tensor with features: {query_feat}")
 
         # It returns a tensor, it should be transformed into an array before TX
         return query_feat

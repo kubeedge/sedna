@@ -17,7 +17,7 @@ RUN apt install -y gfortran libopenblas-dev liblapack-dev
 RUN git config --global http.sslVerify false
 
 # Needed by OpenCV
-RUN apt-get install ffmpeg libsm6 libxext6 -y
+RUN apt install libgl1-mesa-glx -y
 
 ## Install git-lfs
 RUN wget -O git-lfs.deb \
