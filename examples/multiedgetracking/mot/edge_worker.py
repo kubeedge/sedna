@@ -34,8 +34,11 @@ image_size = Context.get_parameters('input_shape')
 class Estimator:
 
     def __init__(self, **kwargs):
+        LOG.info(f"Initializing edge worker for feature extraction ...")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.image_size = [image_size.split(",")[0], image_size.split(",")[1]] 
+        
+        LOG.info(f"Expected image format is {self.image_size}")
         cudnn.benchmark = True
 
         self.transform = T.Compose([
@@ -46,19 +49,21 @@ class Estimator:
     
     def load(self, model_url="", model_name=None):
         # The model should be provided by a CRD
+        LOG.info(f"About to load model {model_name} with url {model_url}..")
         self.model = Backbone(num_classes=255, model_name=model_name)
 
     def load_weights(self):
         # Here we load the model weights from the attached volume (.yaml)
+        LOG.info(f"About to load weights for the model {model_name}..")
         self.model.load_param(model_weights)
         self.model = self.model.to(self.device)
 
     def evaluate(self):
         return self.model.eval()
 
-    def predict(self, query_img, **kwargs):      
-        LOG.info('Finding ID {} ...'.format(query_img))
-        input = torch.unsqueeze(self.transform(query_img), 0)
+    def predict(self, data, **kwargs):      
+        LOG.info('Finding ID {} ...'.format(data))
+        input = torch.unsqueeze(self.transform(data), 0)
         input = input.to(self.device)
 
         start = time.time()
