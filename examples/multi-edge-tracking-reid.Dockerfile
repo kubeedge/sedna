@@ -56,12 +56,8 @@ RUN pip install -r /home/requirements.txt
 
 ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 
-RUN ls
-
 WORKDIR /home/work
 COPY ./lib /home/lib
-
-ENTRYPOINT ["python"]
 
 COPY examples/multiedgetracking/reid/cloud_worker.py  /code/deep-efficient-person-reid/dertorch/cloud.py
 

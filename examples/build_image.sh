@@ -14,6 +14,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+helpFunction()
+{
+   echo ""
+   echo "Usage: $0 -t type"
+   echo -e "\t-t The type parameters allows to select which kind of images to build (edge, cloud, others, all)"
+   exit 1 # Exit script after printing help
+}
+
+while getopts "t:" opt
+do
+   case "$opt" in
+      t ) type="$OPTARG" ;;
+      ? ) helpFunction ;; # Print helpFunction in case parameter is non-existent
+   esac
+done
+
+if [ -z "$type" ]
+then
+   echo "Defaulting to building all example images..";
+   parameterA="all"
+fi
+
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 IMAGE_REPO=${IMAGE_REPO:-kubeedge}
@@ -21,16 +43,41 @@ IMAGE_TAG=${IMAGE_TAG:-v0.3.0}
 
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 
-dockerfiles=(
+dockerfiles_cloud=(
 # federated-learning-surface-defect-detection-aggregation.Dockerfile
-# federated-learning-surface-defect-detection-train.Dockerfile
-# incremental-learning-helmet-detection.Dockerfile
 # joint-inference-helmet-detection-big.Dockerfile
-# joint-inference-helmet-detection-little.Dockerfile
-# lifelong-learning-atcii-classifier.Dockerfile
-multi-edge-tracking-mot.Dockerfile
 multi-edge-tracking-reid.Dockerfile
 )
+
+dockerfiles_edge=(
+# federated-learning-surface-defect-detection-train.Dockerfile
+# joint-inference-helmet-detection-little.Dockerfile
+multi-edge-tracking-mot.Dockerfile
+)
+
+dockerfiles_others=(
+#incremental-learning-helmet-detection.Dockerfile
+#lifelong-learning-atcii-classifier.Dockerfile
+)
+
+case $type in
+
+  cloud)
+    dockerfiles=$dockerfiles_cloud
+    ;;
+
+  edge)
+    dockerfiles=$dockerfiles_edge
+    ;;
+
+  others)
+    dockerfiles=$dockerfiles_others
+    ;;
+
+  all | *)
+    dockerfiles+=( "${dockerfiles_cloud[@]}" "${dockerfiles_edge[@]}" "${dockerfiles_others[@]}" )
+    ;;
+esac
 
 for dockerfile in ${dockerfiles[@]}; do
   example_name=${dockerfile/.Dockerfile}

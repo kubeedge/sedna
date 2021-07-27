@@ -9,7 +9,7 @@ spec:
       name: "mot-model"
     template:
       spec:
-        nodeName: "fraporion00001"
+        nodeName: "frapedge00001"
         containers:
         - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
           imagePullPolicy: IfNotPresent
@@ -29,9 +29,7 @@ spec:
               cpu: 100m
             limits:
               memory: 2Gi
-          volumeMounts:
-            - name: outputdir
-              mountPath: /data/
+
   reIDWorker:
     model:
       name: "reid-model"

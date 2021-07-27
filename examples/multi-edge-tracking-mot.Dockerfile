@@ -59,10 +59,10 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
-COPY examples/multiedgetracking/mot/main.py  /home/work/edge.py
-COPY examples/multiedgetracking/mot/edge_worker.py  /home/work/edge_worker.py
+COPY examples/multiedgetracking/mot/main.py  /code/deep-efficient-person-reid/dertorch/edge.py
+COPY examples/multiedgetracking/mot/edge_worker.py  /code/deep-efficient-person-reid/dertorch/edge_worker.py
 
 WORKDIR /code/deep-efficient-person-reid/dertorch
 
 ENTRYPOINT ["python"]
-CMD ["edge_test.py", "--config_file=efficientnetv2_market"]
+CMD ["edge.py", "--config_file=efficientnetv2_market"]
