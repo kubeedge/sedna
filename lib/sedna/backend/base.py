@@ -16,7 +16,7 @@ import os.path
 from inspect import getfullargspec
 
 from sedna.common.file_ops import FileOps
-
+from sedna.common.log import LOGGER
 
 class BackendBase:
     """ML Framework Backend base Class"""
@@ -100,6 +100,7 @@ class BackendBase:
 
     def load(self, model_url="", model_name=None, **kwargs):
         mname = model_name or self.model_name
+        LOGGER.info(f"Loading model {mname}")
         if callable(self.estimator):
             varkw = self.parse_kwargs(self.estimator, **kwargs)
             self.estimator = self.estimator(**varkw)
