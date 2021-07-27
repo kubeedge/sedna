@@ -22,15 +22,12 @@ from sedna.core.multi_edge_tracking import MultiObjectTracking
 
 from edge_worker import Estimator
 
-
-#TODO: Change the code below for MOT!
-
 LOG = logging.getLogger(__name__)
 
 camera_address = Context.get_parameters('video_url')
 
 def main():
-    inference_instance = MultiObjectTracking(estimator=Estimator)
+    edge_worker = MultiObjectTracking(estimator=Estimator)
 
     camera = cv2.VideoCapture(camera_address)
     fps = 10
@@ -52,7 +49,7 @@ def main():
         img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
         nframe += 1
         LOG.info(f"camera is open, current frame index is {nframe}")
-        inference_result = inference_instance.inference(img_rgb)
+        edge_worker.inference(img_rgb)
 
 if __name__ == '__main__':
     main()

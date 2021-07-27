@@ -44,10 +44,12 @@ class ReIDService(JobBase):
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
-        if not os.path.exists(self.model_path):
-            raise FileExistsError(f"{self.model_path} miss")
-        else:
-            self.estimator.load(self.model_path)
+        # The cloud instance only runs a distance function to do the ReID
+        # We don't load any model at this stage
+        # if not os.path.exists(self.model_path):
+        #     raise FileExistsError(f"{self.model_path} miss")
+        # else:
+        #     # self.estimator.load(self.model_path)
         app_server = ReIDServer(model=self, servername=self.job_name,
                                      host=self.local_ip, http_port=self.port)
         app_server.start()
@@ -103,15 +105,11 @@ class MultiObjectTracking(JobBase):
         if not os.path.exists(self.model_path):
             raise FileExistsError(f"{self.model_path} miss")
         else:
+            # We are using a PyTorch model which requires explicit weights loading.
             self.estimator.load(self.model_path)
+            self.estimator.load_weights()
         self.cloud = ReID(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
-
-    def train(self, train_data,
-              valid_data=None,
-              post_process=None,
-              **kwargs):
-        """todo: no support yet"""
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
