@@ -36,9 +36,9 @@ class TorchBackend(BackendBase):
 
 
     def load_weights(self):
-        model_path = FileOps.join_path(self.model_save_path, self.model_name)
-        if os.path.exists(model_path):
-            self.estimator.load_weights(model_path)
-        else:
-            LOGGER.info("Path to model weights does not exists!")
+        #model_path = FileOps.join_path(self.model_save_path, self.model_name)
+        #if os.path.exists(model_path):
+            self.estimator.load_weights()
+        #else:
+        #    LOGGER.info("Path to model weights does not exists!")
 
