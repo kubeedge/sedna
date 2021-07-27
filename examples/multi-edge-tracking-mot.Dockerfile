@@ -64,5 +64,7 @@ COPY examples/multiedgetracking/mot/edge_worker.py  /code/deep-efficient-person-
 
 WORKDIR /code/deep-efficient-person-reid/dertorch
 
+RUN apt install libgl1-mesa-glx
+
 ENTRYPOINT ["python"]
 CMD ["edge.py", "--config_file=efficientnetv2_market"]
