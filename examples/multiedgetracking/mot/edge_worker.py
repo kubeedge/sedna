@@ -38,7 +38,7 @@ class Estimator:
     def __init__(self, **kwargs):
         LOGGER.info(f"Initializing edge worker for feature extraction ...")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.image_size = [image_size.split(",")[0], image_size.split(",")[1]] 
+        self.image_size = [int(image_size.split(",")[0]), int(image_size.split(",")[1])] 
         
         LOGGER.info(f"Expected image format is {self.image_size}")
         cudnn.benchmark = True
@@ -63,11 +63,11 @@ class Estimator:
     def evaluate(self):
         return self.model.eval()
 
-    def predict(self, data, **kwargs):      
+    def predict(self, data, **kwargs):
+        data = Image.fromarray(data)
         LOGGER.info('Finding ID {} ...'.format(data))
         # We currently fetch the images from a video stream opened with OpenCV.
         # We need to convert the output from OpenCV into a format processable by the model.
-        data = Image.fromarray(data)
         input = torch.unsqueeze(self.transform(data), 0)
         input = input.to(self.device)
 

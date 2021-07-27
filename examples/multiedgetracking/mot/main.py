@@ -14,15 +14,11 @@
 
 import time
 import cv2
-import logging
-import numpy as np
 
 from sedna.common.config import Context
 from sedna.core.multi_edge_tracking import MultiObjectTracking
-
+from sedna.common.log import LOGGER
 from edge_worker import Estimator
-
-LOG = logging.getLogger(__name__)
 
 camera_address = Context.get_parameters('video_url')
 
@@ -33,23 +29,27 @@ def main():
     fps = 10
     nframe = 0
     while 1:
-        ret, input_yuv = camera.read()
-        if not ret:
-            LOG.info(
-                f"camera is not open, camera_address={camera_address},"
-                f" sleep 5 second.")
-            time.sleep(5)
-            camera = cv2.VideoCapture(camera_address)
-            continue
+        try:
+            ret, input_yuv = camera.read()
+            if not ret:
+                LOGGER.info(
+                    f"camera is not open, camera_address={camera_address},"
+                    f" sleep 5 second.")
+                time.sleep(5)
+                camera = cv2.VideoCapture(camera_address)
+                continue
 
-        if nframe % fps:
+            if nframe % fps:
+                nframe += 1
+                continue
+
+            img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
             nframe += 1
-            continue
-
-        img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
-        nframe += 1
-        LOG.info(f"camera is open, current frame index is {nframe}")
-        edge_worker.inference(img_rgb)
+            LOGGER.info(f"camera is open, current frame index is {nframe}")
+            edge_worker.inference(img_rgb)
+        except Exception:
+            # Just skip, this is for testing
+            pass
 
 if __name__ == '__main__':
     main()

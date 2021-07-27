@@ -25,6 +25,7 @@ from sedna.service.client import LCReporter
 from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
 from sedna.common.benchmark import FTimer
+from sedna.common.log import LOGGER
 
 __all__ = ("MultiObjectTracking", "ReIDService")
 
@@ -79,6 +80,7 @@ class MultiObjectTracking(JobBase):
     def __init__(self, estimator=None, config=None):
         super(MultiObjectTracking, self).__init__(
             estimator=estimator, config=config)
+        LOGGER.info("Loading MultiObjectTracking module")
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         self.local_ip = get_host_ip()
         self.remote_ip = self.get_parameters(
@@ -106,6 +108,7 @@ class MultiObjectTracking(JobBase):
             raise FileExistsError(f"{self.model_path} miss")
         else:
             # We are using a PyTorch model which requires explicit weights loading.
+            LOGGER.info("Loading model and weights")
             self.estimator.load(self.model_path)
             self.estimator.load_weights()
         self.cloud = ReID(service_name=self.job_name,
