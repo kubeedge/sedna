@@ -111,12 +111,13 @@ class MultiObjectTracking(JobBase):
             raise FileExistsError(f"{self.model_path} miss")
         else:
             # We are using a PyTorch model which requires explicit weights loading.
-            LOGGER.info("Loading model and weights")
+            LOGGER.info("Estimator -> Loading model and weights")
             self.estimator.load(self.model_path)
             self.estimator.load_weights()
 
-            LOGGER.info("Evlauting model ..")
+            LOGGER.info("Estimator -> Evaluating model ..")
             self.estimator.evaluate()
+
         self.cloud = ReID(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
 

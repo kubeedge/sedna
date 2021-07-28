@@ -33,7 +33,7 @@ model_weights = Context.get_parameters('edge_model_weights')
 model_name = Context.get_parameters('model_name')
 image_size = Context.get_parameters('input_shape')
 
-class Estimator():
+class Estimator:
 
     def __init__(self, **kwargs):
         LOGGER.info(f"Initializing edge worker for feature extraction ...")
@@ -52,16 +52,17 @@ class Estimator():
     
     def load(self, model_url="", mmodel_name=None):
         # The model should be provided by a CRD
-        LOGGER.info(f"About to load model {mmodel_name} with url {model_url}..")
+        LOGGER.info(f"About to load model {model_name} with url {model_url}..")
         self.model = Backbone(num_classes=255, model_name=model_name)
 
     def load_weights(self):
         # Here we load the model weights from the attached volume (.yaml)
         LOGGER.info(f"About to load weights for the model {model_name}..")
         self.model.load_param(model_weights)
-        self.model= self.model.to(self.device)
+        self.model = self.model.to(self.device)
 
     def evaluate(self):
+        LOGGER.info(f"Evaluating model")
         self.model.eval()
 
     def predict(self, data, **kwargs):
