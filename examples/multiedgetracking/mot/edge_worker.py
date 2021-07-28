@@ -53,7 +53,7 @@ class Estimator:
     def load(self, model_url="", mmodel_name=None):
         # The model should be provided by a CRD
         LOGGER.info(f"About to load model {model_name} with url {model_url}..")
-        self.model = Backbone(num_classes=255, model_name=model_name)
+        self.model = Backbone(num_classes=255, model_path=model_url, model_name=model_name, pretrain_choice="imagenet")
 
     def load_weights(self):
         # Here we load the model weights from the attached volume (.yaml)

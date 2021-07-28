@@ -140,19 +140,7 @@ class MultiObjectTracking(JobBase):
         # Send detection+tracking results to cloud
         # edge_result
         
-        if edge_result:
+        if edge_result != None:
             self.cloud.reid(data.tolist(), post_process=post_process, **kwargs)
 
         return [False, res, edge_result, None]
-
-        # if self.hard_example_mining_algorithm:
-        #     is_hard_example = self.hard_example_mining_algorithm(res)
-        #     if is_hard_example:
-        #         with FTimer(f"{os.uname()[1]}_cloud_inference_and_transmission"):
-        #             cloud_result = self.cloud.reid(
-        #                 data.tolist(), post_process=post_process, **kwargs)
-
-        #         size = sys.getsizeof(0) * len(flatten_nested_list(cloud_result['result']))
-        #         self.log.info(f"Received data: {size} bytes.")
-        #         self.lc_reporter.update_for_collaboration_inference()
-        # return [is_hard_example, res, edge_result, cloud_result]

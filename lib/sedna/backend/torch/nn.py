@@ -101,7 +101,8 @@ class EfficientNet(torch.nn.Module):
         return x
     
     def load_param(self, trained_path):
-        param_dict = torch.load(trained_path)['model'].state_dict()
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        param_dict = torch.load(trained_path, map_location=torch.device(device))['model'].state_dict()
 
         for i in param_dict:
             if 'fc' in i:
