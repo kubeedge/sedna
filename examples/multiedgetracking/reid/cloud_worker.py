@@ -58,11 +58,13 @@ class Estimator:
         
         self.save_result(indices, camid='mixed', top_k=10)
 
+        return indices[0][:]
+
     def save_result(self, indices, camid, top_k=10, img_size=[128, 128]):
         LOGGER.info("Saving top-10 results")
         figure = None
         for k in range(top_k):
-            img = np.asarray(Image.open(self.img_path[indices[0][k]]).resize(
+            img = np.asarray(Image.open(os.path.join("/code/ai_models/deep_eff_reid/", self.img_path[indices[0][k]])).resize(
                 (img_size[1], img_size[0])))
             if figure is not None:
                 figure = np.hstack((figure, img))
