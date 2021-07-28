@@ -46,9 +46,9 @@ class Estimator:
 
 
     def predict(self, data, **kwargs):
-        LOGGER.info("Running the cosine similarity function")
-        with FTimer(f"feature_extraction"):
-            dist_mat = cosine_similarity(data, self.gallery_feats)
+        LOGGER.info(f"Running the cosine similarity function on {data}")
+        with FTimer("cosine_similarity"):
+            dist_mat = cosine_similarity(data['data'], self.gallery_feats)
             indices = np.argsort(dist_mat, axis=1)
         
         self.save_result(data, indices, camid='mixed', top_k=10)

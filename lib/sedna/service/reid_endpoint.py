@@ -13,7 +13,7 @@ class ReID:
         return http_request(url=self.endpoint, method="GET")
 
     def reid(self, x, **kwargs):
-        """Transfer BBs to ReID worker"""
+        """Transfer feature vector to ReID worker"""
         json_data = deepcopy(kwargs)
         json_data.update({"data": x})
         _url = f"{self.endpoint}/reid"

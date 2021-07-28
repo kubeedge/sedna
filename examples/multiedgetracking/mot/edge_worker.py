@@ -65,6 +65,9 @@ class Estimator:
         LOGGER.info(f"Evaluating model")
         self.model.eval()
 
+    def convert_to_list(self, data):
+        return data.numpy().tolist()
+
     def predict(self, data, **kwargs):
         data = Image.fromarray(data)
         LOGGER.info('Finding ID {} ...'.format(data))
@@ -78,5 +81,5 @@ class Estimator:
                 query_feat = self.model(input)
                 LOGGER.info(f"Tensor with features: {query_feat}")
 
-        # It returns a tensor, it should be transformed into an array before TX
-        return query_feat
+        # It returns a tensor, it should be transformed into a list before TX
+        return self.convert_to_list(query_feat)
