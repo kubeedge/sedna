@@ -22,7 +22,7 @@ spec:
           - name: "model_name"
             value: "efficientnet_v2"
           - name: "edge_model_weights"
-            value: "/data/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
+            value: "/code/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
           resources:  # user defined resources
             requests:
               memory: 64M

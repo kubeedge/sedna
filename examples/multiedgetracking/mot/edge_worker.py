@@ -62,7 +62,7 @@ class Estimator():
         self.model= self.model.to(self.device)
 
     def evaluate(self):
-        return self.model.eval()
+        self.model.eval()
 
     def predict(self, data, **kwargs):
         data = Image.fromarray(data)

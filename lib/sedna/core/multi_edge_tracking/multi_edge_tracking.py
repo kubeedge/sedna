@@ -114,6 +114,9 @@ class MultiObjectTracking(JobBase):
             LOGGER.info("Loading model and weights")
             self.estimator.load(self.model_path)
             self.estimator.load_weights()
+
+            LOGGER.info("Evlauting model ..")
+            self.estimator.evaluate()
         self.cloud = ReID(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
 
