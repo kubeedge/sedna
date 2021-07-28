@@ -141,6 +141,6 @@ class MultiObjectTracking(JobBase):
         # edge_result
         
         if edge_result != None:
-            self.cloud.reid(data.tolist(), post_process=post_process, **kwargs)
+            self.cloud.reid(edge_result, post_process=post_process, **kwargs)
 
         return [False, res, edge_result, None]

@@ -42,18 +42,23 @@ class Estimator:
         self.gallery_feats = torch.load(os.path.join(self.log_dir, gfeats), map_location=self.device )
         self.img_path = np.load(os.path.join(self.log_dir, imgpath))
 
-        LOGGER.info('[gallery_feats.shape, len(img_path)]: ', self.gallery_feats.shape, len(self.img_path))
+        LOGGER.info(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
 
 
     def predict(self, data, **kwargs):
-        LOGGER.info(f"Running the cosine similarity function on {data}")
+        temp = np.array(data)
+        query_feat = torch.from_numpy(temp)
+        query_feat = query_feat.float()
+        
+        LOGGER.info(f"Running the cosine similarity function on input data")
+        LOGGER.info(f"{query_feat.shape} - {self.gallery_feats.shape}")
         with FTimer("cosine_similarity"):
-            dist_mat = cosine_similarity(data['data'], self.gallery_feats)
+            dist_mat = cosine_similarity(query_feat, self.gallery_feats)
             indices = np.argsort(dist_mat, axis=1)
         
-        self.save_result(data, indices, camid='mixed', top_k=10)
+        self.save_result(indices, camid='mixed', top_k=10)
 
-    def save_result(self, test_img, indices, camid, top_k=10, img_size=[128, 128]):
+    def save_result(self, indices, camid, top_k=10, img_size=[128, 128]):
         LOGGER.info("Saving top-10 results")
         figure = None
         for k in range(top_k):
@@ -71,7 +76,7 @@ class Estimator:
             os.makedirs(result_path)
 
         cv2.imwrite(os.path.join(
-            result_path, "{}-cam{}.png".format(test_img, camid)), figure)
+            result_path, "{}-cam{}.png".format("test", camid)), figure)
 
 
 # Starting the ReID module
