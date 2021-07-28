@@ -71,6 +71,8 @@ class Estimator:
         return data.numpy().tolist()
 
     def predict(self, data, **kwargs):
+        raw_imgsize = data.nbytes
+
         data = Image.fromarray(data)
         LOGGER.info('Finding ID {} ...'.format(data))
         # We currently fetch the images from a video stream opened with OpenCV.
@@ -83,10 +85,6 @@ class Estimator:
                 query_feat = self.model(input)
                 LOGGER.info(f"Tensor with features: {query_feat}")
 
-        # Necessary to retrive the image size with compression
-        Image.save(data, 'jpg')
-        image_file_size = data.tell()
-        
-        LOGGER.debug(f"Image size: {image_file_size} - Tensor size {sys.getsizeof(query_feat.storage())}")
+        LOGGER.info(f"Image size: {raw_imgsize} - Tensor size {sys.getsizeof(query_feat.storage())}")
         # It returns a tensor, it should be transformed into a list before TX
         return self.convert_to_list(query_feat)
