@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import numpy as np
 import os
+from sedna.common.constant import LOG
 import torch
 import time
 import torchvision.transforms as T
@@ -81,5 +83,10 @@ class Estimator:
                 query_feat = self.model(input)
                 LOGGER.info(f"Tensor with features: {query_feat}")
 
+        # Necessary to retrive the image size with compression
+        Image.save(data, 'jpg')
+        image_file_size = data.tell()
+        
+        LOGGER.debug(f"Image size: {image_file_size} - Tensor size {sys.getsizeof(query_feat.storage())}")
         # It returns a tensor, it should be transformed into a list before TX
         return self.convert_to_list(query_feat)
