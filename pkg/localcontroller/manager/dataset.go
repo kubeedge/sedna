@@ -38,7 +38,7 @@ import (
 
 const (
 	// MonitorDataSourceIntervalSeconds is interval time of monitoring data source
-	MonitorDataSourceIntervalSeconds = 10
+	MonitorDataSourceIntervalSeconds = 60
 	// DatasetResourceKind is kind of dataset resource
 	DatasetResourceKind = "dataset"
 )
@@ -185,20 +185,21 @@ func (dm *DatasetManager) monitorDataSources(name string) {
 				samplesNumber = dataSource.NumberOfSamples
 				klog.Infof("dataset(name=%s) get samples from data source(url=%s) successfully. number of samples: %d",
 					name, dataURL, dataSource.NumberOfSamples)
-			}
-			header := gmclient.MessageHeader{
-				Namespace:    ds.Namespace,
-				ResourceKind: ds.Kind,
-				ResourceName: ds.Name,
-				Operation:    gmclient.StatusOperation,
-			}
 
-			if err := dm.Client.WriteMessage(struct {
-				NumberOfSamples int `json:"numberOfSamples"`
-			}{
-				dataSource.NumberOfSamples,
-			}, header); err != nil {
-				klog.Errorf("dataset(name=%s) publish samples info failed, error: %+v", name, err)
+				header := gmclient.MessageHeader{
+					Namespace:    ds.Namespace,
+					ResourceKind: ds.Kind,
+					ResourceName: ds.Name,
+					Operation:    gmclient.StatusOperation,
+				}
+
+				if err := dm.Client.WriteMessage(struct {
+					NumberOfSamples int `json:"numberOfSamples"`
+				}{
+					dataSource.NumberOfSamples,
+				}, header); err != nil {
+					klog.Errorf("dataset(name=%s) publish samples info failed, error: %+v", name, err)
+				}
 			}
 		}
 		<-time.After(MonitorDataSourceIntervalSeconds * time.Second)
