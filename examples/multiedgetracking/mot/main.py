@@ -28,8 +28,13 @@ def main():
     camera = cv2.VideoCapture(camera_address)
     fps = 10
     nframe = 0
-    while 1:
-        ret, input_yuv = camera.read()
+    
+    while True:
+        try:
+            ret, input_yuv = camera.read()
+        except Exception:
+            pass
+
         if not ret:
             LOGGER.info(
                 f"camera is not open, camera_address={camera_address},"

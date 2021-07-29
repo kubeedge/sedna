@@ -39,6 +39,8 @@ class ReIDService(JobBase):
     def __init__(self, estimator=None, config=None):
         super(ReIDService, self).__init__(
             estimator=estimator, config=config)
+        self.log.info("Starting ReID service")
+        
         self.local_ip = self.get_parameters("REID_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
 
@@ -80,7 +82,8 @@ class MultiObjectTracking(JobBase):
     def __init__(self, estimator=None, config=None):
         super(MultiObjectTracking, self).__init__(
             estimator=estimator, config=config)
-        LOGGER.info("Loading MultiObjectTracking module")
+        self.log.info("Loading MultiObjectTracking module")
+
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         self.local_ip = get_host_ip()
         self.remote_ip = self.get_parameters(
@@ -103,7 +106,7 @@ class MultiObjectTracking(JobBase):
         self.lc_reporter.start()
 
         if estimator is None:
-            LOGGER.error("ERROR! Estimator is not set!")
+            self.log.error("ERROR! Estimator is not set!")
 
         if callable(self.estimator):
             self.estimator = self.estimator()
@@ -111,11 +114,11 @@ class MultiObjectTracking(JobBase):
             raise FileExistsError(f"{self.model_path} miss")
         else:
             # We are using a PyTorch model which requires explicit weights loading.
-            LOGGER.info("Estimator -> Loading model and weights")
+            self.log.info("Estimator -> Loading model and weights")
             self.estimator.load(self.model_path)
             self.estimator.load_weights()
 
-            LOGGER.info("Estimator -> Evaluating model ..")
+            self.log.info("Estimator -> Evaluating model ..")
             self.estimator.evaluate()
 
         self.cloud = ReID(service_name=self.job_name,
@@ -141,6 +144,7 @@ class MultiObjectTracking(JobBase):
         # edge_result
         
         if edge_result != None:
-            self.cloud.reid(edge_result, post_process=post_process, **kwargs)
+            with FTimer(f"upload_plus_reid"):
+                cres = self.cloud.reid(edge_result, post_process=post_process, **kwargs)
 
-        return [False, res, edge_result, None]
+        return [None, cres, edge_result, None]

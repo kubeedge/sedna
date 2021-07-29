@@ -12,33 +12,28 @@ class TorchBackend(BackendBase):
         super(TorchBackend, self).__init__(
             estimator=estimator, fine_tune=fine_tune, **kwargs)
         self.framework = "pytorch"
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() and self.use_cuda else "cpu" 
 
         if callable(self.estimator):
             self.estimator = self.estimator()
 
     def evaluate(self, **kwargs):
-        self.estimator.evaluate()
+        if not self.has_load:
+            self.load()
+        return self.estimator.evaluate(**kwargs)
 
     def train(self, **kwargs):
+        """ Not implemented!"""
         pass
 
     def predict(self, data, **kwargs):
+        if not self.has_load:
+            self.load()
         return self.estimator.predict(data=data, **kwargs)
 
     def load(self, model_url="", model_name=None, **kwargs):
-        # model_path = FileOps.join_path(self.model_save_path, self.model_name)
         model_path = self.model_save_path
         if os.path.exists(model_path):
-            return self.estimator.load(model_path)
+            return self.estimator.load(model_path, **kwargs)
         else:
             LOGGER.info("Path to model does not exists!")
-
-
-    def load_weights(self):
-        #model_path = FileOps.join_path(self.model_save_path, self.model_name)
-        #if os.path.exists(model_path):
-            self.estimator.load_weights()
-        #else:
-        #    LOGGER.info(f"Path {model_path} to model weights does not exist!")
-

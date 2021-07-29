@@ -33,7 +33,7 @@ def benchmark_time(func):
         end = time.time()
         runtime = end - start
         msg = "{func}:{time}s"
-        self.log.info(msg.format(func=func.__name__,
+        LOGGER.info(msg.format(func=func.__name__,
                          time=runtime))
         return value
     return function_timer

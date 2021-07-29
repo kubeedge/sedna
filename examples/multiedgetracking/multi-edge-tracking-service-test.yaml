@@ -1,7 +1,7 @@
 apiVersion: sedna.io/v1alpha1
 kind: MultiEdgeTrackingService
 metadata:
-  name: containers-tracking
+  name: pedestrian-tracking
 spec:
   multiObjectTrackingWorker:
   -  
@@ -31,8 +31,6 @@ spec:
               memory: 2Gi
 
   reIDWorker:
-    model:
-      name: "reid-model"
     template:
       spec:
         nodeName: "fraporion00001"
@@ -41,8 +39,6 @@ spec:
             name:  reid
             imagePullPolicy: IfNotPresent
             env:  # user defined environments
-            - name: "model_name"
-              value: "efficientnet_v2"
             - name: "reid_log_dir"
               value: "/data/ai_models/deep_eff_reid/loggers/runs/"
             - name: "gfeats"
