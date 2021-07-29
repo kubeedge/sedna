@@ -61,10 +61,8 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
+# This is required to solve an internal hardcoded path lookup in PyTorch (great..)
 COPY ./lib/sedna/backend/torch/nets /home/work/nets
-
-RUN ls -la /home/work/nets
-
 ENV PYTHONPATH "${PYTHONPATH}:/home/work"
 
 COPY examples/multiedgetracking/mot/main.py  /home/work/edge.py

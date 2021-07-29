@@ -1,1 +1,1 @@
-from nn import Backbone
+from .nn import Backbone

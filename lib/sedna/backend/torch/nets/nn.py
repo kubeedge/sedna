@@ -1,9 +1,9 @@
 import torch
 from torch import nn
 
-from .backbone import ResNet, BasicBlock, Bottleneck
-from .backbone.resnet_ibn import *
-from .backbone.efficientnet_v2 import *
+from .backbones import ResNet, BasicBlock, Bottleneck
+from .backbones.resnet_ibn import *
+from .backbones.efficientnet_v2 import *
 
 
 def weights_init_kaiming(m):
