@@ -36,8 +36,8 @@ class TorchBackend(BackendBase):
         if os.path.exists(model_path):
             try:
                 self.estimator.load(model_path, **kwargs)
-            except Exception:
-                LOGGER.error("Failed to load model")
+            except Exception as e:
+                LOGGER.error(f"Failed to load the model - {e}")
                 self.has_load = False
         else:
             LOGGER.info("Path to model does not exists!")

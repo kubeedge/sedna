@@ -45,7 +45,7 @@ RUN apt install -y gfortran libopenblas-dev liblapack-dev
 RUN pip install torch torchvision tqdm opencv-python pillow pytorch-ignite
 
 ## Install project-specific dependencies
-RUN pip install -r requirements.txt
+# RUN pip install -r requirements.txt
 
 # Is this needed if the entrypoint is the application home folder
 # ENV PYTHONPATH "/code/deep-efficient-person-reid/dertorch"
