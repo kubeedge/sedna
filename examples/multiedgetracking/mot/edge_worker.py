@@ -16,15 +16,14 @@ import sys
 import os
 import torch
 import torchvision.transforms as T
-
-from utils.getter import *
+from PIL import Image
+# from utils.getter import *
 
 from sedna.backend.torch.nn import Backbone
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
-from PIL import Image
-
 from sedna.common.log import LOGGER
+
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
 model_weights = Context.get_parameters('edge_model_weights')

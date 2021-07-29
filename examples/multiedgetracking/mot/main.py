@@ -40,8 +40,12 @@ def main():
                 f"camera is not open, camera_address={camera_address},"
                 f" sleep 5 second.")
             time.sleep(5)
-            camera = cv2.VideoCapture(camera_address)
-            continue
+            try:
+                camera = cv2.VideoCapture(camera_address)
+            except Exception:
+                pass
+            finally:
+                continue
 
         if nframe % fps:
             nframe += 1
