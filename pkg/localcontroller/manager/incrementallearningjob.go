@@ -142,8 +142,7 @@ func (im *IncrementalJobManager) trainTask(job *IncrementalLearningJob, currentR
 
 		err := im.loadTrainModel(job)
 		if err != nil {
-			return fmt.Errorf("job(name=%s) failed to sync train model, and waiting it: %v",
-				jobConfig.UniqueIdentifier, err)
+			return fmt.Errorf("failed to sync train model, and waiting it: %v", err)
 		}
 
 		if currentRound < jobConfig.Rounds {
@@ -192,8 +191,7 @@ func (im *IncrementalJobManager) evalTask(job *IncrementalLearningJob) error {
 	if currentType == sednav1.ILJobStageCondWaiting {
 		err := im.loadDeployModel(job)
 		if err != nil {
-			klog.Warningf("job(name=%s) failed to sync deploy model, and waiting it: %v",
-				jobConfig.UniqueIdentifier, err)
+			return fmt.Errorf("failed to sync deploy model, and waiting it: %v", err)
 		}
 	}
 
