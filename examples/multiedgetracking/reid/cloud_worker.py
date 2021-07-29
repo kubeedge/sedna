@@ -16,14 +16,14 @@ import cv2
 import numpy as np
 import os
 import torch
-
-from utils.getter import *
+import time
 from PIL import Image
 
 from sedna.core.multi_edge_tracking import ReIDService
 from sedna.common.config import Context
 from sedna.common.log import LOGGER
 from sedna.common.benchmark import FTimer
+from sedna.algorithms.reid.mAP import cosine_similarity
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
@@ -32,15 +32,15 @@ gfeats = Context.get_parameters('gfeats')
 qfeats = Context.get_parameters('qfeats')
 imgpath = Context.get_parameters('imgpath')
 
+IMAGE_STORAGE_LOCATION = "/code/ai_models/deep_eff_reid/"
+
 class Estimator:
 
     def __init__(self, **kwargs):
         LOGGER.info("Initializing cloud ReID worker ...")
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.log_dir = log_dir
         self.gallery_feats = torch.load(os.path.join(self.log_dir, gfeats), map_location=self.device )
         self.img_path = np.load(os.path.join(self.log_dir, imgpath))
-
         LOGGER.info(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
 
 
@@ -63,8 +63,10 @@ class Estimator:
         LOGGER.info("Saving top-10 results")
         figure = None
         for k in range(top_k):
-            img = np.asarray(Image.open(os.path.join("/code/ai_models/deep_eff_reid/", self.img_path[indices[0][k]])).resize(
-                (img_size[1], img_size[0])))
+            img = Image.open(os.path.join(IMAGE_STORAGE_LOCATION, self.img_path[indices[0][k]])).resize(
+                (img_size[1], img_size[0]))
+            pedestrian_id = img.filename
+            img = np.asarray(img)
             if figure is not None:
                 figure = np.hstack((figure, img))
             else:
@@ -76,8 +78,9 @@ class Estimator:
             LOGGER.info('Creating a new folder named results in {}'.format(self.log_dir))
             os.makedirs(result_path)
 
+        LOGGER.info(f"Identified pedestrian with ID: {pedestrian_id}")
         cv2.imwrite(os.path.join(
-            result_path, "{}-cam{}.png".format("test", camid)), figure)
+            result_path, "{}-cam{}-{}.png".format(pedestrian_id, camid, time.time())), figure)
 
 
 # Starting the ReID module

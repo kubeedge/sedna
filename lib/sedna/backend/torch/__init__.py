@@ -1,10 +1,9 @@
 import os
 
 import torch
+from torch.backends import cudnn
 
-from .nn import *
 from sedna.backend.base import BackendBase
-from sedna.common.file_ops import FileOps
 from sedna.common.log import LOGGER
 
 class TorchBackend(BackendBase):
@@ -12,7 +11,8 @@ class TorchBackend(BackendBase):
         super(TorchBackend, self).__init__(
             estimator=estimator, fine_tune=fine_tune, **kwargs)
         self.framework = "pytorch"
-        self.device = "cuda" if torch.cuda.is_available() and self.use_cuda else "cpu" 
+        self.device = "cuda" if torch.cuda.is_available() and self.use_cuda else "cpu"
+        cudnn.benchmark = True
 
         if callable(self.estimator):
             self.estimator = self.estimator()

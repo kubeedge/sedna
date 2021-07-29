@@ -44,8 +44,7 @@ def main():
                 camera = cv2.VideoCapture(camera_address)
             except Exception:
                 pass
-            finally:
-                continue
+            continue
 
         if nframe % fps:
             nframe += 1
