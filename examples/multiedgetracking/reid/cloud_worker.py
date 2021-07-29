@@ -39,9 +39,27 @@ class Estimator:
     def __init__(self, **kwargs):
         LOGGER.info("Initializing cloud ReID worker ...")
         self.log_dir = log_dir
-        self.gallery_feats = torch.load(os.path.join(self.log_dir, gfeats), map_location=self.device )
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.gallery_feats = torch.load(os.path.join(self.log_dir, gfeats), map_location=self.device)
         self.img_path = np.load(os.path.join(self.log_dir, imgpath))
         LOGGER.info(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
+
+    def _extract_id(self, text):
+        return text.split("/")[-1].split(".")[0].split("_")[0]
+
+    def _write_id_on_image(self, img, text):
+        # setup text
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        print(text)
+        # get boundary of this text
+        textsize = cv2.getTextSize(text, font, 1, 2)[0]
+
+        # get coords based on boundary
+        textX = (img.shape[1] - textsize[0]) / 2
+        textY = (img.shape[0] + textsize[1]) / 2
+
+        # add text centered on image
+        cv2.putText(img, text, (int(textX), int(textY) ), font, 1, (255, 255, 255), 2)
 
 
     def predict(self, data, **kwargs):
@@ -65,8 +83,8 @@ class Estimator:
         for k in range(top_k):
             img = Image.open(os.path.join(IMAGE_STORAGE_LOCATION, self.img_path[indices[0][k]])).resize(
                 (img_size[1], img_size[0]))
-            pedestrian_id = img.filename
             img = np.asarray(img)
+            self._write_id_on_image(img, self._extract_id(self.img_path[indices[0][k]]))
             if figure is not None:
                 figure = np.hstack((figure, img))
             else:
@@ -78,9 +96,8 @@ class Estimator:
             LOGGER.info('Creating a new folder named results in {}'.format(self.log_dir))
             os.makedirs(result_path)
 
-        LOGGER.info(f"Identified pedestrian with ID: {pedestrian_id}")
         cv2.imwrite(os.path.join(
-            result_path, "{}-cam{}-{}.png".format(pedestrian_id, camid, time.time())), figure)
+            result_path, "{}-cam{}-{}.png".format(indices[0][0], camid, time.time())), figure)
 
 
 # Starting the ReID module
