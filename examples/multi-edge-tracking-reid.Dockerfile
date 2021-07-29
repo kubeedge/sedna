@@ -63,6 +63,7 @@ COPY ./lib /home/lib
 RUN pip install opencv-python pytorch-ignite
 
 COPY examples/multiedgetracking/reid/cloud_worker.py  /home/work/cloud.py
+ENV PYTHONPATH "${PYTHONPATH}:/home/lib/sedna/backend/nets"
 
 ENTRYPOINT ["python"]
 CMD ["cloud.py", "--config_file=efficientnetv2_market"]

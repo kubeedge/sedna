@@ -61,6 +61,12 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
+COPY ./lib/sedna/backend/torch/nets /home/work/nets
+
+RUN ls -la /home/work/nets
+
+ENV PYTHONPATH "${PYTHONPATH}:/home/work"
+
 COPY examples/multiedgetracking/mot/main.py  /home/work/edge.py
 COPY examples/multiedgetracking/mot/edge_worker.py  /home/work/edge_worker.py
 

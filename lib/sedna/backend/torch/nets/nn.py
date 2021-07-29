@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from .backbone.resnet import ResNet, BasicBlock, Bottleneck
+from .backbone import ResNet, BasicBlock, Bottleneck
 from .backbone.resnet_ibn import *
 from .backbone.efficientnet_v2 import *
 

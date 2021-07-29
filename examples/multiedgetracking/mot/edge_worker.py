@@ -18,7 +18,7 @@ import torch
 import torchvision.transforms as T
 from PIL import Image
 
-from sedna.backend.torch.nn import Backbone
+from sedna.backend.torch.nets.nn import Backbone
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
