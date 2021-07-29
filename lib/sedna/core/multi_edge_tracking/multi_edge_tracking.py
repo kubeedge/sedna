@@ -40,7 +40,7 @@ class ReIDService(JobBase):
         super(ReIDService, self).__init__(
             estimator=estimator, config=config)
         self.log.info("Starting ReID service")
-        
+
         self.local_ip = self.get_parameters("REID_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
 
@@ -116,7 +116,7 @@ class MultiObjectTracking(JobBase):
             # We are using a PyTorch model which requires explicit weights loading.
             self.log.info("Estimator -> Loading model and weights")
             self.estimator.load(self.model_path)
-            self.estimator.load_weights()
+            #self.estimator.load_weights()
 
             self.log.info("Estimator -> Evaluating model ..")
             self.estimator.evaluate()

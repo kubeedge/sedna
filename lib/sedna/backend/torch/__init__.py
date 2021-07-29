@@ -34,6 +34,12 @@ class TorchBackend(BackendBase):
     def load(self, model_url="", model_name=None, **kwargs):
         model_path = self.model_save_path
         if os.path.exists(model_path):
-            return self.estimator.load(model_path, **kwargs)
+            try:
+                self.estimator.load(model_path, **kwargs)
+            except Exception:
+                LOGGER.error("Failed to load model")
+                self.has_load = False
         else:
             LOGGER.info("Path to model does not exists!")
+
+        self.has_load = True

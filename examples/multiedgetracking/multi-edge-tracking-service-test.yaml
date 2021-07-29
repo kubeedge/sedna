@@ -31,6 +31,8 @@ spec:
               memory: 2Gi
 
   reIDWorker:
+    model:
+      name: "reid-model"
     template:
       spec:
         nodeName: "fraporion00001"
