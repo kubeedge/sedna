@@ -5,6 +5,7 @@ from torch.backends import cudnn
 
 from sedna.backend.base import BackendBase
 from sedna.common.log import LOGGER
+from .nn import Backbone
 
 class TorchBackend(BackendBase):
     def __init__(self, estimator, fine_tune=True, **kwargs):
