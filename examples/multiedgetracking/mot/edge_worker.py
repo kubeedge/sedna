@@ -17,7 +17,6 @@ import os
 import torch
 import torchvision.transforms as T
 from PIL import Image
-# from utils.getter import *
 
 from sedna.backend.torch.nn import Backbone
 from sedna.common.config import Context

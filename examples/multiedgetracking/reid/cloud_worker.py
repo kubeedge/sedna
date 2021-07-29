@@ -27,12 +27,13 @@ from sedna.algorithms.reid.mAP import cosine_similarity
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
-log_dir = Context.get_parameters('reid_log_dir')
+log_dir = Context.get_parameters('log_dir')
+img_dir =  Context.get_parameters('img_dir')
 gfeats = Context.get_parameters('gfeats')
 qfeats = Context.get_parameters('qfeats')
 imgpath = Context.get_parameters('imgpath')
 
-IMAGE_STORAGE_LOCATION = "/code/ai_models/deep_eff_reid/"
+# IMAGE_STORAGE_LOCATION = "/data/ai_models/deep_eff_reid/"
 
 class Estimator:
 
@@ -73,15 +74,15 @@ class Estimator:
             dist_mat = cosine_similarity(query_feat, self.gallery_feats)
             indices = np.argsort(dist_mat, axis=1)
         
-        self.save_result(indices, camid='mixed', top_k=10)
+        self._save_result(indices, camid='mixed', top_k=10)
 
         return indices[0][:]
 
-    def save_result(self, indices, camid, top_k=10, img_size=[128, 128]):
+    def _save_result(self, indices, camid, top_k=10, img_size=[128, 128]):
         LOGGER.info("Saving top-10 results")
         figure = None
         for k in range(top_k):
-            img = Image.open(os.path.join(IMAGE_STORAGE_LOCATION, self.img_path[indices[0][k]])).resize(
+            img = Image.open(os.path.join(img_dir, self.img_path[indices[0][k]])).resize(
                 (img_size[1], img_size[0]))
             img = np.asarray(img)
             self._write_id_on_image(img, self._extract_id(self.img_path[indices[0][k]]))
@@ -97,8 +98,8 @@ class Estimator:
             os.makedirs(result_path)
 
         cv2.imwrite(os.path.join(
-            result_path, "{}-cam{}-{}.png".format(indices[0][0], camid, time.time())), figure)
-
+            # result_path, "{}-cam{}-{}.png".format(indices[0][0], camid, time.time())), figure)
+            result_path, "{}-cam{}.png".format(indices[0][0], camid)), figure)
 
 # Starting the ReID module
 inference_instance = ReIDService(estimator=Estimator)

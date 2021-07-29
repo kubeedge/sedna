@@ -76,11 +76,11 @@ spec:
               value: "efficientnet_v2"
             - name: "reid_log_dir"
               value: "/data/ai_models/deep_eff_reid/loggers/runs/efficientnetv2_market_2"
-              - name: "gfeats"
+            - name: "gfeats"
               value: "gfeats.pth"
-              - name: "qfeats"
+            - name: "qfeats"
               value: "qfeats.pth"
-              - name: "imgpath"
+            - name: "imgpath"
               value: "imgpath.npy"
             resources:  # user defined resources
               requests:

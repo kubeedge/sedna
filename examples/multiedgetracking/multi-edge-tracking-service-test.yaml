@@ -22,13 +22,23 @@ spec:
           - name: "model_name"
             value: "efficientnet_v2"
           - name: "edge_model_weights"
-            value: "/code/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
+            value: "/data/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
           resources:  # user defined resources
             requests:
               memory: 64M
               cpu: 100m
             limits:
               memory: 2Gi
+          volumeMounts:
+            - name: outputdir
+              mountPath: /data/ai_models/deep_eff_reid/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /data/ai_models/deep_eff_reid/
+              type: Directory
+
 
   reIDWorker:
     model:
@@ -41,8 +51,10 @@ spec:
             name:  reid
             imagePullPolicy: IfNotPresent
             env:  # user defined environments
-            - name: "reid_log_dir"
+            - name: "log_dir"
               value: "/data/ai_models/deep_eff_reid/loggers/runs/"
+            - name: "img_dir"
+              value: "/data/ai_models/deep_eff_reid/"
             - name: "gfeats"
               value: "gfeats.pth"
             - name: "qfeats"
@@ -54,10 +66,10 @@ spec:
                 memory: 2Gi
             volumeMounts:
             - name: outputdir
-              mountPath: /data/ai_models/deep_eff_reid/loggers/runs/
+              mountPath: /data/ai_models/deep_eff_reid/
         volumes:   # user defined volumes
           - name: outputdir
             hostPath:
               # user must create the directory in host
-              path: /data/ai_models/deep_eff_reid/loggers/runs/
+              path: /data/ai_models/deep_eff_reid/
               type: Directory
