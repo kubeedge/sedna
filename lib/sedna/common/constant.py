@@ -12,22 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 from enum import Enum
-
-LOG = logging.getLogger(__name__)
-
-
-class ModelType(Enum):
-    GlobalModel = 1
-    PersonalizedModel = 2
-
-
-class Framework(Enum):
-    Tensorflow = "tensorflow"
-    Keras = "keras"
-    Pytorch = "pytorch"
-    Mindspore = "mindspore"
 
 
 class K8sResourceKind(Enum):
