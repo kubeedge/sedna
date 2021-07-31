@@ -14,12 +14,12 @@
 
 import os
 import json
-import joblib
 
 from sedna.datasources import BaseDataSource
 from sedna.backend import set_backend
 from sedna.common.log import LOGGER
 from sedna.common.config import Context
+from sedna.common.constant import KBResourceConstant
 from sedna.common.file_ops import FileOps
 from sedna.common.class_factory import ClassFactory, ClassType
 
@@ -68,12 +68,13 @@ class MulTaskLearning:
         self.extractor = None
         self.base_model = estimator
         self.task_groups = None
-        self.task_index_url = Context.get_parameters(
-            "MODEL_URLS", '/tmp/index.pkl'
+        self.task_index_url = KBResourceConstant.KB_INDEX_NAME.value
+        self.min_train_sample = int(
+            Context.get_parameters(
+                "MIN_TRAIN_SAMPLE",
+                KBResourceConstant.MIN_TRAIN_SAMPLE.value
+            )
         )
-        self.min_train_sample = int(Context.get_parameters(
-            "MIN_TRAIN_SAMPLE", '10'
-        ))
 
     @staticmethod
     def parse_param(param_str):
@@ -211,37 +212,37 @@ class MulTaskLearning:
                 self.models[i] = model
                 feedback[entry] = res
                 self.task_groups[i] = task
-        extractor_file = FileOps.join_path(
-            os.path.dirname(self.task_index_url),
-            "kb_extractor.pkl"
-        )
-        joblib.dump(self.extractor, extractor_file)
+
         task_index = {
-            "extractor": extractor_file,
+            "extractor": self.extractor,
             "task_groups": self.task_groups
         }
-        joblib.dump(task_index, self.task_index_url)
         if valid_data:
-            feedback = self.evaluate(valid_data, **kwargs)
+            feedback, _ = self.evaluate(valid_data, **kwargs)
+        try:
+            FileOps.dump(task_index, self.task_index_url)
+        except TypeError:
+            return feedback, task_index
+        return feedback, self.task_index_url
 
-        return feedback
+    def load(self, task_index_url=None):
+        if task_index_url:
+            self.task_index_url = task_index_url
+        assert FileOps.exists(self.task_index_url), FileExistsError(
+            f"Task index miss: {self.task_index_url}"
+        )
+        task_index = FileOps.load(self.task_index_url)
+        self.extractor = task_index['extractor']
+        if isinstance(self.extractor, str):
+            self.extractor = FileOps.load(self.extractor)
+        self.task_groups = task_index['task_groups']
+        self.models = [task.model for task in self.task_groups]
 
     def predict(self, data: BaseDataSource,
                 post_process=None, **kwargs):
         if not (self.models and self.extractor):
-            task_index = joblib.load(self.task_index_url)
-            extractor_file = FileOps.join_path(
-                os.path.dirname(self.task_index_url),
-                "kb_extractor.pkl"
-            )
-            if (not callable(task_index['extractor']) and
-                    isinstance(task_index['extractor'], str)):
-                FileOps.download(task_index['extractor'], extractor_file)
-                self.extractor = joblib.load(extractor_file)
-            else:
-                self.extractor = task_index['extractor']
-            self.task_groups = task_index['task_groups']
-            self.models = [task.model for task in self.task_groups]
+            self.load()
+
         data, mappings = self.task_mining(samples=data)
         samples, models = self.task_remodeling(samples=data, mappings=mappings)
 

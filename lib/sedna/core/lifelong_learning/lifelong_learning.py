@@ -15,12 +15,12 @@
 import os
 import tempfile
 
-import joblib
-
 from sedna.backend import set_backend
 from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
-from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
+from sedna.common.constant import K8sResourceKind
+from sedna.common.constant import K8sResourceKindStatus
+from sedna.common.constant import KBResourceConstant
 from sedna.common.config import Context
 from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.algorithms.multi_task_learning import MulTaskLearning
@@ -67,7 +67,10 @@ class LifelongLearning(JobBase):
             ll_kb_server=Context.get_parameters("KB_SERVER"),
             output_url=Context.get_parameters("OUTPUT_URL", "/tmp")
         )
-        task_index = FileOps.join_path(config['output_url'], 'index.pkl')
+        task_index = FileOps.join_path(
+            config['output_url'],
+            KBResourceConstant.KB_INDEX_NAME
+        )
         config['task_index'] = task_index
         super(LifelongLearning, self).__init__(
             estimator=e, config=config
@@ -91,7 +94,7 @@ class LifelongLearning(JobBase):
         if post_process is not None:
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
-        res = self.estimator.train(
+        res, task_index_url = self.estimator.train(
             train_data=train_data,
             valid_data=valid_data,
             **kwargs
@@ -107,7 +110,7 @@ class LifelongLearning(JobBase):
         except Exception as err:
             self.log.error(
                 f"Upload task extractor_file fail {extractor_file}: {err}")
-            extractor_file = joblib.load(extractor_file)
+            extractor_file = FileOps.load(extractor_file)
         for task in task_groups:
             try:
                 model = self.kb_server.upload_file(task.model.model)
@@ -123,7 +126,7 @@ class LifelongLearning(JobBase):
             "extractor": extractor_file
         }
         fd, name = tempfile.mkstemp()
-        joblib.dump(task_info, name)
+        FileOps.dump(task_info, name)
 
         index_file = self.kb_server.update_db(name)
         if not index_file:
