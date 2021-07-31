@@ -291,3 +291,27 @@ class Context:
         value = cls.parameters.get(
             param) or cls.parameters.get(str(param).upper())
         return value if value else default
+
+    @classmethod
+    def get_algorithm_from_api(cls, algorithm, **param) -> dict:
+        """get the algorithm and parameter from api"""
+        hard_example_name = cls.get_parameters(f'{algorithm}_NAME')
+        hem_parameters = cls.get_parameters(f'{algorithm}_PARAMETERS')
+
+        try:
+            hem_parameters = json.loads(hem_parameters)
+            hem_parameters = {
+                p["key"]: p.get("value", "")
+                for p in hem_parameters if "key" in p
+            }
+        except Exception:
+            hem_parameters = {}
+
+        hem_parameters.update(**param)
+
+        hard_example_mining = {
+            "method": hard_example_name,
+            "param": hem_parameters
+        }
+
+        return hard_example_mining

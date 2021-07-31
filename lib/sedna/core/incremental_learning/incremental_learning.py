@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 from copy import deepcopy
 
 from sedna.common.file_ops import FileOps
@@ -43,12 +42,26 @@ class IncrementalLearning(JobBase):
         self.job_kind = K8sResourceKind.INCREMENTAL_JOB.value
         FileOps.clean_folder([self.config.model_url], clean=False)
         self.hard_example_mining_algorithm = None
+        if not hard_example_mining:
+            hard_example_mining = self.get_hem_algorithm_from_config()
         if hard_example_mining:
             hem = hard_example_mining.get("method", "IBT")
             hem_parameters = hard_example_mining.get("param", {})
             self.hard_example_mining_algorithm = ClassFactory.get_cls(
                 ClassType.HEM, hem
             )(**hem_parameters)
+
+    @classmethod
+    def get_hem_algorithm_from_config(cls, **param):
+        """
+         get the `algorithm` name and `param` of hard_example_mining from crd
+        :param param: update value in parameters of hard_example_mining
+        :return: dict, e.g.: {"method": "IBT", "param": {"threshold_img": 0.5}}
+        """
+        return cls.parameters.get_algorithm_from_api(
+            algorithm="HEM",
+            **param
+        )
 
     def train(self, train_data,
               valid_data=None,

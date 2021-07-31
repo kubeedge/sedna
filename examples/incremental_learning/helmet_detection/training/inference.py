@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-import json
 import time
 import warnings
 
@@ -24,6 +23,7 @@ from sedna.common.config import Context
 from sedna.common.file_ops import FileOps
 from sedna.core.incremental_learning import IncrementalLearning
 from interface import Estimator
+
 
 he_saved_url = Context.get_parameters("HE_SAVED_URL", '/tmp')
 rsl_saved_url = Context.get_parameters("RESULT_SAVED_URL", '/tmp')
@@ -105,22 +105,10 @@ def deal_infer_rsl(model_output):
 def run():
     camera_address = Context.get_parameters('video_url')
 
-    hard_example_name = Context.get_parameters('HEM_NAME', "IBT")
-    hem_parameters = Context.get_parameters('HEM_PARAMETERS')
-
-    try:
-        hem_parameters = json.loads(hem_parameters)
-        hem_parameters = {
-            p["key"]: p.get("value", "")
-            for p in hem_parameters if "key" in p
-        }
-    except:
-        hem_parameters = {}
-
-    hard_example_mining = {
-        "method": hard_example_name,
-        "param": hem_parameters
-    }
+    # get hard exmaple mining algorithm from config
+    hard_example_mining = IncrementalLearning.get_hem_algorithm_from_config(
+        threshold_img=0.9
+    )
 
     input_shape_str = Context.get_parameters("input_shape")
     input_shape = tuple(int(v) for v in input_shape_str.split(","))
