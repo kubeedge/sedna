@@ -19,6 +19,12 @@ __all__ = ('Task', 'TaskGroup', 'Model')
 
 class Task:
     def __init__(self, entry, samples, meta_attr=None):
+        """
+        task instance
+        :param entry: task name, unique, e.g. Shenzhen_Spring
+        :param samples: datasource
+        :param meta_attr: meta data use to describe task
+        """
         self.entry = entry
         self.samples = samples
         self.meta_attr = meta_attr
@@ -27,8 +33,12 @@ class Task:
 
 
 class TaskGroup:
-
     def __init__(self, entry, tasks: List[Task]):
+        """
+        task group instance, set of tasks
+        :param entry: task group name
+        :param tasks: set of tasks
+        """
         self.entry = entry
         self.tasks = tasks
         self.samples = None  # assign with task_relation_discover algorithms
@@ -37,6 +47,13 @@ class TaskGroup:
 
 class Model:
     def __init__(self, index: int, entry, model, result):
+        """
+        model instance
+        :param index: kb index, e.g. 1
+        :param entry: model name
+        :param model: model save path
+        :param result: evaluation result
+        """
         self.index = index  # integer
         self.entry = entry
         self.model = model

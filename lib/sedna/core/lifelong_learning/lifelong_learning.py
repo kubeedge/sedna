@@ -47,6 +47,17 @@ class LifelongLearning(JobBase):
                  task_remodeling_param=None,
                  inference_integrate_param=None,
                  unseen_task_detect_param=None):
+        """
+        Initial a lifelong learning job
+        :param estimator: Customize estimator
+        :param task_definition: dict, {"method": "", param: ""} Multitask definition base on given traning samples
+        :param task_relationship_discovery: dict, {"method": "", param: ""}  Discover the relation of tasks which generated from task_definition  # noqa
+        :param task_mining:  dict, {"method": "", param: ""} Mining target tasks of inference samples
+        :param task_remodeling:  dict, {"method": "", param: ""} Remodeling tasks
+        :param inference_integrate:  dict, {"method": "", param: ""} Integrating algorithm for the output geted by multitask inference  # noqa
+        :param unseen_task_detect:  dict, {"method": "", param: ""} unseen task detect
+        """
+
         e = MulTaskLearning(
             estimator=estimator,
             task_definition=task_definition,
@@ -153,6 +164,13 @@ class LifelongLearning(JobBase):
         )
 
     def evaluate(self, data, post_process=None, model_threshold=0.1, **kwargs):
+        """
+        Evaluate task for LifelongLearning
+        :param data: datasource use for evaluation
+        :param post_process: post process
+        :param kwargs: params for evaluate of customize estimator
+        :return: evaluate metrics
+        """
         callback_func = None
         if callable(post_process):
             callback_func = post_process
@@ -196,6 +214,13 @@ class LifelongLearning(JobBase):
         return callback_func(res) if callback_func else res
 
     def inference(self, data=None, post_process=None, **kwargs):
+        """
+        Inference task for LifelongLearning
+        :param data: inference sample
+        :param post_process: post process
+        :param kwargs: params for inference of customize estimator
+        :return: inference result, if is hard sample, match tasks
+        """
         task_index_url = self.get_parameters(
             "MODEL_URLS", self.config.task_index)
         index_url = self.estimator.estimator.task_index_url

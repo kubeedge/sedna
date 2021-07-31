@@ -65,11 +65,11 @@ The tables below summarize the group, kind and API version details for the CRD.
 |Kind                   | LifelongLearningJob             |
 
 ### Lifelong learning CRD
-See the [crd source](/build/crds/sedna/Lifelonglearningjob_v1alpha1.yaml) for details.
+See the [crd source](/build/crds/sedna/sedna.io_lifelonglearningjobs.yaml) for details.
 
 ### Lifelong learning job type definition
 
-See the [golang source](/pkg/apis/sedna/v1alpha1/Lifelongllearningjob_types.go) for details.
+See the [golang source](/pkg/apis/sedna/v1alpha1/lifelongllearningjob_types.go) for details.
 
 #### Validation
 [Open API v3 Schema based validation](https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#validation) can be used to guard against bad requests.
@@ -80,7 +80,7 @@ Here is a list of validations we need to support :
 1. The edgenode name specified in the crd should exist in k8s.
 
 ### Lifelong learning job sample
-See the [source](/build/crd-samples/sedna/Lifelonglearningjob_v1alpha1.yaml) for an example.
+See the [source]((/build/crds-samples/sedna/lifelonglearningjob_v1alpha1.yaml) for an example.
     
 ## Controller Design
 

@@ -25,6 +25,10 @@ __all__ = ('DefaultInferenceIntegrate', )
 
 @ClassFactory.register(ClassType.MTL)
 class DefaultInferenceIntegrate:
+    """
+    make the largest results in each model as the final prediction result
+    generally used for regression prediction
+    """
     def __init__(self, models: list, **kwargs):
         self.models = models
 
