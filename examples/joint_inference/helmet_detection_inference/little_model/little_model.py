@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import time
-import cv2
 import copy
 import logging
 
+import cv2
 import numpy as np
 
 from sedna.common.config import Context
@@ -25,6 +24,7 @@ from sedna.common.file_ops import FileOps
 from sedna.core.joint_inference import JointInference
 
 from interface import Estimator
+
 
 LOG = logging.getLogger(__name__)
 
@@ -84,6 +84,9 @@ def draw_boxes(img, bboxes, colors, text_thickness, box_thickness):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0),
                         text_thickness, line_type)
         except TypeError as err:
+            # error message from pyopencv,  cv2.circle only can accept centre
+            # coordinates precision up to float32. If the coordinates are in
+            # float64, it will throw this error.
             LOG.warning(f"Draw box fail: {err}")
     return img_copy
 
@@ -124,22 +127,11 @@ def output_deal(
 
 
 def main():
-    hard_example_name = Context.get_parameters('HEM_NAME', "IBT")
-    hem_parameters = Context.get_parameters('HEM_PARAMETERS')
 
-    try:
-        hem_parameters = json.loads(hem_parameters)
-        hem_parameters = {
-            p["key"]: p.get("value", "")
-            for p in hem_parameters if "key" in p
-        }
-    except:
-        hem_parameters = {}
-
-    hard_example_mining = {
-        "method": hard_example_name,
-        "param": hem_parameters
-    }
+    # get hard exmaple mining algorithm from config
+    hard_example_mining = JointInference.get_hem_algorithm_from_config(
+        threshold_img=0.9
+    )
 
     inference_instance = JointInference(
         estimator=Estimator,

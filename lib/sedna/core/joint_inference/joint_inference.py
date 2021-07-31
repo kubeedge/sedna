@@ -65,7 +65,7 @@ class BigModelService(JobBase):
 
     def inference(self, data=None, post_process=None, **kwargs):
         """
-        Inference task for IncrementalLearning
+        Inference task for JointInference
         :param data: inference sample
         :param post_process: post process
         :param kwargs: params for inference of big model
@@ -87,8 +87,8 @@ class BigModelService(JobBase):
 
 class JointInference(JobBase):
     """
-   Joint inference
-   """
+    Joint inference
+    """
 
     def __init__(self, estimator=None, hard_example_mining: dict = None):
         """
@@ -128,12 +128,26 @@ class JointInference(JobBase):
         self.cloud = ModelClient(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
         self.hard_example_mining_algorithm = None
+        if not hard_example_mining:
+            hard_example_mining = self.get_hem_algorithm_from_config()
         if hard_example_mining:
             hem = hard_example_mining.get("method", "IBT")
             hem_parameters = hard_example_mining.get("param", {})
             self.hard_example_mining_algorithm = ClassFactory.get_cls(
                 ClassType.HEM, hem
             )(**hem_parameters)
+
+    @classmethod
+    def get_hem_algorithm_from_config(cls, **param):
+        """
+        get the `algorithm` name and `param` of hard_example_mining from crd
+        :param param: update value in parameters of hard_example_mining
+        :return: dict, e.g.: {"method": "IBT", "param": {"threshold_img": 0.5}}
+        """
+        return cls.parameters.get_algorithm_from_api(
+            algorithm="HEM",
+            **param
+        )
 
     def inference(self, data=None, post_process=None, **kwargs):
         """

@@ -297,7 +297,8 @@ class Context:
         """get the algorithm and parameter from api"""
         hard_example_name = cls.get_parameters(f'{algorithm}_NAME')
         hem_parameters = cls.get_parameters(f'{algorithm}_PARAMETERS')
-
+        if not hard_example_name:
+            return {}
         try:
             hem_parameters = json.loads(hem_parameters)
             hem_parameters = {
