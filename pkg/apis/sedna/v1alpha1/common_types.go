@@ -16,6 +16,11 @@ limitations under the License.
 
 package v1alpha1
 
+import (
+	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+)
+
 // Metric describes the data that a resource model metric should have
 type Metric struct {
 	Key   string `json:"key"`
@@ -26,4 +31,14 @@ type Metric struct {
 type ParaSpec struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+// TrackingWorker describes the data a tracking worker should have
+type TrackingWorker struct {
+	Template v1.PodTemplateSpec `json:"template"`
+}
+
+// ReidWorkers describes the data reid workers should have
+type ReidWorkers struct {
+	appsv1.DeploymentSpec `json:",inline"`
 }
