@@ -126,9 +126,9 @@ clean:
 	hack/make-rules/clean.sh
 endif
 
-.PHONY: images gmimage lcimage
-images: gmimage lcimage
-gmimage lcimage:
+.PHONY: images gmimage lcimage kbimage
+images: gmimage lcimage kbimage
+gmimage lcimage kbimage:
 	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/sedna-${@:image=}:${IMAGE_TAG} -f build/${@:image=}/Dockerfile .
 
 
@@ -137,8 +137,9 @@ push-all: push push-examples
 
 # push target pushes sedna-built images
 push: images
-	docker push ${IMAGE_REPO}/sedna-gm:${IMAGE_TAG} 
-	docker push ${IMAGE_REPO}/sedna-lc:${IMAGE_TAG} 
+	docker push ${IMAGE_REPO}/sedna-gm:${IMAGE_TAG}
+	docker push ${IMAGE_REPO}/sedna-lc:${IMAGE_TAG}
+	docker push ${IMAGE_REPO}/sedna-kb:${IMAGE_TAG}
 	bash scripts/storage-initializer/push_image.sh
 
 push-examples:
