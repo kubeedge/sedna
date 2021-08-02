@@ -9,7 +9,9 @@ spec:
       name: "mot-model"
     template:
       spec:
-        nodeName: "frapedge00001"
+        # nodeName: "frapedge00001"
+        nodeSelector:
+          sedna-role: edge
         containers:
         - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
           imagePullPolicy: IfNotPresent
@@ -45,7 +47,8 @@ spec:
       name: "reid-model"
     template:
       spec:
-        nodeName: "fraporion00001"
+        nodeSelector:
+          services: hivemq
         containers:
           - image: kubeedge/sedna-example-multi-edge-tracking-reid:v0.3.0
             name:  reid

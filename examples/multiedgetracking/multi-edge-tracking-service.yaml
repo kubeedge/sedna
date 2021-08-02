@@ -1,7 +1,7 @@
 apiVersion: sedna.io/v1alpha1
 kind: MultiEdgeTrackingService
 metadata:
-  name: containers-tracking
+  name: pedestrian-tracking
 spec:
   multiObjectTrackingWorker:
   -  
@@ -10,6 +10,8 @@ spec:
     template:
       spec:
         nodeName: "frapedge00001"
+        nodeSelector:
+          sedna-role: edge
         containers:
         - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
           imagePullPolicy: IfNotPresent
@@ -31,13 +33,21 @@ spec:
               memory: 2Gi
           volumeMounts:
             - name: outputdir
-              mountPath: /data/
-  - 
+              mountPath: /data/ai_models/deep_eff_reid/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /data/ai_models/deep_eff_reid/
+              type: Directory
+  -  
     model:
       name: "mot-model"
     template:
       spec:
         nodeName: "fraprigel00001"
+        nodeSelector:
+          sedna-role: edge
         containers:
         - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
           imagePullPolicy: IfNotPresent
@@ -59,23 +69,32 @@ spec:
               memory: 2Gi
           volumeMounts:
             - name: outputdir
-              mountPath: /data/
+              mountPath: /data/ai_models/deep_eff_reid/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /data/ai_models/deep_eff_reid/
+              type: Directory
+
+
 
   reIDWorker:
     model:
       name: "reid-model"
     template:
       spec:
-        nodeName: "fraporion00001"
+        nodeSelector:
+          services: hivemq
         containers:
           - image: kubeedge/sedna-example-multi-edge-tracking-reid:v0.3.0
             name:  reid
             imagePullPolicy: IfNotPresent
             env:  # user defined environments
-            - name: "model_name"
-              value: "efficientnet_v2"
-            - name: "reid_log_dir"
-              value: "/data/ai_models/deep_eff_reid/loggers/runs/efficientnetv2_market_2"
+            - name: "log_dir"
+              value: "/data/ai_models/deep_eff_reid/loggers/runs/"
+            - name: "img_dir"
+              value: "/data/ai_models/deep_eff_reid/"
             - name: "gfeats"
               value: "gfeats.pth"
             - name: "qfeats"
@@ -87,10 +106,10 @@ spec:
                 memory: 2Gi
             volumeMounts:
             - name: outputdir
-              mountPath: /data/ai_models/deep_eff_reid/loggers/runs/efficientnetv2_market_2/results/
+              mountPath: /data/ai_models/deep_eff_reid/
         volumes:   # user defined volumes
           - name: outputdir
             hostPath:
               # user must create the directory in host
-              path: /data/ai_models/deep_eff_reid/loggers/runs/efficientnetv2_market_2/results/
+              path: /data/ai_models/deep_eff_reid/
               type: Directory

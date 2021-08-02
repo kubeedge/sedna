@@ -33,8 +33,6 @@ gfeats = Context.get_parameters('gfeats')
 qfeats = Context.get_parameters('qfeats')
 imgpath = Context.get_parameters('imgpath')
 
-# IMAGE_STORAGE_LOCATION = "/data/ai_models/deep_eff_reid/"
-
 class Estimator:
 
     def __init__(self, **kwargs):

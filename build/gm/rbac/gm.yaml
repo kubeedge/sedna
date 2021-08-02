@@ -65,6 +65,7 @@ rules:
     - nodes
     verbs:
     - get
+    - list
 
   - apiGroups:
     - ""
