@@ -10,8 +10,6 @@ spec:
     template:
       spec:
         nodeName: "frapedge00001"
-        nodeSelector:
-          sedna-role: edge
         containers:
         - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
           imagePullPolicy: IfNotPresent
@@ -46,8 +44,6 @@ spec:
     template:
       spec:
         nodeName: "fraprigel00001"
-        nodeSelector:
-          sedna-role: edge
         containers:
         - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
           imagePullPolicy: IfNotPresent
@@ -84,8 +80,7 @@ spec:
       name: "reid-model"
     template:
       spec:
-        nodeSelector:
-          services: hivemq
+        nodeName: "fraporion00001"
         containers:
           - image: kubeedge/sedna-example-multi-edge-tracking-reid:v0.3.0
             name:  reid

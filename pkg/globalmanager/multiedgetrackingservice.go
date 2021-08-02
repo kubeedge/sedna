@@ -406,8 +406,8 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	// create k8s service for cloudPod
 	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 	// will support Spec.NodeSelector.
-	reIDIP, err := GetNodeIPByLabel(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeSelector, service.Namespace)
-	//reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
+	//reIDIP, err := GetNodeIPByLabel(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeSelector, service.Namespace)
+	reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
 	reIDPort, err := CreateKubernetesService(mc.kubeClient, service, ReID, reIDPort, reIDIP)
 	if err != nil {
 		return active, err
@@ -491,7 +491,8 @@ func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.
 		// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 		// will support Spec.NodeSelector.
 		// get bigModelIP from nodeName in cloudWorker
-		reIDIP, err := GetNodeIPByLabel(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeSelector, service.Namespace)
+		reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
+		//reIDIP, err := GetNodeIPByLabel(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeSelector, service.Namespace)
 		if err != nil {
 			return fmt.Errorf("failed to get node ip: %w", err)
 		}

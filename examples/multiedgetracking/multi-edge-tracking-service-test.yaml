@@ -9,7 +9,7 @@ spec:
       name: "mot-model"
     template:
       spec:
-        # nodeName: "frapedge00001"
+        nodeName: "frapedge00001"
         nodeSelector:
           sedna-role: edge
         containers:
