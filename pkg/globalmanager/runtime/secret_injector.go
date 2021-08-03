@@ -14,13 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package globalmanager
+package runtime
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -106,11 +109,18 @@ func MergeSecretEnvs(nowE, newE []v1.EnvVar, overwrite bool) []v1.EnvVar {
 	return nowE
 }
 
-func InjectSecretObj(obj CommonInterface, secret *v1.Secret) {
-	if secret == nil {
+func InjectSecretAnnotations(client kubernetes.Interface, obj CommonInterface, secretName string) (err error) {
+	if len(secretName) == 0 {
 		return
 	}
+	secret, err := client.CoreV1().Secrets(obj.GetNamespace()).Get(context.TODO(), secretName, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+	return injectSecretObj(obj, secret)
+}
 
+func injectSecretObj(obj CommonInterface, secret *v1.Secret) (err error) {
 	secretData := secret.GetAnnotations()
 
 	for k, v := range secret.Data {
@@ -127,4 +137,5 @@ func InjectSecretObj(obj CommonInterface, secret *v1.Secret) {
 	ann[SecretAnnotationKey] = string(b)
 
 	obj.SetAnnotations(ann)
+	return nil
 }

@@ -17,7 +17,9 @@ limitations under the License.
 package main
 
 import (
+	"math/rand"
 	"os"
+	"time"
 
 	"k8s.io/component-base/logs"
 
@@ -25,6 +27,8 @@ import (
 )
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	command := app.NewControllerCommand()
 	logs.InitLogs()
 	defer logs.FlushLogs()

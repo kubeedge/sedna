@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package globalmanager
+package runtime
 
 import (
 	"net/url"
@@ -179,7 +179,7 @@ func injectHostPathMount(pod *v1.Pod, workerParam *WorkerParam) {
 
 	hostPathType := v1.HostPathDirectory
 
-	for _, mount := range workerParam.mounts {
+	for _, mount := range workerParam.Mounts {
 		for _, m := range mount.URLs {
 			if m.HostPath == "" {
 				continue
@@ -240,7 +240,7 @@ func injectHostPathMount(pod *v1.Pod, workerParam *WorkerParam) {
 
 func injectWorkerSecrets(pod *v1.Pod, workerParam *WorkerParam) {
 	var secretEnvs []v1.EnvVar
-	for _, mount := range workerParam.mounts {
+	for _, mount := range workerParam.Mounts {
 		for _, m := range mount.URLs {
 			if m.Disable || m.DownloadByInitializer {
 				continue
@@ -259,7 +259,7 @@ func injectInitializerContainer(pod *v1.Pod, workerParam *WorkerParam) {
 
 	var downloadPairs []string
 	var secretEnvs []v1.EnvVar
-	for _, mount := range workerParam.mounts {
+	for _, mount := range workerParam.Mounts {
 		for _, m := range mount.URLs {
 			if m.Disable {
 				continue
@@ -345,7 +345,7 @@ func injectInitializerContainer(pod *v1.Pod, workerParam *WorkerParam) {
 func InjectStorageInitializer(pod *v1.Pod, workerParam *WorkerParam) {
 	var mounts []WorkerMount
 	// parse the mounts and environment key
-	for _, mount := range workerParam.mounts {
+	for _, mount := range workerParam.Mounts {
 		var envPaths []string
 
 		if mount.URL != nil {
@@ -374,13 +374,13 @@ func InjectStorageInitializer(pod *v1.Pod, workerParam *WorkerParam) {
 		}
 
 		if mount.EnvName != "" {
-			workerParam.env[mount.EnvName] = strings.Join(
+			workerParam.Env[mount.EnvName] = strings.Join(
 				envPaths, urlsFieldSep,
 			)
 		}
 	}
 
-	workerParam.mounts = mounts
+	workerParam.Mounts = mounts
 
 	// need to call injectInitializerContainer before injectHostPathMount
 	// since injectHostPathMount could inject volumeMount to init container

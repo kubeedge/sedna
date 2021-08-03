@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package globalmanager
+package federatedlearning
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	kubeinformers "k8s.io/client-go/informers"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -40,33 +40,37 @@ import (
 	k8scontroller "k8s.io/kubernetes/pkg/controller"
 
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
-	clientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned"
 	sednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
-	informers "github.com/kubeedge/sedna/pkg/client/informers/externalversions"
 	sednav1listers "github.com/kubeedge/sedna/pkg/client/listers/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
-	messageContext "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/ws"
-	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
 
 const (
-	FLJobStageAgg   = "Aggregation"
-	FLJobStageTrain = "Training"
+	// KindName is the kind name of CR this controller controls
+	KindName = "FederatedLearningJob"
+	// Name is this controller name
+	Name = "FederatedLearning"
 )
 
-// flJobControllerKind contains the schema.GroupVersionKind for this controller type.
-var flJobControllerKind = sednav1.SchemeGroupVersion.WithKind("FederatedLearningJob")
+const (
+	jobStageAgg   = "Aggregation"
+	jobStageTrain = "Training"
+)
 
-// FederatedController ensures that all FLJob objects have corresponding pods to
+// Kind contains the schema.GroupVersionKind for this controller type.
+var Kind = sednav1.SchemeGroupVersion.WithKind(KindName)
+
+// Controller ensures that all FederatedLearningJob objects have corresponding pods to
 // run their configured workload.
-type FederatedController struct {
+type Controller struct {
 	kubeClient kubernetes.Interface
 	client     sednaclientset.SednaV1alpha1Interface
 
 	// podStoreSynced returns true if the pod store has been synced at least once.
 	// Added as a member to the struct to allow injection for testing.
 	podStoreSynced cache.InformerSynced
-	// jobStoreSynced returns true if the flJob store has been synced at least once.
+	// jobStoreSynced returns true if the FederatedLearningJob store has been synced at least once.
 	// Added as a member to the struct to allow injection for testing.
 	jobStoreSynced cache.InformerSynced
 
@@ -82,48 +86,47 @@ type FederatedController struct {
 	recorder record.EventRecorder
 
 	cfg *config.ControllerConfig
+
+	sendToEdgeFunc runtime.DownstreamSendFunc
 }
 
-// Run the main goroutine responsible for watching and syncing jobs.
-func (fc *FederatedController) Start() error {
+// Run starts the main goroutine responsible for watching and syncing jobs.
+func (c *Controller) Run(stopCh <-chan struct{}) {
 	workers := 1
-	stopCh := messageContext.Done()
 
-	go func() {
-		defer utilruntime.HandleCrash()
-		defer fc.queue.ShutDown()
-		klog.Infof("Starting federatedlearning job controller")
-		defer klog.Infof("Shutting down federatedlearning job controller")
+	defer utilruntime.HandleCrash()
+	defer c.queue.ShutDown()
 
-		if !cache.WaitForNamedCacheSync("federatedlearning job", stopCh, fc.podStoreSynced, fc.jobStoreSynced) {
-			klog.Errorf("failed to wait for caches to sync")
+	klog.Infof("Starting %s controller", Name)
+	defer klog.Infof("Shutting down %s controller", Name)
 
-			return
-		}
+	if !cache.WaitForNamedCacheSync(Name, stopCh, c.podStoreSynced, c.jobStoreSynced) {
+		klog.Errorf("failed to wait for %s caches to sync", Name)
 
-		klog.Infof("Starting federatedlearning job workers")
-		for i := 0; i < workers; i++ {
-			go wait.Until(fc.worker, time.Second, stopCh)
-		}
+		return
+	}
 
-		<-stopCh
-	}()
-	return nil
+	klog.Infof("Starting %s workers", Name)
+	for i := 0; i < workers; i++ {
+		go wait.Until(c.worker, time.Second, stopCh)
+	}
+
+	<-stopCh
 }
 
 // enqueueByPod enqueues the FederatedLearningJob object of the specified pod.
-func (fc *FederatedController) enqueueByPod(pod *v1.Pod, immediate bool) {
+func (c *Controller) enqueueByPod(pod *v1.Pod, immediate bool) {
 	controllerRef := metav1.GetControllerOf(pod)
 
 	if controllerRef == nil {
 		return
 	}
 
-	if controllerRef.Kind != flJobControllerKind.Kind {
+	if controllerRef.Kind != Kind.Kind {
 		return
 	}
 
-	job, err := fc.jobLister.FederatedLearningJobs(pod.Namespace).Get(controllerRef.Name)
+	job, err := c.jobLister.FederatedLearningJobs(pod.Namespace).Get(controllerRef.Name)
 	if err != nil {
 		return
 	}
@@ -132,27 +135,27 @@ func (fc *FederatedController) enqueueByPod(pod *v1.Pod, immediate bool) {
 		return
 	}
 
-	fc.enqueueController(job, immediate)
+	c.enqueueController(job, immediate)
 }
 
 // When a pod is created, enqueue the controller that manages it and update it's expectations.
-func (fc *FederatedController) addPod(obj interface{}) {
+func (c *Controller) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	if pod.DeletionTimestamp != nil {
 		// on a restart of the controller, it's possible a new pod shows up in a state that
 		// is already pending deletion. Prevent the pod from being a creation observation.
-		fc.deletePod(pod)
+		c.deletePod(pod)
 		return
 	}
 
 	// backoff to queue when PodFailed
 	immediate := pod.Status.Phase != v1.PodFailed
 
-	fc.enqueueByPod(pod, immediate)
+	c.enqueueByPod(pod, immediate)
 }
 
 // When a pod is updated, figure out what federatedlearning job manage it and wake them up.
-func (fc *FederatedController) updatePod(old, cur interface{}) {
+func (c *Controller) updatePod(old, cur interface{}) {
 	curPod := cur.(*v1.Pod)
 	oldPod := old.(*v1.Pod)
 
@@ -161,11 +164,11 @@ func (fc *FederatedController) updatePod(old, cur interface{}) {
 		return
 	}
 
-	fc.addPod(curPod)
+	c.addPod(curPod)
 }
 
 // deletePod enqueues the FederatedLearningJob obj When a pod is deleted
-func (fc *FederatedController) deletePod(obj interface{}) {
+func (c *Controller) deletePod(obj interface{}) {
 	pod, ok := obj.(*v1.Pod)
 
 	// comment from https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/job/job_controller.go
@@ -186,13 +189,13 @@ func (fc *FederatedController) deletePod(obj interface{}) {
 			return
 		}
 	}
-	fc.enqueueByPod(pod, true)
+	c.enqueueByPod(pod, true)
 }
 
 // obj could be an *sednav1.FederatedLearningJob, or a DeletionFinalStateUnknown marker item,
 // immediate tells the controller to update the status right away, and should
 // happen ONLY when there was a successful pod run.
-func (fc *FederatedController) enqueueController(obj interface{}, immediate bool) {
+func (c *Controller) enqueueController(obj interface{}, immediate bool) {
 	key, err := k8scontroller.KeyFunc(obj)
 	if err != nil {
 		klog.Warningf("Couldn't get key for object %+v: %v", obj, err)
@@ -201,43 +204,43 @@ func (fc *FederatedController) enqueueController(obj interface{}, immediate bool
 
 	backoff := time.Duration(0)
 	if !immediate {
-		backoff = getBackoff(fc.queue, key)
+		backoff = runtime.GetBackoff(c.queue, key)
 	}
-	fc.queue.AddAfter(key, backoff)
+	c.queue.AddAfter(key, backoff)
 }
 
 // worker runs a worker thread that just dequeues items, processes them, and marks them done.
 // It enforces that the syncHandler is never invoked concurrently with the same key.
-func (fc *FederatedController) worker() {
-	for fc.processNextWorkItem() {
+func (c *Controller) worker() {
+	for c.processNextWorkItem() {
 	}
 }
 
-func (fc *FederatedController) processNextWorkItem() bool {
-	key, quit := fc.queue.Get()
+func (c *Controller) processNextWorkItem() bool {
+	key, quit := c.queue.Get()
 	if quit {
 		return false
 	}
-	defer fc.queue.Done(key)
+	defer c.queue.Done(key)
 
-	forget, err := fc.syncFLJob(key.(string))
+	forget, err := c.sync(key.(string))
 	if err == nil {
 		if forget {
-			fc.queue.Forget(key)
+			c.queue.Forget(key)
 		}
 		return true
 	}
 
 	klog.Warningf("Error syncing federatedlearning job: %v", err)
-	fc.queue.AddRateLimited(key)
+	c.queue.AddRateLimited(key)
 
 	return true
 }
 
-// syncFLJob will sync the flJob with the given key if it has had its expectations fulfilled, meaning
+// sync will sync the FederatedLearningJob with the given key if it has had its expectations fulfilled, meaning
 // it did not expect to see any more of its pods created or deleted. This function is not meant to be invoked
 // concurrently with the same key.
-func (fc *FederatedController) syncFLJob(key string) (bool, error) {
+func (c *Controller) sync(key string) (bool, error) {
 	startTime := time.Now()
 	defer func() {
 		klog.V(4).Infof("Finished syncing federatedlearning job %q (%v)", key, time.Since(startTime))
@@ -250,91 +253,96 @@ func (fc *FederatedController) syncFLJob(key string) (bool, error) {
 	if len(ns) == 0 || len(name) == 0 {
 		return false, fmt.Errorf("invalid federatedlearning job key %q: either namespace or name is missing", key)
 	}
-	sharedFLJob, err := fc.jobLister.FederatedLearningJobs(ns).Get(name)
+	sharedJob, err := c.jobLister.FederatedLearningJobs(ns).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			klog.V(4).Infof("FLJob has been deleted: %v", key)
+			klog.V(4).Infof("%s %v has been deleted", Name, key)
 			return true, nil
 		}
 		return false, err
 	}
-	flJob := *sharedFLJob
-	// set kind for flJob in case that the kind is None
-	flJob.SetGroupVersionKind(sednav1.SchemeGroupVersion.WithKind("FederatedLearningJob"))
-	// if flJob was finished previously, we don't want to redo the termination
-	if IsFLJobFinished(&flJob) {
+
+	job := *sharedJob
+	// set kind for FederatedLearningJob in case that the kind is None
+	job.SetGroupVersionKind(Kind)
+
+	// if job was finished previously, we don't want to redo the termination
+	if IsJobFinished(&job) {
 		return true, nil
 	}
-	selector, _ := GenerateSelector(&flJob)
-	pods, err := fc.podStore.Pods(flJob.Namespace).List(selector)
+
+	selector, _ := runtime.GenerateSelector(&job)
+	pods, err := c.podStore.Pods(job.Namespace).List(selector)
 	if err != nil {
 		return false, err
 	}
 
 	activePods := k8scontroller.FilterActivePods(pods)
 	active := int32(len(activePods))
-	succeeded, failed := getStatus(pods)
-	conditions := len(flJob.Status.Conditions)
-	// flJob first start
-	if flJob.Status.StartTime == nil {
+	succeeded, failed := countPods(pods)
+	conditions := len(job.Status.Conditions)
+
+	// set StartTime when job is handled firstly
+	if job.Status.StartTime == nil {
 		now := metav1.Now()
-		flJob.Status.StartTime = &now
+		job.Status.StartTime = &now
 	}
 
 	var manageJobErr error
 	jobFailed := false
 	var failureReason string
 	var failureMessage string
-	phase := flJob.Status.Phase
+	phase := job.Status.Phase
 
 	if failed > 0 {
 		jobFailed = true
 		failureReason = "workerFailed"
-		failureMessage = "the worker of FLJob failed"
+		failureMessage = "the worker of FederatedLearningJob failed"
 	}
 
 	if jobFailed {
-		flJob.Status.Conditions = append(flJob.Status.Conditions, NewFLJobCondition(sednav1.FLJobCondFailed, failureReason, failureMessage))
-		flJob.Status.Phase = sednav1.FLJobFailed
-		fc.recorder.Event(&flJob, v1.EventTypeWarning, failureReason, failureMessage)
+		job.Status.Conditions = append(job.Status.Conditions, NewJobCondition(sednav1.FLJobCondFailed, failureReason, failureMessage))
+		job.Status.Phase = sednav1.FLJobFailed
+		c.recorder.Event(&job, v1.EventTypeWarning, failureReason, failureMessage)
 	} else {
 		// in the First time, we create the pods
 		if len(pods) == 0 {
-			active, manageJobErr = fc.createPod(&flJob)
+			active, manageJobErr = c.createPod(&job)
 		}
 		complete := false
 		if succeeded > 0 && active == 0 {
 			complete = true
 		}
 		if complete {
-			flJob.Status.Conditions = append(flJob.Status.Conditions, NewFLJobCondition(sednav1.FLJobCondComplete, "", ""))
+			job.Status.Conditions = append(job.Status.Conditions, NewJobCondition(sednav1.FLJobCondComplete, "", ""))
 			now := metav1.Now()
-			flJob.Status.CompletionTime = &now
-			fc.recorder.Event(&flJob, v1.EventTypeNormal, "Completed", "FLJob completed")
-			flJob.Status.Phase = sednav1.FLJobSucceeded
+			job.Status.CompletionTime = &now
+			c.recorder.Event(&job, v1.EventTypeNormal, "Completed", "FederatedLearningJob completed")
+			job.Status.Phase = sednav1.FLJobSucceeded
 		} else {
-			flJob.Status.Phase = sednav1.FLJobRunning
+			job.Status.Phase = sednav1.FLJobRunning
 		}
 	}
 
 	forget := false
 	// Check if the number of jobs succeeded increased since the last check. If yes "forget" should be true
 	// This logic is linked to the issue: https://github.com/kubernetes/kubernetes/issues/56853 that aims to
-	// improve the FLJob backoff policy when parallelism > 1 and few FLJobs failed but others succeed.
+	// improve the job backoff policy when parallelism > 1 and few FLJobs failed but others succeed.
 	// In this case, we should clear the backoff delay.
-	if flJob.Status.Succeeded < succeeded {
+	if job.Status.Succeeded < succeeded {
 		forget = true
 	}
 
-	// no need to update the flJob if the status hasn't changed since last time
-	if flJob.Status.Active != active || flJob.Status.Succeeded != succeeded || flJob.Status.Failed != failed || len(flJob.Status.Conditions) != conditions || flJob.Status.Phase != phase {
-		flJob.Status.Active = active
-		flJob.Status.Succeeded = succeeded
-		flJob.Status.Failed = failed
+	// no need to update the job if the status hasn't changed since last time
+	if job.Status.Active != active || job.Status.Succeeded != succeeded || job.Status.Failed != failed || len(job.Status.Conditions) != conditions || job.Status.Phase != phase {
+		job.Status.Active = active
+		job.Status.Succeeded = succeeded
+		job.Status.Failed = failed
+		c.updateJobStatus(&job)
 
-		if jobFailed && !IsFLJobFinished(&flJob) {
-			// returning an error will re-enqueue FLJob after the backoff period
-			return forget, fmt.Errorf("failed pod(s) detected for flJob key %q", key)
+		if jobFailed && !IsJobFinished(&job) {
+			// returning an error will re-enqueue FederatedLearningJob after the backoff period
+			return forget, fmt.Errorf("failed pod(s) detected for FederatedLearningJob key %q", key)
 		}
 
 		forget = true
@@ -343,7 +351,7 @@ func (fc *FederatedController) syncFLJob(key string) (bool, error) {
 	return forget, manageJobErr
 }
 
-func NewFLJobCondition(conditionType sednav1.FLJobConditionType, reason, message string) sednav1.FLJobCondition {
+func NewJobCondition(conditionType sednav1.FLJobConditionType, reason, message string) sednav1.FLJobCondition {
 	return sednav1.FLJobCondition{
 		Type:              conditionType,
 		Status:            v1.ConditionTrue,
@@ -354,28 +362,24 @@ func NewFLJobCondition(conditionType sednav1.FLJobConditionType, reason, message
 	}
 }
 
-// getStatus returns no of succeeded and failed pods running a flJob
-func getStatus(pods []*v1.Pod) (succeeded, failed int32) {
+// countPods returns number of succeeded and failed pods
+func countPods(pods []*v1.Pod) (succeeded, failed int32) {
 	succeeded = int32(filterPods(pods, v1.PodSucceeded))
 	failed = int32(filterPods(pods, v1.PodFailed))
 	return
 }
 
-func (fc *FederatedController) updateFLJobStatus(flJob *sednav1.FederatedLearningJob) error {
-	jobClient := fc.client.FederatedLearningJobs(flJob.Namespace)
-	var err error
-	for i := 0; i <= ResourceUpdateRetries; i = i + 1 {
-		var newFLJob *sednav1.FederatedLearningJob
-		newFLJob, err = jobClient.Get(context.TODO(), flJob.Name, metav1.GetOptions{})
+func (c *Controller) updateJobStatus(job *sednav1.FederatedLearningJob) error {
+	jobClient := c.client.FederatedLearningJobs(job.Namespace)
+	return runtime.RetryUpdateStatus(job.Name, job.Namespace, func() error {
+		newJob, err := jobClient.Get(context.TODO(), job.Name, metav1.GetOptions{})
 		if err != nil {
-			break
+			return err
 		}
-		newFLJob.Status = flJob.Status
-		if _, err = jobClient.UpdateStatus(context.TODO(), newFLJob, metav1.UpdateOptions{}); err == nil {
-			break
-		}
-	}
-	return nil
+		newJob.Status = job.Status
+		_, err = jobClient.UpdateStatus(context.TODO(), newJob, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 // filterPods returns pods based on their phase.
@@ -389,7 +393,7 @@ func filterPods(pods []*v1.Pod, phase v1.PodPhase) int {
 	return result
 }
 
-func IsFLJobFinished(j *sednav1.FederatedLearningJob) bool {
+func IsJobFinished(j *sednav1.FederatedLearningJob) bool {
 	for _, c := range j.Status.Conditions {
 		if (c.Type == sednav1.FLJobCondComplete || c.Type == sednav1.FLJobCondFailed) && c.Status == v1.ConditionTrue {
 			return true
@@ -398,12 +402,12 @@ func IsFLJobFinished(j *sednav1.FederatedLearningJob) bool {
 	return false
 }
 
-func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (active int32, err error) {
+func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32, err error) {
 	active = 0
 	ctx := context.Background()
 
 	modelName := job.Spec.AggregationWorker.Model.Name
-	model, err := fc.client.Models(job.Namespace).Get(ctx, modelName, metav1.GetOptions{})
+	model, err := c.client.Models(job.Namespace).Get(ctx, modelName, metav1.GetOptions{})
 	if err != nil {
 		return active, fmt.Errorf("failed to get model %s: %w",
 			modelName, err)
@@ -412,7 +416,7 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 	secretName := model.Spec.CredentialName
 	var modelSecret *v1.Secret
 	if secretName != "" {
-		modelSecret, _ = fc.kubeClient.CoreV1().Secrets(job.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+		modelSecret, _ = c.kubeClient.CoreV1().Secrets(job.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	}
 
 	participantsCount := strconv.Itoa(len(job.Spec.TrainingWorkers))
@@ -420,10 +424,10 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 	// deliver pod for aggregation worker
 	aggWorker := job.Spec.AggregationWorker
 
-	// Configure container mounting and Env information by initial WorkerParam
+	// Configure aggregation worker's mounts and envs
 	var aggPort int32 = 7363
-	var aggWorkerParam *WorkerParam = new(WorkerParam)
-	aggWorkerParam.env = map[string]string{
+	var aggWorkerParam runtime.WorkerParam
+	aggWorkerParam.Env = map[string]string{
 		"NAMESPACE":   job.Namespace,
 		"WORKER_NAME": "aggworker-" + utilrand.String(5),
 		"JOB_NAME":    job.Name,
@@ -432,12 +436,12 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 		"PARTICIPANTS_COUNT": participantsCount,
 	}
 
-	aggWorkerParam.workerType = FLJobStageAgg
-	aggWorkerParam.restartPolicy = v1.RestartPolicyOnFailure
+	aggWorkerParam.WorkerType = jobStageAgg
+	aggWorkerParam.RestartPolicy = v1.RestartPolicyOnFailure
 
-	aggWorkerParam.mounts = append(aggWorkerParam.mounts,
-		WorkerMount{
-			URL: &MountURL{
+	aggWorkerParam.Mounts = append(aggWorkerParam.Mounts,
+		runtime.WorkerMount{
+			URL: &runtime.MountURL{
 				URL:                   model.Spec.URL,
 				Secret:                modelSecret,
 				DownloadByInitializer: false,
@@ -447,9 +451,9 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 	)
 
 	// create aggpod based on configured parameters
-	_, err = createPodWithTemplate(fc.kubeClient, job, &aggWorker.Template, aggWorkerParam)
+	_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, &aggWorker.Template, &aggWorkerParam)
 	if err != nil {
-		return active, err
+		return active, fmt.Errorf("failed to create aggregation worker: %w", err)
 	}
 	active++
 
@@ -458,17 +462,21 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 
 	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 	// will support Spec.NodeSelector.
-	appIP, err = GetNodeIPByName(fc.kubeClient, job.Spec.AggregationWorker.Template.Spec.NodeName)
-
-	aggServicePort, err = CreateKubernetesService(fc.kubeClient, job, FLJobStageAgg, aggPort, appIP)
+	appIP, err = runtime.GetNodeIPByName(c.kubeClient, job.Spec.AggregationWorker.Template.Spec.NodeName)
 	if err != nil {
 		return active, err
 	}
+
+	aggServicePort, err = runtime.CreateKubernetesService(c.kubeClient, job, jobStageAgg, aggPort, appIP)
+	if err != nil {
+		return active, err
+	}
+
 	// deliver pod for training worker
-	for _, trainingWorker := range job.Spec.TrainingWorkers {
+	for i, trainingWorker := range job.Spec.TrainingWorkers {
 		// get dataseturl through parsing crd of dataset
 		datasetName := trainingWorker.Dataset.Name
-		dataset, err := fc.client.Datasets(job.Namespace).Get(ctx, datasetName, metav1.GetOptions{})
+		dataset, err := c.client.Datasets(job.Namespace).Get(ctx, datasetName, metav1.GetOptions{})
 		if err != nil {
 			return active, fmt.Errorf("failed to get dataset %s: %w",
 				datasetName, err)
@@ -477,23 +485,22 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 		secretName := dataset.Spec.CredentialName
 		var datasetSecret *v1.Secret
 		if secretName != "" {
-			datasetSecret, _ = fc.kubeClient.CoreV1().Secrets(job.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+			datasetSecret, _ = c.kubeClient.CoreV1().Secrets(job.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 		}
 
-		// Configure container mounting and Env information by initial WorkerParam
-		var workerParam *WorkerParam = new(WorkerParam)
-
-		workerParam.mounts = append(workerParam.mounts,
-			WorkerMount{
-				URL: &MountURL{
+		// Configure training worker's mounts and envs
+		var workerParam runtime.WorkerParam
+		workerParam.Mounts = append(workerParam.Mounts,
+			runtime.WorkerMount{
+				URL: &runtime.MountURL{
 					URL:    model.Spec.URL,
 					Secret: modelSecret,
 				},
 				EnvName: "MODEL_URL",
 			},
 
-			WorkerMount{
-				URL: &MountURL{
+			runtime.WorkerMount{
+				URL: &runtime.MountURL{
 					URL:    dataset.Spec.URL,
 					Secret: datasetSecret,
 				},
@@ -501,7 +508,7 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 			},
 		)
 
-		workerParam.env = map[string]string{
+		workerParam.Env = map[string]string{
 			"AGG_PORT": strconv.Itoa(int(aggServicePort)),
 			"AGG_IP":   appIP,
 
@@ -511,65 +518,67 @@ func (fc *FederatedController) createPod(job *sednav1.FederatedLearningJob) (act
 			"NAMESPACE":          job.Namespace,
 			"MODEL_NAME":         modelName,
 			"DATASET_NAME":       datasetName,
-			"LC_SERVER":          fc.cfg.LC.Server,
+			"LC_SERVER":          c.cfg.LC.Server,
 		}
-		workerParam.workerType = TrainPodType
-		workerParam.hostNetwork = true
-		workerParam.restartPolicy = v1.RestartPolicyOnFailure
-		// create train pod based on configured parameters
-		_, err = createPodWithTemplate(fc.kubeClient, job, &trainingWorker.Template, workerParam)
+		workerParam.WorkerType = runtime.TrainPodType
+		workerParam.HostNetwork = true
+		workerParam.RestartPolicy = v1.RestartPolicyOnFailure
+
+		// create training worker based on configured parameters
+		_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, &trainingWorker.Template, &workerParam)
 		if err != nil {
-			return active, err
+			return active, fmt.Errorf("failed to create %dth training worker: %w", i, err)
 		}
 		active++
 	}
 	return
 }
 
-func (fc *FederatedController) GetName() string {
-	return "FederatedLearningJobController"
-}
+// New creates a new federated learning job controller that keeps the relevant pods
+// in sync with their corresponding FederatedLearningJob objects.
+func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
+	cfg := cc.Config
 
-// NewFederatedController creates a new FederatedLearningJob controller that keeps the relevant pods
-// in sync with their corresponding FFederatedLearningJob objects.
-func NewFederatedController(cfg *config.ControllerConfig) (FeatureControllerI, error) {
-	namespace := cfg.Namespace
-	if namespace == "" {
-		namespace = metav1.NamespaceAll
-	}
-	kubeClient, err := utils.KubeClient()
-	kubecfg, _ := utils.KubeConfig()
-	crdclient, err := clientset.NewForConfig(kubecfg)
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, time.Second*30, kubeinformers.WithNamespace(namespace))
+	podInformer := cc.KubeInformerFactory.Core().V1().Pods()
 
-	podInformer := kubeInformerFactory.Core().V1().Pods()
-
-	jobInformerFactory := informers.NewSharedInformerFactoryWithOptions(crdclient, time.Second*30, informers.WithNamespace(namespace))
-	jobInformer := jobInformerFactory.Sedna().V1alpha1().FederatedLearningJobs()
+	jobInformer := cc.SednaInformerFactory.Sedna().V1alpha1().FederatedLearningJobs()
 
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: cc.KubeClient.CoreV1().Events("")})
 
-	fc := &FederatedController{
-		kubeClient: kubeClient,
-		client:     crdclient.SednaV1alpha1(),
+	fc := &Controller{
+		kubeClient: cc.KubeClient,
+		client:     cc.SednaClient.SednaV1alpha1(),
 
-		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(DefaultBackOff, MaxBackOff), "flJob"),
-		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "flJob-controller"}),
+		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), Name),
+		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: Name + "-controller"}),
 		cfg:      cfg,
 	}
 
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			fc.enqueueController(obj, true)
+
+			// when a federated learning job is added,
+			// send it to edge's LC.
+			fc.syncToEdge(watch.Added, obj)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			fc.enqueueController(cur, true)
+
+			// when a federated learning job is updated,
+			// send it to edge's LC as Added event.
+			fc.syncToEdge(watch.Added, cur)
 		},
 		DeleteFunc: func(obj interface{}) {
 			fc.enqueueController(obj, true)
+
+			// when a federated learning job is deleted,
+			// send it to edge's LC.
+			fc.syncToEdge(watch.Deleted, obj)
 		},
 	})
+
 	fc.jobLister = jobInformer.Lister()
 	fc.jobStoreSynced = jobInformer.Informer().HasSynced
 
@@ -581,8 +590,5 @@ func NewFederatedController(cfg *config.ControllerConfig) (FeatureControllerI, e
 	fc.podStore = podInformer.Lister()
 	fc.podStoreSynced = podInformer.Informer().HasSynced
 
-	stopCh := make(chan struct{})
-	kubeInformerFactory.Start(stopCh)
-	jobInformerFactory.Start(stopCh)
-	return fc, err
+	return fc, nil
 }

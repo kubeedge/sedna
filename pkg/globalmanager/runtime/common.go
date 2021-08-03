@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package globalmanager
+package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -27,16 +28,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
+
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 )
 
 const (
-	// DefaultBackOff is the default backoff period
-	DefaultBackOff = 10 * time.Second
-	// MaxBackOff is the max backoff period
-	MaxBackOff         = 360 * time.Second
-	bigModelPort int32 = 5000
-	// ResourceUpdateRetries defines times of retrying to update resource
-	ResourceUpdateRetries = 3
+	// resourceUpdateTries defines times of trying to update resource
+	resourceUpdateTries = 3
 )
 
 // GetNodeIPByName get node ip by node name
@@ -62,8 +61,8 @@ func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, erro
 	return "", fmt.Errorf("can't found node ip for node %s", name)
 }
 
-// getBackoff calc the next wait time for the key
-func getBackoff(queue workqueue.RateLimitingInterface, key interface{}) time.Duration {
+// GetBackoff calc the next wait time for the key
+func GetBackoff(queue workqueue.RateLimitingInterface, key interface{}) time.Duration {
 	exp := queue.NumRequeues(key)
 
 	if exp <= 0 {
@@ -83,7 +82,7 @@ func getBackoff(queue workqueue.RateLimitingInterface, key interface{}) time.Dur
 	return calculated
 }
 
-func calcActivePodCount(pods []*v1.Pod) int32 {
+func CalcActivePodCount(pods []*v1.Pod) int32 {
 	var result int32 = 0
 	for _, p := range pods {
 		if v1.PodSucceeded != p.Status.Phase &&
@@ -128,4 +127,36 @@ func ConvertK8SValidName(name string) string {
 	}
 
 	return string(fixName)
+}
+
+// ConvertMapToMetrics converts the metric map to list of resource Metric
+func ConvertMapToMetrics(metric map[string]interface{}) []sednav1.Metric {
+	var l []sednav1.Metric
+	for k, v := range metric {
+		var displayValue string
+		switch t := v.(type) {
+		case string:
+			displayValue = t
+		default:
+			// ignore the json marshal error
+			b, _ := json.Marshal(v)
+			displayValue = string(b)
+		}
+
+		l = append(l, sednav1.Metric{Key: k, Value: displayValue})
+	}
+	return l
+}
+
+// RetryUpdateStatus simply retries to call the status update func
+func RetryUpdateStatus(name, namespace string, updateStatusFunc func() error) error {
+	var err error
+	for try := 1; try <= resourceUpdateTries; try++ {
+		err = updateStatusFunc()
+		if err == nil {
+			return nil
+		}
+		klog.Warningf("Error to update %s/%s status, tried %d times: %+v", namespace, name, try, err)
+	}
+	return err
 }
