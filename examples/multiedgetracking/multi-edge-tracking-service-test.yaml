@@ -6,7 +6,7 @@ spec:
   multiObjectTrackingWorker:
   -  
     model:
-      name: "mot-model"
+      name: "mot-efficientnet"
     template:
       spec:
         nodeName: "frapedge00001"
@@ -47,8 +47,9 @@ spec:
       name: "reid-model"
     template:
       spec:
-        nodeSelector:
-          services: hivemq
+        #nodeSelector:
+        #  services: hivemq
+        nodeName: "fraporion00001"
         containers:
           - image: kubeedge/sedna-example-multi-edge-tracking-reid:v0.3.0
             name:  reid

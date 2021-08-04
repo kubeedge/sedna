@@ -56,6 +56,12 @@ class Estimator:
         self.model.load_param(model_weights)
         self.model = self.model.to(self.device)
 
+    def quantize(self, layers = {torch.nn.Linear}, _dtype = torch.qint8):
+        self.model = torch.quantization.quantize_dynamic(
+            self.model,  # the original model
+            layers,  # a set of layers to dynamically quantize
+            dtype=_dtype)  # the target dtype for quantized weights
+
     def evaluate(self, **kwargs):
         LOGGER.info(f"Evaluating model")
         self.model.eval()

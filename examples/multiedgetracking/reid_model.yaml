@@ -1,8 +1,0 @@
-apiVersion: sedna.io/v1alpha1
-kind:  Model
-metadata:
-  name: reid-model
-  namespace: default
-spec:
-  url: "/home/v00609018/dev/data/yolov3_darknet.pb"
-  format: "pb"
