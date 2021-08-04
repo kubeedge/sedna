@@ -126,7 +126,9 @@ class ResNet(nn.Module):
         return x
 
     def load_param(self, model_path):
-        param_dict = torch.load(model_path)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        param_dict = torch.load(model_path, map_location=torch.device(device))
+        #param_dict = torch.load(model_path)
         for i in param_dict:
             if 'fc' in i:
                 continue

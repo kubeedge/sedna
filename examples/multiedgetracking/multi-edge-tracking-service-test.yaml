@@ -6,7 +6,7 @@ spec:
   multiObjectTrackingWorker:
   -  
     model:
-      name: "mot-efficientnet"
+      name: "mot-resnet"
     template:
       spec:
         nodeName: "frapedge00001"
@@ -22,9 +22,9 @@ spec:
           - name: "video_url"
             value: "rtsp://localhost/video"
           - name: "model_name"
-            value: "efficientnet_v2"
+            value: "resnet50_ibn_a"
           - name: "edge_model_weights"
-            value: "/data/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
+            value: "/data/ai_models/deep_eff_reid/weights/resnet50_ibn_a_model_60.pth"
           resources:  # user defined resources
             requests:
               memory: 64M
@@ -44,7 +44,7 @@ spec:
 
   reIDWorker:
     model:
-      name: "reid-model"
+      name: "mot-resnet"
     template:
       spec:
         #nodeSelector:
