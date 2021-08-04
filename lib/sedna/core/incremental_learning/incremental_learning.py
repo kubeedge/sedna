@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 from copy import deepcopy
 
 from sedna.common.file_ops import FileOps
@@ -28,20 +27,55 @@ class IncrementalLearning(JobBase):
     Incremental learning
     """
 
-    def __init__(self, estimator, config=None):
-        super(IncrementalLearning, self).__init__(
-            estimator=estimator, config=config)
+    def __init__(self, estimator, hard_example_mining: dict = None):
+        """
+        Initial a IncrementalLearning job
+        :param estimator: Customize estimator
+        :param hard_example_mining: dict, hard example mining
+        algorithms with parameters
+        """
+
+        super(IncrementalLearning, self).__init__(estimator=estimator)
 
         self.model_urls = self.get_parameters(
             "MODEL_URLS")  # use in evaluation
         self.job_kind = K8sResourceKind.INCREMENTAL_JOB.value
         FileOps.clean_folder([self.config.model_url], clean=False)
-        self.hard_example_mining_algorithm = self.initial_hem
+        self.hard_example_mining_algorithm = None
+        if not hard_example_mining:
+            hard_example_mining = self.get_hem_algorithm_from_config()
+        if hard_example_mining:
+            hem = hard_example_mining.get("method", "IBT")
+            hem_parameters = hard_example_mining.get("param", {})
+            self.hard_example_mining_algorithm = ClassFactory.get_cls(
+                ClassType.HEM, hem
+            )(**hem_parameters)
+
+    @classmethod
+    def get_hem_algorithm_from_config(cls, **param):
+        """
+         get the `algorithm` name and `param` of hard_example_mining from crd
+        :param param: update value in parameters of hard_example_mining
+        :return: dict, e.g.: {"method": "IBT", "param": {"threshold_img": 0.5}}
+        """
+        return cls.parameters.get_algorithm_from_api(
+            algorithm="HEM",
+            **param
+        )
 
     def train(self, train_data,
               valid_data=None,
               post_process=None,
               **kwargs):
+        """
+        Training task for IncrementalLearning
+        :param train_data: datasource use for train
+        :param valid_data: datasource use for evaluation
+        :param post_process: post process
+        :param kwargs: params for training of customize estimator
+        :return: estimator
+        """
+
         callback_func = None
         if post_process is not None:
             callback_func = ClassFactory.get_cls(
@@ -58,6 +92,14 @@ class IncrementalLearning(JobBase):
             self.estimator) if callback_func else self.estimator
 
     def inference(self, data=None, post_process=None, **kwargs):
+        """
+        Inference task for IncrementalLearning
+        :param data: inference sample
+        :param post_process: post process
+        :param kwargs: params for inference of customize estimator
+        :return: inference result, result after post_process, if is hard sample
+        """
+
         if not self.estimator.has_load:
             self.estimator.load(self.model_path)
 
@@ -81,6 +123,14 @@ class IncrementalLearning(JobBase):
         return infer_res, res, is_hard_example
 
     def evaluate(self, data, post_process=None, **kwargs):
+        """
+        Evaluate task for IncrementalLearning
+        :param data: datasource use for evaluation
+        :param post_process: post process
+        :param kwargs: params for evaluate of customize estimator
+        :return: evaluate metrics
+        """
+
         callback_func = None
         if callable(post_process):
             callback_func = post_process

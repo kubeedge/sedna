@@ -37,8 +37,9 @@ class TFBackend(BackendBase):
         super(TFBackend, self).__init__(
             estimator=estimator, fine_tune=fine_tune, **kwargs)
         self.framework = "tensorflow"
-        sess_config = self._init_gpu_session_config(
-        ) if self.use_cuda else self._init_cpu_session_config()
+
+        sess_config = (self._init_gpu_session_config()
+                       if self.use_cuda else self._init_cpu_session_config())
         self.graph = tf.Graph()
 
         with self.graph.as_default():
