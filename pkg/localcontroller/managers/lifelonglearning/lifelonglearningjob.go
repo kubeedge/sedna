@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package manager
+package lifelonglearning
 
 import (
 	"bufio"
@@ -31,31 +31,46 @@ import (
 
 	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	"github.com/kubeedge/sedna/pkg/localcontroller/db"
-	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	clienttypes "github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers/dataset"
 	"github.com/kubeedge/sedna/pkg/localcontroller/storage"
 	"github.com/kubeedge/sedna/pkg/localcontroller/trigger"
 	"github.com/kubeedge/sedna/pkg/localcontroller/util"
+	workertypes "github.com/kubeedge/sedna/pkg/localcontroller/worker"
 )
 
 const (
-	//LifelongLearningJobKind is kind of lifelong-learning-job resource
-	LifelongLearningJobKind = "lifelonglearningjob"
+	//KindName is kind of lifelong-learning-job resource
+	KindName = "lifelonglearningjob"
+
+	// TrainPhase is the train phase
+	TrainPhase = "train"
+	// EvalPhase is the eval phase
+	EvalPhase = "eval"
+	// DeployPhase is the deploy phase
+	DeployPhase = "deploy"
+
+	// TriggerReadyStatus is the ready status about trigger
+	TriggerReadyStatus = "ready"
+	// TriggerCompletedStatus is the completed status about trigger
+	TriggerCompletedStatus = "completed"
 )
 
 // LifelongLearningJobManager defines lifelong-learning-job Manager
-type LifelongLearningJobManager struct {
-	Client                 gmclient.ClientI
-	WorkerMessageChannel   chan WorkerMessage
-	DatasetManager         *DatasetManager
-	LifelongLearningJobMap map[string]*LifelongLearningJob
+type Manager struct {
+	Client                 clienttypes.ClientI
+	WorkerMessageChannel   chan workertypes.MessageContent
+	DatasetManager         *dataset.Manager
+	LifelongLearningJobMap map[string]*Job
 	VolumeMountPrefix      string
 }
 
 // LifelongLearningJob defines config for lifelong-learning-job
-type LifelongLearningJob struct {
+type Job struct {
 	sednav1.LifelongLearningJob
-	Dataset   *Dataset
+	Dataset   *dataset.Dataset
 	Done      chan struct{}
 	Storage   storage.Storage
 	JobConfig *LLJobConfig
@@ -75,11 +90,13 @@ type LLJobConfig struct {
 	OutputDir        string
 	OutputConfig     *LLOutputConfig
 	DataSamples      *LLDataSamples
-	TrainModel       *ModelInfo
-	DeployModel      *ModelInfo
-	EvalResult       *ModelInfo
+	TrainModel       *Model
+	DeployModel      *Model
+	EvalResult       *Model
 	Lock             sync.Mutex
 }
+
+type Model = clienttypes.Model
 
 // LLOutputConfig defines config for job output
 type LLOutputConfig struct {
@@ -105,14 +122,13 @@ const (
 	LLEvalSamplesCapacity = 5
 )
 
-// NewLifelongLearningJobManager creates a lifelong-learning-job manager
-func NewLifelongLearningJobManager(client gmclient.ClientI, datasetManager *DatasetManager,
-	modelManager *ModelManager, options *options.LocalControllerOptions) *LifelongLearningJobManager {
-	lm := LifelongLearningJobManager{
+// New creates a lifelong-learning-job manager
+func New(client clienttypes.ClientI, datasetManager *dataset.Manager, options *options.LocalControllerOptions) *Manager {
+	lm := Manager{
 		Client:                 client,
-		WorkerMessageChannel:   make(chan WorkerMessage, WorkerMessageChannelCacheSize),
+		WorkerMessageChannel:   make(chan workertypes.MessageContent, workertypes.MessageChannelCacheSize),
 		DatasetManager:         datasetManager,
-		LifelongLearningJobMap: make(map[string]*LifelongLearningJob),
+		LifelongLearningJobMap: make(map[string]*Job),
 		VolumeMountPrefix:      options.VolumeMountPrefix,
 	}
 
@@ -120,13 +136,13 @@ func NewLifelongLearningJobManager(client gmclient.ClientI, datasetManager *Data
 }
 
 // Insert inserts lifelong-learning-job config to db
-func (lm *LifelongLearningJobManager) Insert(message *gmclient.Message) error {
+func (lm *Manager) Insert(message *clienttypes.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
 	first := false
 	job, ok := lm.LifelongLearningJobMap[name]
 	if !ok {
-		job = &LifelongLearningJob{}
+		job = &Job{}
 		job.Storage = storage.Storage{IsLocalStorage: false}
 		job.Done = make(chan struct{})
 		lm.LifelongLearningJobMap[name] = job
@@ -137,7 +153,7 @@ func (lm *LifelongLearningJobManager) Insert(message *gmclient.Message) error {
 		return err
 	}
 
-	credential := job.ObjectMeta.Annotations[CredentialAnnotationKey]
+	credential := job.ObjectMeta.Annotations[runtime.SecretAnnotationKey]
 	if credential != "" {
 		if err := job.Storage.SetCredential(credential); err != nil {
 			return fmt.Errorf("failed to set job(name=%s)'s storage credential, error: %+v", name, err)
@@ -156,7 +172,7 @@ func (lm *LifelongLearningJobManager) Insert(message *gmclient.Message) error {
 }
 
 // startJob starts a job
-func (lm *LifelongLearningJobManager) startJob(name string) {
+func (lm *Manager) startJob(name string) {
 	var err error
 	job, ok := lm.LifelongLearningJobMap[name]
 	if !ok {
@@ -215,10 +231,10 @@ func (lm *LifelongLearningJobManager) startJob(name string) {
 }
 
 // trainTask starts training task
-func (lm *LifelongLearningJobManager) trainTask(job *LifelongLearningJob) error {
+func (lm *Manager) trainTask(job *Job) error {
 	jobConfig := job.JobConfig
 
-	if jobConfig.WorkerStatus == WorkerReadyStatus && jobConfig.TriggerStatus == TriggerReadyStatus {
+	if jobConfig.WorkerStatus == workertypes.ReadyStatus && jobConfig.TriggerStatus == TriggerReadyStatus {
 		payload, ok, err := lm.triggerTrainTask(job)
 		if !ok {
 			return nil
@@ -243,13 +259,13 @@ func (lm *LifelongLearningJobManager) trainTask(job *LifelongLearningJob) error 
 			jobConfig.UniqueIdentifier, jobConfig.Phase)
 	}
 
-	if jobConfig.WorkerStatus == WorkerFailedStatus {
+	if jobConfig.WorkerStatus == workertypes.FailedStatus {
 		klog.Warningf("found the %sing phase worker that ran failed, "+
 			"back the training phase triggering task", jobConfig.Phase)
 		backLLTaskStatus(jobConfig)
 	}
 
-	if jobConfig.WorkerStatus == WorkerCompletedStatus {
+	if jobConfig.WorkerStatus == workertypes.CompletedStatus {
 		klog.Infof("job(name=%s) complete the %s task successfully", jobConfig.UniqueIdentifier, jobConfig.Phase)
 		nextLLTask(jobConfig)
 	}
@@ -258,10 +274,10 @@ func (lm *LifelongLearningJobManager) trainTask(job *LifelongLearningJob) error 
 }
 
 // evalTask starts eval task
-func (lm *LifelongLearningJobManager) evalTask(job *LifelongLearningJob) error {
+func (lm *Manager) evalTask(job *Job) error {
 	jobConfig := job.JobConfig
 
-	if jobConfig.WorkerStatus == WorkerReadyStatus && jobConfig.TriggerStatus == TriggerReadyStatus {
+	if jobConfig.WorkerStatus == workertypes.ReadyStatus && jobConfig.TriggerStatus == TriggerReadyStatus {
 		payload, err := lm.triggerEvalTask(job)
 		if err != nil {
 			klog.Errorf("job(name=%s) complete the %sing phase triggering task failed, error: %v",
@@ -280,14 +296,14 @@ func (lm *LifelongLearningJobManager) evalTask(job *LifelongLearningJob) error {
 			jobConfig.UniqueIdentifier, jobConfig.Phase)
 	}
 
-	if jobConfig.WorkerStatus == WorkerFailedStatus {
+	if jobConfig.WorkerStatus == workertypes.FailedStatus {
 		msg := fmt.Sprintf("job(name=%s) found the %sing phase worker that ran failed, "+
 			"back the training phase triggering task", jobConfig.UniqueIdentifier, jobConfig.Phase)
 		klog.Errorf(msg)
 		return fmt.Errorf(msg)
 	}
 
-	if jobConfig.WorkerStatus == WorkerCompletedStatus {
+	if jobConfig.WorkerStatus == workertypes.CompletedStatus {
 		klog.Infof("job(name=%s) complete the %s task successfully", jobConfig.UniqueIdentifier, jobConfig.Phase)
 		nextLLTask(jobConfig)
 	}
@@ -296,11 +312,11 @@ func (lm *LifelongLearningJobManager) evalTask(job *LifelongLearningJob) error {
 }
 
 // deployTask starts deploy task
-func (lm *LifelongLearningJobManager) deployTask(job *LifelongLearningJob) error {
+func (lm *Manager) deployTask(job *Job) error {
 	jobConfig := job.JobConfig
 
-	if jobConfig.WorkerStatus == WorkerReadyStatus && jobConfig.TriggerStatus == TriggerReadyStatus {
-		status := UpstreamMessage{}
+	if jobConfig.WorkerStatus == workertypes.ReadyStatus && jobConfig.TriggerStatus == TriggerReadyStatus {
+		status := clienttypes.UpstreamMessage{}
 		status.Phase = DeployPhase
 		deployModel, err := lm.deployModel(job)
 		if err != nil {
@@ -309,11 +325,11 @@ func (lm *LifelongLearningJobManager) deployTask(job *LifelongLearningJob) error
 			klog.Infof("deployed model for job(name=%s) successfully", jobConfig.UniqueIdentifier)
 		}
 		if err != nil || deployModel == nil {
-			status.Status = WorkerFailedStatus
+			status.Status = workertypes.FailedStatus
 		} else {
-			status.Status = WorkerReadyStatus
-			status.Input = &WorkerInput{
-				Models: []ModelInfo{
+			status.Status = workertypes.ReadyStatus
+			status.Input = &clienttypes.Input{
+				Models: []Model{
 					*deployModel,
 				},
 			}
@@ -334,7 +350,7 @@ func (lm *LifelongLearningJobManager) deployTask(job *LifelongLearningJob) error
 }
 
 // triggerTrainTask triggers the train task
-func (lm *LifelongLearningJobManager) triggerTrainTask(job *LifelongLearningJob) (interface{}, bool, error) {
+func (lm *Manager) triggerTrainTask(job *Job) (interface{}, bool, error) {
 	var err error
 	jobConfig := job.JobConfig
 
@@ -367,14 +383,14 @@ func (lm *LifelongLearningJobManager) triggerTrainTask(job *LifelongLearningJob)
 		outputDir = util.TrimPrefixPath(lm.VolumeMountPrefix, outputDir)
 	}
 
-	input := WorkerInput{
+	input := clienttypes.Input{
 		DataURL:      dataURL,
 		DataIndexURL: dataIndexURL,
 		OutputDir:    outputDir,
 	}
-	msg := UpstreamMessage{
+	msg := clienttypes.UpstreamMessage{
 		Phase:  TrainPhase,
-		Status: WorkerReadyStatus,
+		Status: workertypes.ReadyStatus,
 		Input:  &input,
 	}
 	jobConfig.TriggerTime = time.Now()
@@ -382,7 +398,7 @@ func (lm *LifelongLearningJobManager) triggerTrainTask(job *LifelongLearningJob)
 }
 
 // triggerEvalTask triggers the eval task
-func (lm *LifelongLearningJobManager) triggerEvalTask(job *LifelongLearningJob) (*UpstreamMessage, error) {
+func (lm *Manager) triggerEvalTask(job *Job) (*clienttypes.UpstreamMessage, error) {
 	jobConfig := job.JobConfig
 	var err error
 
@@ -394,8 +410,8 @@ func (lm *LifelongLearningJobManager) triggerEvalTask(job *LifelongLearningJob) 
 		return nil, err
 	}
 
-	var models []ModelInfo
-	models = append(models, ModelInfo{
+	var models []Model
+	models = append(models, Model{
 		Format: jobConfig.TrainModel.Format,
 		URL:    jobConfig.TrainModel.URL,
 	})
@@ -408,15 +424,15 @@ func (lm *LifelongLearningJobManager) triggerEvalTask(job *LifelongLearningJob) 
 		outputDir = util.TrimPrefixPath(lm.VolumeMountPrefix, outputDir)
 	}
 
-	input := WorkerInput{
+	input := clienttypes.Input{
 		Models:       models,
 		DataURL:      dataURL,
 		DataIndexURL: dataIndexURL,
 		OutputDir:    outputDir,
 	}
-	msg := &UpstreamMessage{
+	msg := &clienttypes.UpstreamMessage{
 		Phase:  EvalPhase,
-		Status: WorkerReadyStatus,
+		Status: workertypes.ReadyStatus,
 		Input:  &input,
 	}
 
@@ -424,10 +440,10 @@ func (lm *LifelongLearningJobManager) triggerEvalTask(job *LifelongLearningJob) 
 }
 
 // deployModel deploys model
-func (lm *LifelongLearningJobManager) deployModel(job *LifelongLearningJob) (*ModelInfo, error) {
+func (lm *Manager) deployModel(job *Job) (*Model, error) {
 	jobConfig := job.JobConfig
 
-	model := &ModelInfo{}
+	model := &Model{}
 	model = jobConfig.EvalResult
 
 	if job.Storage.IsLocalStorage {
@@ -447,7 +463,7 @@ func (lm *LifelongLearningJobManager) deployModel(job *LifelongLearningJob) (*Mo
 }
 
 // createOutputDir creates the job output dir
-func (job *LifelongLearningJob) createOutputDir(jobConfig *LLJobConfig) error {
+func (job *Job) createOutputDir(jobConfig *LLJobConfig) error {
 	outputDir := jobConfig.OutputDir
 
 	dirNames := []string{"data/train", "data/eval", "train", "eval"}
@@ -482,14 +498,14 @@ func (job *LifelongLearningJob) createOutputDir(jobConfig *LLJobConfig) error {
 }
 
 // createFile creates data file and data index file
-func (job *LifelongLearningJob) createFile(dir string, format string, isLocalStorage bool) (string, string) {
+func (job *Job) createFile(dir string, format string, isLocalStorage bool) (string, string) {
 	switch strings.ToLower(format) {
-	case DatasetFormatTXT:
+	case dataset.TXTFormat:
 		if isLocalStorage {
 			return path.Join(dir, "data.txt"), ""
 		}
 		return strings.Join([]string{dir, "data.txt"}, "/"), strings.Join([]string{dir, "dataIndex.txt"}, "/")
-	case DatasetFormatCSV:
+	case dataset.CSVFormat:
 		return strings.Join([]string{dir, "data.csv"}, "/"), ""
 	}
 
@@ -497,7 +513,7 @@ func (job *LifelongLearningJob) createFile(dir string, format string, isLocalSto
 }
 
 // writeLLJSamples writes samples information to a file
-func (job *LifelongLearningJob) writeLLJSamples(samples []string, dir string) (string, string, error) {
+func (job *Job) writeLLJSamples(samples []string, dir string) (string, string, error) {
 	version := job.JobConfig.Version
 	format := job.Dataset.Spec.Format
 	urlPrefix := job.Dataset.URLPrefix
@@ -558,7 +574,7 @@ func (job *LifelongLearningJob) writeLLJSamples(samples []string, dir string) (s
 }
 
 // writeByLine writes file by line
-func (job *LifelongLearningJob) writeByLine(samples []string, fileURL string, format string) error {
+func (job *Job) writeByLine(samples []string, fileURL string, format string) error {
 	file, err := os.Create(fileURL)
 	if err != nil {
 		klog.Errorf("create file(%s) failed", fileURL)
@@ -588,7 +604,7 @@ func (job *LifelongLearningJob) writeByLine(samples []string, fileURL string, fo
 }
 
 // handleData updates samples information
-func (lm *LifelongLearningJobManager) handleData(job *LifelongLearningJob) {
+func (lm *Manager) handleData(job *Job) {
 	tick := time.NewTicker(LLHandlerDataIntervalSeconds * time.Second)
 
 	jobConfig := job.JobConfig
@@ -643,13 +659,13 @@ func (lm *LifelongLearningJobManager) handleData(job *LifelongLearningJob) {
 	}
 }
 
-func (lm *LifelongLearningJobManager) loadDataset(job *LifelongLearningJob) error {
+func (lm *Manager) loadDataset(job *Job) error {
 	if job.Dataset != nil {
 		// already loaded
 		return nil
 	}
 
-	datasetName := util.GetUniqueIdentifier(job.Namespace, job.Spec.Dataset.Name, DatasetResourceKind)
+	datasetName := util.GetUniqueIdentifier(job.Namespace, job.Spec.Dataset.Name, dataset.KindName)
 	dataset, ok := lm.DatasetManager.GetDataset(datasetName)
 	if !ok || dataset == nil {
 		return fmt.Errorf("not exists dataset(name=%s)", datasetName)
@@ -668,15 +684,15 @@ func (lm *LifelongLearningJobManager) loadDataset(job *LifelongLearningJob) erro
 }
 
 // initJob inits the job object
-func (lm *LifelongLearningJobManager) initJob(job *LifelongLearningJob) error {
+func (lm *Manager) initJob(job *Job) error {
 	jobConfig := job.JobConfig
-	jobConfig.TrainModel = new(ModelInfo)
-	jobConfig.EvalResult = new(ModelInfo)
+	jobConfig.TrainModel = new(Model)
+	jobConfig.EvalResult = new(Model)
 	jobConfig.Lock = sync.Mutex{}
 
 	jobConfig.Version = 0
 	jobConfig.Phase = TrainPhase
-	jobConfig.WorkerStatus = WorkerReadyStatus
+	jobConfig.WorkerStatus = workertypes.ReadyStatus
 	jobConfig.TriggerStatus = TriggerReadyStatus
 	trainTrigger, err := newLLTrigger(job.Spec.TrainSpec.Trigger)
 	if err != nil {
@@ -702,7 +718,7 @@ func (lm *LifelongLearningJobManager) initJob(job *LifelongLearningJob) error {
 		return err
 	}
 
-	jobConfig.DeployModel = &ModelInfo{
+	jobConfig.DeployModel = &Model{
 		Format: "pkl",
 		URL:    strings.Join([]string{strings.TrimRight(outputDir, "/"), "deploy/index.pkl"}, "/"),
 	}
@@ -751,7 +767,7 @@ func backLLTaskStatus(jobConfig *LLJobConfig) {
 
 // initLLTaskStatus inits task status
 func initLLTaskStatus(jobConfig *LLJobConfig) {
-	jobConfig.WorkerStatus = WorkerReadyStatus
+	jobConfig.WorkerStatus = workertypes.ReadyStatus
 	jobConfig.TriggerStatus = TriggerReadyStatus
 }
 
@@ -779,7 +795,7 @@ func nextLLTask(jobConfig *LLJobConfig) {
 }
 
 // Delete deletes lifelong-learning-job config in db
-func (lm *LifelongLearningJobManager) Delete(message *gmclient.Message) error {
+func (lm *Manager) Delete(message *clienttypes.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
 	if job, ok := lm.LifelongLearningJobMap[name]; ok && job.Done != nil {
@@ -796,14 +812,14 @@ func (lm *LifelongLearningJobManager) Delete(message *gmclient.Message) error {
 }
 
 // Start starts LifelongLearningJob manager
-func (lm *LifelongLearningJobManager) Start() error {
+func (lm *Manager) Start() error {
 	go lm.monitorWorker()
 
 	return nil
 }
 
 // monitorWorker monitors message from worker
-func (lm *LifelongLearningJobManager) monitorWorker() {
+func (lm *Manager) monitorWorker() {
 	for {
 		workerMessageChannel := lm.WorkerMessageChannel
 		workerMessage, ok := <-workerMessageChannel
@@ -820,11 +836,11 @@ func (lm *LifelongLearningJobManager) monitorWorker() {
 		}
 
 		// TODO: filter some worker messages out
-		wo := WorkerOutput{}
+		wo := clienttypes.Output{}
 		wo.Models = workerMessage.Results
 		wo.OwnerInfo = workerMessage.OwnerInfo
 
-		msg := &UpstreamMessage{
+		msg := &clienttypes.UpstreamMessage{
 			Phase:  workerMessage.Kind,
 			Status: workerMessage.Status,
 			Output: &wo,
@@ -836,7 +852,7 @@ func (lm *LifelongLearningJobManager) monitorWorker() {
 }
 
 // handleWorkerMessage handles message from worker
-func (lm *LifelongLearningJobManager) handleWorkerMessage(job *LifelongLearningJob, workerMessage WorkerMessage) {
+func (lm *Manager) handleWorkerMessage(job *Job, workerMessage workertypes.MessageContent) {
 	jobPhase := job.JobConfig.Phase
 	workerKind := workerMessage.Kind
 	if jobPhase != workerKind {
@@ -845,15 +861,15 @@ func (lm *LifelongLearningJobManager) handleWorkerMessage(job *LifelongLearningJ
 		return
 	}
 
-	var models []*ModelInfo
+	var models []*Model
 	for _, result := range workerMessage.Results {
-		model := ModelInfo{
+		model := Model{
 			Format: result["format"].(string),
 			URL:    result["url"].(string)}
 		models = append(models, &model)
 	}
 
-	model := &ModelInfo{}
+	model := &Model{}
 	if len(models) != 1 {
 		return
 	}
@@ -861,7 +877,7 @@ func (lm *LifelongLearningJobManager) handleWorkerMessage(job *LifelongLearningJ
 
 	job.JobConfig.WorkerStatus = workerMessage.Status
 
-	if job.JobConfig.WorkerStatus == WorkerCompletedStatus {
+	if job.JobConfig.WorkerStatus == workertypes.CompletedStatus {
 		switch job.JobConfig.Phase {
 		case TrainPhase:
 			job.JobConfig.TrainModel = model
@@ -872,20 +888,20 @@ func (lm *LifelongLearningJobManager) handleWorkerMessage(job *LifelongLearningJ
 }
 
 // AddWorkerMessage adds worker messages
-func (lm *LifelongLearningJobManager) AddWorkerMessage(message WorkerMessage) {
+func (lm *Manager) AddWorkerMessage(message workertypes.MessageContent) {
 	lm.WorkerMessageChannel <- message
 }
 
 // GetName returns name of the manager
-func (lm *LifelongLearningJobManager) GetName() string {
-	return LifelongLearningJobKind
+func (lm *Manager) GetName() string {
+	return KindName
 }
 
-func (job *LifelongLearningJob) getHeader() gmclient.MessageHeader {
-	return gmclient.MessageHeader{
+func (job *Job) getHeader() clienttypes.MessageHeader {
+	return clienttypes.MessageHeader{
 		Namespace:    job.Namespace,
 		ResourceKind: job.Kind,
 		ResourceName: job.Name,
-		Operation:    gmclient.StatusOperation,
+		Operation:    clienttypes.StatusOperation,
 	}
 }

@@ -16,6 +16,8 @@ limitations under the License.
 
 package gmclient
 
+import messagetypes "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/model"
+
 const (
 	// InsertOperation is the insert value
 	InsertOperation = "insert"
@@ -25,18 +27,39 @@ const (
 	StatusOperation = "status"
 )
 
-// Message defines message
+// Message defines message between LC and GM
 type Message struct {
 	Header  MessageHeader `json:"header"`
 	Content []byte        `json:"content"`
 }
 
-// MessageHeader define header of message
-type MessageHeader struct {
-	Namespace    string `json:"namespace"`
-	ResourceKind string `json:"resourceKind"`
-	ResourceName string `json:"resourceName"`
-	Operation    string `json:"operation"`
+// MessageHeader defines the header between LC and GM
+type MessageHeader = messagetypes.MessageHeader
+
+// UpstreamMessage defines send message content to GM
+type UpstreamMessage struct {
+	Phase  string  `json:"phase"`
+	Status string  `json:"status"`
+	Input  *Input  `json:"input,omitempty"`
+	Output *Output `json:"output"`
+}
+
+type Model struct {
+	Format  string                 `json:"format"`
+	URL     string                 `json:"url"`
+	Metrics map[string]interface{} `json:"metrics,omitempty"`
+}
+
+type Input struct {
+	Models       []Model `json:"models,omitempty"`
+	DataURL      string  `json:"dataURL,omitempty"`
+	DataIndexURL string  `json:"dataIndexURL,omitempty"`
+	OutputDir    string  `json:"outputDir,omitempty"`
+}
+
+type Output struct {
+	Models    []map[string]interface{} `json:"models"`
+	OwnerInfo map[string]interface{}   `json:"ownerInfo"`
 }
 
 type MessageResourceHandler interface {

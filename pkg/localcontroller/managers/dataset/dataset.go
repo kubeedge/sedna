@@ -14,14 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package manager
+package dataset
 
 import (
 	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -30,22 +29,30 @@ import (
 
 	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	"github.com/kubeedge/sedna/pkg/localcontroller/db"
-	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	clienttypes "github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
 	"github.com/kubeedge/sedna/pkg/localcontroller/storage"
 	"github.com/kubeedge/sedna/pkg/localcontroller/util"
+	workertypes "github.com/kubeedge/sedna/pkg/localcontroller/worker"
 )
 
 const (
 	// MonitorDataSourceIntervalSeconds is interval time of monitoring data source
 	MonitorDataSourceIntervalSeconds = 60
-	// DatasetResourceKind is kind of dataset resource
-	DatasetResourceKind = "dataset"
+	// KindName is kind of dataset resource
+	KindName = "dataset"
+	// CSVFormat is commas separated value format with a extra header.
+	// It can be used in structured data scenarios.
+	CSVFormat = "csv"
+	// FormatTXT is line separated format.
+	// It can be used in unstructured data scenarios.
+	TXTFormat = "txt"
 )
 
 // DatasetManager defines dataset manager
-type DatasetManager struct {
-	Client            gmclient.ClientI
+type Manager struct {
+	Client            clienttypes.ClientI
 	DatasetMap        map[string]*Dataset
 	VolumeMountPrefix string
 }
@@ -59,23 +66,16 @@ type Dataset struct {
 	Storage    storage.Storage
 }
 
-// DatasetSpec defines dataset spec
-type DatasetSpec struct {
-	Format  string `json:"format"`
-	DataURL string `json:"url"`
-}
-
 // DataSource defines config for data source
 type DataSource struct {
 	TrainSamples    []string
-	ValidSamples    []string
 	NumberOfSamples int
 	Header          string
 }
 
-// NewDatasetManager creates a dataset manager
-func NewDatasetManager(client gmclient.ClientI, options *options.LocalControllerOptions) *DatasetManager {
-	dm := DatasetManager{
+// New creates a dataset manager
+func New(client clienttypes.ClientI, options *options.LocalControllerOptions) *Manager {
+	dm := Manager{
 		Client:            client,
 		DatasetMap:        make(map[string]*Dataset),
 		VolumeMountPrefix: options.VolumeMountPrefix,
@@ -85,18 +85,18 @@ func NewDatasetManager(client gmclient.ClientI, options *options.LocalController
 }
 
 // Start starts dataset manager
-func (dm *DatasetManager) Start() error {
+func (dm *Manager) Start() error {
 	return nil
 }
 
 // GetDatasetChannel gets dataset
-func (dm *DatasetManager) GetDataset(name string) (*Dataset, bool) {
+func (dm *Manager) GetDataset(name string) (*Dataset, bool) {
 	d, ok := dm.DatasetMap[name]
 	return d, ok
 }
 
 // Insert inserts dataset to db
-func (dm *DatasetManager) Insert(message *gmclient.Message) error {
+func (dm *Manager) Insert(message *clienttypes.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 	first := false
 	dataset, ok := dm.DatasetMap[name]
@@ -112,7 +112,7 @@ func (dm *DatasetManager) Insert(message *gmclient.Message) error {
 		return err
 	}
 
-	credential := dataset.ObjectMeta.Annotations[CredentialAnnotationKey]
+	credential := dataset.ObjectMeta.Annotations[runtime.SecretAnnotationKey]
 	if credential != "" {
 		if err := dataset.Storage.SetCredential(credential); err != nil {
 			return fmt.Errorf("failed to set dataset(name=%s)'s storage credential, error: %+v", name, err)
@@ -139,7 +139,7 @@ func (dm *DatasetManager) Insert(message *gmclient.Message) error {
 }
 
 // Delete deletes dataset config in db
-func (dm *DatasetManager) Delete(message *gmclient.Message) error {
+func (dm *Manager) Delete(message *clienttypes.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
 	if ds, ok := dm.DatasetMap[name]; ok && ds.Done != nil {
@@ -156,7 +156,7 @@ func (dm *DatasetManager) Delete(message *gmclient.Message) error {
 }
 
 // monitorDataSources monitors the data url of specified dataset
-func (dm *DatasetManager) monitorDataSources(name string) {
+func (dm *Manager) monitorDataSources(name string) {
 	ds, ok := dm.DatasetMap[name]
 	if !ok || ds == nil {
 		return
@@ -186,11 +186,11 @@ func (dm *DatasetManager) monitorDataSources(name string) {
 				klog.Infof("dataset(name=%s) get samples from data source(url=%s) successfully. number of samples: %d",
 					name, dataURL, dataSource.NumberOfSamples)
 
-				header := gmclient.MessageHeader{
+				header := clienttypes.MessageHeader{
 					Namespace:    ds.Namespace,
 					ResourceKind: ds.Kind,
 					ResourceName: ds.Name,
-					Operation:    gmclient.StatusOperation,
+					Operation:    clienttypes.StatusOperation,
 				}
 
 				if err := dm.Client.WriteMessage(struct {
@@ -208,8 +208,8 @@ func (dm *DatasetManager) monitorDataSources(name string) {
 
 // getDataSource gets data source info
 func (ds *Dataset) getDataSource(dataURL string, format string) (*DataSource, error) {
-	if path.Ext(dataURL) != ("." + format) {
-		return nil, fmt.Errorf("dataset file url(%s)'s suffix is different from format(%s)", dataURL, format)
+	if err := ds.validFormat(format); err != nil {
+		return nil, err
 	}
 
 	localURL, err := ds.Storage.Download(dataURL, "")
@@ -227,7 +227,7 @@ func (ds *Dataset) getDataSource(dataURL string, format string) (*DataSource, er
 
 // readByLine reads file by line
 func (ds *Dataset) readByLine(url string, format string) (*DataSource, error) {
-	samples, err := getSamples(url)
+	samples, err := GetSamples(url)
 	if err != nil {
 		klog.Errorf("read file %s failed, error: %v", url, err)
 		return nil, err
@@ -235,10 +235,10 @@ func (ds *Dataset) readByLine(url string, format string) (*DataSource, error) {
 
 	numberOfSamples := 0
 	dataSource := DataSource{}
-	switch format {
-	case DatasetFormatTXT:
+	switch strings.ToLower(format) {
+	case TXTFormat:
 		numberOfSamples += len(samples)
-	case DatasetFormatCSV:
+	case CSVFormat:
 		// the first row of csv file is header
 		if len(samples) == 0 {
 			return nil, fmt.Errorf("file %s is empty", url)
@@ -257,16 +257,16 @@ func (ds *Dataset) readByLine(url string, format string) (*DataSource, error) {
 	return &dataSource, nil
 }
 
-func (dm *DatasetManager) GetName() string {
-	return DatasetResourceKind
+func (dm *Manager) GetName() string {
+	return KindName
 }
 
-func (dm *DatasetManager) AddWorkerMessage(message WorkerMessage) {
+func (dm *Manager) AddWorkerMessage(message workertypes.MessageContent) {
 	// dummy
 }
 
-// getSamples gets samples in a file
-func getSamples(url string) ([]string, error) {
+// GetSamples gets samples in a file
+func GetSamples(url string) ([]string, error) {
 	var samples = []string{}
 	if !util.IsExists(url) {
 		return nil, fmt.Errorf("url(%s) does not exist", url)
@@ -293,4 +293,15 @@ func getSamples(url string) ([]string, error) {
 	}
 
 	return samples, nil
+}
+
+// validFormat checks data format is valid
+func (ds *Dataset) validFormat(format string) error {
+	for _, v := range []string{TXTFormat, CSVFormat} {
+		if strings.ToLower(format) == v {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("dataset format(%s) is invalid", format)
 }

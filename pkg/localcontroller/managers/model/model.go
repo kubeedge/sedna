@@ -14,33 +14,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package manager
+package model
 
 import (
 	"encoding/json"
 
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/localcontroller/db"
-	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	clienttypes "github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
 	"github.com/kubeedge/sedna/pkg/localcontroller/util"
+	workertypes "github.com/kubeedge/sedna/pkg/localcontroller/worker"
 )
 
 // ModelManager defines model manager
-type ModelManager struct {
-	Client   gmclient.ClientI
+type Manager struct {
+	Client   clienttypes.ClientI
 	ModelMap map[string]sednav1.Model
 }
 
 const (
-	// ModelCacheSize is size of cache
-	ModelCacheSize = 100
-	// ModelResourceKind is kind of dataset resource
-	ModelResourceKind = "model"
+	// KindName is kind of model resource
+	KindName = "model"
 )
 
-// NewModelManager creates a model manager
-func NewModelManager(client gmclient.ClientI) *ModelManager {
-	mm := ModelManager{
+// New creates a model manager
+func New(client clienttypes.ClientI) *Manager {
+	mm := Manager{
 		ModelMap: make(map[string]sednav1.Model),
 		Client:   client,
 	}
@@ -49,23 +48,23 @@ func NewModelManager(client gmclient.ClientI) *ModelManager {
 }
 
 // Start starts model manager
-func (mm *ModelManager) Start() error {
+func (mm *Manager) Start() error {
 	return nil
 }
 
 // GetModel gets model
-func (mm *ModelManager) GetModel(name string) (sednav1.Model, bool) {
+func (mm *Manager) GetModel(name string) (sednav1.Model, bool) {
 	model, ok := mm.ModelMap[name]
 	return model, ok
 }
 
 // addNewModel adds model
-func (mm *ModelManager) addNewModel(name string, model sednav1.Model) {
+func (mm *Manager) addNewModel(name string, model sednav1.Model) {
 	mm.ModelMap[name] = model
 }
 
 // insertModel inserts model config to db
-func (mm *ModelManager) Insert(message *gmclient.Message) error {
+func (mm *Manager) Insert(message *clienttypes.Message) error {
 	model := sednav1.Model{}
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
@@ -83,7 +82,7 @@ func (mm *ModelManager) Insert(message *gmclient.Message) error {
 }
 
 // Delete deletes model in db
-func (mm *ModelManager) Delete(message *gmclient.Message) error {
+func (mm *Manager) Delete(message *clienttypes.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
 	delete(mm.ModelMap, name)
@@ -95,10 +94,10 @@ func (mm *ModelManager) Delete(message *gmclient.Message) error {
 	return nil
 }
 
-func (mm *ModelManager) GetName() string {
-	return ModelResourceKind
+func (mm *Manager) GetName() string {
+	return KindName
 }
 
-func (mm *ModelManager) AddWorkerMessage(message WorkerMessage) {
+func (mm *Manager) AddWorkerMessage(message workertypes.MessageContent) {
 	// dummy
 }
