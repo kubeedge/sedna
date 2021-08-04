@@ -6,7 +6,7 @@ spec:
   multiObjectTrackingWorker:
   -  
     model:
-      name: "mot-model"
+      name: "mot-efficientnet"
     template:
       spec:
         nodeName: "frapedge00001"
@@ -40,7 +40,7 @@ spec:
               type: Directory
   -  
     model:
-      name: "mot-model"
+      name: "mot-efficientnet"
     template:
       spec:
         nodeName: "fraprigel00001"
@@ -77,7 +77,7 @@ spec:
 
   reIDWorker:
     model:
-      name: "reid-model"
+      name: "mot-efficientnet"
     template:
       spec:
         nodeName: "fraporion00001"

@@ -56,7 +56,7 @@ spec:
             imagePullPolicy: IfNotPresent
             env:  # user defined environments
             - name: "log_dir"
-              value: "/data/ai_models/deep_eff_reid/loggers/runs/"
+              value: "/data/ai_models/deep_eff_reid/loggers/runs/resnet50_market/"
             - name: "img_dir"
               value: "/data/ai_models/deep_eff_reid/"
             - name: "gfeats"

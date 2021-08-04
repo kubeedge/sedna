@@ -49,7 +49,7 @@ type MultiObjectTrackingWorker struct {
 
 // CloudWorker describes the data a cloud worker should have
 type ReIDWorker struct {
-	Model    ReIDModel          `json:"model"`
+	Model    ReIDModel          `json:"model,omitempty"`
 	Template v1.PodTemplateSpec `json:"template"`
 }
 
