@@ -105,11 +105,9 @@ If you need support, start with the [troubleshooting guide](./docs/troubleshooti
 If you have questions, feel free to reach out to us in the following ways:
 - [slack channel](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
 
-<!--
 ## Contributing
 
 If you're interested in being a contributor and want to get involved in developing the Sedna code, please see [CONTRIBUTING](CONTRIBUTING.md) for details on submitting patches and the contribution workflow.
--->
 
 ## License
 
