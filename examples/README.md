@@ -6,6 +6,7 @@ This repository is home to the following features of examples:
 * [Joint Inference](#joint-inference)
 * [Incremental Learning](#incremental-learning)
 * [Federated Learning](#federated-learning)
+* [Lifelong Learning](#lifelong-learning)
 * [Shared Storage](#shared-storage)
 
 ### Joint Inference
@@ -16,6 +17,9 @@ Example: [Using Incremental Learning Job in Helmet Detection Scenario](./increme
 
 ### Federated Learning
 Example: [Using Federated Learning Job in Surface Defect Detection Scenario](./federated_learning/surface_defect_detection/README.md)
+
+### Lifelong Learning
+Example: [Using Lifelong Learning Job in Thermal Comfort Prediction Scenario](./lifelong_learning/atcii/README.md)
 
 ### Shared Storage
 | Support Protocols  |Support Features| Examples |Release|

@@ -3,6 +3,7 @@
 This example based on the example: [Using Incremental Learning Job in Helmet Detection Scenario](/examples/incremental_learning/helmet_detection/README.md)
 
 ### Create a secret with your S3 user credential.
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -15,15 +16,17 @@ stringData: # use `stringData` for raw credential string or `data` for base64 en
   ACCESS_KEY_ID: XXXX
   SECRET_ACCESS_KEY: XXXXXXXX
 ```
-   
+
 ### Attach the created secret to the Model/Dataset/Job.
-`EDGE_NODE` and `CLOUD_NODE` are custom nodes, you can fill it which you actually run.
+`EDGE_NODE` and `CLOUD_NODE` are custom nodes, you can fill it which you actually run.  
+
 ```
 EDGE_NODE="edge-node" 
 CLOUD_NODE="cloud-node"
 ```
 
-* Attach the created secret to the Model.
+* Attach the created secret to the Model.  
+
 ```yaml
 kubectl create -f - <<EOF
 apiVersion: sedna.io/v1alpha1
@@ -50,8 +53,8 @@ spec:
 EO
 ```
 
-* Attach the created secret to the Dataset.
-    
+* Attach the created secret to the Dataset.  
+
 ```yaml
 kubectl $action -f - <<EOF
 apiVersion: sedna.io/v1alpha1
@@ -67,6 +70,7 @@ EOF
 
 ```
 * Attach the created secret to the Job(IncrementalLearningJob).
+
 ```yaml
 kubectl create -f - <<EOF
 apiVersion: sedna.io/v1alpha1

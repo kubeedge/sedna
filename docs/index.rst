@@ -2,12 +2,11 @@
 Sedna documentation
 ===========================================
 
-
+.. image:: ./_static/logo.png
 
 .. toctree::
     :maxdepth: 1
     :caption: QUICK START
-    :hidden:
 
     quickstart
 
@@ -19,35 +18,64 @@ Sedna documentation
 
     proposals/architecture
     proposals/dataset-and-model
+    proposals/federated-learning
+    proposals/incremental-learning
     proposals/joint-inference
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Setup
-
-   setup/install
+    proposals/lifelong-learning
+    proposals/object-search
+    proposals/object-tracking
 
 
 .. toctree::
     :maxdepth: 1
-    :caption: EXAMPLES
-    :hidden:
+    :titlesonly:
+    :glob:
+    :caption: DEPLOY
 
-    examples/joint_inference_example_link
+    setup/*
 
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :glob:
+    :caption: EXAMPLES
+
+    examples/federated_learning/surface_defect_detection/README
+    examples/incremental_learning/helmet_detection/README
+    examples/joint_inference/helmet_detection_inference/README
+    examples/lifelong_learning/atcii/README
+    examples/storage/s3/README
+
+
+.. toctree::
+    :maxdepth: 1
     :caption: API
+    :titlesonly:
+    :glob:
+
+    api/crd/*
+    api/lib/*
+
+.. toctree::
+    :maxdepth: 1
+    :caption: API REFERENCE
+    :titlesonly:
+    :glob:
+
+    autoapi/lib/sedna/index
+
+
+.. toctree::
+    :caption: ROADMAP
     :hidden:
 
-    lib-api/modules
+    roadmap
 
 
+RELATED LINKS
+=============
 
-
-
+.. mdinclude:: related_link.md
 
 Indices and tables
 ==================
