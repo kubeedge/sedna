@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package manager
+package incrementallearning
 
 import (
 	"bufio"
@@ -34,19 +34,22 @@ import (
 	gmtypes "github.com/kubeedge/sedna/pkg/globalmanager/controllers/incrementallearning"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	"github.com/kubeedge/sedna/pkg/localcontroller/db"
-	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	clienttypes "github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers/dataset"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers/model"
 	"github.com/kubeedge/sedna/pkg/localcontroller/storage"
 	"github.com/kubeedge/sedna/pkg/localcontroller/trigger"
 	"github.com/kubeedge/sedna/pkg/localcontroller/util"
+	workertypes "github.com/kubeedge/sedna/pkg/localcontroller/worker"
 )
 
 // IncrementalLearningJob defines config for incremental-learning-job
-type IncrementalLearningJob struct {
+type Job struct {
 	sednav1.IncrementalLearningJob
 	JobConfig *JobConfig
-	Dataset   *Dataset
-	Done      chan struct{}
+	Dataset   *dataset.Dataset
 	Storage   storage.Storage
+	Done      chan struct{}
 }
 
 // JobConfig defines config for incremental-learning-job
@@ -63,12 +66,14 @@ type JobConfig struct {
 	OutputDir          string
 	OutputConfig       *OutputConfig
 	DataSamples        *DataSamples
-	TrainModel         *ModelInfo
-	DeployModel        *ModelInfo
-	EvalModels         []ModelInfo
-	EvalResult         []ModelInfo
+	TrainModel         *Model
+	DeployModel        *Model
+	EvalModels         []Model
+	EvalResult         []Model
 	Lock               sync.Mutex
 }
+
+type Model = clienttypes.Model
 
 // OutputConfig defines config for job output
 type OutputConfig struct {
@@ -86,12 +91,12 @@ type DataSamples struct {
 }
 
 // IncrementalLearningJob defines incremental-learning-job manager
-type IncrementalJobManager struct {
-	Client               gmclient.ClientI
-	WorkerMessageChannel chan WorkerMessage
-	DatasetManager       *DatasetManager
-	ModelManager         *ModelManager
-	IncrementalJobMap    map[string]*IncrementalLearningJob
+type Manager struct {
+	Client               clienttypes.ClientI
+	WorkerMessageChannel chan workertypes.MessageContent
+	DatasetManager       *dataset.Manager
+	ModelManager         *model.Manager
+	IncrementalJobMap    map[string]*Job
 	VolumeMountPrefix    string
 }
 
@@ -102,19 +107,24 @@ const (
 	DatasetHandlerIntervalSeconds = 10
 	// EvalSamplesCapacity is capacity of eval samples
 	EvalSamplesCapacity = 5
-	//IncrementalLearningJobKind is kind of incremental-learning-job resource
-	IncrementalLearningJobKind = "incrementallearningjob"
+	//KindName is kind of incremental-learning-job resource
+	KindName = "incrementallearningjob"
+
+	// TriggerReadyStatus is the ready status about trigger
+	TriggerReadyStatus = "ready"
+	// TriggerCompletedStatus is the completed status about trigger
+	TriggerCompletedStatus = "completed"
 )
 
-// NewIncrementalJobManager creates a incremental-learning-job manager
-func NewIncrementalJobManager(client gmclient.ClientI, datasetManager *DatasetManager,
-	modelManager *ModelManager, options *options.LocalControllerOptions) *IncrementalJobManager {
-	im := IncrementalJobManager{
+// New creates a incremental-learning-job manager
+func New(client clienttypes.ClientI, datasetManager *dataset.Manager,
+	modelManager *model.Manager, options *options.LocalControllerOptions) *Manager {
+	im := Manager{
 		Client:               client,
-		WorkerMessageChannel: make(chan WorkerMessage, WorkerMessageChannelCacheSize),
+		WorkerMessageChannel: make(chan workertypes.MessageContent, workertypes.MessageChannelCacheSize),
 		DatasetManager:       datasetManager,
 		ModelManager:         modelManager,
-		IncrementalJobMap:    make(map[string]*IncrementalLearningJob),
+		IncrementalJobMap:    make(map[string]*Job),
 		VolumeMountPrefix:    options.VolumeMountPrefix,
 	}
 
@@ -122,14 +132,14 @@ func NewIncrementalJobManager(client gmclient.ClientI, datasetManager *DatasetMa
 }
 
 // Start starts incremental-learning-job manager
-func (im *IncrementalJobManager) Start() error {
+func (im *Manager) Start() error {
 	go im.monitorWorker()
 
 	return nil
 }
 
 // trainTask starts training task
-func (im *IncrementalJobManager) trainTask(job *IncrementalLearningJob, currentRound int) error {
+func (im *Manager) trainTask(job *Job, currentRound int) error {
 	jobConfig := job.JobConfig
 
 	latestCond := im.getLatestCondition(job)
@@ -182,7 +192,7 @@ func (im *IncrementalJobManager) trainTask(job *IncrementalLearningJob, currentR
 }
 
 // evalTask starts eval task
-func (im *IncrementalJobManager) evalTask(job *IncrementalLearningJob) error {
+func (im *Manager) evalTask(job *Job) error {
 	jobConfig := job.JobConfig
 
 	latestCond := im.getLatestCondition(job)
@@ -219,13 +229,13 @@ func (im *IncrementalJobManager) evalTask(job *IncrementalLearningJob) error {
 }
 
 // deployTask starts deploy task
-func (im *IncrementalJobManager) deployTask(job *IncrementalLearningJob) {
+func (im *Manager) deployTask(job *Job) {
 	jobConfig := job.JobConfig
 	var err error
 	var neededDeploy bool
 
 	neededDeploy, err = im.triggerDeployTask(job)
-	status := UpstreamMessage{Phase: string(sednav1.ILJobDeploy)}
+	status := clienttypes.UpstreamMessage{Phase: string(sednav1.ILJobDeploy)}
 
 	if err == nil && neededDeploy {
 		deployModel, err := im.deployModel(job)
@@ -238,8 +248,8 @@ func (im *IncrementalJobManager) deployTask(job *IncrementalLearningJob) {
 			status.Status = string(sednav1.ILJobStageCondFailed)
 		} else {
 			status.Status = string(sednav1.ILJobStageCondReady)
-			status.Input = &WorkerInput{
-				Models: []ModelInfo{
+			status.Input = &clienttypes.Input{
+				Models: []Model{
 					*deployModel,
 				},
 			}
@@ -264,7 +274,7 @@ func (im *IncrementalJobManager) deployTask(job *IncrementalLearningJob) {
 }
 
 // startJob starts a job
-func (im *IncrementalJobManager) startJob(name string) {
+func (im *Manager) startJob(name string) {
 	var err error
 	job := im.IncrementalJobMap[name]
 
@@ -321,13 +331,13 @@ func (im *IncrementalJobManager) startJob(name string) {
 }
 
 // Insert inserts incremental-learning-job config to db
-func (im *IncrementalJobManager) Insert(message *gmclient.Message) error {
+func (im *Manager) Insert(message *clienttypes.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
 	first := false
 	job, ok := im.IncrementalJobMap[name]
 	if !ok {
-		job = &IncrementalLearningJob{}
+		job = &Job{}
 		job.Storage = storage.Storage{IsLocalStorage: false}
 		job.Done = make(chan struct{})
 		im.IncrementalJobMap[name] = job
@@ -338,7 +348,7 @@ func (im *IncrementalJobManager) Insert(message *gmclient.Message) error {
 		return err
 	}
 
-	credential := job.ObjectMeta.Annotations[CredentialAnnotationKey]
+	credential := job.ObjectMeta.Annotations[runtime.SecretAnnotationKey]
 	if credential != "" {
 		if err := job.Storage.SetCredential(credential); err != nil {
 			return fmt.Errorf("failed to set job(name=%s)'s storage credential, error: %+v", name, err)
@@ -357,7 +367,7 @@ func (im *IncrementalJobManager) Insert(message *gmclient.Message) error {
 }
 
 // Delete deletes incremental-learning-job config in db
-func (im *IncrementalJobManager) Delete(message *gmclient.Message) error {
+func (im *Manager) Delete(message *clienttypes.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
 	if job, ok := im.IncrementalJobMap[name]; ok && job.Done != nil {
@@ -374,7 +384,7 @@ func (im *IncrementalJobManager) Delete(message *gmclient.Message) error {
 }
 
 // initJob inits the job object
-func (im *IncrementalJobManager) initJob(job *IncrementalLearningJob) error {
+func (im *Manager) initJob(job *Job) error {
 	jobConfig := job.JobConfig
 	jobConfig.Lock = sync.Mutex{}
 
@@ -433,7 +443,7 @@ func newTrigger(t sednav1.Trigger) (trigger.Base, error) {
 }
 
 // getTrainOrEvalModel gets train model or eval model from job conditions
-func (im *IncrementalJobManager) getTrainOrEvalModel(job *IncrementalLearningJob, jobStage sednav1.ILJobStage) *ModelInfo {
+func (im *Manager) getTrainOrEvalModel(job *Job, jobStage sednav1.ILJobStage) *Model {
 	jobConditions := job.Status.Conditions
 
 	// TODO: runtime.type changes to common.type for gm and lc
@@ -465,16 +475,16 @@ func (im *IncrementalJobManager) getTrainOrEvalModel(job *IncrementalLearningJob
 
 	switch jobStage {
 	case sednav1.ILJobTrain:
-		return &ModelInfo{Format: models[1].Format, URL: models[1].URL}
+		return &Model{Format: models[1].Format, URL: models[1].URL}
 	case sednav1.ILJobEval:
-		return &ModelInfo{Format: models[0].Format, URL: models[0].URL}
+		return &Model{Format: models[0].Format, URL: models[0].URL}
 	}
 
 	return nil
 }
 
 // triggerTrainTask triggers the train task
-func (im *IncrementalJobManager) triggerTrainTask(job *IncrementalLearningJob) (interface{}, bool, error) {
+func (im *Manager) triggerTrainTask(job *Job) (interface{}, bool, error) {
 	var err error
 	jobConfig := job.JobConfig
 
@@ -489,7 +499,7 @@ func (im *IncrementalJobManager) triggerTrainTask(job *IncrementalLearningJob) (
 		return nil, false, nil
 	}
 
-	var m *ModelInfo
+	var m *Model
 
 	latestCondition := im.getLatestCondition(job)
 	rounds := jobConfig.Rounds
@@ -519,13 +529,13 @@ func (im *IncrementalJobManager) triggerTrainTask(job *IncrementalLearningJob) (
 		outputDir = util.TrimPrefixPath(im.VolumeMountPrefix, outputDir)
 	}
 
-	input := WorkerInput{
-		Models:       []ModelInfo{*m},
+	input := clienttypes.Input{
+		Models:       []Model{*m},
 		DataURL:      dataURL,
 		DataIndexURL: dataIndexURL,
 		OutputDir:    outputDir,
 	}
-	msg := UpstreamMessage{
+	msg := clienttypes.UpstreamMessage{
 		Phase:  string(sednav1.ILJobTrain),
 		Status: string(sednav1.ILJobStageCondReady),
 		Input:  &input,
@@ -535,7 +545,7 @@ func (im *IncrementalJobManager) triggerTrainTask(job *IncrementalLearningJob) (
 }
 
 // triggerEvalTask triggers the eval task
-func (im *IncrementalJobManager) triggerEvalTask(job *IncrementalLearningJob) (*UpstreamMessage, error) {
+func (im *Manager) triggerEvalTask(job *Job) (*clienttypes.UpstreamMessage, error) {
 	jobConfig := job.JobConfig
 	var err error
 
@@ -546,7 +556,7 @@ func (im *IncrementalJobManager) triggerEvalTask(job *IncrementalLearningJob) (*
 		return nil, err
 	}
 
-	models := []ModelInfo{*m, {
+	models := []Model{*m, {
 		Format: jobConfig.DeployModel.Format,
 		URL:    jobConfig.DeployModel.URL,
 	}}
@@ -569,12 +579,12 @@ func (im *IncrementalJobManager) triggerEvalTask(job *IncrementalLearningJob) (*
 		dataIndexURL = util.TrimPrefixPath(im.VolumeMountPrefix, dataIndexURL)
 	}
 
-	input := WorkerInput{
+	input := clienttypes.Input{
 		Models:       models,
 		DataURL:      dataURL,
 		DataIndexURL: dataIndexURL,
 	}
-	msg := &UpstreamMessage{
+	msg := &clienttypes.UpstreamMessage{
 		Phase:  string(sednav1.ILJobEval),
 		Status: string(sednav1.ILJobStageCondReady),
 		Input:  &input,
@@ -584,7 +594,7 @@ func (im *IncrementalJobManager) triggerEvalTask(job *IncrementalLearningJob) (*
 }
 
 // triggerDeployTask triggers the deploy task
-func (im *IncrementalJobManager) triggerDeployTask(job *IncrementalLearningJob) (bool, error) {
+func (im *Manager) triggerDeployTask(job *Job) (bool, error) {
 	jobConfig := job.JobConfig
 
 	// EvalResult must has two models info, first is trained model, second is deployed model.
@@ -592,7 +602,28 @@ func (im *IncrementalJobManager) triggerDeployTask(job *IncrementalLearningJob) 
 		return false, fmt.Errorf("expected 2 evaluation results, actual: %d", len(jobConfig.EvalResult))
 	}
 
-	newMetrics, oldMetrics := jobConfig.EvalResult[0].Metrics, jobConfig.EvalResult[1].Metrics
+	getMetrics := func(metrics map[string]interface{}) (map[string][]float64, error) {
+		var err error
+		bytes, err := json.Marshal(metrics)
+		if err != nil {
+			return nil, err
+		}
+
+		data := make(map[string][]float64)
+		if err := json.Unmarshal(bytes, &data); err != nil {
+			return nil, err
+		}
+		return data, err
+	}
+
+	newMetrics, err := getMetrics(jobConfig.EvalResult[0].Metrics)
+	if err != nil {
+		return false, err
+	}
+	oldMetrics, err := getMetrics(jobConfig.EvalResult[1].Metrics)
+	if err != nil {
+		return false, err
+	}
 	metricDelta := make(map[string]interface{})
 
 	for metric := range newMetrics {
@@ -622,7 +653,7 @@ func (im *IncrementalJobManager) triggerDeployTask(job *IncrementalLearningJob) 
 }
 
 // deployModel deploys model
-func (im *IncrementalJobManager) deployModel(job *IncrementalLearningJob) (*ModelInfo, error) {
+func (im *Manager) deployModel(job *Job) (*Model, error) {
 	jobConfig := job.JobConfig
 
 	trainedModel := jobConfig.EvalModels[0].URL
@@ -640,7 +671,7 @@ func (im *IncrementalJobManager) deployModel(job *IncrementalLearningJob) (*Mode
 	return &jobConfig.EvalModels[0], nil
 }
 
-func (job *IncrementalLearningJob) updateDeployModel(deployModel string, newModel string) error {
+func (job *Job) updateDeployModel(deployModel string, newModel string) error {
 	if err := job.Storage.CopyFile(newModel, deployModel); err != nil {
 		return fmt.Errorf("copy model(url=%s) to the deploy model(url=%s) failed, error: %+v",
 			newModel, deployModel, err)
@@ -651,7 +682,7 @@ func (job *IncrementalLearningJob) updateDeployModel(deployModel string, newMode
 }
 
 // createOutputDir creates the job output dir
-func (job *IncrementalLearningJob) createOutputDir(jobConfig *JobConfig) error {
+func (job *Job) createOutputDir(jobConfig *JobConfig) error {
 	outputDir := jobConfig.OutputDir
 
 	dirNames := []string{"data/train", "data/eval", "train", "eval"}
@@ -684,7 +715,7 @@ func (job *IncrementalLearningJob) createOutputDir(jobConfig *JobConfig) error {
 	return nil
 }
 
-func (im *IncrementalJobManager) getLatestCondition(job *IncrementalLearningJob) sednav1.ILJobCondition {
+func (im *Manager) getLatestCondition(job *Job) sednav1.ILJobCondition {
 	jobConditions := job.Status.Conditions
 	var latestCondition sednav1.ILJobCondition = sednav1.ILJobCondition{}
 	if len(jobConditions) > 0 {
@@ -694,8 +725,8 @@ func (im *IncrementalJobManager) getLatestCondition(job *IncrementalLearningJob)
 	return latestCondition
 }
 
-func (im *IncrementalJobManager) getModel(namespace string, name string) (sednav1.Model, error) {
-	modelName := util.GetUniqueIdentifier(namespace, name, ModelResourceKind)
+func (im *Manager) getModel(namespace string, name string) (sednav1.Model, error) {
+	modelName := util.GetUniqueIdentifier(namespace, name, model.KindName)
 	model, ok := im.ModelManager.GetModel(modelName)
 	if !ok {
 		return model, fmt.Errorf("not exists model(name=%s)", modelName)
@@ -704,7 +735,7 @@ func (im *IncrementalJobManager) getModel(namespace string, name string) (sednav
 }
 
 // loadTrainModel loads initial model information for training.
-func (im *IncrementalJobManager) loadTrainModel(job *IncrementalLearningJob) error {
+func (im *Manager) loadTrainModel(job *Job) error {
 	jobConfig := job.JobConfig
 
 	if jobConfig.TrainModel == nil {
@@ -713,7 +744,7 @@ func (im *IncrementalJobManager) loadTrainModel(job *IncrementalLearningJob) err
 			return err
 		}
 
-		jobConfig.TrainModel = new(ModelInfo)
+		jobConfig.TrainModel = new(Model)
 		format := initialModel.Spec.Format
 		url := initialModel.Spec.URL
 		jobConfig.TrainModel.Format = format
@@ -723,7 +754,7 @@ func (im *IncrementalJobManager) loadTrainModel(job *IncrementalLearningJob) err
 }
 
 // loadDeployModel loads model information for deploying.
-func (im *IncrementalJobManager) loadDeployModel(job *IncrementalLearningJob) error {
+func (im *Manager) loadDeployModel(job *Job) error {
 	jobConfig := job.JobConfig
 
 	if jobConfig.DeployModel == nil {
@@ -732,7 +763,7 @@ func (im *IncrementalJobManager) loadDeployModel(job *IncrementalLearningJob) er
 			return err
 		}
 
-		jobConfig.DeployModel = new(ModelInfo)
+		jobConfig.DeployModel = new(Model)
 		jobConfig.DeployModel.Format = evalModel.Spec.Format
 		jobConfig.DeployModel.URL = evalModel.Spec.URL
 	}
@@ -740,13 +771,13 @@ func (im *IncrementalJobManager) loadDeployModel(job *IncrementalLearningJob) er
 }
 
 // loadDataset loads dataset information
-func (im *IncrementalJobManager) loadDataset(job *IncrementalLearningJob) error {
+func (im *Manager) loadDataset(job *Job) error {
 	if job.Dataset != nil {
 		// already loaded
 		return nil
 	}
 
-	datasetName := util.GetUniqueIdentifier(job.Namespace, job.Spec.Dataset.Name, DatasetResourceKind)
+	datasetName := util.GetUniqueIdentifier(job.Namespace, job.Spec.Dataset.Name, dataset.KindName)
 	dataset, ok := im.DatasetManager.GetDataset(datasetName)
 	if !ok || dataset == nil {
 		return fmt.Errorf("not exists dataset(name=%s)", datasetName)
@@ -765,7 +796,7 @@ func (im *IncrementalJobManager) loadDataset(job *IncrementalLearningJob) error 
 }
 
 // handleData updates samples information
-func (im *IncrementalJobManager) handleData(job *IncrementalLearningJob) {
+func (im *Manager) handleData(job *Job) {
 	tick := time.NewTicker(DatasetHandlerIntervalSeconds * time.Second)
 
 	jobConfig := job.JobConfig
@@ -824,7 +855,7 @@ func (im *IncrementalJobManager) handleData(job *IncrementalLearningJob) {
 // createFile creates data file and data index file
 func createFile(dir string, format string, isLocalStorage bool) (string, string) {
 	switch format {
-	case "txt":
+	case dataset.TXTFormat:
 		if isLocalStorage {
 			return path.Join(dir, "data.txt"), ""
 		}
@@ -834,7 +865,7 @@ func createFile(dir string, format string, isLocalStorage bool) (string, string)
 }
 
 // writeSamples writes samples information to a file
-func (im *IncrementalJobManager) writeSamples(job *IncrementalLearningJob, samples []string, dir string, rounds int, format string, urlPrefix string) (string, string, error) {
+func (im *Manager) writeSamples(job *Job, samples []string, dir string, rounds int, format string, urlPrefix string) (string, string, error) {
 	subDir := strings.Join([]string{dir, strconv.Itoa(rounds)}, "/")
 	fileURL, absURLFile := createFile(subDir, format, job.Dataset.Storage.IsLocalStorage)
 
@@ -888,7 +919,7 @@ func (im *IncrementalJobManager) writeSamples(job *IncrementalLearningJob, sampl
 }
 
 // writeByLine writes file by line
-func (im *IncrementalJobManager) writeByLine(samples []string, fileURL string) error {
+func (im *Manager) writeByLine(samples []string, fileURL string) error {
 	file, err := os.Create(fileURL)
 	if err != nil {
 		klog.Errorf("create file(%s) failed", fileURL)
@@ -913,7 +944,7 @@ func (im *IncrementalJobManager) writeByLine(samples []string, fileURL string) e
 }
 
 // monitorWorker monitors message from worker
-func (im *IncrementalJobManager) monitorWorker() {
+func (im *Manager) monitorWorker() {
 	for {
 		workerMessageChannel := im.WorkerMessageChannel
 		workerMessage, ok := <-workerMessageChannel
@@ -930,23 +961,27 @@ func (im *IncrementalJobManager) monitorWorker() {
 		}
 
 		// TODO: filter some worker messages out
-		wo := WorkerOutput{}
+		wo := clienttypes.Output{}
 		wo.Models = workerMessage.Results
 		wo.OwnerInfo = workerMessage.OwnerInfo
 
-		msg := &UpstreamMessage{
+		msg := &clienttypes.UpstreamMessage{
 			Phase:  workerMessage.Kind,
 			Status: workerMessage.Status,
 			Output: &wo,
 		}
-		im.Client.WriteMessage(msg, job.getHeader())
+
+		if err := im.Client.WriteMessage(msg, job.getHeader()); err != nil {
+			klog.Errorf("job(name=%s) failed to write message: %v", name, err)
+			continue
+		}
 
 		im.handleWorkerMessage(job, workerMessage)
 	}
 }
 
 // handleWorkerMessage handles message from worker
-func (im *IncrementalJobManager) handleWorkerMessage(job *IncrementalLearningJob, workerMessage WorkerMessage) {
+func (im *Manager) handleWorkerMessage(job *Job, workerMessage workertypes.MessageContent) {
 	latestCond := im.getLatestCondition(job)
 	jobStage := strings.ToLower(string(latestCond.Stage))
 	workerKind := strings.ToLower(workerMessage.Kind)
@@ -957,9 +992,9 @@ func (im *IncrementalJobManager) handleWorkerMessage(job *IncrementalLearningJob
 		return
 	}
 
-	var models []ModelInfo
+	var models []Model
 	for _, result := range workerMessage.Results {
-		metrics := map[string][]float64{}
+		metrics := make(map[string]interface{})
 		if m, ok := result["metrics"]; ok {
 			bytes, err := json.Marshal(m)
 			if err != nil {
@@ -975,17 +1010,17 @@ func (im *IncrementalJobManager) handleWorkerMessage(job *IncrementalLearningJob
 			}
 		}
 
-		model := ModelInfo{
-			result["format"].(string),
-			result["url"].(string),
-			metrics}
+		model := Model{
+			Format:  result["format"].(string),
+			URL:     result["url"].(string),
+			Metrics: metrics}
 		models = append(models, model)
 	}
 
 	workerStatus := workerMessage.Status
 	jobName := job.JobConfig.UniqueIdentifier
 
-	if workerStatus == WorkerCompletedStatus {
+	if workerStatus == workertypes.CompletedStatus {
 		klog.Infof("job(name=%s) complete the %s task successfully", jobName, jobStage)
 		switch latestCond.Stage {
 		case sednav1.ILJobEval:
@@ -1011,20 +1046,20 @@ func forwardSamples(jobConfig *JobConfig, jobStage sednav1.ILJobStage) {
 }
 
 // AddWorkerMessage adds worker messages
-func (im *IncrementalJobManager) AddWorkerMessage(message WorkerMessage) {
+func (im *Manager) AddWorkerMessage(message workertypes.MessageContent) {
 	im.WorkerMessageChannel <- message
 }
 
 // GetName returns name of the manager
-func (im *IncrementalJobManager) GetName() string {
-	return IncrementalLearningJobKind
+func (im *Manager) GetName() string {
+	return KindName
 }
 
-func (job *IncrementalLearningJob) getHeader() gmclient.MessageHeader {
-	return gmclient.MessageHeader{
+func (job *Job) getHeader() clienttypes.MessageHeader {
+	return clienttypes.MessageHeader{
 		Namespace:    job.Namespace,
 		ResourceKind: job.Kind,
 		ResourceName: job.Name,
-		Operation:    gmclient.StatusOperation,
+		Operation:    clienttypes.StatusOperation,
 	}
 }

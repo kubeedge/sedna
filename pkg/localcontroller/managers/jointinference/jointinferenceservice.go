@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package manager
+package jointinference
 
 import (
 	"encoding/json"
@@ -23,40 +23,42 @@ import (
 
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/localcontroller/db"
-	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	clienttypes "github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
+	types "github.com/kubeedge/sedna/pkg/localcontroller/managers"
 	"github.com/kubeedge/sedna/pkg/localcontroller/util"
+	workertypes "github.com/kubeedge/sedna/pkg/localcontroller/worker"
 )
 
 // JointInferenceManager defines joint-inference-service manager
-type JointInferenceManager struct {
-	Client               gmclient.ClientI
-	WorkerMessageChannel chan WorkerMessage
+type Manager struct {
+	Client               clienttypes.ClientI
+	WorkerMessageChannel chan workertypes.MessageContent
 }
 
 const (
-	// JointInferenceServiceKind is kind of joint-inference-service resource
-	JointInferenceServiceKind = "jointinferenceservice"
+	// KindName is kind of joint-inference-service resource
+	KindName = "jointinferenceservice"
 )
 
-// NewJointInferenceManager creates a joint inference manager
-func NewJointInferenceManager(client gmclient.ClientI) FeatureManager {
-	jm := &JointInferenceManager{
+// New creates a joint inference manager
+func New(client clienttypes.ClientI) types.FeatureManager {
+	jm := &Manager{
 		Client:               client,
-		WorkerMessageChannel: make(chan WorkerMessage, WorkerMessageChannelCacheSize),
+		WorkerMessageChannel: make(chan workertypes.MessageContent, workertypes.MessageChannelCacheSize),
 	}
 
 	return jm
 }
 
 // Start starts joint-inference-service manager
-func (jm *JointInferenceManager) Start() error {
+func (jm *Manager) Start() error {
 	go jm.monitorWorker()
 
 	return nil
 }
 
 // monitorWorker monitors message from worker
-func (jm *JointInferenceManager) monitorWorker() {
+func (jm *Manager) monitorWorker() {
 	for {
 		workerMessageChannel := jm.WorkerMessageChannel
 		workerMessage, ok := <-workerMessageChannel
@@ -65,17 +67,17 @@ func (jm *JointInferenceManager) monitorWorker() {
 		}
 
 		name := util.GetUniqueIdentifier(workerMessage.Namespace, workerMessage.OwnerName, workerMessage.OwnerKind)
-		header := gmclient.MessageHeader{
+		header := clienttypes.MessageHeader{
 			Namespace:    workerMessage.Namespace,
 			ResourceKind: workerMessage.OwnerKind,
 			ResourceName: workerMessage.OwnerName,
-			Operation:    gmclient.StatusOperation,
+			Operation:    clienttypes.StatusOperation,
 		}
 
-		um := UpstreamMessage{
+		um := clienttypes.UpstreamMessage{
 			Phase:  workerMessage.Kind,
 			Status: workerMessage.Status,
-			Output: &WorkerOutput{
+			Output: &clienttypes.Output{
 				OwnerInfo: workerMessage.OwnerInfo,
 			},
 		}
@@ -88,7 +90,7 @@ func (jm *JointInferenceManager) monitorWorker() {
 }
 
 // Insert inserts joint-inference-service config in db
-func (jm *JointInferenceManager) Insert(message *gmclient.Message) error {
+func (jm *Manager) Insert(message *clienttypes.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
 	ji := sednav1.JointInferenceService{}
@@ -105,7 +107,7 @@ func (jm *JointInferenceManager) Insert(message *gmclient.Message) error {
 }
 
 // Delete deletes joint-inference-service config in db
-func (jm *JointInferenceManager) Delete(message *gmclient.Message) error {
+func (jm *Manager) Delete(message *clienttypes.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 	if err := db.DeleteResource(name); err != nil {
 		return err
@@ -115,11 +117,11 @@ func (jm *JointInferenceManager) Delete(message *gmclient.Message) error {
 }
 
 // AddWorkerMessage adds worker messages
-func (jm *JointInferenceManager) AddWorkerMessage(message WorkerMessage) {
+func (jm *Manager) AddWorkerMessage(message workertypes.MessageContent) {
 	jm.WorkerMessageChannel <- message
 }
 
 // GetName gets kind of the manager
-func (jm *JointInferenceManager) GetName() string {
-	return JointInferenceServiceKind
+func (jm *Manager) GetName() string {
+	return KindName
 }
