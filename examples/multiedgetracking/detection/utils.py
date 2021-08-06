@@ -5,6 +5,7 @@ import cv2, time
 import numpy as np
 import torch
 import torchvision
+import torch.nn as nn
 
 def xywh2xyxy(x):
     # Convert nx4 boxes from [x, y, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
@@ -283,3 +284,53 @@ def apply_classifier(x, model, img, im0):
 
     return x
 
+
+def load_classifier(name='resnet101', n=2):
+    # Loads a pretrained model reshaped to n-class output
+    model = torchvision.models.__dict__[name](pretrained=True)
+
+    # ResNet model properties
+    # input_size = [3, 224, 224]
+    # input_space = 'RGB'
+    # input_range = [0, 1]
+    # mean = [0.485, 0.456, 0.406]
+    # std = [0.229, 0.224, 0.225]
+
+    # Reshape output to n classes
+    filters = model.fc.weight.shape[1]
+    model.fc.bias = nn.Parameter(torch.zeros(n), requires_grad=True)
+    model.fc.weight = nn.Parameter(torch.zeros(n, filters), requires_grad=True)
+    model.fc.out_features = n
+    return model
+
+class Ensemble(nn.ModuleList):
+    # Ensemble of models
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x, augment=False, profile=False, visualize=False):
+        y = []
+        for module in self:
+            y.append(module(x, augment, profile, visualize)[0])
+        # y = torch.stack(y).max(0)[0]  # max ensemble
+        # y = torch.stack(y).mean(0)  # mean ensemble
+        y = torch.cat(y, 1)  # nms ensemble
+        return y, None  # inference, train output
+
+
+def attempt_load(weights, map_location=None, inplace=True):
+
+    # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
+    model = Ensemble()
+    ckpt = torch.load(weights, map_location=map_location)  # load
+    model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
+
+    if len(model) == 1:
+        return model[-1]  # return model
+    else:
+        print(f'Ensemble created with {weights}\n')
+        for k in ['names']:
+            setattr(model, k, getattr(model[-1], k))
+        model.stride = model[torch.argmax(torch.tensor([m.stride.max() for m in model])).int()].stride  # max stride
+        
+    return model

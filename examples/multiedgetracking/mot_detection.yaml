@@ -1,0 +1,8 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: yolov5
+  namespace: default
+spec:
+  url: "/data/yolo_lfs/runs/train/exp4/weights/best.pt"
+  format: "pt"
