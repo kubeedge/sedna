@@ -41,13 +41,14 @@ def http_request(url, method=None, timeout=None, binary=True, **kwargs):
                     response.content.decode("utf-8"))
         elif 200 < response.status_code < 400:
             LOGGER.info(f"Redirect_URL: {response.url}")
-        LOGGER.error(
+        LOGGER.warning(
             'Get invalid status code %s while request %s',
             response.status_code,
             url)
+    except ConnectionRefusedError:
+        LOGGER.warning(f'Connection refused while request {url}')
     except Exception as e:
-        LOGGER.error(
-            f'Error occurred while request {url}, Msg: {e}', exc_info=True)
+        LOGGER.warning(f'Error occurred while request {url}, Msg: {e}')
 
 
 class LCReporter(threading.Thread):
