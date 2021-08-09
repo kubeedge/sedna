@@ -71,9 +71,6 @@ class TSBigModelService(JobBase):
         if callback_func:
             res = callback_func(res)
 
-        # Dirty trick to calculate the actual size of res (which is a tensor/nested list)
-        # self.log.info(f"{sys.getsizeof(0) * len(flatten_nested_list(res))} bytes")
-
         return res
 
 

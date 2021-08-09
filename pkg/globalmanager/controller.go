@@ -50,6 +50,7 @@ func (c *MainController) Start() {
 		NewJointController,
 		NewIncrementalJobController,
 		NewLifelongLearningJobController,
+		NewMultiEdgeTrackingServiceController,
 	} {
 		f, _ := featureFunc(c.Config)
 		err := f.Start()

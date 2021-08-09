@@ -1,0 +1,79 @@
+apiVersion: sedna.io/v1alpha1
+kind: MultiEdgeTrackingService
+metadata:
+  name: pedestrian-tracking
+spec:
+  multiObjectTrackingWorker:
+  -  
+    model:
+      name: "mot-resnet"
+    template:
+      spec:
+        nodeName: "frapedge00001"
+        nodeSelector:
+          sedna-role: edge
+        containers:
+        - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
+          imagePullPolicy: IfNotPresent
+          name:  mot
+          env:  # user defined environments
+          - name: input_shape
+            value: "256,128"
+          - name: "video_url"
+            value: "rtsp://localhost/video"
+          - name: "model_name"
+            value: "resnet50_ibn_a"
+          - name: "edge_model_weights"
+            value: "/data/ai_models/deep_eff_reid/weights/resnet50_ibn_a_model_60.pth"
+          resources:  # user defined resources
+            requests:
+              memory: 64M
+              cpu: 100m
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: outputdir
+              mountPath: /data/ai_models/deep_eff_reid/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /data/ai_models/deep_eff_reid/
+              type: Directory
+
+
+  reIDWorker:
+    model:
+      name: "mot-resnet"
+    template:
+      spec:
+        #nodeSelector:
+        #  services: hivemq
+        nodeName: "fraporion00001"
+        containers:
+          - image: kubeedge/sedna-example-multi-edge-tracking-reid:v0.3.0
+            name:  reid
+            imagePullPolicy: IfNotPresent
+            env:  # user defined environments
+            - name: "log_dir"
+              value: "/data/ai_models/deep_eff_reid/loggers/runs/resnet50_market/"
+            - name: "img_dir"
+              value: "/data/ai_models/deep_eff_reid/"
+            - name: "gfeats"
+              value: "gfeats.pth"
+            - name: "qfeats"
+              value: "qfeats.pth"
+            - name: "imgpath"
+              value: "imgpath.npy"
+            resources:  # user defined resources
+              requests:
+                memory: 2Gi
+            volumeMounts:
+            - name: outputdir
+              mountPath: /data/ai_models/deep_eff_reid/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /data/ai_models/deep_eff_reid/
+              type: Directory

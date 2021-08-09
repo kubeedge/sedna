@@ -29,7 +29,6 @@ else:
     ConfigProto = tf.ConfigProto
     Session = tf.Session
 
-
 class TFBackend(BackendBase):
 
     def __init__(self, estimator, fine_tune=True, **kwargs):
