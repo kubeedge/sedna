@@ -78,6 +78,8 @@ spec:
 
 
   reIDWorker:
+    replication:
+      replicas: 3
     model:
       name: "mot-efficientnet"
     template:

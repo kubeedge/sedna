@@ -55,10 +55,10 @@ const (
 	reIDPort            = 5000
 )
 
-// jointServiceControllerKind contains the schema.GroupVersionKind for this controller type.
+// MultiEdgeTrackingServicerKind contains the schema.GroupVersionKind for this controller type.
 var MultiEdgeTrackingServiceKind = sednav1.SchemeGroupVersion.WithKind("MultiEdgeTrackingService")
 
-// MultiEdgeTrackingServiceController ensures that all JointInferenceService objects
+// MultiEdgeTrackingServiceController ensures that all MultiEdgeTrackingService objects
 // have corresponding pods to run their configured workload.
 type MultiEdgeTrackingServiceController struct {
 	kubeClient kubernetes.Interface
@@ -74,7 +74,7 @@ type MultiEdgeTrackingServiceController struct {
 	// A store of service
 	serviceLister sednav1listers.MultiEdgeTrackingServiceLister
 
-	// JointInferenceServices that need to be updated
+	// MultiEdgeTrackingService that need to be updated
 	queue workqueue.RateLimitingInterface
 
 	recorder record.EventRecorder

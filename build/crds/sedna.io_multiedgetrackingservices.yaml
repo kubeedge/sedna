@@ -13335,7 +13335,6 @@ spec:
                         type: object
                     type: object
                 required:
-                - model
                 - template
                 type: object
             required:
