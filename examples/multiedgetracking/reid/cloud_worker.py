@@ -32,6 +32,7 @@ img_dir =  Context.get_parameters('img_dir')
 gfeats = Context.get_parameters('gfeats')
 qfeats = Context.get_parameters('qfeats')
 imgpath = Context.get_parameters('imgpath')
+dataset = Context.get_parameters('dataset')
 
 class Estimator:
 
@@ -39,8 +40,8 @@ class Estimator:
         LOGGER.info("Initializing cloud ReID worker ...")
         self.log_dir = log_dir
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.gallery_feats = torch.load(os.path.join(self.log_dir, gfeats), map_location=self.device)
-        self.img_path = np.load(os.path.join(self.log_dir, imgpath))
+        self.gallery_feats = torch.load(os.path.join(self.log_dir, dataset, gfeats), map_location=self.device)
+        self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
         LOGGER.info(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
 
     def _extract_id(self, text):

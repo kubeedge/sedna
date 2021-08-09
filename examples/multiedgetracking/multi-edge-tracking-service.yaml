@@ -96,6 +96,8 @@ spec:
               value: "qfeats.pth"
             - name: "imgpath"
               value: "imgpath.npy"
+            - name: "dataset"
+              value: "efficientnetv2_market"
             resources:  # user defined resources
               requests:
                 memory: 2Gi
