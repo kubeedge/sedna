@@ -25,6 +25,7 @@ from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
 from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
+from sedna.service.server import FEServer
 
 __all__ = ("MultiObjectTracking", "ReIDService", "ObjectDetector")
 
@@ -195,9 +196,20 @@ class ObjectDetector(JobBase):
             self.log.info("Estimator -> Evaluating model ..")
             self.estimator.evaluate()
 
-        self.edge = FE(service_name=self.job_name,
+        self.edge = FEServer(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
-
+    def start(self):
+        if callable(self.estimator):
+            self.estimator = self.estimator()
+        # The cloud instance only runs a distance function to do the ReID
+        # We don't load any model at this stage
+        # if not os.path.exists(self.model_path):
+        #     raise FileExistsError(f"{self.model_path} miss")
+        # else:
+        #     # self.estimator.load(self.model_path)
+        app_server = FEServer(model=self, servername=self.job_name,
+                                     host=self.local_ip, http_port=self.port)
+        app_server.start()
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
