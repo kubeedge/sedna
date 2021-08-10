@@ -17,6 +17,7 @@ from copy import deepcopy
 
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
+from sedna.service.fe_endpoint import FE
 from sedna.service.server import ReIDServer
 from sedna.service.reid_endpoint import ReID
 from sedna.service.client import LCReporter
@@ -158,6 +159,10 @@ class ObjectDetector(JobBase):
             estimator=estimator, config=config)
         self.log.info("Loading ObjectDetector module")
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
+        self.local_ip = get_host_ip()
+        self.remote_ip = self.get_parameters(
+            "FE_MODEL_BIND_IP", self.local_ip)
+        self.port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
 
         report_msg = {
             "name": self.worker_name,
@@ -167,6 +172,7 @@ class ObjectDetector(JobBase):
             "kind": "inference",
             "results": []
         }
+
         period_interval = int(self.get_parameters("LC_PERIOD", "30"))
         self.lc_reporter = LCReporter(lc_server=self.config.lc_server,
                                       message=report_msg,
@@ -189,6 +195,10 @@ class ObjectDetector(JobBase):
             self.log.info("Estimator -> Evaluating model ..")
             self.estimator.evaluate()
 
+        self.edge = FE(service_name=self.job_name,
+                                 host=self.remote_ip, port=self.port)
+
+
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
         if callable(post_process):
@@ -205,9 +215,9 @@ class ObjectDetector(JobBase):
 
         self.lc_reporter.update_for_edge_inference()
 
-        #if edge_result != None:
-        #    with FTimer(f"upload_plus_reid"):
-        #        cres = self.cloud.reid(edge_result, post_process=post_process, **kwargs)
+        if detection_result != None:
+            with FTimer(f"upload_plus_reid"):
+                cres = self.edge.feature_extraction(detection_result, post_process=post_process, **kwargs)
 
-        return detection_result
+        return [cres, detection_result]
 

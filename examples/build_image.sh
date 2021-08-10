@@ -52,7 +52,8 @@ multi-edge-tracking-reid.Dockerfile
 dockerfiles_edge=(
 # federated-learning-surface-defect-detection-train.Dockerfile
 # joint-inference-helmet-detection-little.Dockerfile
-multi-edge-tracking-mot.Dockerfile
+# multi-edge-tracking-mot.Dockerfile
+multi-edge-tracking-detection.Dockerfile
 )
 
 dockerfiles_others=(
