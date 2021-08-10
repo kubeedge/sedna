@@ -17,6 +17,7 @@ import os
 import torch
 import torchvision.transforms as T
 from PIL import Image
+import numpy as np
 
 from sedna.backend.torch.nets.nn import Backbone
 from sedna.common.config import Context
@@ -96,13 +97,12 @@ class Estimator:
         if len(data) == 0:
             return []
         else:
-            # TEST: Trying to get first element in the list of bboxes
-            data = data[0][0]
-            raw_imgsize = data.nbytes
+            # TEST: We get only the first element in the list of bboxes
+            # raw_imgsize = np.array(data)
 
-            # We currently fetch the images from a video stream opened with OpenCV.
-            # We need to convert the output from OpenCV into a format processable by the model.
-            data = Image.fromarray(data)
+            # We receive the image from the detection pod via REST API
+            image_as_array = np.array(data[0][0]).astype(np.uint8)
+            data = Image.fromarray(image_as_array)
             LOGGER.info('Finding ID {} ...'.format(data))
             input = torch.unsqueeze(self.transform(data), 0)
             input = input.to(self.device)
@@ -112,7 +112,7 @@ class Estimator:
                     query_feat = self.model(input)
                     LOGGER.info(f"Tensor with features: {query_feat}")
 
-            LOGGER.info(f"Image size: {raw_imgsize} - Tensor size {sys.getsizeof(query_feat.storage())}")
+            LOGGER.info(f"Image size: {image_as_array.nbytes} - Tensor size {sys.getsizeof(query_feat.storage())}")
             # It returns a tensor, it should be transformed into a list before TX
             return self.convert_to_list(query_feat)
 
