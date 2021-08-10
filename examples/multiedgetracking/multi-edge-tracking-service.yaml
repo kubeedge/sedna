@@ -47,9 +47,9 @@ spec:
       spec:
         nodeName: "fraprigel00001"
         containers:
-        - image: kubeedge/sedna-example-multi-edge-detection:v0.3.0
+        - image: kubeedge/sedna-example-multi-edge-tracking-detection:v0.3.0
           imagePullPolicy: IfNotPresent
-          name:  mot
+          name:  detection
           env:  # user defined environments
           - name: input_shape
             value: "640"
@@ -58,22 +58,22 @@ spec:
           - name: "model_classifier"
             value: "/home/v00609018/.cache/torch/hub/checkpoints/resnet50-0676ba61.pth"
           - name: "model_weights"
-            value: "/data/yolo_lfs/runs/train/exp4/weights/best.pt"
+            value: "/home/data/data/yolo_lfs/runs/train/exp4/weights/best.pt"
           resources:  # user defined resources
             requests:
               memory: 64M
               cpu: 100m
             limits:
               memory: 2Gi
-          volumeMounts:
-            - name: outputdir
-              mountPath: /data/yolo_lfs/
-        volumes:   # user defined volumes
-          - name: outputdir
-            hostPath:
-              # user must create the directory in host
-              path: /data/yolo_lfs/
-              type: Directory
+        #   volumeMounts:
+        #     - name: outputdir
+        #       mountPath: /data/yolo_lfs/
+        # volumes:   # user defined volumes
+        #   - name: outputdir
+        #     hostPath:
+        #       # user must create the directory in host
+        #       path: /data/yolo_lfs/
+        #       type: Directory
 
 
   reIDWorker:

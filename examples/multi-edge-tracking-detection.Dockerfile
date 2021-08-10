@@ -24,6 +24,7 @@ RUN pip install torch torchvision tqdm pillow opencv-python pytorch-ignite
 COPY examples/multiedgetracking/detection/edge_worker.py  /home/work/edge_worker.py
 COPY examples/multiedgetracking/detection/main.py  /home/work/detection.py
 COPY examples/multiedgetracking/detection/utils.py  /home/work/utils.py
-
+COPY examples/multiedgetracking/detection/models /home/work/models
+COPY examples/multiedgetracking/detection/utils /home/work/utils
 ENTRYPOINT ["python"]
-CMD ["detection.py", "--config_file=efficientnetv2_market"]
+CMD ["detection.py"]

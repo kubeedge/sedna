@@ -35,7 +35,7 @@ class Estimator:
         # Initialize
         LOGGER.info("Starting object detection module")
         self.device = self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.classify = False
+        self.model = None
         self.weights = model_weights
         self.stride, self.names = 64, [f'class{i}' for i in range(1000)]  # assign defaults
         self.img_size = int(image_size)

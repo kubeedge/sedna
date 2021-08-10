@@ -51,7 +51,6 @@ import (
 
 const (
 	MultiObjectTracking = "L2Edge"
-	FE                  = "L1Edge"
 	ReID                = "Cloud"
 	reIDPort            = 5000
 	FEPort              = 6000
@@ -412,18 +411,8 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
 	reIDPort, err := CreateKubernetesService(mc.kubeClient, service, ReID, reIDPort, reIDIP)
 
-	// create k8s service for l1-edgePod
-	var FEPort int32 = 0
-	if len(service.Spec.MultiObjectTrackingWorker) > 1 {
-		FEIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.MultiObjectTrackingWorker[1].Template.Name)
-		FEPort, err = CreateKubernetesService(mc.kubeClient, service, FE, FEPort, FEIP)
-		if err != nil {
-			return active, err
-		}
-	}
-
 	// create edge worker
-	err = mc.createEdgeWorker(service, reIDPort, FEPort)
+	err = mc.createEdgeWorker(service, reIDPort)
 	if err != nil {
 		return active, err
 	}
@@ -476,13 +465,14 @@ func (mc *MultiEdgeTrackingServiceController) createCloudWorker(service *sednav1
 	return err
 }
 
-func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.MultiEdgeTrackingService, reIDPort int32, FEPort int32) error {
+func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.MultiEdgeTrackingService, reIDPort int32) error {
 	// deliver pod for edgeworker
 	ctx := context.Background()
 	edgeWorker := service.Spec.MultiObjectTrackingWorker
 	var perr error
 
-	for _, edgeNode := range edgeWorker {
+	for idx, edgeNode := range edgeWorker {
+		klog.Infof("Creating edge node %s", edgeNode.Template.Spec.NodeName)
 
 		edgeModelName := edgeNode.Model.Name
 		edgeModel, err := mc.client.Models(service.Namespace).Get(ctx, edgeModelName, metav1.GetOptions{})
@@ -506,9 +496,12 @@ func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.
 			return fmt.Errorf("failed to get node ip: %w", err)
 		}
 
+		// The l2-edgenode has to be created before hand. So we skip this function in the first iteration of the loop.
+		// create k8s service for l1-edgePod
 		var FEIP string = ""
-		if len(service.Spec.MultiObjectTrackingWorker) > 1 {
-			FEIP, err = GetNodeIPByName(mc.kubeClient, service.Spec.MultiObjectTrackingWorker[1].Template.Name)
+		if len(service.Spec.MultiObjectTrackingWorker) > 1 && idx > 0 {
+			klog.Info("Finding node hosting the feature extraction endpoint")
+			FEIP, err = GetNodeIPByName(mc.kubeClient, service.Spec.MultiObjectTrackingWorker[0].Template.Spec.NodeName)
 			if err != nil {
 				return fmt.Errorf("failed to get node ip: %w", err)
 			}
