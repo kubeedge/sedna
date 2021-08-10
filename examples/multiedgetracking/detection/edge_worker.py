@@ -38,7 +38,7 @@ class Estimator:
         self.classify = False
         self.weights = model_weights
         self.stride, self.names = 64, [f'class{i}' for i in range(1000)]  # assign defaults
-        self.img_size = image_size
+        self.img_size = int(image_size)
     
     def load(self, model_url="", mmodel_name=None, **kwargs):
         LOGGER.info("Loading model")
