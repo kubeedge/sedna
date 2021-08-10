@@ -196,7 +196,7 @@ class ObjectDetector(JobBase):
             self.log.info("Estimator -> Evaluating model ..")
             self.estimator.evaluate()
 
-        self.edge = FEServer(service_name=self.job_name,
+        self.edge = FEServer(model=self, service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
     def start(self):
         if callable(self.estimator):
