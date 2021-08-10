@@ -208,7 +208,7 @@ class ObjectDetector(JobBase):
                 ClassType.CALLBACK, post_process)
 
         with FTimer(f"{os.uname()[1]}_object_detection"):
-             detection_result = self.estimator.predict(data, **kwargs)
+            detection_result = self.estimator.predict(data, **kwargs)
 
         if callback_func:
             detection_result = callback_func(detection_result)
@@ -216,7 +216,7 @@ class ObjectDetector(JobBase):
         self.lc_reporter.update_for_edge_inference()
 
         if detection_result != None:
-            with FTimer(f"upload_plus_reid"):
+            with FTimer(f"upload_plus_feature_extraction"):
                 cres = self.edge.feature_extraction(detection_result, post_process=post_process, **kwargs)
 
         return [cres, detection_result]

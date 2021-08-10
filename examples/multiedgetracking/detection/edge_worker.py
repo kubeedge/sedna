@@ -53,11 +53,11 @@ class Estimator:
         LOGGER.info(f"Evaluating model")
         self.model.eval()
 
-    def predict(self, im0s, **kwargs):
+    def predict(self, data, **kwargs):
         # Padded resize
-        print(im0s.shape)
+        print(data.shape)
         LOGGER.info("Manipulating source image")
-        img = letterbox(im0s, self.img_size, stride=self.stride)[0]
+        img = letterbox(data, self.img_size, stride=self.stride)[0]
 
         # Convert
         img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
@@ -84,15 +84,15 @@ class Estimator:
         # Second-stage classifier (optional)
         if self.classify:
             with FTimer("classify"):
-                pred = apply_classifier(pred, self.modelc, img, im0s)
+                pred = apply_classifier(pred, self.modelc, img, data)
 
         # # Process predictions
         s = ""
         for i, det in enumerate(pred):  # detections per image
-            imc = im0s.copy()
+            imc = data.copy()
             if len(det):
                 # Rescale boxes from img_size to im0 size
-                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0s.shape).round()
+                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], data.shape).round()
                                 
                 # Print results
                 for c in det[:, -1].unique():
@@ -103,8 +103,8 @@ class Estimator:
                 #for *xyxy, conf, cls in reversed(det):
                     #c = int(cls)  # integer class
                     #label = f'{self.names[c]} {conf:.2f}'
-                    #plot_one_box(xyxy, im0s, label=label, color=colors(c, True))
-                    #cv2.imwrite("test00.jpeg", im0s)
+                    #plot_one_box(xyxy, data, label=label, color=colors(c, True))
+                    #cv2.imwrite("test00.jpeg", data)
                     #save_one_box(xyxy, imc, file='test.jpg', BGR=True)
                 
                 # Write results
