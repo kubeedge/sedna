@@ -215,7 +215,7 @@ class ObjectDetector(JobBase):
 
         self.lc_reporter.update_for_edge_inference()
 
-        if detection_result != None:
+        if detection_result != None and len(detection_result) > 0:
             with FTimer(f"upload_plus_feature_extraction"):
                 cres = self.edge.feature_extraction(detection_result, post_process=post_process, **kwargs)
 

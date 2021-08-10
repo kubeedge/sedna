@@ -20,7 +20,7 @@ import numpy as np
 
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
-from sedna.common.log import LOGGER
+from sedna.common.log import LOGGER, Logger
 from utils.utils import *
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
@@ -31,12 +31,12 @@ image_size = Context.get_parameters('input_shape') # in pixels!
 
 class Estimator:
     def __init__(self):      
-
         # Initialize
         LOGGER.info("Starting object detection module")
         self.device = self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = None
         self.weights = model_weights
+        self.classify = False
         self.stride, self.names = 64, [f'class{i}' for i in range(1000)]  # assign defaults
         self.img_size = int(image_size)
     
@@ -88,6 +88,7 @@ class Estimator:
 
         # # Process predictions
         s = ""
+        bbs_list = []
         for i, det in enumerate(pred):  # detections per image
             imc = data.copy()
             if len(det):
@@ -108,11 +109,10 @@ class Estimator:
                     #save_one_box(xyxy, imc, file='test.jpg', BGR=True)
                 
                 # Write results
-                bbs_list = []
                 for conf in reversed(det):
                     bbs_list.append([imc, conf])
 
         #LOGGER.debug(bbs_list[0])
         #LOGGER.info(s)
-
-        return (bbs_list)
+        LOGGER.info(f"Found {len(bbs_list)} possible containers")
+        return bbs_list
