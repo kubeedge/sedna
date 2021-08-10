@@ -22,6 +22,7 @@ from sedna.backend.torch.nets.nn import Backbone
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
+from sedna.core.multi_edge_tracking import ObjectDetector
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
@@ -69,10 +70,34 @@ class Estimator:
     def convert_to_list(self, data):
         return data.numpy().tolist()
 
+    # def predict(self, data, **kwargs):
+    #     if len(data) == 0:
+    #         return []
+    #     else:
+    #         raw_imgsize = data.nbytes
+
+    #         # We currently fetch the images from a video stream opened with OpenCV.
+    #         # We need to convert the output from OpenCV into a format processable by the model.
+    #         data = Image.fromarray(data)
+    #         LOGGER.info('Finding ID {} ...'.format(data))
+    #         input = torch.unsqueeze(self.transform(data), 0)
+    #         input = input.to(self.device)
+
+    #         with FTimer(f"feature_extraction"):
+    #             with torch.no_grad():
+    #                 query_feat = self.model(input)
+    #                 LOGGER.info(f"Tensor with features: {query_feat}")
+
+    #         LOGGER.info(f"Image size: {raw_imgsize} - Tensor size {sys.getsizeof(query_feat.storage())}")
+    #         # It returns a tensor, it should be transformed into a list before TX
+    #         return self.convert_to_list(query_feat)
+
     def predict(self, data, **kwargs):
         if len(data) == 0:
             return []
         else:
+            # TEST: Trying to get first element in the list of bboxes
+            data = data[0][0]
             raw_imgsize = data.nbytes
 
             # We currently fetch the images from a video stream opened with OpenCV.
@@ -90,3 +115,7 @@ class Estimator:
             LOGGER.info(f"Image size: {raw_imgsize} - Tensor size {sys.getsizeof(query_feat.storage())}")
             # It returns a tensor, it should be transformed into a list before TX
             return self.convert_to_list(query_feat)
+
+# Starting the ReID module
+inference_instance = ObjectDetector(estimator=Estimator)
+inference_instance.start()

@@ -20,7 +20,7 @@ import numpy as np
 
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
-from sedna.common.log import LOGGER, Logger
+from sedna.common.log import LOGGER
 from utils.utils import *
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
@@ -110,7 +110,7 @@ class Estimator:
                 
                 # Write results
                 for conf in reversed(det):
-                    bbs_list.append([imc, conf])
+                    bbs_list.append([imc.tolist(), conf.numpy().tolist()])
 
         #LOGGER.debug(bbs_list[0])
         #LOGGER.info(s)
