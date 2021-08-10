@@ -4,26 +4,16 @@ Usage:
     $ python path/to/models/yolo.py --cfg yolov5s.yaml
 """
 
-import argparse
-import sys
 from copy import deepcopy
 from pathlib import Path
-
-FILE = Path(__file__).absolute()
-sys.path.append(FILE.parents[1].as_posix())  # add yolov5/ to path
 
 from models.common import *
 from models.experimental import *
 from utils.autoanchor import check_anchor_order
-from utils.general import make_divisible, check_file, set_logging
-from utils.plots import feature_visualization
-from utils.torch_utils import time_sync, fuse_conv_and_bn, model_info, scale_img, initialize_weights, \
-    select_device, copy_attr
+from utils.general import make_divisible
+from utils.torch_utils import time_sync, fuse_conv_and_bn, model_info, scale_img, initialize_weights, copy_attr
 
-try:
-    import thop  # for FLOPs computation
-except ImportError:
-    thop = None
+thop = None
 
 LOGGER = logging.getLogger(__name__)
 
@@ -153,8 +143,6 @@ class Model(nn.Module):
             x = m(x)  # run
             y.append(x if m.i in self.save else None)  # save output
 
-            if visualize:
-                feature_visualization(x, m.type, m.i, save_dir=visualize)
 
         if profile:
             LOGGER.info('%.1fms total' % sum(dt))
@@ -271,27 +259,3 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             ch = []
         ch.append(c2)
     return nn.Sequential(*layers), sorted(save)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--cfg', type=str, default='yolov5s.yaml', help='model.yaml')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    opt = parser.parse_args()
-    opt.cfg = check_file(opt.cfg)  # check file
-    set_logging()
-    device = select_device(opt.device)
-
-    # Create model
-    model = Model(opt.cfg).to(device)
-    model.train()
-
-    # Profile
-    # img = torch.rand(8 if torch.cuda.is_available() else 1, 3, 320, 320).to(device)
-    # y = model(img, profile=True)
-
-    # Tensorboard (not working https://github.com/ultralytics/yolov5/issues/2898)
-    # from torch.utils.tensorboard import SummaryWriter
-    # tb_writer = SummaryWriter('.')
-    # LOGGER.info("Run 'tensorboard --logdir=models' to view tensorboard at http://localhost:6006/")
-    # tb_writer.add_graph(torch.jit.trace(model, img, strict=False), [])  # add model graph
