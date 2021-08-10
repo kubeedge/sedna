@@ -121,6 +121,7 @@ class MultiObjectTracking(JobBase):
             self.log.info("Estimator -> Evaluating model ..")
             self.estimator.evaluate()
 
+        # The cloud node taking care of the reid step
         self.cloud = ReID(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
 
@@ -196,8 +197,10 @@ class ObjectDetector(JobBase):
             self.log.info("Estimator -> Evaluating model ..")
             self.estimator.evaluate()
 
-        self.edge = FEServer(model=self, service_name=self.job_name,
+        # The edge node in the next layer taking care of the feature extraction
+        self.edge = FE(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
+
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
