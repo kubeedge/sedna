@@ -14,6 +14,7 @@
 
 import sys
 import os
+from sedna.core.multi_edge_tracking.multi_edge_tracking import MultiObjectTracking
 import torch
 import torchvision.transforms as T
 from PIL import Image
@@ -23,7 +24,7 @@ from sedna.backend.torch.nets.nn import Backbone
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
-from sedna.core.multi_edge_tracking import ObjectDetector
+from sedna.core.multi_edge_tracking import MultiObjectTracking
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
@@ -98,8 +99,6 @@ class Estimator:
             return []
         else:
             # TEST: We get only the first element in the list of bboxes
-            # raw_imgsize = np.array(data)
-
             # We receive the image from the detection pod via REST API
             image_as_array = np.array(data[0][0]).astype(np.uint8)
             data = Image.fromarray(image_as_array)
@@ -117,5 +116,5 @@ class Estimator:
             return self.convert_to_list(query_feat)
 
 # Starting the ReID module
-inference_instance = ObjectDetector(estimator=Estimator)
+inference_instance = MultiObjectTracking(estimator=Estimator)
 inference_instance.start()
