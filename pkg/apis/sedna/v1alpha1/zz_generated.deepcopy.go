@@ -1290,7 +1290,6 @@ func (in *ReIDWorker) DeepCopyInto(out *ReIDWorker) {
 	*out = *in
 	out.Model = in.Model
 	in.Template.DeepCopyInto(&out.Template)
-	in.Replication.DeepCopyInto(&out.Replication)
 	return
 }
 

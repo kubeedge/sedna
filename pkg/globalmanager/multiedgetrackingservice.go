@@ -50,9 +50,11 @@ import (
 )
 
 const (
-	MultiObjectTracking = "Edge"
+	MultiObjectTracking = "L2Edge"
+	FE                  = "L1Edge"
 	ReID                = "Cloud"
 	reIDPort            = 5000
+	FEPort              = 6000
 )
 
 // MultiEdgeTrackingServicerKind contains the schema.GroupVersionKind for this controller type.
@@ -409,12 +411,16 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	//reIDIP, err := GetNodeIPByLabel(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeSelector, service.Namespace)
 	reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
 	reIDPort, err := CreateKubernetesService(mc.kubeClient, service, ReID, reIDPort, reIDIP)
+
+	// create k8s service for l1-edgePod
+	FEIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.MultiObjectTrackingWorker[1].Template.Name)
+	FEPort, err := CreateKubernetesService(mc.kubeClient, service, FE, FEPort, FEIP)
 	if err != nil {
 		return active, err
 	}
 
 	// create edge worker
-	err = mc.createEdgeWorker(service, reIDPort)
+	err = mc.createEdgeWorker(service, reIDPort, FEPort)
 	if err != nil {
 		return active, err
 	}
@@ -467,7 +473,7 @@ func (mc *MultiEdgeTrackingServiceController) createCloudWorker(service *sednav1
 	return err
 }
 
-func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.MultiEdgeTrackingService, reIDPort int32) error {
+func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.MultiEdgeTrackingService, reIDPort int32, FEPort int32) error {
 	// deliver pod for edgeworker
 	ctx := context.Background()
 	edgeWorker := service.Spec.MultiObjectTrackingWorker
@@ -492,6 +498,7 @@ func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.
 		// will support Spec.NodeSelector.
 		// get bigModelIP from nodeName in cloudWorker
 		reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
+		FEIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.MultiObjectTrackingWorker[1].Template.Name)
 		//reIDIP, err := GetNodeIPByLabel(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeSelector, service.Namespace)
 		if err != nil {
 			return fmt.Errorf("failed to get node ip: %w", err)
@@ -516,6 +523,8 @@ func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.
 
 			"REID_MODEL_BIND_IP":   reIDIP,
 			"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
+			"FE_MODEL_BIND_IP":     FEIP,
+			"FE_MODEL_BIND_PORT":   strconv.Itoa(int(FEPort)),
 
 			"LC_SERVER": mc.cfg.LC.Server,
 		}

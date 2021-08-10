@@ -16,5 +16,5 @@ class FE:
         """Transfer feature vector to FE worker"""
         json_data = deepcopy(kwargs)
         json_data.update({"data": x})
-        _url = f"{self.endpoint}/reid"
+        _url = f"{self.endpoint}/feature_extraction"
         return http_request(url=_url, method="POST", json=json_data)
