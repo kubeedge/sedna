@@ -16,7 +16,6 @@ from torch.cuda import amp
 
 from utils.datasets import exif_transpose, letterbox
 from utils.general import non_max_suppression, make_divisible, scale_coords, increment_path, xyxy2xywh, save_one_box
-from utils.plots import colors, plot_one_box
 from utils.torch_utils import time_sync
 
 LOGGER = logging.getLogger(__name__)
@@ -316,8 +315,7 @@ class Detections:
                         label = f'{self.names[int(cls)]} {conf:.2f}'
                         if crop:
                             save_one_box(box, im, file=save_dir / 'crops' / self.names[int(cls)] / self.files[i])
-                        else:  # all others
-                            plot_one_box(box, im, label=label, color=colors(cls))
+
             else:
                 str += '(no detections)'
 
