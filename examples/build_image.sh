@@ -64,15 +64,15 @@ dockerfiles_others=(
 case $type in
 
   cloud)
-    dockerfiles=$dockerfiles_cloud
+    dockerfiles=${dockerfiles_cloud[@]}
     ;;
 
   edge)
-    dockerfiles=$dockerfiles_edge
+    dockerfiles=${dockerfiles_edge[@]}
     ;;
 
   others)
-    dockerfiles=$dockerfiles_others
+    dockerfiles=${dockerfiles_others[@]}
     ;;
 
   all | *)
@@ -81,6 +81,7 @@ case $type in
 esac
 
 for dockerfile in ${dockerfiles[@]}; do
+  echo "Building $dockerfile" 
   example_name=${dockerfile/.Dockerfile}
   docker build -f $dockerfile -t ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} --label sedna=examples ..
 done
