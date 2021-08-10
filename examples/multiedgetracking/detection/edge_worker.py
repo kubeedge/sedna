@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import os
 
 import torch
 import numpy as np
 
-from .utils import *
-
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
+from utils.utils import *
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
