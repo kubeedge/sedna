@@ -85,10 +85,13 @@ class MultiObjectTracking(JobBase):
         self.log.info("Loading MultiObjectTracking module")
 
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
-        self.local_ip = get_host_ip()
-        self.remote_ip = self.get_parameters(
-            "REID_MODEL_BIND_IP", self.local_ip)
-        self.port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
+        # Port and IP of the service this pod will host (local)
+        self.local_ip = self.get_parameters("FE_MODEL_BIND_IP", get_host_ip())
+        self.local_port = self.get_parameters("FE_MODEL_BIND_PORT", get_host_ip())
+
+        # Port and IP of the service this pod will contact (remote)
+        self.remote_ip = self.get_parameters("REID_MODEL_BIND_IP", self.local_ip)
+        self.remote_port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
 
         report_msg = {
             "name": self.worker_name,
@@ -123,7 +126,20 @@ class MultiObjectTracking(JobBase):
 
         # The cloud node taking care of the reid step
         self.cloud = ReID(service_name=self.job_name,
-                                 host=self.remote_ip, port=self.port)
+                                 host=self.remote_ip, port=self.remote_port)
+
+    def start(self):
+        if callable(self.estimator):
+            self.estimator = self.estimator()
+        # The cloud instance only runs a distance function to do the ReID
+        # We don't load any model at this stage
+        # if not os.path.exists(self.model_path):
+        #     raise FileExistsError(f"{self.model_path} miss")
+        # else:
+        #     # self.estimator.load(self.model_path)
+        app_server = FEServer(model=self, servername=self.job_name,
+                                     host=self.local_ip, http_port=self.local_port)
+        app_server.start()
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
@@ -200,19 +216,6 @@ class ObjectDetector(JobBase):
         # The edge node in the next layer taking care of the feature extraction
         self.edge = FE(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
-
-    def start(self):
-        if callable(self.estimator):
-            self.estimator = self.estimator()
-        # The cloud instance only runs a distance function to do the ReID
-        # We don't load any model at this stage
-        # if not os.path.exists(self.model_path):
-        #     raise FileExistsError(f"{self.model_path} miss")
-        # else:
-        #     # self.estimator.load(self.model_path)
-        app_server = FEServer(model=self, servername=self.job_name,
-                                     host=self.local_ip, http_port=self.port)
-        app_server.start()
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
