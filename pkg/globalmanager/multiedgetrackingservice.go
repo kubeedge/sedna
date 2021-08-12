@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strconv"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -525,8 +524,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 		"SERVICE_NAME": service.Name,
 		"WORKER_NAME":  "feworker-" + utilrand.String(5),
 
-		"REID_MODEL_BIND_IP":   reidServiceURL,
-		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
+		"REID_MODEL_BIND_URL": reidServiceURL,
 
 		"LC_SERVER": mc.cfg.LC.Server,
 	}
@@ -556,8 +554,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 		"SERVICE_NAME": service.Name,
 		"WORKER_NAME":  "motworker-" + utilrand.String(5),
 
-		"FE_MODEL_BIND_IP":   FEServiceURL,
-		"FE_MODEL_BIND_PORT": strconv.Itoa(int(FEPort)),
+		"FE_MODEL_BIND_URL": FEServiceURL,
 
 		"LC_SERVER": mc.cfg.LC.Server,
 	}

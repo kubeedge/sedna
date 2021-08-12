@@ -23,7 +23,7 @@ spec:
               - name: input_shape
                 value: "640"
               - name: "video_url"
-                value: "rtsp://localhost/video"
+                value: "rtsp://172.17.0.1/video"
               - name: "model_classifier"
                 value: "/home/v00609018/.cache/torch/hub/checkpoints/resnet50-0676ba61.pth"
               - name: "model_weights"
@@ -65,8 +65,6 @@ spec:
             env:  # user defined environments
             - name: input_shape
               value: "256,128"
-            - name: "video_url"
-              value: "rtsp://localhost/video"
             - name: "model_name"
               value: "efficientnet_v2"
             - name: "model_path"

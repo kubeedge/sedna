@@ -88,11 +88,11 @@ class MultiObjectTracking(JobBase):
 
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         # Port and IP of the service this pod will host (local)
-        self.local_ip = self.get_parameters("FE_MODEL_BIND_IP", get_host_ip())
+        self.local_ip = self.get_parameters(get_host_ip())
         self.local_port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
 
         # Port and IP of the service this pod will contact (remote)
-        self.remote_ip = self.get_parameters("REID_MODEL_BIND_IP", self.local_ip)
+        self.remote_ip = self.get_parameters("REID_MODEL_BIND_URL", self.local_ip)
         self.remote_port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
 
         report_msg = {
@@ -180,8 +180,9 @@ class ObjectDetector(JobBase):
         self.log.info("Loading ObjectDetector module")
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         self.local_ip = get_host_ip()
+        
         self.remote_ip = self.get_parameters(
-            "FE_MODEL_BIND_IP", self.local_ip)
+            "FE_MODEL_BIND_URL", self.local_ip)
         self.port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
 
         report_msg = {
