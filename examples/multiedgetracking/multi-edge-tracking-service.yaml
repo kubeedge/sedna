@@ -71,13 +71,22 @@ spec:
               - name: "model_classifier"
                 value: "/home/v00609018/.cache/torch/hub/checkpoints/resnet50-0676ba61.pth"
               - name: "model_weights"
-                value: "/home/data/data/yolo_lfs/runs/train/exp4/weights/best.pt"
+                value: "/data/yolo_lfs/runs/train/exp4/weights/best.pt"
               resources:  # user defined resources
                 requests:
                   memory: 64M
                   cpu: 100m
                 limits:
                   memory: 2Gi
+                  volumeMounts:
+              - name: outputdir
+                mountPath: /data/yolo_lfs/
+            volumes:   # user defined volumes
+            - name: outputdir
+              hostPath:
+                # user must create the directory in host
+                path: /data/yolo_lfs
+                type: Directory
 
   reIDDeploy:
     spec:

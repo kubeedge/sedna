@@ -19,6 +19,7 @@ package globalmanager
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -379,7 +380,7 @@ func (mc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 		*sharedMultiEdgeTrackingService.Spec.FEDeploy.Spec.Replicas +
 		*sharedMultiEdgeTrackingService.Spec.ReIDDeploy.Spec.Replicas
 
-	var neededDeploymentCounts int32 = int32(len(sharedMultiEdgeTrackingService.ManagedFields))
+	var neededDeploymentCounts int32 = int32(reflect.TypeOf(sednav1.MultiEdgeTrackingServiceSpec{}).NumField())
 
 	// first start
 	if MultiEdgeTrackingService.Status.StartTime == nil {
@@ -539,7 +540,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activeDeployments++
 
 	//STEP 4 - Create edgemesh service for FE
-	FEServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, ReIDWoker, reIDPort)
+	FEServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, FEWorker, reIDPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}
@@ -547,16 +548,16 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activePods++
 
 	// ---- //
-	workerParam.workerType = MultiObjectTrackingWorker
+
 	// STEP 0 - Create parameters that will be created by the deployment
-	workerParam.workerType = FEWorker
+	workerParam.workerType = MultiObjectTrackingWorker
 	workerParam.env = map[string]string{
 		"NAMESPACE":    service.Namespace,
 		"SERVICE_NAME": service.Name,
-		"WORKER_NAME":  "feworker-" + utilrand.String(5),
+		"WORKER_NAME":  "motworker-" + utilrand.String(5),
 
-		"REID_MODEL_BIND_IP":   FEServiceURL,
-		"REID_MODEL_BIND_PORT": strconv.Itoa(int(FEPort)),
+		"FE_MODEL_BIND_IP":   FEServiceURL,
+		"FE_MODEL_BIND_PORT": strconv.Itoa(int(FEPort)),
 
 		"LC_SERVER": mc.cfg.LC.Server,
 	}
@@ -570,7 +571,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activeDeployments++
 
 	//STEP 6 - Create edgemesh service for OD
-	_, err = CreateEdgeMeshService(mc.kubeClient, service, ReIDWoker, reIDPort)
+	_, err = CreateEdgeMeshService(mc.kubeClient, service, MultiObjectTrackingWorker, 7000)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}

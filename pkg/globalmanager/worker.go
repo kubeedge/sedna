@@ -224,8 +224,10 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 	deployment.Spec.Template.Labels["app"] = "met"
 	deployment.Spec.Selector.MatchLabels["app"] = "met"
 
-	deployment.Spec.Template.Spec.Containers[0].Ports[0].HostPort = port
-	deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = port
+	if deployment.Spec.Template.Spec.Containers[0].Ports != nil {
+		deployment.Spec.Template.Spec.Containers[0].Ports[0].HostPort = port
+		deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = port
+	}
 }
 
 //by EnfangCui
