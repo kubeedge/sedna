@@ -120,7 +120,7 @@ class MultiObjectTracking(JobBase):
         # else:
             # We are using a PyTorch model which requires explicit weights loading.
         self.log.info("Estimator -> Loading model and weights")
-        self.estimator.load(self.model_path)
+        self.estimator.load()
         #self.estimator.load_weights()
 
         self.log.info("Estimator -> Evaluating model ..")
@@ -211,7 +211,8 @@ class ObjectDetector(JobBase):
         #     # We are using a PyTorch model which requires explicit weights loading.
         #     self.log.info("Estimator -> Loading model and weights")
         
-        self.estimator.load(self.model_path)
+        # We should pass the model path but, because it's in the container logic, we don't pass anything.
+        self.estimator.load()
 
         self.log.info("Estimator -> Evaluating model ..")
         self.estimator.evaluate()
