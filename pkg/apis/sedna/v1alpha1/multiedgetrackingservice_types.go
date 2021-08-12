@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,30 +38,22 @@ type MultiEdgeTrackingService struct {
 
 // MultiEdgeTrackingSpec is a description of a MultiEdgeTracking
 type MultiEdgeTrackingServiceSpec struct {
-	MultiObjectTrackingWorker []MultiObjectTrackingWorker `json:"multiObjectTrackingWorker"`
-	ReIDWorker                ReIDWorker                  `json:"reIDWorker"`
+	MultiObjectTrackingDeploy MultiObjectTrackingDeploy `json:"motDeploy"`
+	FEDeploy                  FEDeploy                  `json:"feDeploy"`
+	ReIDDeploy                ReIDDeploy                `json:"reIDDeploy"`
 }
 
 // EdgeWorker describes the data a edge worker should have
-type MultiObjectTrackingWorker struct {
-	Model    MultiObjectTrackingModel `json:"model"`
-	Template v1.PodTemplateSpec       `json:"template"`
+type MultiObjectTrackingDeploy struct {
+	Spec appsv1.DeploymentSpec `json:"spec"`
 }
 
-// CloudWorker describes the data a cloud worker should have
-type ReIDWorker struct {
-	Model    ReIDModel          `json:"model,omitempty"`
-	Template v1.PodTemplateSpec `json:"template"`
+type FEDeploy struct {
+	Spec appsv1.DeploymentSpec `json:"spec"`
 }
 
-// SmallModel describes the small model
-type MultiObjectTrackingModel struct {
-	Name string `json:"name"`
-}
-
-// BigModel describes the big model
-type ReIDModel struct {
-	Name string `json:"name"`
+type ReIDDeploy struct {
+	Spec appsv1.DeploymentSpec `json:"spec"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

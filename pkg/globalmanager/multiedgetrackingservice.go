@@ -22,16 +22,19 @@ import (
 	"strconv"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -50,10 +53,19 @@ import (
 )
 
 const (
-	MultiObjectTracking = "L2Edge"
-	ReID                = "Cloud"
-	reIDPort            = 5000
-	FEPort              = 6000
+	MultiObjectTrackingWorker = "l1-edge"
+	FEWorker                  = "l2-edge"
+	ReIDWoker                 = "cloud"
+	reIDPort                  = 5000
+	FEPort                    = 6000
+)
+
+const (
+	// Name is this controller name
+	Name = "MultiEdgeTracking"
+
+	// KindName is the kind name of CR this controller controls
+	KindName = "MultiEdgeTrackingService"
 )
 
 // MultiEdgeTrackingServicerKind contains the schema.GroupVersionKind for this controller type.
@@ -75,12 +87,21 @@ type MultiEdgeTrackingServiceController struct {
 	// A store of service
 	serviceLister sednav1listers.MultiEdgeTrackingServiceLister
 
+	// deploymentsSynced returns true if the deployment store has been synced at least once.
+	deploymentsSynced cache.InformerSynced
+	// A store of deployment
+	deploymentsLister appslisters.DeploymentLister
+
+	enqueueDeployment func(deployment *appsv1.Deployment)
+
 	// MultiEdgeTrackingService that need to be updated
 	queue workqueue.RateLimitingInterface
 
 	recorder record.EventRecorder
 
 	cfg *config.ControllerConfig
+
+	sendToEdgeFunc func(nodeName string, eventType watch.EventType, obj interface{}) error
 }
 
 // Start starts the main goroutine responsible for watching and syncing services.
@@ -108,6 +129,91 @@ func (mc *MultiEdgeTrackingServiceController) Start() error {
 		<-stopCh
 	}()
 	return nil
+}
+
+/*
+
+DEPLOYMENT HOOKS
+
+*/
+
+func (mc *MultiEdgeTrackingServiceController) enqueueByDeployment(deployment *appsv1.Deployment) {
+	controllerRef := metav1.GetControllerOf(deployment)
+
+	klog.Info("Deployment enqueued %w", deployment.Kind)
+
+	if controllerRef == nil {
+		return
+	}
+
+	if controllerRef.Kind != MultiEdgeTrackingServiceKind.Kind {
+		return
+	}
+
+	service, err := mc.serviceLister.MultiEdgeTrackingServices(deployment.Namespace).Get(controllerRef.Name)
+	if err != nil {
+		return
+	}
+
+	if service.UID != controllerRef.UID {
+		return
+	}
+
+	mc.enqueueController(service, true)
+}
+
+func (mc *MultiEdgeTrackingServiceController) addDeployment(obj interface{}) {
+	deployment := obj.(*appsv1.Deployment)
+	mc.enqueueByDeployment(deployment)
+}
+
+//deleteDeployment enqueues the ObjectSearchService obj When a deleteDeployment is deleted
+func (mc *MultiEdgeTrackingServiceController) deleteDeployment(obj interface{}) {
+	deployment, ok := obj.(*appsv1.Deployment)
+
+	// comment from https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/deployment/deployment_controller.go
+	if !ok {
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			klog.Warningf("couldn't get object from tombstone %+v", obj)
+			return
+		}
+		deployment, ok = tombstone.Obj.(*appsv1.Deployment)
+		if !ok {
+			klog.Warningf("tombstone contained object that is not a Deployment %+v", obj)
+			return
+		}
+	}
+	mc.enqueueByDeployment(deployment)
+}
+
+// When a deployment is updated, figure out what object search service manage it and wake them up.
+func (mc *MultiEdgeTrackingServiceController) updateDeployment(old, cur interface{}) {
+	oldD := old.(*appsv1.Deployment)
+	curD := cur.(*appsv1.Deployment)
+	// no deployment update, no queue
+	if curD.ResourceVersion == oldD.ResourceVersion {
+		return
+	}
+
+	mc.addDeployment(curD)
+}
+
+// obj could be an *sednav1.ObjectSearchService, or a DeletionFinalStateUnknown marker item,
+// immediate tells the controller to update the status right away, and should
+// happen ONLY when there was a successful pod run.
+func (mc *MultiEdgeTrackingServiceController) enqueueController(obj interface{}, immediate bool) {
+	key, err := k8scontroller.KeyFunc(obj)
+	if err != nil {
+		klog.Warningf("Couldn't get key for object %+v: %v", obj, err)
+		return
+	}
+
+	backoff := time.Duration(0)
+	if !immediate {
+		backoff = getBackoff(mc.queue, key)
+	}
+	mc.queue.AddAfter(key, backoff)
 }
 
 // enqueueByPod enqueues the jointInferenceService object of the specified pod.
@@ -188,23 +294,6 @@ func (mc *MultiEdgeTrackingServiceController) deletePod(obj interface{}) {
 	mc.enqueueByPod(pod, true)
 }
 
-// obj could be an *sednav1.JointInferenceService, or a DeletionFinalStateUnknown marker item,
-// immediate tells the controller to update the status right away, and should
-// happen ONLY when there was a successful pod run.
-func (mc *MultiEdgeTrackingServiceController) enqueueController(obj interface{}, immediate bool) {
-	key, err := k8scontroller.KeyFunc(obj)
-	if err != nil {
-		klog.Warningf("Couldn't get key for object %+v: %v", obj, err)
-		return
-	}
-
-	backoff := time.Duration(0)
-	if !immediate {
-		backoff = getBackoff(mc.queue, key)
-	}
-	mc.queue.AddAfter(key, backoff)
-}
-
 // worker runs a worker thread that just dequeues items, processes them, and marks them done.
 // It enforces that the sync is never invoked concurrently with the same key.
 func (mc *MultiEdgeTrackingServiceController) worker() {
@@ -270,6 +359,7 @@ func (mc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 
 	selector, _ := GenerateSelector(&MultiEdgeTrackingService)
 	pods, err := mc.podStore.Pods(MultiEdgeTrackingService.Namespace).List(selector)
+	deployment, err := mc.deploymentsLister.Deployments(MultiEdgeTrackingService.Namespace).List(selector)
 
 	if err != nil {
 		return false, err
@@ -279,17 +369,25 @@ func (mc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 
 	latestConditionLen := len(MultiEdgeTrackingService.Status.Conditions)
 
-	active := calcActivePodCount(pods)
-	var failed int32 = 0
+	activePods := calcActivePodCount(pods)
+	activeDeployments := calcActiveDeploymentCount(deployment)
+
+	var failedPods, failedDeployment int32 = 0, 0
 	// neededCounts requires that N pods should be created successfully
 	// N is given by the sum of (# edge pods) + (cloud pod)
-	var neededCounts int32 = int32(len(sharedMultiEdgeTrackingService.Spec.MultiObjectTrackingWorker)) + 1
-	// jointinferenceservice first start
+	var neededPodCounts int32 = *sharedMultiEdgeTrackingService.Spec.MultiObjectTrackingDeploy.Spec.Replicas +
+		*sharedMultiEdgeTrackingService.Spec.FEDeploy.Spec.Replicas +
+		*sharedMultiEdgeTrackingService.Spec.ReIDDeploy.Spec.Replicas
+
+	var neededDeploymentCounts int32 = int32(len(sharedMultiEdgeTrackingService.ManagedFields))
+
+	// first start
 	if MultiEdgeTrackingService.Status.StartTime == nil {
 		now := metav1.Now()
 		MultiEdgeTrackingService.Status.StartTime = &now
 	} else {
-		failed = neededCounts - active
+		failedPods = neededPodCounts - activePods
+		failedDeployment = neededDeploymentCounts - activeDeployments
 	}
 
 	var manageServiceErr error
@@ -308,8 +406,9 @@ func (mc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 	var reason string
 	var message string
 
-	if failed > 0 {
+	if failedPods > 0 || failedDeployment > 0 {
 		serviceFailed = true
+		// TODO: Split code to handle deployment failure separately
 		// TODO: get the failed worker, and knows that which worker fails, edge inference worker or cloud inference worker
 		reason = "workerFailed"
 		message = "the worker of MultiEdgeTrackingService failed"
@@ -317,13 +416,14 @@ func (mc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 		mc.recorder.Event(&MultiEdgeTrackingService, v1.EventTypeWarning, reason, message)
 	} else {
 		if len(pods) == 0 {
-			active, manageServiceErr = mc.createWorkers(&MultiEdgeTrackingService)
+			activePods, activeDeployments, manageServiceErr = mc.createWorkers(&MultiEdgeTrackingService)
 		}
 		if manageServiceErr != nil {
 			serviceFailed = true
 			message = error.Error(manageServiceErr)
 			newCondtionType = sednav1.MultiEdgeTrackingServiceCondFailed
-			failed = neededCounts - active
+			failedPods = neededPodCounts - activePods
+			failedDeployment = neededDeploymentCounts - activeDeployments
 		} else {
 			// TODO: handle the case that the pod phase is PodSucceeded
 			newCondtionType = sednav1.MultiEdgeTrackingServiceCondRunning
@@ -337,9 +437,9 @@ func (mc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 	forget := false
 
 	// no need to update the MultiEdgeTrackingService if the status hasn't changed since last time
-	if MultiEdgeTrackingService.Status.Active != active || MultiEdgeTrackingService.Status.Failed != failed || len(MultiEdgeTrackingService.Status.Conditions) != latestConditionLen {
-		MultiEdgeTrackingService.Status.Active = active
-		MultiEdgeTrackingService.Status.Failed = failed
+	if MultiEdgeTrackingService.Status.Active != activePods || MultiEdgeTrackingService.Status.Failed != failedPods || len(MultiEdgeTrackingService.Status.Conditions) != latestConditionLen {
+		MultiEdgeTrackingService.Status.Active = activePods
+		MultiEdgeTrackingService.Status.Failed = failedPods
 
 		if err := mc.updateStatus(&MultiEdgeTrackingService); err != nil {
 			return forget, err
@@ -394,157 +494,201 @@ func isMultiEdgeTrackingServiceFinished(j *sednav1.MultiEdgeTrackingService) boo
 	return false
 }
 
-func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.MultiEdgeTrackingService) (active int32, err error) {
-	active = 0
-
-	// create cloud worker
-	err = mc.createCloudWorker(service)
-	if err != nil {
-		return active, err
-	}
-	active++
-
-	// create k8s service for cloudPod
-	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
-	// will support Spec.NodeSelector.
-	//reIDIP, err := GetNodeIPByLabel(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeSelector, service.Namespace)
-	reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
-	reIDPort, err := CreateKubernetesService(mc.kubeClient, service, ReID, reIDPort, reIDIP)
-
-	// create edge worker
-	err = mc.createEdgeWorker(service, reIDPort)
-	if err != nil {
-		return active, err
-	}
-	active++
-
-	return active, err
-}
-
-func (mc *MultiEdgeTrackingServiceController) createCloudWorker(service *sednav1.MultiEdgeTrackingService) error {
-	// deliver pod for cloudworker
-	cloudModelName := service.Spec.ReIDWorker.Model.Name
-	cloudModel, err := mc.client.Models(service.Namespace).Get(context.Background(), cloudModelName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get cloud model %s: %w",
-			cloudModelName, err)
-	}
+func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.MultiEdgeTrackingService) (activePods int32, activeDeployments int32, err error) {
+	activePods = 0
+	activeDeployments = 0
 
 	var workerParam WorkerParam
+	workerParam.workerType = ReIDWoker
 
-	secretName := cloudModel.Spec.CredentialName
-	var modelSecret *v1.Secret
-	if secretName != "" {
-		modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	// STEP 1 - Create ReID deployment AND related pods (as part of the deployment creation)
+	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.ReIDDeploy.Spec, &workerParam, reIDPort)
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
 	}
-	workerParam.mounts = append(workerParam.mounts, WorkerMount{
-		URL: &MountURL{
-			URL:                   cloudModel.Spec.URL,
-			Secret:                modelSecret,
-			DownloadByInitializer: true,
-		},
-		Name:    "model",
-		EnvName: "MODEL_URL",
-	})
+	activeDeployments++
 
+	//STEP 2 - Create edgemesh service for ReID
+	reidServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, ReIDWoker, reIDPort)
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
+	}
+
+	activePods++
+
+	// ---- //
+	// STEP 0 - Create parameters that will be created by the deployment
+	workerParam.workerType = FEWorker
 	workerParam.env = map[string]string{
 		"NAMESPACE":    service.Namespace,
 		"SERVICE_NAME": service.Name,
-		"WORKER_NAME":  "cloudworker-" + utilrand.String(5),
+		"WORKER_NAME":  "feworker-" + utilrand.String(5),
 
+		"REID_MODEL_BIND_IP":   reidServiceURL,
 		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
+
+		"LC_SERVER": mc.cfg.LC.Server,
+	}
+	workerParam.hostNetwork = true
+
+	// STEP 3 - Create FE deployment AND related pods (as part of the deployment creation)
+	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
+	}
+	activeDeployments++
+
+	//STEP 4 - Create edgemesh service for FE
+	FEServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, ReIDWoker, reIDPort)
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}
 
-	workerParam.workerType = ReID
+	activePods++
 
-	// create cloud pod
-	_, err = createPodWithTemplate(mc.kubeClient,
-		service,
-		&service.Spec.ReIDWorker.Template,
-		&workerParam)
-	return err
-}
+	// ---- //
+	workerParam.workerType = MultiObjectTrackingWorker
+	// STEP 0 - Create parameters that will be created by the deployment
+	workerParam.workerType = FEWorker
+	workerParam.env = map[string]string{
+		"NAMESPACE":    service.Namespace,
+		"SERVICE_NAME": service.Name,
+		"WORKER_NAME":  "feworker-" + utilrand.String(5),
 
-func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.MultiEdgeTrackingService, reIDPort int32) error {
-	// deliver pod for edgeworker
-	ctx := context.Background()
-	edgeWorker := service.Spec.MultiObjectTrackingWorker
-	var perr error
+		"REID_MODEL_BIND_IP":   FEServiceURL,
+		"REID_MODEL_BIND_PORT": strconv.Itoa(int(FEPort)),
 
-	for idx, edgeNode := range edgeWorker {
-		klog.Infof("Creating edge node %s", edgeNode.Template.Spec.NodeName)
-
-		edgeModelName := edgeNode.Model.Name
-		edgeModel, err := mc.client.Models(service.Namespace).Get(ctx, edgeModelName, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to get edge model %s: %w",
-				edgeModelName, err)
-		}
-
-		secretName := edgeModel.Spec.CredentialName
-		var modelSecret *v1.Secret
-		if secretName != "" {
-			modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
-		}
-
-		// FIXME(llhuii): only the case that Spec.NodeName specified is support,
-		// will support Spec.NodeSelector.
-		// get bigModelIP from nodeName in cloudWorker
-		//reIDIP, err := GetNodeIPByLabel(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeSelector, service.Namespace)
-		reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
-		if err != nil {
-			return fmt.Errorf("failed to get node ip: %w", err)
-		}
-
-		// The l2-edgenode has to be created before hand. So we skip this function in the first iteration of the loop.
-		// create k8s service for l1-edgePod
-		var FEIP string = ""
-		if len(service.Spec.MultiObjectTrackingWorker) > 1 && idx > 0 {
-			klog.Info("Finding node hosting the feature extraction endpoint")
-			FEIP, err = GetNodeIPByName(mc.kubeClient, service.Spec.MultiObjectTrackingWorker[0].Template.Spec.NodeName)
-			if err != nil {
-				return fmt.Errorf("failed to get node ip: %w", err)
-			}
-		}
-
-		var workerParam WorkerParam
-
-		workerParam.mounts = append(workerParam.mounts, WorkerMount{
-			URL: &MountURL{
-				URL:                   edgeModel.Spec.URL,
-				Secret:                modelSecret,
-				DownloadByInitializer: true,
-			},
-			Name:    "model",
-			EnvName: "MODEL_URL",
-		})
-
-		workerParam.env = map[string]string{
-			"NAMESPACE":    service.Namespace,
-			"SERVICE_NAME": service.Name,
-			"WORKER_NAME":  "edgeworker-" + utilrand.String(5),
-
-			"REID_MODEL_BIND_IP":   reIDIP,
-			"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
-			"FE_MODEL_BIND_IP":     FEIP,
-			"FE_MODEL_BIND_PORT":   strconv.Itoa(int(FEPort)),
-
-			"LC_SERVER": mc.cfg.LC.Server,
-		}
-
-		workerParam.workerType = MultiObjectTracking
-		workerParam.hostNetwork = true
-
-		// create edge pod
-		_, perr = createPodWithTemplate(mc.kubeClient,
-			service,
-			&edgeNode.Template,
-			&workerParam)
-
+		"LC_SERVER": mc.cfg.LC.Server,
 	}
+	workerParam.hostNetwork = true
 
-	return perr
+	// STEP 5 - Create OD deployment AND related pods (as part of the deployment creation)
+	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.MultiObjectTrackingDeploy.Spec, &workerParam, 7000)
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
+	}
+	activeDeployments++
+
+	//STEP 6 - Create edgemesh service for OD
+	_, err = CreateEdgeMeshService(mc.kubeClient, service, ReIDWoker, reIDPort)
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
+	}
+	activePods++
+
+	return activePods, activeDeployments, err
+
 }
+
+// func (mc *MultiEdgeTrackingServiceController) createWorker(service *sednav1.MultiEdgeTrackingService) error {
+// 	// deliver pod for cloudworker
+// 	cloudModelName := service.Spec.ReIDWorker.Model.Name
+// 	cloudModel, err := mc.client.Models(service.Namespace).Get(context.Background(), cloudModelName, metav1.GetOptions{})
+// 	if err != nil {
+// 		return fmt.Errorf("failed to get cloud model %s: %w",
+// 			cloudModelName, err)
+// 	}
+
+// 	var workerParam WorkerParam
+
+// 	secretName := cloudModel.Spec.CredentialName
+// 	var modelSecret *v1.Secret
+// 	if secretName != "" {
+// 		modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+// 	}
+// 	workerParam.mounts = append(workerParam.mounts, WorkerMount{
+// 		URL: &MountURL{
+// 			URL:                   cloudModel.Spec.URL,
+// 			Secret:                modelSecret,
+// 			DownloadByInitializer: true,
+// 		},
+// 		Name:    "model",
+// 		EnvName: "MODEL_URL",
+// 	})
+
+// 	workerParam.env = map[string]string{
+// 		"NAMESPACE":    service.Namespace,
+// 		"SERVICE_NAME": service.Name,
+// 		"WORKER_NAME":  "cloudworker-" + utilrand.String(5),
+
+// 		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
+// 	}
+
+// 	workerParam.workerType = ReID
+
+// 	// create cloud pod
+// 	_, err = createPodWithTemplate(mc.kubeClient,
+// 		service,
+// 		&service.Spec.ReIDWorker.Template,
+// 		&workerParam)
+// 	return err
+// }
+
+// func (mc *MultiEdgeTrackingServiceController) createEdgeWorker(service *sednav1.MultiEdgeTrackingService, reIDPort int32) error {
+// 	// deliver pod for edgeworker
+// 	ctx := context.Background()
+// 	edgeWorker := service.Spec.MultiObjectTrackingWorker
+// 	var perr error
+
+// 	for _, edgeNode := range edgeWorker {
+
+// 		edgeModelName := edgeNode.Model.Name
+// 		edgeModel, err := mc.client.Models(service.Namespace).Get(ctx, edgeModelName, metav1.GetOptions{})
+// 		if err != nil {
+// 			return fmt.Errorf("failed to get edge model %s: %w",
+// 				edgeModelName, err)
+// 		}
+
+// 		secretName := edgeModel.Spec.CredentialName
+// 		var modelSecret *v1.Secret
+// 		if secretName != "" {
+// 			modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+// 		}
+
+// 		// get ReidIP from nodeName in cloudWorker
+// 		//reIDIP, err := GetNodeIPByLabel(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeSelector, service.Namespace)
+// 		reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeName)
+// 		//reIDIP, err := GetNodeIPByLabel(mc.kubeClient, service.Spec.ReIDWorker.Template.Spec.NodeSelector, service.Namespace)
+// 		if err != nil {
+// 			return fmt.Errorf("failed to get node ip: %w", err)
+// 		}
+
+// 		var workerParam WorkerParam
+
+// 		workerParam.mounts = append(workerParam.mounts, WorkerMount{
+// 			URL: &MountURL{
+// 				URL:                   edgeModel.Spec.URL,
+// 				Secret:                modelSecret,
+// 				DownloadByInitializer: true,
+// 			},
+// 			Name:    "model",
+// 			EnvName: "MODEL_URL",
+// 		})
+
+// 		workerParam.env = map[string]string{
+// 			"NAMESPACE":    service.Namespace,
+// 			"SERVICE_NAME": service.Name,
+// 			"WORKER_NAME":  "edgeworker-" + utilrand.String(5),
+
+// 			"REID_MODEL_BIND_IP":   reIDIP,
+// 			"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
+
+// 			"LC_SERVER": mc.cfg.LC.Server,
+// 		}
+
+// 		workerParam.workerType = MultiObjectTracking
+// 		workerParam.hostNetwork = true
+
+// 		// create edge pod
+// 		_, perr = createPodWithTemplate(mc.kubeClient,
+// 			service,
+// 			&edgeNode.Template,
+// 			&workerParam)
+
+// 	}
+
+// 	return perr
+// }
 
 // GetName returns the name of the joint inference controller
 func (mc *MultiEdgeTrackingServiceController) GetName() string {
@@ -569,6 +713,8 @@ func NewMultiEdgeTrackingServiceController(cfg *config.ControllerConfig) (Featur
 
 	serviceInformerFactory := informers.NewSharedInformerFactoryWithOptions(crdclient, time.Second*30, informers.WithNamespace(namespace))
 	serviceInformer := serviceInformerFactory.Sedna().V1alpha1().MultiEdgeTrackingServices()
+
+	deploymentInformer := kubeInformerFactory.Apps().V1().Deployments()
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
@@ -607,6 +753,15 @@ func NewMultiEdgeTrackingServiceController(cfg *config.ControllerConfig) (Featur
 
 	mc.podStore = podInformer.Lister()
 	mc.podStoreSynced = podInformer.Informer().HasSynced
+
+	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    mc.addDeployment,
+		UpdateFunc: mc.updateDeployment,
+		DeleteFunc: mc.deleteDeployment,
+	})
+
+	mc.deploymentsLister = deploymentInformer.Lister()
+	mc.deploymentsSynced = deploymentInformer.Informer().HasSynced
 
 	stopCh := messageContext.Done()
 	kubeInformerFactory.Start(stopCh)

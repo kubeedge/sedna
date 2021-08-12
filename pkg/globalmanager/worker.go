@@ -2,8 +2,10 @@ package globalmanager
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -138,6 +140,109 @@ func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInter
 	if pod.Spec.RestartPolicy == "" {
 		pod.Spec.RestartPolicy = workerParam.restartPolicy
 	}
+}
+
+//by EnfangCui
+//CreateEdgeMeshService creates a kubeedge edgemesh service for an object given port
+func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32) (string, error) {
+	ctx := context.Background() //TODO 为什么要使用Background？为什么不用TODO()?
+	name := object.GetName()
+	namespace := object.GetNamespace()
+	kind := object.GroupVersionKind().Kind
+	targePort := intstr.IntOrString{
+		IntVal: inputPort,
+	}
+
+	serviceSpec := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name + "-" + workerType + "-" + "svc", //by EnfangCui这里直接用Name，没用GenerateName
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+			},
+			Labels: generateLabels(object, workerType),
+		},
+		Spec: v1.ServiceSpec{
+			Selector: generateLabels(object, workerType),
+			Ports: []v1.ServicePort{
+				{
+					Port:       inputPort,
+					TargetPort: targePort,
+				},
+			},
+		},
+	}
+
+	service, err := kubeClient.CoreV1().Services(namespace).Create(ctx, serviceSpec, metav1.CreateOptions{})
+	if err != nil {
+		klog.Warningf("failed to create service for %v %v/%v, err:%s", kind, namespace, name, err)
+		return "0", err
+	}
+
+	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
+	edgeMeshURL := name + "-" + workerType + "-" + "svc" + "." + namespace + ":" + strconv.Itoa(int(inputPort))
+
+	return edgeMeshURL, nil //这返回一个url by EnfangCui
+}
+
+//by EnfangCui
+func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam) *appsv1.Deployment {
+	nameSpace := object.GetNamespace()
+	deploymentName := object.GetName() + "-" + "deployment" + "-" + strings.ToLower(workerParam.workerType) + "-"
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: deploymentName,
+			Namespace:    nameSpace,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+			},
+		},
+		Spec: *spec,
+	}
+}
+
+//by EnfangCui
+// injectDeploymentParam modifies deployment in-place
+func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, port int32) {
+	// inject our labels
+	if deployment.Labels == nil {
+		deployment.Labels = make(map[string]string)
+	}
+	if deployment.Spec.Template.Labels == nil {
+		deployment.Spec.Template.Labels = make(map[string]string)
+	}
+	if deployment.Spec.Selector.MatchLabels == nil {
+		deployment.Spec.Selector.MatchLabels = make(map[string]string)
+	}
+
+	for k, v := range generateLabels(object, workerParam.workerType) {
+		deployment.Labels[k] = v
+		deployment.Spec.Template.Labels[k] = v
+		deployment.Spec.Selector.MatchLabels[k] = v
+	}
+
+	deployment.Spec.Template.Labels["app"] = "met"
+	deployment.Spec.Selector.MatchLabels["app"] = "met"
+
+	deployment.Spec.Template.Spec.Containers[0].Ports[0].HostPort = port
+	deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = port
+}
+
+//by EnfangCui
+//CreateDeploymentWithTemplate creates and returns a deployment object given a crd object, deployment template
+func CreateDeploymentWithTemplate(client kubernetes.Interface, object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam, port int32) (*appsv1.Deployment, error) {
+	objectKind := object.GroupVersionKind()
+	objectName := object.GetNamespace() + "/" + object.GetName()
+	deployment := newDeployment(object, spec, workerParam)
+
+	injectDeploymentParam(deployment, workerParam, object, port)
+	createdDeployment, err := client.AppsV1().Deployments(object.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
+	if err != nil {
+		klog.Warningf("failed to create deployment for %s %s, err:%s", objectKind, objectName, err)
+		return nil, err
+	}
+	klog.V(2).Infof("deployment %s is created successfully for %s %s", createdDeployment.Name, objectKind, objectName)
+	return createdDeployment, nil
 }
 
 // createPodWithTemplate creates and returns a pod object given a crd object, pod template, and workerParam

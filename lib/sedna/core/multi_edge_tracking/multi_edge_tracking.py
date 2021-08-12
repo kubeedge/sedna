@@ -115,16 +115,16 @@ class MultiObjectTracking(JobBase):
 
         if callable(self.estimator):
             self.estimator = self.estimator()
-        if not os.path.exists(self.model_path):
-            raise FileExistsError(f"{self.model_path} miss")
-        else:
+        # if not os.path.exists(self.model_path):
+        #     raise FileExistsError(f"{self.model_path} miss")
+        # else:
             # We are using a PyTorch model which requires explicit weights loading.
-            self.log.info("Estimator -> Loading model and weights")
-            self.estimator.load(self.model_path)
-            #self.estimator.load_weights()
+        self.log.info("Estimator -> Loading model and weights")
+        self.estimator.load(self.model_path)
+        #self.estimator.load_weights()
 
-            self.log.info("Estimator -> Evaluating model ..")
-            self.estimator.evaluate()
+        self.log.info("Estimator -> Evaluating model ..")
+        self.estimator.evaluate()
 
         # The cloud node taking care of the reid step
         self.cloud = ReID(service_name=self.job_name,
@@ -205,15 +205,16 @@ class ObjectDetector(JobBase):
 
         if callable(self.estimator):
             self.estimator = self.estimator()
-        if not os.path.exists(self.model_path):
-            raise FileExistsError(f"{self.model_path} miss")
-        else:
-            # We are using a PyTorch model which requires explicit weights loading.
-            self.log.info("Estimator -> Loading model and weights")
-            self.estimator.load(self.model_path)
+        # if not os.path.exists(self.model_path):
+        #     raise FileExistsError(f"{self.model_path} miss")
+        # else:
+        #     # We are using a PyTorch model which requires explicit weights loading.
+        #     self.log.info("Estimator -> Loading model and weights")
+        
+        self.estimator.load(self.model_path)
 
-            self.log.info("Estimator -> Evaluating model ..")
-            self.estimator.evaluate()
+        self.log.info("Estimator -> Evaluating model ..")
+        self.estimator.evaluate()
 
         # The edge node in the next layer taking care of the feature extraction
         self.edge = FE(service_name=self.job_name,
