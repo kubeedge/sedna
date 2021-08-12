@@ -17,15 +17,17 @@ from copy import deepcopy
 
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
+
 from sedna.service.fe_endpoint import FE
-from sedna.service.server import ReIDServer
 from sedna.service.reid_endpoint import ReID
+
 from sedna.service.client import LCReporter
 from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
 from sedna.common.benchmark import FTimer
-from sedna.common.log import LOGGER
+
 from sedna.service.server import FEServer
+from sedna.service.server import ReIDServer
 
 __all__ = ("MultiObjectTracking", "ReIDService", "ObjectDetector")
 
