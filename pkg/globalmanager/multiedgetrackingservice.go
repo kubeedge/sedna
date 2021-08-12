@@ -540,7 +540,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activeDeployments++
 
 	//STEP 4 - Create edgemesh service for FE
-	FEServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, FEWorker, reIDPort)
+	FEServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, FEWorker, FEPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}
