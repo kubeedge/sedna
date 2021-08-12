@@ -15,12 +15,11 @@
 import os
 import tempfile
 
-import joblib
-
 from sedna.backend import set_backend
 from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
+from sedna.common.constant import KBResourceConstant
 from sedna.common.config import Context
 from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.algorithms.multi_task_learning import MulTaskLearning
@@ -34,40 +33,39 @@ class LifelongLearning(JobBase):
 
     def __init__(self,
                  estimator,
-                 task_definition="TaskDefinitionByDataAttr",
+                 task_definition=None,
                  task_relationship_discovery=None,
                  task_mining=None,
                  task_remodeling=None,
                  inference_integrate=None,
-                 unseen_task_detect="TaskAttrFilter",
+                 unseen_task_detect=None):
 
-                 task_definition_param=None,
-                 relationship_discovery_param=None,
-                 task_mining_param=None,
-                 task_remodeling_param=None,
-                 inference_integrate_param=None,
-                 unseen_task_detect_param=None):
+        if not task_definition:
+            task_definition = {
+                "method": "TaskDefinitionByDataAttr"
+            }
+        if not unseen_task_detect:
+            unseen_task_detect = {
+                "method": "TaskAttrFilter"
+            }
         e = MulTaskLearning(
             estimator=estimator,
             task_definition=task_definition,
             task_relationship_discovery=task_relationship_discovery,
             task_mining=task_mining,
             task_remodeling=task_remodeling,
-            inference_integrate=inference_integrate,
-            task_definition_param=task_definition_param,
-            relationship_discovery_param=relationship_discovery_param,
-            task_mining_param=task_mining_param,
-            task_remodeling_param=task_remodeling_param,
-            inference_integrate_param=inference_integrate_param)
-        self.unseen_task_detect = unseen_task_detect
+            inference_integrate=inference_integrate)
+        self.unseen_task_detect = unseen_task_detect.get("method",
+                                                         "TaskAttrFilter")
         self.unseen_task_detect_param = e.parse_param(
-            unseen_task_detect_param
+            unseen_task_detect.get("param", {})
         )
         config = dict(
             ll_kb_server=Context.get_parameters("KB_SERVER"),
             output_url=Context.get_parameters("OUTPUT_URL", "/tmp")
         )
-        task_index = FileOps.join_path(config['output_url'], 'index.pkl')
+        task_index = FileOps.join_path(config['output_url'],
+                                       KBResourceConstant.KB_INDEX_NAME)
         config['task_index'] = task_index
         super(LifelongLearning, self).__init__(
             estimator=e, config=config
@@ -91,51 +89,80 @@ class LifelongLearning(JobBase):
         if post_process is not None:
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
-        res = self.estimator.train(
+        res, task_index_url = self.estimator.train(
             train_data=train_data,
             valid_data=valid_data,
             **kwargs
         )  # todo: Distinguishing incremental update and fully overwrite
 
-        task_groups = self.estimator.estimator.task_groups
-        extractor_file = FileOps.join_path(
-            os.path.dirname(self.estimator.estimator.task_index_url),
-            "kb_extractor.pkl"
-        )
-        try:
-            extractor_file = self.kb_server.upload_file(extractor_file)
-        except Exception as err:
-            self.log.error(
-                f"Upload task extractor_file fail {extractor_file}: {err}")
-            extractor_file = joblib.load(extractor_file)
+        if isinstance(task_index_url, str) and FileOps.exists(task_index_url):
+            task_index = FileOps.load(task_index_url)
+        else:
+            task_index = task_index_url
+
+        extractor = task_index['extractor']
+        task_groups = task_index['task_groups']
+
+        model_upload_key = {}
         for task in task_groups:
+            model_file = task.model.model
+            save_model = FileOps.join_path(
+                self.config.output_url,
+                os.path.basename(model_file)
+            )
+            if model_file not in model_upload_key:
+                model_upload_key[model_file] = FileOps.upload(model_file,
+                                                              save_model)
+            model_file = model_upload_key[model_file]
+
             try:
-                model = self.kb_server.upload_file(task.model.model)
-            except Exception:
-                model_obj = set_backend(
+                model = self.kb_server.upload_file(save_model)
+            except Exception as err:
+                self.log.error(
+                    f"Upload task model of {model_file} fail: {err}"
+                )
+                model = set_backend(
                     estimator=self.estimator.estimator.base_model
                 )
-                model = model_obj.load(task.model.model)
+                model.load(model_file)
             task.model.model = model
 
+            for _task in task.tasks:
+                sample_dir = FileOps.join_path(
+                    self.config.output_url,
+                    f"{_task.samples.data_type}_{_task.entry}.sample")
+                task.samples.save(sample_dir)
+                try:
+                    sample_dir = self.kb_server.upload_file(sample_dir)
+                except Exception as err:
+                    self.log.error(
+                        f"Upload task samples of {_task.entry} fail: {err}")
+                _task.samples.data_url = sample_dir
+
+        save_extractor = FileOps.join_path(
+            self.config.output_url,
+            KBResourceConstant.TASK_EXTRACTOR_NAME
+        )
+        extractor = FileOps.dump(extractor, save_extractor)
+        try:
+            extractor = self.kb_server.upload_file(extractor)
+        except Exception as err:
+            self.log.error(f"Upload task extractor fail: {err}")
         task_info = {
             "task_groups": task_groups,
-            "extractor": extractor_file
+            "extractor": extractor
         }
         fd, name = tempfile.mkstemp()
-        joblib.dump(task_info, name)
+        FileOps.dump(task_info, name)
 
         index_file = self.kb_server.update_db(name)
         if not index_file:
             self.log.error(f"KB update Fail !")
             index_file = name
-
         FileOps.upload(index_file, self.config.task_index)
-        if os.path.isfile(name):
-            os.close(fd)
-            os.remove(name)
+
         task_info_res = self.estimator.model_info(
-            self.config.task_index, result=res,
+            self.config.task_index,
             relpath=self.config.data_path_prefix)
         self.report_task_info(
             None, K8sResourceKindStatus.COMPLETED.value, task_info_res)
@@ -152,7 +179,7 @@ class LifelongLearning(JobBase):
             **kwargs
         )
 
-    def evaluate(self, data, post_process=None, model_threshold=0.1, **kwargs):
+    def evaluate(self, data, post_process=None, **kwargs):
         callback_func = None
         if callable(post_process):
             callback_func = post_process
@@ -167,14 +194,35 @@ class LifelongLearning(JobBase):
         FileOps.download(task_index_url, index_url)
         res, tasks_detail = self.estimator.evaluate(data=data, **kwargs)
         drop_tasks = []
+
+        model_filter_operator = self.get_parameters("operator", ">")
+        model_threshold = float(self.get_parameters('model_threshold', 0.1))
+
+        operator_map = {
+            ">": lambda x, y: x > y,
+            "<": lambda x, y: x < y,
+            "=": lambda x, y: x == y,
+            ">=": lambda x, y: x >= y,
+            "<=": lambda x, y: x <= y,
+        }
+        if model_filter_operator not in operator_map:
+            self.log.warn(
+                f"operator {model_filter_operator} use to "
+                f"compare is not allow, set to <"
+            )
+            model_filter_operator = "<"
+        operator_func = operator_map[model_filter_operator]
+
         for detail in tasks_detail:
             scores = detail.scores
             entry = detail.entry
-            self.log.info(f"{entry} socres: {scores}")
-            if any(map(lambda x: float(x) < model_threshold, scores.values())):
+            self.log.info(f"{entry} scores: {scores}")
+            if any(map(lambda x: operator_func(float(x),
+                                               model_threshold),
+                       scores.values())):
                 self.log.warn(
-                    f"{entry} will not be deploy "
-                    f"because scores lt {model_threshold}")
+                    f"{entry} will not be deploy because all "
+                    f"scores {model_filter_operator} {model_threshold}")
                 drop_tasks.append(entry)
                 continue
         drop_task = ",".join(drop_tasks)
@@ -196,6 +244,7 @@ class LifelongLearning(JobBase):
         return callback_func(res) if callback_func else res
 
     def inference(self, data=None, post_process=None, **kwargs):
+
         task_index_url = self.get_parameters(
             "MODEL_URLS", self.config.task_index)
         index_url = self.estimator.estimator.task_index_url

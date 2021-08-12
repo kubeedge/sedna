@@ -27,35 +27,7 @@ from sedna.common.class_factory import ClassFactory, ClassType
 __all__ = ('JobBase',)
 
 
-class DistributedWorker:
-    """"Class of Distributed Worker use to manage all jobs"""
-    # original params
-    __worker_path__ = None
-    __worker_module__ = None
-    # id params
-    __worker_id__ = 0
-
-    def __init__(self):
-        DistributedWorker.__worker_id__ += 1
-        self._worker_id = DistributedWorker.__worker_id__
-        self.timeout = 0
-
-    @property
-    def worker_id(self):
-        """Property: worker_id."""
-        return self._worker_id
-
-    @worker_id.setter
-    def worker_id(self, value):
-        """Setter: set worker_id with value.
-
-        :param value: worker id
-        :type value: int
-        """
-        self._worker_id = value
-
-
-class JobBase(DistributedWorker):
+class JobBase:
     """ sedna feature base class """
     parameters = Context
 
@@ -68,8 +40,7 @@ class JobBase(DistributedWorker):
         self.estimator = set_backend(estimator=estimator, config=self.config)
         self.job_kind = K8sResourceKind.DEFAULT.value
         self.job_name = self.config.job_name or self.config.service_name
-        work_name = f"{self.job_name}-{self.worker_id}"
-        self.worker_name = self.config.worker_name or work_name
+        self.worker_name = self.config.worker_name or self.job_name
 
     @property
     def model_path(self):
