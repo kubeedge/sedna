@@ -104,7 +104,9 @@ class BackendBase:
         if callable(self.estimator):
             varkw = self.parse_kwargs(self.estimator, **kwargs)
             self.estimator = self.estimator(**varkw)
-        if os.path.isfile(self.model_save_path):
+        if model_url and os.path.isfile(model_url):
+            self.model_save_path, mname = os.path.split(model_url)
+        elif os.path.isfile(self.model_save_path):
             self.model_save_path, mname = os.path.split(self.model_save_path)
         model_path = FileOps.join_path(self.model_save_path, mname)
         if model_url:

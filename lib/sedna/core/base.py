@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os.path
+import os
+import threading
+import gc
+import time
 import json
 
 from sedna.common.log import LOGGER
@@ -20,11 +23,101 @@ from sedna.common.file_ops import FileOps
 from sedna.common.config import BaseConfig
 from sedna.common.config import Context
 from sedna.common.constant import K8sResourceKind
+from sedna.common.constant import K8sResourceKindStatus
 from sedna.service.client import LCClient
 from sedna.backend import set_backend
 from sedna.common.class_factory import ClassFactory, ClassType
 
 __all__ = ('JobBase',)
+
+
+class ModelLoadingThread(threading.Thread):
+    """ MulThread support hot model loading"""
+    MODEL_MANIPULATION_SEM = threading.Semaphore(1)
+    MODEL_CHECK_TIME = max(
+        int(Context.get_parameters("MODEL_POLL_PERIOD_SECONDS", "60")), 1
+    )
+    MODEL_HOT_UPDATE_CONF = Context.get_parameters("MODEL_HOT_UPDATE_CONFIG")
+
+    def __init__(self,
+                 estimator,
+                 job_kind,
+                 job_name,
+                 worker_name,
+                 namespace,
+                 lc_server=None,
+                 version="latest"
+                 ):
+        self.production_estimator = estimator
+        self.job_name = job_name
+        self.job_kind = job_kind
+        self.namespace = namespace
+        self.worker_name = worker_name
+        self.lc_server = lc_server
+        self.version = version
+        temp_path = self.production_estimator.model_save_path or "/tmp"
+        self.temp_path = os.path.dirname(temp_path)
+        super(ModelLoadingThread, self).__init__()
+
+    def report_task_info(self, status, kind="deploy"):
+        if not self.lc_server:
+            return
+        message = {
+            "name": self.worker_name,
+            "namespace": self.namespace,
+            "ownerName": self.job_name,
+            "ownerKind": self.job_kind,
+            "kind": kind,
+            "status": status
+        }
+        try:
+            LCClient.send(self.lc_server, self.worker_name, message)
+        except Exception as err:
+            LOGGER.error(err)
+
+    def run(self):
+        conf = FileOps.join_path(self.temp_path, "tmp.conf")
+        while 1:
+            time.sleep(self.MODEL_CHECK_TIME)
+            if not self.MODEL_HOT_UPDATE_CONF:
+                continue
+            conf = FileOps.download(self.MODEL_HOT_UPDATE_CONF, conf)
+            if not FileOps.exists(conf):
+                continue
+            with open(conf, "r") as fin:
+                try:
+                    conf_msg = json.load(fin)
+                    model_msg = conf_msg["model_config"]
+                    latest_version = str(model_msg["model_update_time"])
+                    model = FileOps.download(
+                        model_msg["model_path"],
+                        FileOps.join_path(
+                            self.temp_path, f"model.{latest_version}"
+                        )
+                    )
+                except (json.JSONDecodeError, KeyError):
+                    LOGGER.error(f"fail to parse model hot update config: "
+                                 f"{self.MODEL_HOT_UPDATE_CONF}")
+                    continue
+            if not (model and FileOps.exists(model)):
+                continue
+            if latest_version == self.version:
+                continue
+            self.version = latest_version
+            status = K8sResourceKindStatus.RUNNING.value
+            self.report_task_info(status=status)
+            with self.MODEL_MANIPULATION_SEM:
+                LOGGER.info(f"Update model start with version {self.version}")
+                try:
+                    self.production_estimator.load(model)
+                    status = K8sResourceKindStatus.COMPLETED.value
+                    LOGGER.info(f"Update model complete "
+                                f"with version {self.version}")
+                except Exception as e:
+                    LOGGER.error(f"fail to update model: {e}")
+                    status = K8sResourceKindStatus.FAILED.value
+            gc.collect()
+            self.report_task_info(status=status)
 
 
 class JobBase:
@@ -41,6 +134,17 @@ class JobBase:
         self.job_kind = K8sResourceKind.DEFAULT.value
         self.job_name = self.config.job_name or self.config.service_name
         self.worker_name = self.config.worker_name or self.job_name
+        self.namespace = self.config.namespace or self.job_name
+        self.lc_server = self.config.lc_server
+        if str(self.get_parameters("MODEL_HOT_UPDATE", "False")) == "True":
+            ModelLoadingThread(
+                self.estimator,
+                self.job_kind,
+                self.job_name,
+                self.worker_name,
+                self.namespace,
+                self.lc_server
+            ).start()
 
     @property
     def model_path(self):
@@ -79,7 +183,7 @@ class JobBase:
     def report_task_info(self, task_info, status, results, kind="train"):
         message = {
             "name": self.worker_name,
-            "namespace": self.config.namespace,
+            "namespace": self.namespace,
             "ownerName": self.job_name,
             "ownerKind": self.job_kind,
             "kind": kind,
@@ -89,6 +193,6 @@ class JobBase:
         if task_info:
             message["ownerInfo"] = task_info
         try:
-            LCClient.send(self.config.lc_server, self.worker_name, message)
+            LCClient.send(self.lc_server, self.worker_name, message)
         except Exception as err:
             self.log.error(err)
