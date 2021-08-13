@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -501,30 +502,36 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	var workerParam WorkerParam
 	workerParam.workerType = ReIDWoker
 
+	workerParam.hostNetwork = true
+	workerParam.env = map[string]string{
+		"NAMESPACE":    service.Namespace,
+		"SERVICE_NAME": service.Name,
+		"WORKER_NAME":  "reidworker-" + utilrand.String(5),
+
+		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
+	}
+
 	// STEP 1 - Create ReID deployment AND related pods (as part of the deployment creation)
 	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.ReIDDeploy.Spec, &workerParam, reIDPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
 	}
 	activeDeployments++
-
-	//STEP 2 - Create edgemesh service for ReID
-	reidServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, ReIDWoker, reIDPort)
-	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
-	}
-
 	activePods++
 
 	// ---- //
 	// STEP 0 - Create parameters that will be created by the deployment
+
+	reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDDeploy.Spec.Template.Spec.NodeName)
+
 	workerParam.workerType = FEWorker
 	workerParam.env = map[string]string{
 		"NAMESPACE":    service.Namespace,
 		"SERVICE_NAME": service.Name,
 		"WORKER_NAME":  "feworker-" + utilrand.String(5),
 
-		"REID_MODEL_BIND_URL": reidServiceURL,
+		"REID_MODEL_BIND_URL":  reIDIP,
+		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
 
 		"LC_SERVER": mc.cfg.LC.Server,
 	}
