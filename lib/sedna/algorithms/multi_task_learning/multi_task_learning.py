@@ -286,7 +286,7 @@ class MulTaskLearning:
                  **kwargs):
         from sklearn import metrics as sk_metrics
 
-        result, tasks = self.predict(data, kwargs=kwargs)
+        result, tasks = self.predict(data, **kwargs)
         m_dict = {}
         if metrics:
             if callable(metrics):  # if metrics is a function
