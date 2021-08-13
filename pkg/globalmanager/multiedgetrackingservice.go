@@ -511,18 +511,36 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
 	}
 
-	// STEP 1 - Create ReID deployment AND related pods (as part of the deployment creation)
+	/*
+
+		REID DEPLOYMENT
+
+	*/
+
+	// Create ReID deployment AND related pods (as part of the deployment creation)
 	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.ReIDDeploy.Spec, &workerParam, reIDPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
 	}
 	activeDeployments++
-	activePods++
-
-	// ---- //
-	// STEP 0 - Create parameters that will be created by the deployment
 
 	reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDDeploy.Spec.Template.Spec.NodeName)
+
+	// Create standard K8s service
+	reIDPortService, err := CreateKubernetesService(mc.kubeClient, service, ReIDWoker, reIDPort, reIDIP)
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
+	}
+
+	activePods++
+
+	/*
+
+		FE DEPLOYMENT
+
+	*/
+
+	// Create parameters that will be used in the deployment
 
 	workerParam.workerType = FEWorker
 	workerParam.env = map[string]string{
@@ -531,20 +549,20 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 		"WORKER_NAME":  "feworker-" + utilrand.String(5),
 
 		"REID_MODEL_BIND_URL":  reIDIP,
-		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
+		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPortService)),
 
 		"LC_SERVER": mc.cfg.LC.Server,
 	}
 	workerParam.hostNetwork = true
 
-	// STEP 3 - Create FE deployment AND related pods (as part of the deployment creation)
+	// Create FE deployment AND related pods (as part of the deployment creation)
 	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
 	}
 	activeDeployments++
 
-	//STEP 4 - Create edgemesh service for FE
+	// Create edgemesh service for FE
 	FEServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, FEWorker, FEPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
@@ -552,9 +570,13 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 
 	activePods++
 
-	// ---- //
+	/*
 
-	// STEP 0 - Create parameters that will be created by the deployment
+		OD DEPLOYMENT
+
+	*/
+
+	// Create parameters that will be used by the deployment
 	workerParam.workerType = MultiObjectTrackingWorker
 	workerParam.env = map[string]string{
 		"NAMESPACE":    service.Namespace,
@@ -567,14 +589,14 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	}
 	workerParam.hostNetwork = true
 
-	// STEP 5 - Create OD deployment AND related pods (as part of the deployment creation)
+	// Create OD deployment AND related pods (as part of the deployment creation)
 	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.MultiObjectTrackingDeploy.Spec, &workerParam, 7000)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
 	}
 	activeDeployments++
 
-	//STEP 6 - Create edgemesh service for OD
+	// Create edgemesh service for OD
 	_, err = CreateEdgeMeshService(mc.kubeClient, service, MultiObjectTrackingWorker, 7000)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
