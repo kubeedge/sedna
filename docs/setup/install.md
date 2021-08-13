@@ -1,18 +1,18 @@
+This guide covers how to install Sedna on existing KubeEdge environment, i.e. its two main components: [GM(GlobalManager)](/README.md#globalmanager) and [LC(LocalController)](/README.md#localcontroller).
+
 ### Prerequisites
 - [Kubectl][kubectl] with right kubeconfig
 - [Kubernetes][kubernetes] 1.16+ cluster running
-- [KubeEdge][kubeedge] v.15+ running
+- [KubeEdge][kubeedge] v1.5+ running
 
-GM will be deployed to a node which has satisfied these requirements:
-1. Has a IP address which the edge can access to.
-
-Simply you can use the node which `cloudcore` of `kubeedge` is deployed at.
 
 #### Deploy Sedna
 
-Currently we need to deploy GM to a k8s node which edge node can access to.
+Currently GM is deployed as a [`deployment`][deployment], and LC is deployed as a [`daemonset`][daemonset].
 
-More specifically, the k8s node has a INTERNAL-IP or EXTERNAL-IP where edge node can access to.
+Because LC needs to connnect to GM, and the limit connection between cloud `Pod` and edge `Pod`, GM will be deployed to a cloud node where the edge node can access to.
+
+More specifically, the GM node has a INTERNAL-IP or EXTERNAL-IP where edge node can access to directly.
 
 For example, in a kind cluster `kubectl get node -o wide`:
 ```shell
@@ -69,3 +69,5 @@ curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/
 [kubectl]:https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/#install-kubectl-binary-with-curl-on-linux
 [kubeedge]:https://github.com/kubeedge/kubeedge
 [kubernetes]:https://kubernetes.io/
+[deployment]: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+[daemonset]: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/
