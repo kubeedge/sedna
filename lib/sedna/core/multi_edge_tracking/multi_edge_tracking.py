@@ -92,7 +92,7 @@ class MultiObjectTracking(JobBase):
         self.local_port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
 
         # Port and IP of the service this pod will contact (remote)
-        self.remote_ip = self.get_parameters("REID_MODEL_BIND_URL", self.local_ip)
+        self.remote_ip = self.get_parameters("REID_MODEL_BIND_IP", self.local_ip)
         self.remote_port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
 
         report_msg = {
