@@ -49,28 +49,29 @@ class BackendBase:
             return kwargs
         return {k: v for k, v in kwargs.items() if k in need_kw.args}
 
-    def train(self, **kwargs):
+    def train(self, *args, **kwargs):
         """Train model."""
         if callable(self.estimator):
             varkw = self.parse_kwargs(self.estimator, **kwargs)
             self.estimator = self.estimator(**varkw)
-        varkw = self.parse_kwargs(self.estimator.train, **kwargs)
-        return self.estimator.train(**varkw)
+        fit_method = getattr(self.estimator, "fit", self.estimator.train)
+        varkw = self.parse_kwargs(fit_method, **kwargs)
+        return fit_method(*args, **varkw)
 
-    def predict(self, **kwargs):
+    def predict(self, *args, **kwargs):
         """Inference model."""
         varkw = self.parse_kwargs(self.estimator.predict, **kwargs)
-        return self.estimator.predict(**varkw)
+        return self.estimator.predict(*args, **varkw)
 
-    def predict_proba(self, **kwargs):
+    def predict_proba(self, *args, **kwargs):
         """Compute probabilities of possible outcomes for samples in X."""
         varkw = self.parse_kwargs(self.estimator.predict_proba, **kwargs)
-        return self.estimator.predict_proba(**varkw)
+        return self.estimator.predict_proba(*args, **varkw)
 
-    def evaluate(self, **kwargs):
+    def evaluate(self, *args, **kwargs):
         """evaluate model."""
         varkw = self.parse_kwargs(self.estimator.evaluate, **kwargs)
-        return self.estimator.evaluate(**varkw)
+        return self.estimator.evaluate(*args, **varkw)
 
     def save(self, model_url="", model_name=None):
         mname = model_name or self.model_name

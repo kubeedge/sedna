@@ -65,7 +65,7 @@ class LifelongLearning(JobBase):
             output_url=Context.get_parameters("OUTPUT_URL", "/tmp")
         )
         task_index = FileOps.join_path(config['output_url'],
-                                       KBResourceConstant.KB_INDEX_NAME)
+                                       KBResourceConstant.KB_INDEX_NAME.value)
         config['task_index'] = task_index
         super(LifelongLearning, self).__init__(
             estimator=e, config=config
@@ -141,7 +141,7 @@ class LifelongLearning(JobBase):
 
         save_extractor = FileOps.join_path(
             self.config.output_url,
-            KBResourceConstant.TASK_EXTRACTOR_NAME
+            KBResourceConstant.TASK_EXTRACTOR_NAME.value
         )
         extractor = FileOps.dump(extractor, save_extractor)
         try:
