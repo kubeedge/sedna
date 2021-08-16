@@ -141,7 +141,7 @@ DEPLOYMENT HOOKS
 func (mc *MultiEdgeTrackingServiceController) enqueueByDeployment(deployment *appsv1.Deployment) {
 	controllerRef := metav1.GetControllerOf(deployment)
 
-	klog.Info("Deployment enqueued %w", deployment.Kind)
+	klog.Infof("Deployment enqueued %v", deployment.Kind)
 
 	if controllerRef == nil {
 		return
@@ -349,13 +349,10 @@ func (mc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 
 	MultiEdgeTrackingService := *sharedMultiEdgeTrackingService
 
-	// if jointinferenceservice was finished previously, we don't want to redo the termination
 	if isMultiEdgeTrackingServiceFinished(&MultiEdgeTrackingService) {
 		return true, nil
 	}
 
-	// set kind for jointinferenceservice in case that the kind is None
-	// more details at https://github.com/kubernetes/kubernetes/issues/3030
 	MultiEdgeTrackingService.SetGroupVersionKind(MultiEdgeTrackingServiceKind)
 
 	selector, _ := GenerateSelector(&MultiEdgeTrackingService)
@@ -374,8 +371,7 @@ func (mc *MultiEdgeTrackingServiceController) sync(key string) (bool, error) {
 	activeDeployments := calcActiveDeploymentCount(deployment)
 
 	var failedPods, failedDeployment int32 = 0, 0
-	// neededCounts requires that N pods should be created successfully
-	// N is given by the sum of (# edge pods) + (cloud pod)
+
 	var neededPodCounts int32 = *sharedMultiEdgeTrackingService.Spec.MultiObjectTrackingDeploy.Spec.Replicas +
 		*sharedMultiEdgeTrackingService.Spec.FEDeploy.Spec.Replicas +
 		*sharedMultiEdgeTrackingService.Spec.ReIDDeploy.Spec.Replicas
@@ -553,22 +549,24 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 
 		"LC_SERVER": mc.cfg.LC.Server,
 	}
-	workerParam.hostNetwork = true
+	//workerParam.hostNetwork = true
 
 	// Create FE deployment AND related pods (as part of the deployment creation)
-	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
+	deploy, err := CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
 	}
 	activeDeployments++
 
+	activePods++
+
 	// Create edgemesh service for FE
-	FEServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, FEWorker, FEPort)
+	feService, FEServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, FEWorker, FEPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}
 
-	activePods++
+	//refreshDeploymentAndService(mc.kubeClient, service, deploy, feService)
 
 	/*
 
@@ -587,7 +585,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 
 		"LC_SERVER": mc.cfg.LC.Server,
 	}
-	workerParam.hostNetwork = true
+	//workerParam.hostNetwork = true
 
 	// Create OD deployment AND related pods (as part of the deployment creation)
 	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.MultiObjectTrackingDeploy.Spec, &workerParam, 7000)
@@ -597,7 +595,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activeDeployments++
 
 	// Create edgemesh service for OD
-	_, err = CreateEdgeMeshService(mc.kubeClient, service, MultiObjectTrackingWorker, 7000)
+	_, _, err = CreateEdgeMeshService(mc.kubeClient, service, MultiObjectTrackingWorker, 7000)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}
@@ -758,14 +756,17 @@ func NewMultiEdgeTrackingServiceController(cfg *config.ControllerConfig) (Featur
 	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			mc.enqueueController(obj, true)
+			mc.syncToEdge(watch.Added, obj)
 		},
 
 		UpdateFunc: func(old, cur interface{}) {
 			mc.enqueueController(cur, true)
+			mc.syncToEdge(watch.Added, cur)
 		},
 
 		DeleteFunc: func(obj interface{}) {
 			mc.enqueueController(obj, true)
+			mc.syncToEdge(watch.Deleted, obj)
 		},
 	})
 
@@ -794,4 +795,43 @@ func NewMultiEdgeTrackingServiceController(cfg *config.ControllerConfig) (Featur
 	kubeInformerFactory.Start(stopCh)
 	serviceInformerFactory.Start(stopCh)
 	return mc, err
+}
+
+// syncToEdge syncs the dataset resources
+func (mc *MultiEdgeTrackingServiceController) syncToEdge(eventType watch.EventType, obj interface{}) error {
+	dataset, ok := obj.(*sednav1.Dataset)
+	if !ok {
+		return nil
+	}
+
+	// Since t.Kind may be empty,
+	// we need to fix the kind here if missing.
+	// more details at https://github.com/kubernetes/kubernetes/issues/3030
+	dataset.Kind = KindName
+
+	// Here only propagate to the nodes with non empty name
+	nodeName := dataset.Spec.NodeName
+	if len(nodeName) == 0 {
+		return fmt.Errorf("empty node name")
+	}
+
+	err := InjectSecretAnnotations(mc.kubeClient, dataset, dataset.Spec.CredentialName)
+	if err != nil {
+		return fmt.Errorf("secret injection failed %w", err)
+	}
+
+	return mc.sendToEdgeFunc(nodeName, eventType, dataset)
+}
+
+func InjectSecretAnnotations(client kubernetes.Interface, obj CommonInterface, secretName string) (err error) {
+	if len(secretName) == 0 {
+		return
+	}
+	secret, err := client.CoreV1().Secrets(obj.GetNamespace()).Get(context.TODO(), secretName, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+
+	InjectSecretObj(obj, secret)
+	return nil
 }

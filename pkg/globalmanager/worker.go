@@ -48,12 +48,20 @@ func generateLabels(object CommonInterface, workerType string) map[string]string
 	keyPrefix := strings.ToLower(kind + "." + group + "/")
 
 	labels := make(map[string]string)
+	//labels["app"] = object.GetName() + "-" + workerType + "-" + "svc"
 	labels[keyPrefix+"name"] = object.GetName()
 	labels[keyPrefix+"uid"] = string(object.GetUID())
 	if workerType != "" {
 		labels[keyPrefix+"worker-type"] = strings.ToLower(workerType)
 	}
 	return labels
+}
+
+func GenerateEdgeMeshSelector(workerName string) map[string]string {
+	selector := make(map[string]string)
+	selector["app"] = workerName
+
+	return selector
 }
 
 // GenerateSelector generates the selector of an object for worker
@@ -84,7 +92,6 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 			Labels: generateLabels(object, workerType),
 		},
 		Spec: v1.ServiceSpec{
-			Selector: generateLabels(object, workerType),
 			ExternalIPs: []string{
 				inputIP,
 			},
@@ -144,7 +151,7 @@ func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInter
 
 //by EnfangCui
 //CreateEdgeMeshService creates a kubeedge edgemesh service for an object given port
-func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32) (string, error) {
+func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32) (*v1.Service, string, error) {
 	ctx := context.Background() //TODO 为什么要使用Background？为什么不用TODO()?
 	name := object.GetName()
 	namespace := object.GetNamespace()
@@ -163,9 +170,11 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 			Labels: generateLabels(object, workerType),
 		},
 		Spec: v1.ServiceSpec{
-			Selector: generateLabels(object, workerType),
+			//Selector: generateLabels(object, workerType),
+			Selector: GenerateEdgeMeshSelector(name + "-" + workerType + "-" + "svc"),
 			Ports: []v1.ServicePort{
 				{
+					Name:       "tcp-0",
 					Port:       inputPort,
 					TargetPort: targePort,
 				},
@@ -176,13 +185,13 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 	service, err := kubeClient.CoreV1().Services(namespace).Create(ctx, serviceSpec, metav1.CreateOptions{})
 	if err != nil {
 		klog.Warningf("failed to create service for %v %v/%v, err:%s", kind, namespace, name, err)
-		return "0", err
+		return nil, "0", err
 	}
 
 	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
 	edgeMeshURL := name + "-" + workerType + "-" + "svc" + "." + namespace + ":" + strconv.Itoa(int(inputPort))
 
-	return edgeMeshURL, nil //这返回一个url by EnfangCui
+	return service, edgeMeshURL, nil //这返回一个url by EnfangCui
 }
 
 //by EnfangCui
@@ -221,8 +230,10 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 		deployment.Spec.Selector.MatchLabels[k] = v
 	}
 
-	deployment.Spec.Template.Labels["app"] = "met"
-	deployment.Spec.Selector.MatchLabels["app"] = "met"
+	// Edgemesh part
+	deployment.Labels["app"] = object.GetName() + "-" + workerParam.workerType + "-" + "svc"
+	deployment.Spec.Template.Labels["app"] = object.GetName() + "-" + workerParam.workerType + "-" + "svc"
+	deployment.Spec.Selector.MatchLabels["app"] = object.GetName() + "-" + workerParam.workerType + "-" + "svc"
 
 	if deployment.Spec.Template.Spec.Containers[0].Ports != nil {
 		deployment.Spec.Template.Spec.Containers[0].Ports[0].HostPort = port
@@ -241,6 +252,8 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 //by EnfangCui
 //CreateDeploymentWithTemplate creates and returns a deployment object given a crd object, deployment template
 func CreateDeploymentWithTemplate(client kubernetes.Interface, object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam, port int32) (*appsv1.Deployment, error) {
+	klog.Infof("Creating new deployment %v!", object.GetName())
+
 	objectKind := object.GroupVersionKind()
 	objectName := object.GetNamespace() + "/" + object.GetName()
 	deployment := newDeployment(object, spec, workerParam)
@@ -253,6 +266,28 @@ func CreateDeploymentWithTemplate(client kubernetes.Interface, object CommonInte
 	}
 	klog.V(2).Infof("deployment %s is created successfully for %s %s", createdDeployment.Name, objectKind, objectName)
 	return createdDeployment, nil
+
+}
+
+func refreshDeploymentAndService(client kubernetes.Interface, object CommonInterface, deployment *appsv1.Deployment, service *v1.Service) (err error) {
+	klog.Info("Launching deploymeny and service update routine")
+	objectKind := object.GroupVersionKind()
+	objectName := object.GetNamespace() + "/" + object.GetName()
+
+	_, err = client.AppsV1().Deployments(object.GetNamespace()).Patch(context.TODO(), "", "", nil, metav1.PatchOptions{})
+	if err != nil {
+		klog.Warningf("failed to update deployment for %s %s, err:%s", objectKind, objectName, err)
+		return err
+	}
+
+	_, err = client.CoreV1().Services(object.GetNamespace()).Update(context.TODO(), service, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Warningf("failed to update deployment for %s %s, err:%s", objectKind, objectName, err)
+		return err
+	}
+
+	return nil
+
 }
 
 // createPodWithTemplate creates and returns a pod object given a crd object, pod template, and workerParam
