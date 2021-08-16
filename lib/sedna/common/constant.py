@@ -16,6 +16,10 @@ from enum import Enum
 
 
 class K8sResourceKind(Enum):
+    """
+    Sedna job/service kind
+    """
+
     DEFAULT = "default"
     JOINT_INFERENCE_SERVICE = "jointinferenceservice"
     FEDERATED_LEARNING_JOB = "federatedlearningjob"
@@ -24,12 +28,20 @@ class K8sResourceKind(Enum):
 
 
 class K8sResourceKindStatus(Enum):
+    """
+    Job/Service status
+    """
+
     COMPLETED = "completed"
     FAILED = "failed"
     RUNNING = "running"
 
 
 class KBResourceConstant(Enum):
+    """
+    Knowledge used constant
+    """
+
     MIN_TRAIN_SAMPLE = 10
     KB_INDEX_NAME = "index.pkl"
     TASK_EXTRACTOR_NAME = "task_attr_extractor.pkl"

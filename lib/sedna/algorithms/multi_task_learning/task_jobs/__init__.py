@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .task_definition import *
-from .task_relation_discover import *
+# train
+from . import task_definition
+from . import task_relation_discover
 
-from .task_mining import *
-from .task_remodeling import *
+# inference
+from . import task_mining
+from . import task_remodeling
 
-from .inference_integrate import *
+# result integrate
+from . import inference_integrate

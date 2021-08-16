@@ -48,8 +48,11 @@ def _create_minio_client():
 
 
 class FileOps:
-    """This is a class with some class methods
-    to handle some files or folder."""
+    """
+    This is a class with some class methods
+    to handle some files or folder.
+    """
+
     _GCS_PREFIX = "gs://"
     _S3_PREFIX = "s3://"
     _LOCAL_PREFIX = "file://"

@@ -12,6 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Discover relationships between all tasks
+
+Parameters
+----------
+tasks ：all tasks form `task_definition`
+
+Returns
+-------
+task_groups : List of groups which including at least 1 task.
+"""
+
 from typing import List
 
 from sedna.common.class_factory import ClassType, ClassFactory
@@ -24,6 +36,10 @@ __all__ = ('DefaultTaskRelationDiscover', )
 
 @ClassFactory.register(ClassType.MTL)
 class DefaultTaskRelationDiscover:
+    """
+    Assume that each task is independent of each other
+    """
+
     def __init__(self, **kwargs):
         pass
 

@@ -12,6 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Divide multiple tasks based on data
+
+Parameters
+----------
+samples： Train data, see `sedna.datasources.BaseDataSource` for more detail.
+
+Returns
+-------
+tasks: All tasks based on training data.
+task_extractor: Model with a method to predicting target tasks
+"""
+
 from typing import List, Any, Tuple
 
 import numpy as np
@@ -28,6 +41,15 @@ __all__ = ('TaskDefinitionBySVC', 'TaskDefinitionByDataAttr')
 
 @ClassFactory.register(ClassType.MTL)
 class TaskDefinitionBySVC:
+    """
+    Dividing datasets with `AgglomerativeClustering` based on kernel distance,
+    Using SVC to fit the clustering result.
+
+    Parameters
+    ----------
+    n_class： int or None, default=2. The number of clusters to find.
+    """
+
     def __init__(self, **kwargs):
         n_class = kwargs.get("n_class", "")
         self.n_class = max(2, int(n_class)) if str(n_class).isdigit() else 2
@@ -67,6 +89,15 @@ class TaskDefinitionBySVC:
 
 @ClassFactory.register(ClassType.MTL)
 class TaskDefinitionByDataAttr:
+    """
+    Dividing datasets based on the common attributes,
+    generally used for structured data.
+
+    Parameters
+    ----------
+    attribute： List[Metadata], metadata is usually a class feature
+        label with a finite values.
+    """
     def __init__(self, **kwargs):
         self.attr_filed = kwargs.get("attribute", [])
 

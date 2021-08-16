@@ -57,7 +57,7 @@ class LifelongLearning(JobBase):
             inference_integrate=inference_integrate)
         self.unseen_task_detect = unseen_task_detect.get("method",
                                                          "TaskAttrFilter")
-        self.unseen_task_detect_param = e.parse_param(
+        self.unseen_task_detect_param = e._parse_param(
             unseen_task_detect.get("param", {})
         )
         config = dict(

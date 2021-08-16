@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .task_jobs import *
+import task_jobs
 from .multi_task_learning import MulTaskLearning

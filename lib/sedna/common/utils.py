@@ -49,23 +49,3 @@ def singleton(cls):
         return __instances__[cls]
 
     return get_instance
-
-
-def model_layer_flatten(weights):
-    """like this:
-    weights.shape=[(3, 3, 3, 64), (64,), (3, 3, 64, 32), (32,), (6272, 64),
-        (64,), (64, 32), (32,), (32, 2), (2,)]
-    flatten_weights=[(1728,), (64,), (18432,), (32,), (401408,), (64,),
-        (2048,), (32,), (64,), (2,)]
-    :param weights:
-    :return:
-    """
-    flatten = [layer.reshape((-1)) for layer in weights]
-    return flatten
-
-
-def model_layer_reshape(flatten_weights, shapes):
-    shaped_model = []
-    for idx, flatten_layer in enumerate(flatten_weights):
-        shaped_model.append(flatten_layer.reshape(shapes[idx]))
-    return shaped_model
