@@ -552,7 +552,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	//workerParam.hostNetwork = true
 
 	// Create FE deployment AND related pods (as part of the deployment creation)
-	deploy, err := CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
+	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
 	}
@@ -561,7 +561,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activePods++
 
 	// Create edgemesh service for FE
-	feService, FEServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, FEWorker, FEPort)
+	FEServiceURL, err := CreateEdgeMeshService(mc.kubeClient, service, FEWorker, FEPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}
@@ -595,7 +595,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activeDeployments++
 
 	// Create edgemesh service for OD
-	_, _, err = CreateEdgeMeshService(mc.kubeClient, service, MultiObjectTrackingWorker, 7000)
+	_, err = CreateEdgeMeshService(mc.kubeClient, service, MultiObjectTrackingWorker, 7000)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}

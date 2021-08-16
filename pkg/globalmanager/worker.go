@@ -151,7 +151,7 @@ func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInter
 
 //by EnfangCui
 //CreateEdgeMeshService creates a kubeedge edgemesh service for an object given port
-func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32) (*v1.Service, string, error) {
+func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32) (string, error) {
 	ctx := context.Background() //TODO 为什么要使用Background？为什么不用TODO()?
 	name := object.GetName()
 	namespace := object.GetNamespace()
@@ -185,13 +185,13 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 	service, err := kubeClient.CoreV1().Services(namespace).Create(ctx, serviceSpec, metav1.CreateOptions{})
 	if err != nil {
 		klog.Warningf("failed to create service for %v %v/%v, err:%s", kind, namespace, name, err)
-		return nil, "0", err
+		return "0", err
 	}
 
 	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
 	edgeMeshURL := name + "-" + workerType + "-" + "svc" + "." + namespace + ":" + strconv.Itoa(int(inputPort))
 
-	return service, edgeMeshURL, nil //这返回一个url by EnfangCui
+	return edgeMeshURL, nil //这返回一个url by EnfangCui
 }
 
 //by EnfangCui
