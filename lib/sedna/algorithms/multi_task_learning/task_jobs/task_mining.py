@@ -38,7 +38,8 @@ class TaskMiningBySVC:
 
     Parameters
     ----------
-    task_extractor : SVC Model used to predicting target tasks
+    task_extractor : Model
+        SVC Model used to predicting target tasks
     """
     def __init__(self, task_extractor, **kwargs):
         self.task_extractor = task_extractor
@@ -62,8 +63,10 @@ class TaskMiningByDataAttr:
 
     Parameters
     ----------
-    task_extractor : Dict Model used to match target tasks
-    attr_filed: List[Metadata], metadata is usually a class feature
+    task_extractor : Dict
+        used to match target tasks
+    attr_filed: List[Metadata]
+        metadata is usually a class feature
         label with a finite values.
     """
     def __init__(self, task_extractor, **kwargs):

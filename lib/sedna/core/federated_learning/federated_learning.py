@@ -13,18 +13,6 @@
 # limitations under the License.
 
 
-"""
-Federated learning enables multiple actors to build a common, robust machine
-learning model without sharing data, thus allowing to address critical issues
-such as data privacy, data security, data access rights and access to
-heterogeneous data.
-
-Sedna provide the related interfaces for application development.
-
-See `FederatedLearning` below.
-
-"""
-
 import time
 
 from sedna.core.base import JobBase
@@ -36,26 +24,33 @@ from sedna.common.constant import K8sResourceKindStatus
 
 
 class FederatedLearning(JobBase):
+    """
+    Federated learning enables multiple actors to build a common, robust
+    machine learning model without sharing data, thus allowing to address
+    critical issues such as data privacy, data security, data access rights
+    and access to heterogeneous data.
+
+    Sedna provide the related interfaces for application development.
+
+    Parameters
+    ----------
+    estimator: Instance
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your model.
+    aggregation: str
+        aggregation algo which has registered to ClassFactory,
+        see `sedna.algorithms.aggregation` for more detail.
+
+    Examples
+    --------
+    >>> Estimator = keras.models.Sequential()
+    >>> fl_model = FederatedLearning(
+            estimator=Estimator,
+            aggregation="FedAvg"
+        )
+    """
     def __init__(self, estimator, aggregation="FedAvg"):
-        """
-        Initial a FederatedLearning job
-
-        Parameters
-        ----------
-        estimator: An instance with the high-level API that greatly simplifies
-            machine learning programming. Estimators encapsulate training,
-            evaluation, prediction, and exporting for your model.
-        aggregation: aggregation algo which has registered to ClassFactory,
-            see `sedna.algorithms.aggregation` for more detail.
-
-        Examples
-        --------
-        >>> Estimator = keras.models.Sequential()
-        >>> fl_model = FederatedLearning(
-                estimator=Estimator,
-                aggregation="FedAvg"
-            )
-        """
 
         protocol = Context.get_parameters("AGG_PROTOCOL", "ws")
         agg_ip = Context.get_parameters("AGG_IP", "127.0.0.1")
@@ -106,13 +101,16 @@ class FederatedLearning(JobBase):
 
         Parameters
         ----------
-        train_data: datasource use for train, see
+        train_data: BaseDataSource
+            datasource use for train, see
             `sedna.datasources.BaseDataSource` for more detail.
-        valid_data: datasource use for evaluation, see
+        valid_data:  BaseDataSource
+            datasource use for evaluation, see
             `sedna.datasources.BaseDataSource` for more detail.
-        post_process: function or a registered method,
+        post_process: function or a registered method
             effected after `estimator` training.
-        kwargs: parameters for `estimator` training,
+        kwargs: Dict
+            parameters for `estimator` training,
             Like:  `early_stopping_rounds` in Xgboost.XGBClassifier
         """
 

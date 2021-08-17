@@ -29,9 +29,11 @@ class AggClient:
 
     Parameters
     ----------
-    num_samples: int, number of samples for the current weights
-    weights: List, weights of the layer as a list of number-like array,
-             such as [[0, 0, 0, 0], [0, 0, 0, 0] ... ]
+    num_samples: int
+        number of samples for the current weights
+    weights: List
+        weights of the layer as a list of number-like array,
+        such as [[0, 0, 0, 0], [0, 0, 0, 0] ... ]
     """
 
     num_samples: int
@@ -57,11 +59,13 @@ class BaseAggregation(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        clients: All clients in federated learning job
+        clients: List
+            All clients in federated learning job
 
         Returns
         -------
-        final weights use to update model layer
+        Array-like
+            final weights use to update model layer
         """
 
 
@@ -77,11 +81,13 @@ class FedAvg(BaseAggregation, abc.ABC):
 
         Parameters
         ----------
-        clients: All clients in federated learning job
+        clients: List
+            All clients in federated learning job
 
         Returns
         -------
-        final weights use to update model layer
+        update_weights : Array-like
+            final weights use to update model layer
         """
         import numpy as np
 

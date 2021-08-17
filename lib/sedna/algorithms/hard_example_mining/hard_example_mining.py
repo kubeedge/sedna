@@ -31,11 +31,13 @@ class BaseFilter(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        infer_result: prediction result
+        infer_result : array_like
+            prediction result
 
         Returns
         -------
-        is hard sample: `True` means hard sample, `False` means not.
+        is_hard_sample : bool
+            `True` means hard sample, `False` means not.
         """
         raise NotImplementedError
 
@@ -48,11 +50,12 @@ class BaseFilter(metaclass=abc.ABCMeta):
 @ClassFactory.register(ClassType.HEM, alias="Threshold")
 class ThresholdFilter(BaseFilter, abc.ABC):
     """
-    [object detection] Hard samples discovery methods named `Threshold`
+    **Object detection** Hard samples discovery methods named `Threshold`
 
     Parameters
     ----------
-    threshold: hard coefficient threshold score to filter img, default to 0.5.
+    threshold: float
+        hard coefficient threshold score to filter img, default to 0.5.
     """
     def __init__(self, threshold: float = 0.5, **kwargs):
         self.threshold = float(threshold)
@@ -75,12 +78,12 @@ class ThresholdFilter(BaseFilter, abc.ABC):
 @ClassFactory.register(ClassType.HEM, alias="CrossEntropy")
 class CrossEntropyFilter(BaseFilter, abc.ABC):
     """
-    [object detection] Hard samples discovery methods named `CrossEntropy`
+    **Object detection** Hard samples discovery methods named `CrossEntropy`
 
     Parameters
     ----------
-    threshold_cross_entropy: hard coefficient threshold score to filter img,
-        default to 0.5.
+    threshold_cross_entropy: float
+        hard coefficient threshold score to filter img, default to 0.5.
     """
 
     def __init__(self, threshold_cross_entropy=0.5, **kwargs):
@@ -91,15 +94,17 @@ class CrossEntropyFilter(BaseFilter, abc.ABC):
 
         Parameters
         ----------
-        infer_result: prediction classes list,
-            such as [class1-score, class2-score, class2-score,....],
+        infer_result: array_like
+            prediction classes list, such as
+            [class1-score, class2-score, class2-score,....],
             where class-score is the score corresponding to the class,
             class-score value is in [0,1], who will be ignored if its
             value not in [0,1].
 
         Returns
         -------
-        is hard sample: `True` means hard sample, `False` means not.
+        is hard sample: bool
+            `True` means hard sample, `False` means not.
         """
 
         if not infer_result:
@@ -124,15 +129,16 @@ class CrossEntropyFilter(BaseFilter, abc.ABC):
 @ClassFactory.register(ClassType.HEM, alias="IBT")
 class IBTFilter(BaseFilter, abc.ABC):
     """
-    [object detection] Hard samples discovery methods named `IBT`
+    **Object detection** Hard samples discovery methods named `IBT`
 
     Parameters
     ----------
-    threshold_img: hard coefficient threshold score to filter img,
-        default to 0.5.
-    threshold_box: threshold_box to calculate hard coefficient, formula
-        is hard coefficient = number(prediction_boxes less than
-            threshold_box)/number(prediction_boxes)
+    threshold_img: float
+        hard coefficient threshold score to filter img, default to 0.5.
+    threshold_box: float
+        threshold_box to calculate hard coefficient, formula  is hard
+        coefficient = number(prediction_boxes less than threshold_box) /
+        number(prediction_boxes)
     """
 
     def __init__(self, threshold_img=0.5, threshold_box=0.5, **kwargs):
@@ -144,15 +150,16 @@ class IBTFilter(BaseFilter, abc.ABC):
 
         Parameters
         ----------
-        infer_result: prediction boxes list,
-            such as [bbox1, bbox2, bbox3,....],
+        infer_result: array_like
+            prediction boxes list, such as [bbox1, bbox2, bbox3,....],
             where bbox = [xmin, ymin, xmax, ymax, score, label]
             score should be in [0,1], who will be ignored if its value not
             in [0,1].
 
         Returns
         -------
-        is hard sample: `True` means hard sample, `False` means not.
+        is hard sample: bool
+            `True` means hard sample, `False` means not.
         """
 
         if not (infer_result

@@ -111,7 +111,7 @@ class LCReporter(threading.Thread):
 
 
 class LCClient:
-
+    """send info to LC by http"""
     @classmethod
     def send(cls, lc_server, worker_name, message: dict):
         url = '{0}/sedna/workers/{1}/info'.format(

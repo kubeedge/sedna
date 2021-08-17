@@ -21,7 +21,7 @@ from sedna.common.config import BaseConfig
 
 
 def set_backend(estimator=None, config=None):
-    """Create Trainer clss."""
+    """Create Trainer class"""
     if estimator is None:
         return
     if config is None:

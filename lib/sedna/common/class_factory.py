@@ -15,6 +15,11 @@
 # Copy from https://github.com/huawei-noah/vega/blob/master/zeus/common/class_factory.py  # noqa
 # We made a re-modify due to vega is exceed out needs
 
+"""
+Management class registration and bind configuration properties,
+provides the type of class supported.
+"""
+
 from inspect import isfunction, isclass
 
 

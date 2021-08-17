@@ -33,25 +33,33 @@ class MulTaskLearning:
     """
     An auto machine learning framework for edge-cloud multitask learning
 
-    Architecture
-    ------------
-    Train: Data + Estimator -> Task Definition -> Task Relationship Discovery -> Feature Engineering -> Training  # noqa
-    Inference: Data -> Task Allocation -> Task Mining -> Feature Engineering -> Task Remodeling -> Inference  # noqa
+    See Also
+    --------
+    Train: Data + Estimator -> Task Definition -> Task Relationship Discovery
+           -> Feature Engineering -> Training
+    Inference: Data -> Task Allocation -> Task Mining -> Feature Engineering
+               -> Task Remodeling -> Inference
 
     Parameters
     ----------
-    estimator: An instance with the high-level API that greatly simplifies
+    estimator : Instance
+        An instance with the high-level API that greatly simplifies
         machine learning programming. Estimators encapsulate training,
         evaluation, prediction, and exporting for your model.
-    task_definition: Dict, Divide multiple tasks based on data,
+    task_definition : Dict
+        Divide multiple tasks based on data,
         see `task_jobs.task_definition` for more detail.
-    task_relationship_discovery: Dict, Discover relationships between all
-        tasks, see `task_jobs.task_relationship_discovery` for more detail.
-    task_mining: Dict, Mining tasks of inference sample,
+    task_relationship_discovery : Dict
+        Discover relationships between all tasks, see
+        `task_jobs.task_relationship_discovery` for more detail.
+    task_mining : Dict
+        Mining tasks of inference sample,
         see `task_jobs.task_mining` for more detail.
-    task_remodeling: Dict, Remodeling tasks based on their relationships,
-       see `task_jobs.task_remodeling` for more detail.
-    inference_integrate: Dict, Integrate the inference results of all related
+    task_remodeling : Dict
+        Remodeling tasks based on their relationships,
+        see `task_jobs.task_remodeling` for more detail.
+    inference_integrate : Dict
+        Integrate the inference results of all related
         tasks, see `task_jobs.inference_integrate` for more detail.
 
     Examples
@@ -83,8 +91,9 @@ class MulTaskLearning:
             inference_integrate=inference_integrate
         )
 
-    **Note**:
-        All method defined under `task_jobs` and registered in `ClassFactory`
+    Notes
+    -----
+    All method defined under `task_jobs` and registered in `ClassFactory`.
     """
 
     _method_pair = {
@@ -213,18 +222,22 @@ class MulTaskLearning:
 
         Parameters
         ----------
-        train_data : Train data, see `sedna.datasources.BaseDataSource` for
-            more detail.
-        valid_data : Valid data, BaseDataSource or None.
-        post_process: function or a registered method,
-            effected after `estimator` training.
-        kwargs: parameters for `estimator` training,
-            Like:  `early_stopping_rounds` in Xgboost.XGBClassifier
+        train_data : BaseDataSource
+            Train data, see `sedna.datasources.BaseDataSource` for more detail.
+        valid_data : BaseDataSource
+            Valid data, BaseDataSource or None.
+        post_process : function
+            function or a registered method, callback after `estimator` train.
+        kwargs : Dict
+            parameters for `estimator` training, Like:
+            `early_stopping_rounds` in Xgboost.XGBClassifier
 
         Returns
         -------
-        feedback : Dict, contain all training result in each tasks.
-        task_index_url : task extractor model path, used for task mining.
+        feedback : Dict
+            contain all training result in each tasks.
+        task_index_url : str
+            task extractor model path, used for task mining.
         """
 
         tasks, task_extractor, train_data = self._task_definition(train_data)
@@ -317,7 +330,8 @@ class MulTaskLearning:
 
         Parameters
         ----------
-        task_index_url : task index file path, default self.task_index_url.
+        task_index_url : str
+            task index file path, default self.task_index_url.
         """
 
         if task_index_url:
@@ -339,17 +353,22 @@ class MulTaskLearning:
 
         Parameters
         ----------
-        data : inference sample, see `sedna.datasources.BaseDataSource` for
+        data : BaseDataSource
+            inference sample, see `sedna.datasources.BaseDataSource` for
             more detail.
-        post_process: function or a registered method,
-            effected after `estimator` prediction, like: label transform.
-        kwargs: parameters for `estimator` predict,
-            Like:  `ntree_limit` in Xgboost.XGBClassifier
+        post_process: function
+            function or a registered method,  effected after `estimator`
+            prediction, like: label transform.
+        kwargs: Dict
+            parameters for `estimator` predict, Like:
+            `ntree_limit` in Xgboost.XGBClassifier
 
         Returns
         -------
-        result : results array, contain all inference results in each sample.
-        tasks : tasks assigned to each sample.
+        result : array_like
+            results array, contain all inference results in each sample.
+        tasks : List
+            tasks assigned to each sample.
         """
 
         if not (self.models and self.extractor):
@@ -393,17 +412,22 @@ class MulTaskLearning:
 
         Parameters
         ----------
-        data : valid data, see `sedna.datasources.BaseDataSource` for
-            more detail.
-        metrics: Metrics to assess performance on the task by given prediction.
-        metrics_param: parameter for metrics function.
-        kwargs: parameters for `estimator` predict,
-            Like:  `ntree_limit` in Xgboost.XGBClassifier
+        data : BaseDataSource
+            valid data, see `sedna.datasources.BaseDataSource` for more detail.
+        metrics : function / str
+            Metrics to assess performance on the task by given prediction.
+        metrics_param : Dict
+            parameter for metrics function.
+        kwargs: Dict
+            parameters for `estimator` evaluate, Like:
+            `ntree_limit` in Xgboost.XGBClassifier
 
         Returns
         -------
-        task_eval_res : all metric results.
-        tasks_detail : all metric results in each task.
+        task_eval_res : Dict
+            all metric results.
+        tasks_detail : List[Object]
+            all metric results in each task.
         """
 
         import pandas as pd

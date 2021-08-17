@@ -47,7 +47,8 @@ class TaskDefinitionBySVC:
 
     Parameters
     ----------
-    n_class： int or None, default=2. The number of clusters to find.
+    n_class： int or None
+        The number of clusters to find, default=2.
     """
 
     def __init__(self, **kwargs):
@@ -95,8 +96,8 @@ class TaskDefinitionByDataAttr:
 
     Parameters
     ----------
-    attribute： List[Metadata], metadata is usually a class feature
-        label with a finite values.
+    attribute： List[Metadata]
+        metadata is usually a class feature label with a finite values.
     """
     def __init__(self, **kwargs):
         self.attr_filed = kwargs.get("attribute", [])

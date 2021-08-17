@@ -37,11 +37,12 @@ class BaseFilter(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        tasks: inference task
+        tasks : inference task
 
         Returns
         -------
-        is unseen task: `True` means unseen task, `False` means not.
+        is unseen task : bool
+            `True` means unseen task, `False` means not.
         """
         raise NotImplementedError
 
@@ -61,11 +62,13 @@ class ModelProbeFilter(BaseFilter, abc.ABC):
         Parameters
         ----------
         tasks : inference task
-        threshold : threshold considered credible
+        threshold : float
+            threshold considered credible
 
         Returns
         -------
-        is unseen task: `True` means unseen task, `False` means not.
+        is unseen task: bool
+            `True` means unseen task, `False` means not.
         """
         all_proba = []
         for task in tasks:
@@ -93,7 +96,8 @@ class TaskAttrFilter(BaseFilter, abc.ABC):
 
         Returns
         -------
-        is unseen task: `True` means unseen task, `False` means not.
+        is unseen task: bool
+            `True` means unseen task, `False` means not.
         """
         for task in tasks:
             model_attr = list(map(list, task.model.meta_attr))
