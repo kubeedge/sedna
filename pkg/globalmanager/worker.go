@@ -174,7 +174,8 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 			Selector: GenerateEdgeMeshSelector(name + "-" + workerType + "-" + "svc"),
 			Ports: []v1.ServicePort{
 				{
-					Name:       "tcp-0",
+					Name:       "http-0",
+					Protocol:   "TCP",
 					Port:       inputPort,
 					TargetPort: targePort,
 				},
