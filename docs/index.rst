@@ -4,6 +4,10 @@ Sedna documentation
 
 .. image:: ./_static/logo.png
 
+Sedna is an edge-cloud synergy AI project incubated in KubeEdge SIG AI. Benefiting from the edge-cloud synergy capabilities provided by KubeEdge, Sedna can implement across edge-cloud collaborative training and collaborative inference capabilities, such as joint inference, incremental learning, federated learning, and lifelong learning. Sedna supports popular AI frameworks, such as TensorFlow, Pytorch, PaddlePaddle, MindSpore.
+
+Sedna can simply enable edge-cloud synergy capabilities to existing training and inference scripts, bringing the benefits of reducing costs, improving model performance, and protecting data privacy.
+
 .. toctree::
     :maxdepth: 1
     :caption: QUICK START
@@ -58,6 +62,14 @@ Sedna documentation
 
 .. toctree::
     :maxdepth: 1
+    :caption: Contributing
+    :titlesonly:
+    :glob:
+
+    contributing/*
+
+.. toctree::
+    :maxdepth: 1
     :caption: API REFERENCE
     :titlesonly:
     :glob:
@@ -70,6 +82,16 @@ Sedna documentation
     :hidden:
 
     roadmap
+
+
+Community
+=========
+
+Sedna is an open source project and in the spirit of openness and freedom, we welcome new contributors to join us.
+You can get in touch with the community according to the ways:
+* [Github Issues](https://github.com/kubeedge/sedna/issues)
+* [Regular Community Meeting](https://zoom.us/j/4167237304)
+* [slack channel](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
 
 
 RELATED LINKS

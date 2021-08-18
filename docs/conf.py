@@ -11,6 +11,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import re
 import sys
 import shutil
 import subprocess
@@ -30,6 +31,8 @@ except ModuleNotFoundError:
 
 
 _base_path = os.path.abspath('..')
+BASE_URL = 'https://github.com/kubeedge/sedna/'
+
 sys.path.append(os.path.join(_base_path, "lib"))
 sys.path.append(_base_path)
 
@@ -51,7 +54,7 @@ for p in extra_paths:
         shutil.copy2(p, dst)
 
 
-with open('../lib/sedna/VERSION', "r", encoding="utf-8") as fh:
+with open(f'{_base_path}/lib/sedna/VERSION', "r", encoding="utf-8") as fh:
     __version__ = fh.read().strip()
 
 # -- Project information -----------------------------------------------------
@@ -125,15 +128,46 @@ source_suffix = {
 }
 
 autoapi_type = "python"
-autoapi_dirs = ["../lib/sedna"]
-autoapi_options = ['members', 'undoc-members', 'show-inheritance', 'show-module-summary', 'special-members', 'imported-members']
+autoapi_dirs = [f"{_base_path}/lib/sedna"]
+autoapi_options = [
+    'members', 'undoc-members', 'show-inheritance',
+    'show-module-summary', 'special-members', 'imported-members'
+]
 
 extlinks = {
-    "issue": ("https://github.com/kubeedge/sedna/issues/%s", "#"),
-    "pr": ("https://github.com/kubeedge/sedna/pull/%s", "PR #"),
+    "issue": f"{BASE_URL}issues",
+    "pr": f"{BASE_URL}pull"
 }
 
 
+# hack to replace file link to html link
+def ultimateReplace(app, docname, source):
+    path = app.env.doc2path(docname)
+    _match = re.compile("\(/([^/]+)/([^)]+)\)")
+    if path.endswith('.md'):
+        new_line = []
+        for line in source[0].split('\n'):
+            error_link = _match.search(line)
+            if error_link:
+                _path, _detail = error_link.groups()
+                if _path in ("docs", "examples") and ".md" in _detail.lower():
+                    tmp = os.path.join(_base_path, "docs")
+                    tmp2 = os.path.abspath(os.path.dirname(path))
+                    _relpath = os.path.relpath(tmp, tmp2).strip("/")
+                    line = line.replace("/docs/", f"{_relpath}/")
+                    line = line.replace("/examples/", f"{_relpath}/examples/")
+                else:
+                    line = line.replace(f"/{_path}/",
+                                        f"{BASE_URL}tree/main/{_path}/")
+            line = re.sub(
+                "\((?!http)([^\)]+)\.md([^\)]+)?\)",
+                "(\g<1>.html\g<2>)", line
+            )
+            new_line.append(line)
+        source[0] = "\n".join(new_line)
+
 
 def setup(app):
+    app.add_config_value('ultimate_replacements', {}, True)
+    app.connect('source-read', ultimateReplace)
     app.add_css_file('css/custom.css')
