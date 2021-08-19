@@ -14,7 +14,7 @@
 
 import sys
 import os
-from sedna.core.multi_edge_tracking.multi_edge_tracking import MultiObjectTracking
+
 import torch
 import torchvision.transforms as T
 from PIL import Image
@@ -25,6 +25,7 @@ from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
 from sedna.core.multi_edge_tracking import MultiObjectTracking
+from sedna.core.multi_edge_tracking.multi_edge_tracking import MultiObjectTracking
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
@@ -38,6 +39,7 @@ class Estimator:
     def __init__(self, **kwargs):
         LOGGER.info(f"Initializing edge worker ...")
         self.model = None
+        self.netpool = netpool
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.image_size = [int(image_size.split(",")[0]), int(image_size.split(",")[1])] 
         

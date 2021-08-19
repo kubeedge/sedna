@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import os
+import asyncio
+
 from copy import deepcopy
 
 from sedna.common.utils import get_host_ip
@@ -108,7 +110,7 @@ class MultiObjectTracking(JobBase):
                                       message=report_msg,
                                       period_interval=period_interval)
         self.lc_reporter.setDaemon(True)
-        self.lc_reporter.start()
+        #self.lc_reporter.start()
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
@@ -130,6 +132,14 @@ class MultiObjectTracking(JobBase):
         self.cloud = ReID(service_name=self.job_name,
                                  host=self.remote_ip, port=self.remote_port)
 
+        # Async parameters
+        self.parallelism = 1
+        self.queue = asyncio.Queue()
+
+        # Starting the async worker
+        self.consumers = [asyncio.create_task(self.get_data(self.queue))
+                 for _ in range(self.parallelism)]
+
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
@@ -142,6 +152,22 @@ class MultiObjectTracking(JobBase):
         app_server = FEServer(model=self, servername=self.job_name,
                                      host=self.local_ip, http_port=self.local_port)
         app_server.start()
+
+    async def get_data(self):
+        while True:
+            token = await self.queue.get()
+            try:
+                await self.inference(token)
+            except Exception as e:
+                self.log.info(f"Error processing token {token}: {e}")
+
+            self.queue.task_done()
+            self.log.info(f'consumed {token}')
+            return token
+
+    async def put_data(self, data):
+            await self.queue.put(data)
+            self.log.info("data deposited")
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
@@ -158,7 +184,7 @@ class MultiObjectTracking(JobBase):
         if callback_func:
             res = callback_func(res)
 
-        self.lc_reporter.update_for_edge_inference()
+        #self.lc_reporter.update_for_edge_inference()
         # Send detection+tracking results to cloud
         # edge_result
         
@@ -199,7 +225,7 @@ class ObjectDetector(JobBase):
                                       message=report_msg,
                                       period_interval=period_interval)
         self.lc_reporter.setDaemon(True)
-        self.lc_reporter.start()
+        #self.lc_reporter.start()
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
@@ -236,7 +262,7 @@ class ObjectDetector(JobBase):
         if callback_func:
             detection_result = callback_func(detection_result)
 
-        self.lc_reporter.update_for_edge_inference()
+        #self.lc_reporter.update_for_edge_inference()
 
         if detection_result != None and len(detection_result) > 0:
             with FTimer(f"upload_plus_feature_extraction"):
