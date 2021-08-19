@@ -29,7 +29,6 @@ except ModuleNotFoundError:
     subprocess.check_call([sys.executable, "-m", "pip",
                            "install", "sphinx-autoapi"])
 
-
 _base_path = os.path.abspath('..')
 BASE_URL = 'https://github.com/kubeedge/sedna/'
 
@@ -52,7 +51,6 @@ for p in extra_paths:
         shutil.copytree(p, dst)
     else:
         shutil.copy2(p, dst)
-
 
 with open(f'{_base_path}/lib/sedna/VERSION', "r", encoding="utf-8") as fh:
     __version__ = fh.read().strip()
@@ -140,30 +138,84 @@ extlinks = {
 }
 
 
-# hack to replace file link to html link
+# hack to replace file link to html link in markdown
 def ultimateReplace(app, docname, source):
-    path = app.env.doc2path(docname)
-    _match = re.compile("\(/([^/]+)/([^)]+)\)")
+    """
+    In the rendering with Sphinx, as some file links in markdown
+    can not be automatically redirected, and 404 response during
+    access, here define a regular to handle these links.
+    """
+    path = app.env.doc2path(docname)  # get current path
+
+    INLINE_LINK_RE = re.compile(r'\[[^\]]+\]\(([^)]+)\)')
+    FOOTNOTE_LINK_URL_RE = re.compile(r'\[[^\]]+\](?:\s+)?:(?:\s+)?(\S+)')
     if path.endswith('.md'):
         new_line = []
+
+        docs_url = os.path.join(_base_path, "docs")
         for line in source[0].split('\n'):
-            error_link = _match.search(line)
-            if error_link:
-                _path, _detail = error_link.groups()
-                if _path in ("docs", "examples") and ".md" in _detail.lower():
-                    tmp = os.path.join(_base_path, "docs")
-                    tmp2 = os.path.abspath(os.path.dirname(path))
-                    _relpath = os.path.relpath(tmp, tmp2).strip("/")
-                    line = line.replace("/docs/", f"{_relpath}/")
-                    line = line.replace("/examples/", f"{_relpath}/examples/")
-                else:
-                    line = line.replace(f"/{_path}/",
-                                        f"{BASE_URL}tree/main/{_path}/")
             line = re.sub(
-                "\((?!http)([^\)]+)\.md([^\)]+)?\)",
-                "(\g<1>.html\g<2>)", line
+                "\[`([^\]]+)`\]\[", "[\g<1>][", line
+            )  # fix html render error: [`title`]
+            replace_line = []
+            prev_start = 0
+            href_list = (
+                    list(INLINE_LINK_RE.finditer(line)) +
+                    list(FOOTNOTE_LINK_URL_RE.finditer(line))
             )
-            new_line.append(line)
+            for href in href_list:
+                pstart = href.start(1)
+                pstop = href.end(1)
+                if pstart == -1 or pstop == -1:
+                    continue
+                link = line[pstart: pstop]
+                if not link or link.startswith("http"):
+                    continue
+                if link.startswith("/"):
+                    tmp = _base_path
+                else:
+                    tmp = os.path.abspath(os.path.dirname(path))
+
+                _relpath = os.path.abspath(os.path.join(tmp, link.lstrip("/")))
+                for sp in extra_paths:  # these docs will move into `docs`
+                    sp = os.path.abspath(sp).rstrip("/")
+
+                    if not _relpath.startswith(sp):
+                        continue
+                    if os.path.isdir(sp):
+                        sp += "/"
+                    _relpath = os.path.join(
+                        docs_url, _relpath[len(_base_path):].lstrip("/")
+                    )
+                    break
+
+                if _relpath.startswith(docs_url) and (
+                        os.path.isdir(_relpath) or
+                        os.path.splitext(_relpath)[-1].lower().startswith(
+                            (
+                                    ".md", ".rst", ".txt", "html",
+                                    ".png", ".jpg", ".jpeg", ".svg", ".gif"
+                            )
+                        )
+                ):
+                    link = os.path.relpath(_relpath,
+                                           os.path.dirname(path))
+                    if not os.path.isdir(_relpath):  # suffix edit
+                        link = re.sub(
+                            "(?:\.md|\.rst|\.txt)(\W+\w+)?$",
+                            ".html\g<1>", link
+                        )
+                else:  # redirect to `github`
+                    _relpath = os.path.abspath(
+                        os.path.join(tmp, link.lstrip("/"))
+                    )
+                    _rel_root = os.path.relpath(_relpath, _base_path)
+                    link = f"{BASE_URL}tree/main/{_rel_root}"
+                p_line = f"{line[prev_start:pstart]}{link}"
+                prev_start = pstop
+                replace_line.append(p_line)
+            replace_line.append(line[prev_start:])
+            new_line.append("".join(replace_line))
         source[0] = "\n".join(new_line)
 
 

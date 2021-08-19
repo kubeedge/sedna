@@ -13,7 +13,7 @@ You can find the latest Sedna release [here](https://github.com/kubeedge/sedna/r
 
 ### Deploying Sedna
 
-Please refer to this [link](setup).
+Please refer to this [link](setup/install.md).
 
 ### Prepare
 
