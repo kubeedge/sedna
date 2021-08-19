@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import time
+
+import requests
 import cv2
 
 from sedna.common.config import Context
@@ -21,11 +24,30 @@ from sedna.common.log import LOGGER
 from edge_worker import Estimator
 
 camera_address = Context.get_parameters('video_url')
+stream_dispatcher = Context.get_parameters('stream_dispatcher_url')
 
-def main():
+async def retrive_rtsp_stream() -> str:
+    LOGGER.info(f'Finding target RTSP stream ...')
+    if stream_dispatcher != None:
+        def retrieveRTSP() -> str:
+            try:
+                rtsp_stream = requests.get(stream_dispatcher)
+                LOGGER.info(f'Retrieved RTSP stream with address {rtsp_stream}')
+                return rtsp_stream
+            except Exception as ex:
+                LOGGER.error(f'Unable to access stream dispatcher server, using fallback value. [{er}]')
+                return camera_address
+    
+        return retrieveRTSP
+    else:
+        LOGGER.info(f'Using RTSP from env variable with address {camera_address}')
+        return camera_address
+    
+
+def start_stream_acquisition(stream_address):
     edge_worker = ObjectDetector(estimator=Estimator)
 
-    camera = cv2.VideoCapture(camera_address)
+    camera = cv2.VideoCapture(stream_address)
     fps = 10
     nframe = 0
     
@@ -37,11 +59,11 @@ def main():
 
         if not ret:
             LOGGER.info(
-                f"camera is not open, camera_address={camera_address},"
+                f"camera is not open, camera_address={stream_address},"
                 f" sleep 5 second.")
             time.sleep(5)
             try:
-                camera = cv2.VideoCapture(camera_address)
+                camera = cv2.VideoCapture(stream_address)
             except Exception:
                 pass
             continue
@@ -56,4 +78,8 @@ def main():
         edge_worker.inference(img_rgb)
 
 if __name__ == '__main__':
-    main()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    result = loop.run_until_complete(retrive_rtsp_stream("django"))
+
+    start_stream_acquisition(result)

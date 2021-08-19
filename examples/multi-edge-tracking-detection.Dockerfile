@@ -19,7 +19,7 @@ WORKDIR /home/work
 COPY ./lib /home/lib
 
 ## Install applications dependencies
-RUN pip install torch torchvision tqdm pillow opencv-python pytorch-ignite
+RUN pip install torch torchvision tqdm pillow opencv-python pytorch-ignite asyncio
 
 COPY examples/multiedgetracking/detection/edge_worker.py  /home/work/edge_worker.py
 COPY examples/multiedgetracking/detection/main.py  /home/work/detection.py

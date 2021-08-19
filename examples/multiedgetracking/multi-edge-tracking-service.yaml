@@ -24,6 +24,8 @@ spec:
                 value: "640"
               - name: "video_url"
                 value: "rtsp://172.17.0.1/video"
+              - name: "stream_dispatcher_url"
+                value: "http://7.182.8.79:8478/get_rtsp_stream" # we should have a k8s deploy+service+pod for this later
               - name: "model_classifier"
                 value: "/home/v00609018/.cache/torch/hub/checkpoints/resnet50-0676ba61.pth"
               - name: "model_weights"
