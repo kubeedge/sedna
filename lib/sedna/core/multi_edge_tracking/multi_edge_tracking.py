@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import asyncio
 
+import os, queue
 from copy import deepcopy
+import threading
 
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
@@ -94,7 +94,7 @@ class MultiObjectTracking(JobBase):
         self.local_port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
 
         # Port and IP of the service this pod will contact (remote)
-        self.remote_ip = self.get_parameters("REID_MODEL_BIND_IP", self.local_ip)
+        self.remote_ip = self.get_parameters("REID_MODEL_BIND_URL", self.local_ip)
         self.remote_port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
 
         report_msg = {
@@ -134,11 +134,9 @@ class MultiObjectTracking(JobBase):
 
         # Async parameters
         self.parallelism = 1
-        self.queue = asyncio.Queue()
+        self.queue = queue.Queue()
+        threading.Thread(target=self.get_data, daemon=True).start()
 
-        # Starting the async worker
-        self.consumers = [asyncio.create_task(self.get_data(self.queue))
-                 for _ in range(self.parallelism)]
 
     def start(self):
         if callable(self.estimator):
@@ -153,21 +151,20 @@ class MultiObjectTracking(JobBase):
                                      host=self.local_ip, http_port=self.local_port)
         app_server.start()
 
-    async def get_data(self):
+    def get_data(self):
         while True:
-            token = await self.queue.get()
+            token = self.queue.get()
+            self.log.info(f'Data consumed')
             try:
-                await self.inference(token)
+                self.inference(token)
             except Exception as e:
                 self.log.info(f"Error processing token {token}: {e}")
 
             self.queue.task_done()
-            self.log.info(f'consumed {token}')
-            return token
 
-    async def put_data(self, data):
-            await self.queue.put(data)
-            self.log.info("data deposited")
+    def put_data(self, data):
+        self.queue.put(data)
+        self.log.info("Data deposited")
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
@@ -187,7 +184,7 @@ class MultiObjectTracking(JobBase):
         #self.lc_reporter.update_for_edge_inference()
         # Send detection+tracking results to cloud
         # edge_result
-        
+
         if edge_result != None:
             with FTimer(f"upload_plus_reid"):
                 cres = self.cloud.reid(edge_result, post_process=post_process, **kwargs)
@@ -206,7 +203,7 @@ class ObjectDetector(JobBase):
         self.log.info("Loading ObjectDetector module")
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         self.local_ip = get_host_ip()
-        
+
         self.remote_ip = self.get_parameters(
             "FE_MODEL_BIND_URL", self.local_ip)
         self.port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
@@ -237,7 +234,7 @@ class ObjectDetector(JobBase):
         # else:
         #     # We are using a PyTorch model which requires explicit weights loading.
         #     self.log.info("Estimator -> Loading model and weights")
-        
+
         # We should pass the model path but, because it's in the container logic, we don't pass anything.
         self.estimator.load()
 

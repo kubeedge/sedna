@@ -85,13 +85,14 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 	serviceSpec := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    object.GetNamespace(),
-			GenerateName: name + "-" + "service" + "-",
+			GenerateName: name + "-" + workerType + "-" + "svc",
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, object.GroupVersionKind()),
 			},
 			Labels: generateLabels(object, workerType),
 		},
 		Spec: v1.ServiceSpec{
+			Selector: GenerateEdgeMeshSelector(name + "-" + workerType + "-" + "svc"),
 			ExternalIPs: []string{
 				inputIP,
 			},
