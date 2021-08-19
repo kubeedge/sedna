@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import time
 
 import requests
@@ -26,19 +25,16 @@ from edge_worker import Estimator
 camera_address = Context.get_parameters('video_url')
 stream_dispatcher = Context.get_parameters('stream_dispatcher_url')
 
-async def retrive_rtsp_stream() -> str:
+def retrieve_rtsp_stream() -> str:
     LOGGER.info(f'Finding target RTSP stream ...')
     if stream_dispatcher != None:
-        def retrieveRTSP() -> str:
-            try:
-                rtsp_stream = requests.get(stream_dispatcher)
-                LOGGER.info(f'Retrieved RTSP stream with address {rtsp_stream}')
-                return rtsp_stream
-            except Exception as ex:
-                LOGGER.error(f'Unable to access stream dispatcher server, using fallback value. [{er}]')
-                return camera_address
-    
-        return retrieveRTSP
+        try:
+            rtsp_stream = requests.get(stream_dispatcher)
+            LOGGER.info(f'Retrieved RTSP stream with address {rtsp_stream}')
+            return rtsp_stream.text
+        except Exception as ex:
+            LOGGER.error(f'Unable to access stream dispatcher server, using fallback value. [{er}]')
+            return camera_address
     else:
         LOGGER.info(f'Using RTSP from env variable with address {camera_address}')
         return camera_address
@@ -78,8 +74,5 @@ def start_stream_acquisition(stream_address):
         edge_worker.inference(img_rgb)
 
 if __name__ == '__main__':
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    result = loop.run_until_complete(retrive_rtsp_stream("django"))
-
+    result = retrieve_rtsp_stream()
     start_stream_acquisition(result)
