@@ -42,41 +42,17 @@ class ModelLoadingThread(threading.Thread):
 
     def __init__(self,
                  estimator,
-                 job_kind,
-                 job_name,
-                 worker_name,
-                 namespace,
-                 lc_server=None,
+                 callback=None,
                  version="latest"
                  ):
         self.production_estimator = estimator
-        self.job_name = job_name
-        self.job_kind = job_kind
-        self.namespace = namespace
-        self.worker_name = worker_name
-        self.lc_server = lc_server
+        self.callback = callback
         self.version = version
         self.temp_path = (self.MODEL_TEMP_SAVE
                           if os.path.isdir(self.MODEL_TEMP_SAVE)
                           else os.path.dirname(self.MODEL_TEMP_SAVE))
 
         super(ModelLoadingThread, self).__init__()
-
-    def report_task_info(self, status, kind="deploy"):
-        if not self.lc_server:
-            return
-        message = {
-            "name": self.worker_name,
-            "namespace": self.namespace,
-            "ownerName": self.job_name,
-            "ownerKind": self.job_kind,
-            "kind": kind,
-            "status": status
-        }
-        try:
-            LCClient.send(self.lc_server, self.worker_name, message)
-        except Exception as err:
-            LOGGER.error(err)
 
     def run(self):
         conf = FileOps.join_path(self.temp_path, "tmp.conf")
@@ -117,7 +93,10 @@ class ModelLoadingThread(threading.Thread):
                 except Exception as e:
                     LOGGER.error(f"fail to update model: {e}")
                     status = K8sResourceKindStatus.FAILED.value
-                self.report_task_info(status=status)
+                if self.callback:
+                    self.callback(
+                        task_info=None, status=status, kind="deploy"
+                    )
             gc.collect()
 
 
@@ -126,7 +105,6 @@ class JobBase:
     parameters = Context
 
     def __init__(self, estimator, config=None):
-        super(JobBase, self).__init__()
         self.config = BaseConfig()
         if config:
             self.config.from_json(config)
@@ -142,11 +120,7 @@ class JobBase:
         ).lower() == "true":
             ModelLoadingThread(
                 self.estimator,
-                self.job_kind,
-                self.job_name,
-                self.worker_name,
-                self.namespace,
-                self.lc_server
+                self.report_task_info
             ).start()
 
     @property
@@ -183,16 +157,17 @@ class JobBase:
     def get_parameters(self, param, default=None):
         return self.parameters.get_parameters(param=param, default=default)
 
-    def report_task_info(self, task_info, status, results, kind="train"):
+    def report_task_info(self, task_info, status, results=None, kind="train"):
         message = {
             "name": self.worker_name,
             "namespace": self.namespace,
             "ownerName": self.job_name,
             "ownerKind": self.job_kind,
             "kind": kind,
-            "status": status,
-            "results": results
+            "status": status
         }
+        if results:
+            message["results"] = results
         if task_info:
             message["ownerInfo"] = task_info
         try:
