@@ -29,3 +29,7 @@ type JointInferenceServiceExpansion interface{}
 type LifelongLearningJobExpansion interface{}
 
 type ModelExpansion interface{}
+
+type ObjectSearchServiceExpansion interface{}
+
+type ObjectTrackingServiceExpansion interface{}
