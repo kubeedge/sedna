@@ -33,7 +33,7 @@ def retrieve_rtsp_stream() -> str:
             LOGGER.info(f'Retrieved RTSP stream with address {rtsp_stream}')
             return rtsp_stream.text
         except Exception as ex:
-            LOGGER.error(f'Unable to access stream dispatcher server, using fallback value. [{er}]')
+            LOGGER.error(f'Unable to access stream dispatcher server, using fallback value. [{ex}]')
             return camera_address
     else:
         LOGGER.info(f'Using RTSP from env variable with address {camera_address}')

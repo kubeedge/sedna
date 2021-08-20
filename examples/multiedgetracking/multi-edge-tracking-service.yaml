@@ -1,18 +1,18 @@
 apiVersion: sedna.io/v1alpha1
 kind: MultiEdgeTrackingService
 metadata:
-  name: pedestrian-tracking
+  name: container-tracking
 spec:
   motDeploy:
     spec:
       replicas: 1
       selector:
         matchLabels:
-          app: fe
+          app: object-detection
       template:
         metadata:
           labels:
-            app: fe
+            app: object-detection
         spec:
           nodeName: "fraprigel00001"
           containers:
@@ -50,11 +50,11 @@ spec:
       replicas: 1
       selector:
         matchLabels:
-          app: mot
+          app: feature-extraction
       template:
         metadata:
           labels:
-            app: mot
+            app: feature-extraction
         spec:
           nodeName: "frapedge00001"
           containers:
@@ -63,7 +63,7 @@ spec:
             ports:
             - containerPort: 6000
               hostPort: 6000
-            name:  mot
+            name:  feature-extraction
             env:  # user defined environments
             - name: input_shape
               value: "256,128"
