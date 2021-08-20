@@ -38,6 +38,7 @@ class ModelLoadingThread(threading.Thread):
         int(Context.get_parameters("MODEL_POLL_PERIOD_SECONDS", "60")), 1
     )
     MODEL_HOT_UPDATE_CONF = Context.get_parameters("MODEL_HOT_UPDATE_CONFIG")
+    MODEL_TEMP_SAVE = Context.get_parameters("MODEL_TEMP", "/tmp")
 
     def __init__(self,
                  estimator,
@@ -55,8 +56,10 @@ class ModelLoadingThread(threading.Thread):
         self.worker_name = worker_name
         self.lc_server = lc_server
         self.version = version
-        temp_path = self.production_estimator.model_save_path or "/tmp"
-        self.temp_path = os.path.dirname(temp_path)
+        self.temp_path = (self.MODEL_TEMP_SAVE
+                          if os.path.isdir(self.MODEL_TEMP_SAVE)
+                          else os.path.dirname(self.MODEL_TEMP_SAVE))
+
         super(ModelLoadingThread, self).__init__()
 
     def report_task_info(self, status, kind="deploy"):
@@ -104,8 +107,6 @@ class ModelLoadingThread(threading.Thread):
             if latest_version == self.version:
                 continue
             self.version = latest_version
-            status = K8sResourceKindStatus.RUNNING.value
-            self.report_task_info(status=status)
             with self.MODEL_MANIPULATION_SEM:
                 LOGGER.info(f"Update model start with version {self.version}")
                 try:
@@ -116,8 +117,8 @@ class ModelLoadingThread(threading.Thread):
                 except Exception as e:
                     LOGGER.error(f"fail to update model: {e}")
                     status = K8sResourceKindStatus.FAILED.value
+                self.report_task_info(status=status)
             gc.collect()
-            self.report_task_info(status=status)
 
 
 class JobBase:
@@ -136,7 +137,9 @@ class JobBase:
         self.worker_name = self.config.worker_name or self.job_name
         self.namespace = self.config.namespace or self.job_name
         self.lc_server = self.config.lc_server
-        if str(self.get_parameters("MODEL_HOT_UPDATE", "False")) == "True":
+        if str(
+                self.get_parameters("MODEL_HOT_UPDATE", "False")
+        ).lower() == "true":
             ModelLoadingThread(
                 self.estimator,
                 self.job_kind,
