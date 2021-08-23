@@ -12,7 +12,7 @@ class FTimer():
     def __exit__(self, exc_type, exc_val, exc_tb):
         end = time.time()
         runtime = end - self.start
-        self.log.debug(f"{self.name}:{runtime}s")
+        self.log.debug(f"METRIC_{self.name}:{runtime}s")
 
 # if __name__ == '__main__':
 #     with MyTimer():
