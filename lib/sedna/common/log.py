@@ -20,6 +20,17 @@ import colorlog
 
 from sedna.common.config import BaseConfig
 
+# MEASUREMENT = 9
+LOG_DIR = "logs/"
+
+# logging.addLevelName(MEASUREMENT, "MEASUREMENT")
+
+class LogFilter(object):
+    def __init__(self, level):
+        self.__level = level
+
+    def filter(self, logRecord):
+        return logRecord.levelno <= self.__level
 
 class Logger:
     """
@@ -29,7 +40,9 @@ class Logger:
     """
 
     def __init__(self, name: str = BaseConfig.job_name):
+        
         self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
 
         self.format = colorlog.ColoredFormatter(
             '%(log_color)s[%(asctime)-15s] %(filename)s(%(lineno)d)'
@@ -37,11 +50,25 @@ class Logger:
 
         self.handler = logging.StreamHandler()
         self.handler.setFormatter(self.format)
+        self.handler.setLevel(logging.INFO)
+
+        # self.logger.measurement = self.measurement
+
+        # Create file handler
+        self.fh = logging.FileHandler('spam.log')
+        self.fh.setFormatter(self.format)
+        self.fh.addFilter(LogFilter(logging.DEBUG))
+        self.fh.setLevel(logging.DEBUG)
 
         self.logger.addHandler(self.handler)
-        self.logLevel = 'INFO'
-        self.logger.setLevel(logging.INFO)
+        # self.logger.addHandler(self.fh)
+
         self.logger.propagate = False
+
+    # def measurement(self, message, *args, **kws):
+    #     if self.logger.isEnabledFor(MEASUREMENT):
+    #         # Yes, logger takes its '*args' as 'args'.
+    #         self.logger._log(MEASUREMENT, message, args, **kws) 
 
 
 LOGGER = Logger().logger

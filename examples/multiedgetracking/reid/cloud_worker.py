@@ -62,7 +62,7 @@ class Estimator:
         cv2.putText(img, text, (int(textX), int(textY) ), font, 1, (255, 255, 255), 2)
 
 
-    def load(self):
+    def load(self, **kwargs):
         pass
 
     def predict(self, data, **kwargs):
