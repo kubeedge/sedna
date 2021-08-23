@@ -20,8 +20,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -52,26 +54,27 @@ type Job struct {
 
 // JobConfig defines config for incremental-learning-job
 type JobConfig struct {
-	UniqueIdentifier   string
-	Rounds             int
-	TrainTrigger       trigger.Base
-	DeployTrigger      trigger.Base
-	TriggerTime        time.Time
-	TrainTriggerStatus string
-	EvalTriggerStatus  string
-	TrainDataURL       string
-	EvalDataURL        string
-	OutputDir          string
-	OutputConfig       *OutputConfig
-	DataSamples        *DataSamples
-	TrainModel         *Model
-	DeployModel        *Model
-	EvalModels         []Model
-	EvalResult         []Model
-	Lock               sync.Mutex
-	Dataset            *dataset.Dataset
-	Storage            storage.Storage
-	Done               chan struct{}
+	UniqueIdentifier    string
+	Rounds              int
+	TrainTrigger        trigger.Base
+	DeployTrigger       trigger.Base
+	TriggerTime         time.Time
+	TrainTriggerStatus  string
+	EvalTriggerStatus   string
+	DeployTriggerStatus string
+	TrainDataURL        string
+	EvalDataURL         string
+	OutputDir           string
+	OutputConfig        *OutputConfig
+	DataSamples         *DataSamples
+	TrainModel          *Model
+	DeployModel         *Model
+	EvalModels          []Model
+	EvalResult          []Model
+	Lock                sync.Mutex
+	Dataset             *dataset.Dataset
+	Storage             storage.Storage
+	Done                chan struct{}
 }
 
 type Model = clienttypes.Model
@@ -256,6 +259,71 @@ func (im *Manager) evalTask(job *Job) error {
 	return nil
 }
 
+// hotModelUpdateDeployTask starts deploy task when job supports hot model update
+func (im *Manager) hotModelUpdateDeployTask(job *Job) error {
+	var localModelConfigFile string
+	if v, ok := job.ObjectMeta.Annotations[runtime.ModelHotUpdateAnnotationsKey]; ok {
+		localModelConfigFile = v
+	} else {
+		return nil
+	}
+
+	latestCond := im.getLatestCondition(job)
+	currentType := latestCond.Type
+
+	if currentType == sednav1.ILJobStageCondRunning && job.JobConfig.DeployTriggerStatus == TriggerReadyStatus {
+		models := im.getModelFromJobConditions(job, sednav1.ILJobDeploy)
+		if models == nil {
+			return nil
+		}
+		trainedModel := models[0]
+		deployModel := models[1]
+
+		trainedModelURL := trainedModel.URL
+		modelName := filepath.Base(trainedModelURL)
+		localHostDir := filepath.Dir(localModelConfigFile)
+		localHostModelFile := filepath.Join(localHostDir, modelName)
+
+		modelFile := util.AddPrefixPath(im.VolumeMountPrefix, localHostModelFile)
+		if err := im.updateDeployModelFile(job, trainedModelURL, modelFile); err != nil {
+			return err
+		}
+
+		deployModelURL := deployModel.URL
+		if err := im.updateDeployModelFile(job, trainedModelURL, deployModelURL); err != nil {
+			return err
+		}
+
+		config := map[string]map[string]string{
+			"model_config": {
+				"model_path": strings.Replace(localHostModelFile, localHostDir,
+					runtime.ModelHotUpdateContainerPrefix, 1),
+				"model_update_time": time.Now().String(),
+			},
+		}
+
+		jsonConfig, err := json.MarshalIndent(config, "", " ")
+		if err != nil {
+			return err
+		}
+
+		modelConfigFile := util.AddPrefixPath(im.VolumeMountPrefix, localModelConfigFile)
+		// overwrite file
+		err = ioutil.WriteFile(modelConfigFile, jsonConfig, 0644)
+		if err != nil {
+			klog.Errorf("job(%s) write model config file(url=%s) failed in deploy phase: %v",
+				job.JobConfig.UniqueIdentifier, modelConfigFile, err)
+			return err
+		}
+
+		job.JobConfig.DeployTriggerStatus = TriggerCompletedStatus
+		klog.V(4).Infof("job(%s) write model config file(url=%s) successfully in deploy phase",
+			job.JobConfig.UniqueIdentifier, modelConfigFile)
+	}
+
+	return nil
+}
+
 // deployTask starts deploy task
 func (im *Manager) deployTask(job *Job) {
 	jobConfig := job.JobConfig
@@ -267,15 +335,19 @@ func (im *Manager) deployTask(job *Job) {
 	models := im.getModelFromJobConditions(job, sednav1.ILJobDeploy)
 
 	if err == nil && neededDeploy && models != nil {
-		trainedModel := models[0]
-		deployModel := models[1]
-		err = im.updateDeployModelFile(job, trainedModel.URL, deployModel.URL)
-		if err != nil {
-			status.Status = string(sednav1.ILJobStageCondFailed)
-			klog.Errorf("job(%s) failed to update model: %v", jobConfig.UniqueIdentifier, err)
+		if !job.Spec.DeploySpec.Model.HotUpdateEnabled {
+			trainedModel := models[0]
+			deployModel := models[1]
+			err = im.updateDeployModelFile(job, trainedModel.URL, deployModel.URL)
+			if err != nil {
+				status.Status = string(sednav1.ILJobStageCondFailed)
+				klog.Errorf("failed to update model for job(%s): %v", jobConfig.UniqueIdentifier, err)
+			} else {
+				status.Status = string(sednav1.ILJobStageCondReady)
+				klog.Infof("update model for job(%s) successfully", jobConfig.UniqueIdentifier)
+			}
 		} else {
 			status.Status = string(sednav1.ILJobStageCondReady)
-			klog.Infof("job(%s) updated model successfully", jobConfig.UniqueIdentifier)
 		}
 
 		status.Input = &clienttypes.Input{
@@ -333,6 +405,8 @@ func (im *Manager) startJob(name string) {
 			err = im.trainTask(job)
 		case sednav1.ILJobEval:
 			err = im.evalTask(job)
+		case sednav1.ILJobDeploy:
+			err = im.hotModelUpdateDeployTask(job)
 		default:
 			klog.Errorf("invalid phase: %s", jobStage)
 			continue
@@ -373,12 +447,30 @@ func (im *Manager) Insert(message *clienttypes.Message) error {
 	return nil
 }
 
+// deleteModelHotUpdateData deletes the local data of model hot update
+func (im *Manager) deleteModelHotUpdateData(job *Job) error {
+	if configFile, ok := job.ObjectMeta.Annotations[runtime.ModelHotUpdateAnnotationsKey]; ok {
+		localHostDir := filepath.Dir(configFile)
+		dir := util.AddPrefixPath(im.VolumeMountPrefix, localHostDir)
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("failed to delete the dir(%s): %w", dir, err)
+		}
+	}
+
+	return nil
+}
+
 // Delete deletes incremental-learning-job config in db
 func (im *Manager) Delete(message *clienttypes.Message) error {
 	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
 
 	if job, ok := im.IncrementalJobMap[name]; ok && job.JobConfig.Done != nil {
 		close(job.JobConfig.Done)
+
+		if err := im.deleteModelHotUpdateData(job); err != nil {
+			klog.Errorf("job(%s) failed to delete data of model hot update: %v", name, err)
+			// continue anyway
+		}
 	}
 
 	delete(im.IncrementalJobMap, name)
@@ -529,6 +621,7 @@ func (im *Manager) initJob(job *Job, name string) error {
 func initTriggerStatus(jobConfig *JobConfig) {
 	jobConfig.TrainTriggerStatus = TriggerReadyStatus
 	jobConfig.EvalTriggerStatus = TriggerReadyStatus
+	jobConfig.DeployTriggerStatus = TriggerReadyStatus
 }
 
 func newTrigger(t sednav1.Trigger) (trigger.Base, error) {

@@ -18,6 +18,7 @@ rules:
     - get
     - list
     - watch
+    - patch
 
   # update crd status
   - apiGroups:

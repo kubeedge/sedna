@@ -317,12 +317,24 @@ func (c *Controller) sync(key string) (bool, error) {
 func (c *Controller) setWorkerNodeNameOfJob(job *sednav1.IncrementalLearningJob, jobStage string, nodeName string) error {
 	key := runtime.AnnotationsKeyPrefix + jobStage
 
+	return c.addJobAnnotations(job, key, nodeName)
+}
+
+// addJobAnnotations adds info in job annotations
+func (c *Controller) addJobAnnotations(job *sednav1.IncrementalLearningJob, key string, value string) error {
 	ann := job.GetAnnotations()
-	if ann[key] == nodeName {
+	if ann[key] == value {
 		// already set
 		return nil
 	}
-	dataStr := fmt.Sprintf(`{"metadata":{"annotations":{"%s":"%s"}}}`, key, nodeName)
+
+	patchData := metav1.PartialObjectMetadata{
+		ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{key: value}}}
+
+	patchDataBytes, err := json.Marshal(&patchData)
+	if err != nil {
+		return err
+	}
 
 	jobClient := c.client.IncrementalLearningJobs(job.Namespace)
 	return runtime.RetryUpdateStatus(job.Name, job.Namespace, func() error {
@@ -332,11 +344,11 @@ func (c *Controller) setWorkerNodeNameOfJob(job *sednav1.IncrementalLearningJob,
 		}
 
 		annotations := newJob.GetAnnotations()
-		if annotations[key] == nodeName {
+		if annotations[key] == value {
 			return nil
 		}
 
-		_, err = jobClient.Patch(context.TODO(), job.Name, types.MergePatchType, []byte(dataStr), metav1.PatchOptions{})
+		_, err = jobClient.Patch(context.TODO(), job.Name, types.MergePatchType, patchDataBytes, metav1.PatchOptions{})
 		return err
 	})
 }
@@ -372,6 +384,8 @@ func (c *Controller) transitJobState(job *sednav1.IncrementalLearningJob) (bool,
 	currentType := latestCondition.Type
 	newConditionType = currentType
 
+	modelHotUpdate := job.Spec.DeploySpec.Model.HotUpdateEnabled
+
 	switch currentType {
 	case initialType:
 		newConditionType = sednav1.ILJobStageCondWaiting
@@ -384,32 +398,50 @@ func (c *Controller) transitJobState(job *sednav1.IncrementalLearningJob) (bool,
 		// include train, eval, deploy pod
 		var err error
 		if jobStage == sednav1.ILJobDeploy {
-			err = c.restartInferPod(job)
-			if err != nil {
-				klog.V(2).Infof("incrementallearning job %v/%v inference pod failed to restart, err:%s", job.Namespace, job.Name, err)
-			} else {
+			if !modelHotUpdate {
+				err = c.restartInferPod(job)
+				if err != nil {
+					klog.V(2).Infof("incrementallearning job %v/%v inference pod failed to restart, err:%s", job.Namespace, job.Name, err)
+					return needUpdated, err
+				}
+
 				klog.V(2).Infof("incrementallearning job %v/%v inference pod restarts successfully", job.Namespace, job.Name)
+				newConditionType = sednav1.ILJobStageCondCompleted
+			} else {
+				newConditionType = sednav1.ILJobStageCondStarting
 			}
-		} else if podStatus != v1.PodPending && podStatus != v1.PodRunning {
-			err = c.createPod(job, jobStage)
+		} else {
+			if podStatus != v1.PodPending && podStatus != v1.PodRunning {
+				err = c.createPod(job, jobStage)
+				if err != nil {
+					return needUpdated, err
+				}
+			}
+			newConditionType = sednav1.ILJobStageCondStarting
 		}
-		if err != nil {
-			return needUpdated, err
-		}
-		newConditionType = sednav1.ILJobStageCondStarting
 
 	case sednav1.ILJobStageCondStarting, sednav1.ILJobStageCondRunning:
 		if podStatus == v1.PodRunning {
 			if jobStage == sednav1.ILJobDeploy {
-				newConditionType = sednav1.ILJobStageCondCompleted
-			} else {
-				// watch pod status, if pod running, set type running
-				newConditionType = sednav1.ILJobStageCondRunning
+				if !modelHotUpdate {
+					newConditionType = sednav1.ILJobStageCondCompleted
+				} else {
+					// add nodeName to job
+					if err := c.setWorkerNodeNameOfJob(job, string(jobStage), pod.Spec.NodeName); err != nil {
+						return needUpdated, err
+					}
 
+					// watch pod status, if pod running, set type running
+					newConditionType = sednav1.ILJobStageCondRunning
+				}
+			} else {
 				// add nodeName to job
 				if err := c.setWorkerNodeNameOfJob(job, string(jobStage), pod.Spec.NodeName); err != nil {
 					return needUpdated, err
 				}
+
+				// watch pod status, if pod running, set type running
+				newConditionType = sednav1.ILJobStageCondRunning
 			}
 		} else if podStatus == v1.PodSucceeded {
 			// watch pod status, if pod completed, set type completed
@@ -806,11 +838,25 @@ func (c *Controller) createInferPod(job *sednav1.IncrementalLearningJob) error {
 		"LC_SERVER": c.cfg.LC.Server,
 	}
 
+	modelHotUpdate := job.Spec.DeploySpec.Model.HotUpdateEnabled
+	if modelHotUpdate {
+		workerParam.ModelHotUpdate.Enable = true
+		workerParam.ModelHotUpdate.PollPeriodSeconds = job.Spec.DeploySpec.Model.PollPeriodSeconds
+	}
+
 	workerParam.WorkerType = runtime.InferencePodType
 	workerParam.HostNetwork = true
 
 	// create the inference worker
-	_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, &job.Spec.DeploySpec.Template, &workerParam)
+	if _, err = runtime.CreatePodWithTemplate(c.kubeClient, job, &job.Spec.DeploySpec.Template, &workerParam); err != nil {
+		return err
+	}
+
+	if modelHotUpdate {
+		c.addJobAnnotations(job, runtime.ModelHotUpdateAnnotationsKey,
+			runtime.GetModelHotUpdateConfigFile(job, runtime.ModelHotUpdateHostPrefix))
+	}
+
 	return err
 }
 
