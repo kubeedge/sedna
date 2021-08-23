@@ -50,7 +50,7 @@ class Logger:
 
         self.handler = logging.StreamHandler()
         self.handler.setFormatter(self.format)
-        self.handler.setLevel(logging.INFO)
+        self.handler.setLevel(logging.DEBUG)
 
         # self.logger.measurement = self.measurement
 
@@ -68,7 +68,7 @@ class Logger:
     # def measurement(self, message, *args, **kws):
     #     if self.logger.isEnabledFor(MEASUREMENT):
     #         # Yes, logger takes its '*args' as 'args'.
-    #         self.logger._log(MEASUREMENT, message, args, **kws) 
+            # self.logger._log(MEASUREMENT, message, args, **kws) 
 
 
 LOGGER = Logger().logger
