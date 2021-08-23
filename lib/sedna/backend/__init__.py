@@ -27,6 +27,7 @@ def set_backend(estimator=None, config=None):
     if config is None:
         config = BaseConfig()
     use_cuda = False
+    use_ascend = False
     backend_type = os.getenv(
         'BACKEND_TYPE', config.get("backend_type", "UNKNOWN")
     )
@@ -34,7 +35,12 @@ def set_backend(estimator=None, config=None):
     device_category = os.getenv(
         'DEVICE_CATEGORY', config.get("device_category", "CPU")
     )
-    if 'CUDA_VISIBLE_DEVICES' in os.environ:
+
+    # NPU>GPU>CPU
+    if device_category == "ASCEND":
+        use_ascend = True
+        os.environ['DEVICE_CATEGORY'] = "ASCEND"
+    elif 'CUDA_VISIBLE_DEVICES' in os.environ:
         os.environ['DEVICE_CATEGORY'] = 'GPU'
         use_cuda = True
     else:
@@ -44,14 +50,18 @@ def set_backend(estimator=None, config=None):
         from sedna.backend.tensorflow import TFBackend as REGISTER
     elif backend_type == "KERAS":
         from sedna.backend.tensorflow import KerasBackend as REGISTER
+    elif backend_type == "MINDSPORE":
+        from sedna.backend.mindspore import MSBackend as REGISTER
     else:
         warnings.warn(f"{backend_type} Not Support yet, use itself")
         from sedna.backend.base import BackendBase as REGISTER
+
     model_save_url = config.get("model_url")
     base_model_save = config.get("base_model_url") or model_save_url
     model_save_name = config.get("model_name")
     return REGISTER(
         estimator=estimator, use_cuda=use_cuda,
+        use_ascend=use_ascend,
         model_save_path=base_model_save,
         model_name=model_save_name,
         model_save_url=model_save_url
