@@ -25,8 +25,9 @@ jobs:
 
       - name: Run push images
         run: |
-          # ${GITHUB_ACTOR} => kubeedge
+          # ${GITHUB_REPOSITORY} => kubeedge/sedna
           # ${GITHUB_REF} => refs/tags/v0.0.1
+          # IMAGE_REPO=kubeedge IMAGE_TAG=v0.0.1
           # see https://docs.github.com/en/actions/reference/environment-variables#default-environment-variables
-          make push-all IMAGE_REPO=${GITHUB_ACTOR} IMAGE_TAG=${GITHUB_REF#refs/*/}
+          make push-all IMAGE_REPO=${GITHUB_REPOSITORY%/*} IMAGE_TAG=${GITHUB_REF#refs/*/}
         working-directory: ./src/github.com/${{ github.repository }}
