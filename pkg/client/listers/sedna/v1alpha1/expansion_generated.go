@@ -65,3 +65,19 @@ type ModelListerExpansion interface{}
 // ModelNamespaceListerExpansion allows custom methods to be added to
 // ModelNamespaceLister.
 type ModelNamespaceListerExpansion interface{}
+
+// ObjectSearchServiceListerExpansion allows custom methods to be added to
+// ObjectSearchServiceLister.
+type ObjectSearchServiceListerExpansion interface{}
+
+// ObjectSearchServiceNamespaceListerExpansion allows custom methods to be added to
+// ObjectSearchServiceNamespaceLister.
+type ObjectSearchServiceNamespaceListerExpansion interface{}
+
+// ObjectTrackingServiceListerExpansion allows custom methods to be added to
+// ObjectTrackingServiceLister.
+type ObjectTrackingServiceListerExpansion interface{}
+
+// ObjectTrackingServiceNamespaceListerExpansion allows custom methods to be added to
+// ObjectTrackingServiceNamespaceLister.
+type ObjectTrackingServiceNamespaceListerExpansion interface{}

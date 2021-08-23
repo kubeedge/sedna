@@ -36,6 +36,10 @@ type Interface interface {
 	LifelongLearningJobs() LifelongLearningJobInformer
 	// Models returns a ModelInformer.
 	Models() ModelInformer
+	// ObjectSearchServices returns a ObjectSearchServiceInformer.
+	ObjectSearchServices() ObjectSearchServiceInformer
+	// ObjectTrackingServices returns a ObjectTrackingServiceInformer.
+	ObjectTrackingServices() ObjectTrackingServiceInformer
 }
 
 type version struct {
@@ -77,4 +81,14 @@ func (v *version) LifelongLearningJobs() LifelongLearningJobInformer {
 // Models returns a ModelInformer.
 func (v *version) Models() ModelInformer {
 	return &modelInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ObjectSearchServices returns a ObjectSearchServiceInformer.
+func (v *version) ObjectSearchServices() ObjectSearchServiceInformer {
+	return &objectSearchServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ObjectTrackingServices returns a ObjectTrackingServiceInformer.
+func (v *version) ObjectTrackingServices() ObjectTrackingServiceInformer {
+	return &objectTrackingServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

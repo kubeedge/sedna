@@ -20,16 +20,24 @@ set -o pipefail
 
 SEDNA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-CLIENT_ROOT="${SEDNA_ROOT}/pkg/client"
+CLIENT_PATTERN="pkg/client/"
 ZZ_FILE="zz_generated.deepcopy.go"
+CODEGEN_PATTERN="${CLIENT_PATTERN}|${ZZ_FILE}"
 
 UPDATE_SCRIPT="hack/update-codegen.sh"
+
 "${SEDNA_ROOT}/$UPDATE_SCRIPT"
 
-if git status --short 2>/dev/null | grep -qE "${CLIENT_ROOT}|${ZZ_FILE}"; then
+if dirty_files=$(
+      git status --porcelain |
+      awk '$0=$2' |
+      grep -E "$CODEGEN_PATTERN" |
+      sed 's/^/  /'); then
   echo "FAILED: codegen verify failed." >&2
-  echo "Please run the command to update your codegen files: $UPDATE_SCRIPT" >&2
+  echo "Please run the command '$UPDATE_SCRIPT' to update your codegen files:" >&2
+  echo "$dirty_files" >&2
   exit 1
-else
+
+elif [ $? -eq 1 ]; then  # grep exit 1 when no matches
   echo "SUCCESS: codegen verified."
 fi
