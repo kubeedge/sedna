@@ -521,7 +521,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activeDeployments++
 
 	reIDIP, err := GetNodeIPByName(mc.kubeClient, service.Spec.ReIDDeploy.Spec.Template.Spec.NodeName)
-
+	// service.Spec.ReIDDeploy.Spec.Template.Spec.Containers[0].Ports[0].HostPort
 	// Create standard K8s service
 	reIDPortService, err := CreateKubernetesService(mc.kubeClient, service, ReIDWoker, reIDPort, reIDIP)
 	if err != nil {

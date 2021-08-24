@@ -69,7 +69,7 @@ class ReIDService(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{self.worker_name}_reid"):
+        with FTimer(f"{os.uname()[1]}_reid"):
             res = self.estimator.predict(data, **kwargs)
 
         if callback_func:
@@ -174,7 +174,7 @@ class MultiObjectTracking(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{os.uname()[1]}_mot"):
+        with FTimer(f"{os.uname()[1]}_feature_extraction"):
             res = self.estimator.predict(data, **kwargs)
         edge_result = deepcopy(res)
 
