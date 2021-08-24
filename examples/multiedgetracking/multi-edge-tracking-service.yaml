@@ -5,7 +5,7 @@ metadata:
 spec:
   motDeploy:
     spec:
-      replicas: 1
+      replicas: 3
       selector:
         matchLabels:
           app: object-detection
@@ -120,16 +120,16 @@ spec:
               - name: "imgpath"
                 value: "imgpath.npy"
               - name: "dataset"
-                value: "efficientnetv2_market"
+                value: "efficientnetv2_containers2021"
               resources:  # user defined resources
                 requests:
                   memory: 2Gi
               volumeMounts:
               - name: outputdir
-                mountPath: /data/ai_models/deep_eff_reid/
+                mountPath: /data/
           volumes:   # user defined volumes
             - name: outputdir
               hostPath:
                 # user must create the directory in host
-                path: /data/ai_models/deep_eff_reid/
+                path: /data/
                 type: Directory
