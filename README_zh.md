@@ -91,12 +91,12 @@ Sedna的安装文档请参考[这里](/docs/setup/install.md)。
 如果您有任何疑问，请以下方式与我们联系：
 - [slack channel](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
 
-<!--
+
 ## 贡献
 
 如果您有兴趣成为一个贡献者，也想参与到Sedna的代码开发中，
 请查看[CONTRIBUTING](CONTRIBUTING.md)获取更多关于如何提交Patch和贡献的流程。
--->
+
 
 ## 许可证
 
