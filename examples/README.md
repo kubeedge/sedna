@@ -20,6 +20,7 @@ Example: [Using Federated Learning Job in Surface Defect Detection Scenario](./f
 ### Shared Storage
 | Support Protocols  |Support Features| Examples |Release|
 | :-------------: | :-------------: |:-------------: | :-------------: |
-| S3 |Joint Inference/Incremental Learning| [Using Incremental Learning Job in Helmet Detection Scenario on S3](./storage/s3/README.md) | 0.2.0+|
+| S3 |Incremental Learning| [Using Incremental Learning Job in Helmet Detection Scenario on S3](storage/s3/incremental_learning/README.md) | 0.3.1+|
+| S3 |Joint Inference| [Using Joint Inference Service in Helmet Detection Scenario on S3](storage/s3/joint_inference/README.md) | 0.3.0+|
 
 
