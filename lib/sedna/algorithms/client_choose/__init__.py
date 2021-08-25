@@ -12,5 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import aggregation
-from .aggregation import FedAvg, MistNet
+from .client_choose import SimpleClientChoose

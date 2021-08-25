@@ -12,5 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import aggregation
-from .aggregation import FedAvg, MistNet
+
+import abc
+
+
+class AbstractClientChoose(metaclass=abc.ABCMeta):
+    """
+    Abstract class of ClientChoose, which provides base client choose
+    algorithm interfaces in federated learning.
+    """
+
+    def __init__(self):
+        pass
+
+
+class SimpleClientChoose(AbstractClientChoose):
+    """
+    A Simple Implementation of Client Choose.
+    """
+
+    def __init__(self, per_round=1):
+        super().__init__()
+        self.per_round = per_round

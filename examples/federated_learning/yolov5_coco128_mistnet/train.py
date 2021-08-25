@@ -12,5 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import aggregation
-from .aggregation import FedAvg, MistNet
+from interface import mistnet, s3_transmitter
+from interface import Dataset, Estimator
+from sedna.core.federated_learning import FederatedLearning
+
+
+def main():
+    data = Dataset()
+    estimator = Estimator()
+
+    fl_model = FederatedLearning(
+        estimator=estimator,
+        aggregation=mistnet,
+        transmitter=s3_transmitter)
+
+    fl_model.train(data)
+
+
+if __name__ == '__main__':
+    main()

@@ -12,5 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import aggregation
-from .aggregation import FedAvg, MistNet
+from interface import mistnet, s3_transmitter, simple_chooser
+from interface import Dataset, Estimator
+from sedna.service.server import AggregationServer
+
+
+def run_server():
+    data = Dataset()
+    estimator = Estimator()
+
+    server = AggregationServer(
+        data=data,
+        estimator=estimator,
+        aggregation=mistnet,
+        transmitter=s3_transmitter,
+        chooser=simple_chooser)
+
+    server.start()
+
+
+if __name__ == '__main__':
+    run_server()

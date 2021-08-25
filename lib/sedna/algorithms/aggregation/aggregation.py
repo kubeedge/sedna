@@ -104,3 +104,14 @@ class FedAvg(BaseAggregation, abc.ABC):
             updates.append(row.tolist())
         self.weights = deepcopy(updates)
         return updates
+
+
+@ClassFactory.register(ClassType.FL_AGG)
+class MistNet(BaseAggregation, abc.ABC):
+    def __init__(self, cut_layer, epsilon=100):
+        super().__init__()
+        self.cut_layer = cut_layer
+        self.epsilon = epsilon
+
+    def aggregate(self, clients: List[AggClient]):
+        pass
