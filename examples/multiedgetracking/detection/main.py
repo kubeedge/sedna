@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import time
+
+import requests
 import cv2
 
 from sedna.common.config import Context
@@ -21,29 +23,47 @@ from sedna.common.log import LOGGER
 from edge_worker import Estimator
 
 camera_address = Context.get_parameters('video_url')
+stream_dispatcher = Context.get_parameters('stream_dispatcher_url')
 
-def main():
+def retrieve_rtsp_stream() -> str:
+    LOGGER.info(f'Finding target RTSP stream ...')
+    if stream_dispatcher != None:
+        try:
+            rtsp_stream = requests.get(stream_dispatcher)
+            LOGGER.info(f'Retrieved RTSP stream with address {rtsp_stream}')
+            # This is crazy, but we have to do it otherwise cv2 will silenty fail and never open the RTSP stream
+            cv2_cleaned_string = rtsp_stream.text.strip().replace('"', '')
+            return cv2_cleaned_string
+        except Exception as ex:
+            LOGGER.error(f'Unable to access stream dispatcher server, using fallback value. [{ex}]')
+            return camera_address
+    else:
+        LOGGER.info(f'Using RTSP from env variable with address {camera_address}')
+        return camera_address
+    
+
+def start_stream_acquisition(stream_address):
     edge_worker = ObjectDetector(estimator=Estimator)
 
-    camera = cv2.VideoCapture(camera_address)
+    camera = cv2.VideoCapture(stream_address)
     fps = 10
     nframe = 0
     
     while True:
         try:
             ret, input_yuv = camera.read()
-        except Exception:
-            pass
-
+        except Exception as ex:
+            LOGGER.error(f'Unable to access stream [{ex}]')
+            
         if not ret:
             LOGGER.info(
-                f"camera is not open, camera_address={camera_address},"
+                f"camera is not open, camera_address={stream_address},"
                 f" sleep 5 second.")
             time.sleep(5)
             try:
-                camera = cv2.VideoCapture(camera_address)
-            except Exception:
-                pass
+                camera = cv2.VideoCapture(stream_address)
+            except Exception as ex:
+                LOGGER.error(f'Unable to access stream [{ex}]')
             continue
 
         if nframe % fps:
@@ -56,4 +76,5 @@ def main():
         edge_worker.inference(img_rgb)
 
 if __name__ == '__main__':
-    main()
+    result = retrieve_rtsp_stream()
+    start_stream_acquisition(result)

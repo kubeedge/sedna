@@ -95,19 +95,20 @@ func (dc *DownstreamController) syncJointInferenceService(eventType watch.EventT
 	return nil
 }
 
-// syncJointInferenceService syncs the joint-inference-service resources
-func (dc *DownstreamController) syncMultiEdgeTrackingService(eventType watch.EventType, joint *sednav1.MultiEdgeTrackingService) error {
-	// Here only propagate to the nodes with non empty name
-	// FIXME: only the case that Spec.NodeName specified is support
-	for _, edgeWorker := range joint.Spec.MultiObjectTrackingWorker {
-		nodeName := edgeWorker.Template.Spec.NodeName
+func (dc *DownstreamController) syncMultiEdgeTrackingService(eventType watch.EventType, met *sednav1.MultiEdgeTrackingService) error {
 
-		if len(nodeName) == 0 {
+	var workers []string
+	workers = append(workers, met.Spec.MultiObjectTrackingDeploy.Spec.Template.Spec.NodeName,
+		met.Spec.MultiObjectTrackingDeploy.Spec.Template.Spec.NodeName,
+		met.Spec.MultiObjectTrackingDeploy.Spec.Template.Spec.NodeName,
+	)
+
+	for _, elem := range workers {
+		if len(elem) == 0 {
 			return fmt.Errorf("empty node name")
 		}
 
-		dc.messageLayer.SendResourceObject(nodeName, eventType, joint)
-
+		dc.messageLayer.SendResourceObject(elem, eventType, met)
 	}
 
 	return nil

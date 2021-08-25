@@ -127,4 +127,5 @@ func InjectSecretObj(obj CommonInterface, secret *v1.Secret) {
 	ann[SecretAnnotationKey] = string(b)
 
 	obj.SetAnnotations(ann)
+
 }

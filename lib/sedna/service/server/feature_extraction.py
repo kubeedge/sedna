@@ -96,8 +96,7 @@ class FEServer(BaseServer):  # pylint: disable=too-many-arguments
         return ServeModelInfoResult(infos=self.get_all_urls())
 
     def feature_extraction(self, data: InferenceItem, request: Request):
-        inference_res = self.model.inference(
-            data.data, post_process=data.callback)
-
+        self.model.put_data(data.data)
+        # inference_res = self.model.inference(data.data, post_process=data.callback)
         
         return ServePredictResult(result=[])

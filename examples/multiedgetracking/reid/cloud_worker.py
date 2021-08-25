@@ -62,6 +62,9 @@ class Estimator:
         cv2.putText(img, text, (int(textX), int(textY) ), font, 1, (255, 255, 255), 2)
 
 
+    def load(self, **kwargs):
+        pass
+
     def predict(self, data, **kwargs):
         temp = np.array(data)
         query_feat = torch.from_numpy(temp)

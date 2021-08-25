@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+
+import os, queue
 from copy import deepcopy
+import threading
 
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
@@ -67,7 +69,7 @@ class ReIDService(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{self.worker_name}_reid"):
+        with FTimer(f"{os.uname()[1]}_reid"):
             res = self.estimator.predict(data, **kwargs)
 
         if callback_func:
@@ -88,11 +90,11 @@ class MultiObjectTracking(JobBase):
 
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         # Port and IP of the service this pod will host (local)
-        self.local_ip = self.get_parameters("FE_MODEL_BIND_IP", get_host_ip())
-        self.local_port = self.get_parameters("FE_MODEL_BIND_PORT", get_host_ip())
+        self.local_ip = self.get_parameters(get_host_ip())
+        self.local_port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
 
         # Port and IP of the service this pod will contact (remote)
-        self.remote_ip = self.get_parameters("REID_MODEL_BIND_IP", self.local_ip)
+        self.remote_ip = self.get_parameters("REID_MODEL_BIND_URL", self.local_ip)
         self.remote_port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
 
         report_msg = {
@@ -108,27 +110,33 @@ class MultiObjectTracking(JobBase):
                                       message=report_msg,
                                       period_interval=period_interval)
         self.lc_reporter.setDaemon(True)
-        self.lc_reporter.start()
+        #self.lc_reporter.start()
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
 
         if callable(self.estimator):
             self.estimator = self.estimator()
-        if not os.path.exists(self.model_path):
-            raise FileExistsError(f"{self.model_path} miss")
-        else:
+        # if not os.path.exists(self.model_path):
+        #     raise FileExistsError(f"{self.model_path} miss")
+        # else:
             # We are using a PyTorch model which requires explicit weights loading.
-            self.log.info("Estimator -> Loading model and weights")
-            self.estimator.load(self.model_path)
-            #self.estimator.load_weights()
+        self.log.info("Estimator -> Loading model and weights")
+        self.estimator.load()
+        #self.estimator.load_weights()
 
-            self.log.info("Estimator -> Evaluating model ..")
-            self.estimator.evaluate()
+        self.log.info("Estimator -> Evaluating model ..")
+        self.estimator.evaluate()
 
         # The cloud node taking care of the reid step
         self.cloud = ReID(service_name=self.job_name,
                                  host=self.remote_ip, port=self.remote_port)
+
+        # Async parameters
+        self.parallelism = 1
+        self.queue = queue.Queue()
+        threading.Thread(target=self.get_data, daemon=True).start()
+
 
     def start(self):
         if callable(self.estimator):
@@ -143,6 +151,21 @@ class MultiObjectTracking(JobBase):
                                      host=self.local_ip, http_port=self.local_port)
         app_server.start()
 
+    def get_data(self):
+        while True:
+            token = self.queue.get()
+            self.log.info(f'Data consumed')
+            try:
+                self.inference(token)
+            except Exception as e:
+                self.log.info(f"Error processing token {token}: {e}")
+
+            self.queue.task_done()
+
+    def put_data(self, data):
+        self.queue.put(data)
+        self.log.info("Data deposited")
+
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
         if callable(post_process):
@@ -151,17 +174,17 @@ class MultiObjectTracking(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{os.uname()[1]}_mot"):
+        with FTimer(f"{os.uname()[1]}_feature_extraction"):
             res = self.estimator.predict(data, **kwargs)
         edge_result = deepcopy(res)
 
         if callback_func:
             res = callback_func(res)
 
-        self.lc_reporter.update_for_edge_inference()
+        #self.lc_reporter.update_for_edge_inference()
         # Send detection+tracking results to cloud
         # edge_result
-        
+
         if edge_result != None:
             with FTimer(f"upload_plus_reid"):
                 cres = self.cloud.reid(edge_result, post_process=post_process, **kwargs)
@@ -180,8 +203,9 @@ class ObjectDetector(JobBase):
         self.log.info("Loading ObjectDetector module")
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         self.local_ip = get_host_ip()
+
         self.remote_ip = self.get_parameters(
-            "FE_MODEL_BIND_IP", self.local_ip)
+            "FE_MODEL_BIND_URL", self.local_ip)
         self.port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
 
         report_msg = {
@@ -198,22 +222,24 @@ class ObjectDetector(JobBase):
                                       message=report_msg,
                                       period_interval=period_interval)
         self.lc_reporter.setDaemon(True)
-        self.lc_reporter.start()
+        #self.lc_reporter.start()
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
 
         if callable(self.estimator):
             self.estimator = self.estimator()
-        if not os.path.exists(self.model_path):
-            raise FileExistsError(f"{self.model_path} miss")
-        else:
-            # We are using a PyTorch model which requires explicit weights loading.
-            self.log.info("Estimator -> Loading model and weights")
-            self.estimator.load(self.model_path)
+        # if not os.path.exists(self.model_path):
+        #     raise FileExistsError(f"{self.model_path} miss")
+        # else:
+        #     # We are using a PyTorch model which requires explicit weights loading.
+        #     self.log.info("Estimator -> Loading model and weights")
 
-            self.log.info("Estimator -> Evaluating model ..")
-            self.estimator.evaluate()
+        # We should pass the model path but, because it's in the container logic, we don't pass anything.
+        self.estimator.load()
+
+        self.log.info("Estimator -> Evaluating model ..")
+        self.estimator.evaluate()
 
         # The edge node in the next layer taking care of the feature extraction
         self.edge = FE(service_name=self.job_name,
@@ -233,10 +259,10 @@ class ObjectDetector(JobBase):
         if callback_func:
             detection_result = callback_func(detection_result)
 
-        self.lc_reporter.update_for_edge_inference()
+        #self.lc_reporter.update_for_edge_inference()
 
         if detection_result != None and len(detection_result) > 0:
-            with FTimer(f"upload_plus_feature_extraction"):
+            with FTimer(f"upload_bboxes"):
                 cres = self.edge.feature_extraction(detection_result, post_process=post_process, **kwargs)
 
         return [cres, detection_result]

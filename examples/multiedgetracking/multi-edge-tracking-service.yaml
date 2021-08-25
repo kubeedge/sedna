@@ -1,113 +1,136 @@
 apiVersion: sedna.io/v1alpha1
 kind: MultiEdgeTrackingService
 metadata:
-  name: pedestrian-tracking
+  name: container-tracking
 spec:
-  multiObjectTrackingWorker:
-  -  
-    model:
-      name: "mot-efficientnet"
-    template:
-      spec:
-        nodeName: "frapedge00001"
-        # labels:
-        #   app: features-extraction-edge
-        containers:
-        - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
-          imagePullPolicy: IfNotPresent
-          name:  mot
-          env:  # user defined environments
-          - name: input_shape
-            value: "256,128"
-          - name: "video_url"
-            value: "rtsp://localhost/video"
-          - name: "model_name"
-            value: "efficientnet_v2"
-          - name: "edge_model_weights"
-            value: "/data/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
-          resources:  # user defined resources
-            requests:
-              memory: 64M
-              cpu: 100m
-            limits:
-              memory: 2Gi
-          volumeMounts:
+  motDeploy:
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: object-detection
+      template:
+        metadata:
+          labels:
+            app: object-detection
+        spec:
+          nodeName: "fraprigel00001"
+          containers:
+            - image: kubeedge/sedna-example-multi-edge-tracking-detection:v0.3.0
+              imagePullPolicy: IfNotPresent
+              name:  detection
+              env:  # user defined environments
+              - name: input_shape
+                value: "640"
+              - name: "video_url"
+                value: "rtsp://172.17.0.1/video/0"
+              - name: "stream_dispatcher_url"
+                value: "http://7.182.9.110:8478/get_rtsp_stream" # we should have a k8s deploy+service+pod for this later
+              - name: "model_classifier"
+                value: "/home/v00609018/.cache/torch/hub/checkpoints/resnet50-0676ba61.pth"
+              - name: "model_weights"
+                value: "/data/yolo_lfs/runs/train/exp4/weights/best.pt"
+              resources:  # user defined resources
+                requests:
+                  memory: 64M
+                  cpu: 500m
+                limits:
+                  memory: 2Gi
+              volumeMounts:
+              - name: outputdir
+                mountPath: /data/yolo_lfs/
+          volumes:   # user defined volumes
             - name: outputdir
-              mountPath: /data/ai_models/deep_eff_reid/
-        volumes:   # user defined volumes
-          - name: outputdir
-            hostPath:
-              # user must create the directory in host
-              path: /data/ai_models/deep_eff_reid/
-              type: Directory
-  -  
-    model:
-      name: "yolov5"
-    template:
-      spec:
-        nodeName: "fraprigel00001"
-        containers:
-        - image: kubeedge/sedna-example-multi-edge-tracking-detection:v0.3.0
-          imagePullPolicy: IfNotPresent
-          name:  detection
-          env:  # user defined environments
-          - name: input_shape
-            value: "640"
-          - name: "video_url"
-            value: "rtsp://localhost/video"
-          - name: "model_classifier"
-            value: "/home/v00609018/.cache/torch/hub/checkpoints/resnet50-0676ba61.pth"
-          - name: "model_weights"
-            value: "/home/data/data/yolo_lfs/runs/train/exp4/weights/best.pt"
-          resources:  # user defined resources
-            requests:
-              memory: 64M
-              cpu: 100m
-            limits:
-              memory: 2Gi
-        #   volumeMounts:
-        #     - name: outputdir
-        #       mountPath: /data/yolo_lfs/
-        # volumes:   # user defined volumes
-        #   - name: outputdir
-        #     hostPath:
-        #       # user must create the directory in host
-        #       path: /data/yolo_lfs/
-        #       type: Directory
-
-
-  reIDWorker:
-    model:
-      name: "mot-efficientnet"
-    template:
-      spec:
-        nodeName: "fraporion00001"
-        containers:
-          - image: kubeedge/sedna-example-multi-edge-tracking-reid:v0.3.0
-            name:  reid
+              hostPath:
+                # user must create the directory in host
+                path: /data/yolo_lfs
+                type: Directory
+  feDeploy:
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: feature-extraction
+      template:
+        metadata:
+          labels:
+            app: feature-extraction
+        spec:
+          nodeName: "frapedge00001"
+          containers:
+          - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
             imagePullPolicy: IfNotPresent
+            ports:
+              - containerPort: 6000
+                hostPort: 6000
+            name:  feature-extraction
             env:  # user defined environments
-            - name: "log_dir"
-              value: "/data/ai_models/deep_eff_reid/loggers/runs/"
-            - name: "img_dir"
-              value: "/data/ai_models/deep_eff_reid/"
-            - name: "gfeats"
-              value: "gfeats.pth"
-            - name: "qfeats"
-              value: "qfeats.pth"
-            - name: "imgpath"
-              value: "imgpath.npy"
-            - name: "dataset"
-              value: "efficientnetv2_market"
+            - name: input_shape
+              value: "256,128"
+            - name: "model_name"
+              value: "efficientnet_v2"
+            - name: "model_path"
+              value: "/data/ai_models/deep_eff_reid/efficienetv2_imagenet.pt"
+            - name: "edge_model_weights"
+              value: "/data/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
             resources:  # user defined resources
               requests:
+                memory: 128M
+                cpu: 500m
+              limits:
                 memory: 2Gi
             volumeMounts:
+              - name: outputdir
+                mountPath: /data/ai_models/deep_eff_reid/
+          volumes:   # user defined volumes
             - name: outputdir
-              mountPath: /data/ai_models/deep_eff_reid/
-        volumes:   # user defined volumes
-          - name: outputdir
-            hostPath:
-              # user must create the directory in host
-              path: /data/ai_models/deep_eff_reid/
-              type: Directory
+              hostPath:
+                # user must create the directory in host
+                path: /data/ai_models/deep_eff_reid/
+                type: Directory
+
+  reIDDeploy:
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: reid
+      template:
+        metadata:
+          labels:
+            app: reid
+        spec:
+          nodeName: "fraporion00001"
+          containers:
+            - image: kubeedge/sedna-example-multi-edge-tracking-reid:v0.3.0
+              name:  reid
+              imagePullPolicy: IfNotPresent
+              ports:
+                - containerPort: 5000
+                  hostPort: 5000
+              env:  # user defined environments
+              - name: "log_dir"
+                value: "/data/ai_models/deep_eff_reid/loggers/runs/"
+              - name: "img_dir"
+                value: "/data/ai_models/deep_eff_reid/"
+              - name: "gfeats"
+                value: "gfeats.pth"
+              - name: "qfeats"
+                value: "qfeats.pth"
+              - name: "imgpath"
+                value: "imgpath.npy"
+              - name: "dataset"
+                value: "efficientnetv2_containers2021"
+              resources:  # user defined resources
+                requests:
+                  memory: 2Gi
+                  cpu: 500m
+              volumeMounts:
+              - name: outputdir
+                mountPath: /data/
+          volumes:   # user defined volumes
+            - name: outputdir
+              hostPath:
+                # user must create the directory in host
+                path: /data/
+                type: Directory

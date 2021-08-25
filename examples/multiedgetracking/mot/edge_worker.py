@@ -14,7 +14,7 @@
 
 import sys
 import os
-from sedna.core.multi_edge_tracking.multi_edge_tracking import MultiObjectTracking
+
 import torch
 import torchvision.transforms as T
 from PIL import Image
@@ -25,10 +25,12 @@ from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
 from sedna.core.multi_edge_tracking import MultiObjectTracking
+from sedna.core.multi_edge_tracking.multi_edge_tracking import MultiObjectTracking
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
 model_weights = Context.get_parameters('edge_model_weights')
+model_path = Context.get_parameters('model_path')
 model_name = Context.get_parameters('model_name')
 image_size = Context.get_parameters('input_shape')
 
@@ -51,8 +53,8 @@ class Estimator:
     
     def load(self, model_url="", mmodel_name=None, **kwargs):
         # The model should be provided by a CRD
-        LOGGER.info(f"About to load model {model_name} with url {model_url}..")
-        self.model = Backbone(num_classes=255, model_path=model_url, model_name=model_name, pretrain_choice="imagenet")
+        LOGGER.info(f"About to load model {model_name} with url {model_path}..")
+        self.model = Backbone(num_classes=255, model_path=model_path, model_name=model_name, pretrain_choice="imagenet")
 
         # Here we load the model weights from the attached volume (.yaml)
         LOGGER.info(f"About to load weights for the model {model_name}..")

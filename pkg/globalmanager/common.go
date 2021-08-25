@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -160,6 +161,19 @@ func calcActivePodCount(pods []*v1.Pod) int32 {
 		}
 	}
 	klog.Infof("Active pods: %d", result)
+	return result
+}
+
+func calcActiveDeploymentCount(deploys []*appsv1.Deployment) int32 {
+	var result int32 = 0
+	for _, d := range deploys {
+		if appsv1.DeploymentAvailable != appsv1.DeploymentConditionType(d.Status.String()) &&
+			appsv1.DeploymentReplicaFailure != appsv1.DeploymentConditionType(d.Status.String()) &&
+			d.DeletionTimestamp == nil {
+			result++
+		}
+	}
+	klog.Infof("Active deployments: %d", result)
 	return result
 }
 

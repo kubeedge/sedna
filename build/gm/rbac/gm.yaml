@@ -38,13 +38,16 @@ rules:
   # current we implement ai features by k8s pods, services
   - apiGroups:
     - ""
+    - "apps"
     resources:
+    - deployments
     - pods
     verbs:
     - create
     - get
     - list
     - watch
+    - update
     - delete
 
   - apiGroups:
@@ -73,6 +76,9 @@ rules:
     - events
     verbs:
     - create
+    - patch
+    - watch
+    - delete
     - list
     - get
 ---
