@@ -58,7 +58,10 @@ Sedna由以下组件构建：
 
 
 
-## 文档
+## 指南
+
+### 文档
+Sedna 在 [readthedoc.io](https://sedna.readthedocs.io/) 托管相关文档。 您可以根据这些文档更好地了解Sedna。
 ### 安装
 Sedna的安装文档请参考[这里](/docs/setup/install.md)。
 

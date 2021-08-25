@@ -15,6 +15,7 @@
     - [Details of api between GM(cloud) and LC(edge)](#details-of-api-between-gmcloud-and-lcedge)
     - [Flow of object tracking service creation](#flow-of-object-tracking-service-creation)
   - [Workers Communication](#workers-communication)
+  
 # Object Tracking Service
 ## Motivation
 Object tracking is an important technology in the field of computer vision, which is widely used in security monitoring, intelligent transportation, etc. Generally, object tracking applications have high latency requirements, which cannot be met by cloud computing schemes. The object tracking schemes based on edge computing have the characteristics of low latency and data privacy security, and are the mainstream technology trend. 

@@ -64,7 +64,7 @@ The tables below summarize the group, kind and API version details for the CRD.
 
 ### Joint inference CRD
 
-see [crd source](/build/crd-samples/sedna/jointinferenceservice_v1alpha1.yaml)
+see [crd source](/build/crds/sedna.io_jointinferenceservices.yaml)
 
 ### Joint inference type definition
 

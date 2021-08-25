@@ -71,6 +71,12 @@ Sedna consists of the following components：
 
 
 ## Guides
+
+### Documents
+
+Documentation is located on [readthedoc.io](https://sedna.readthedocs.io/). These documents can help you understand Sedna better.
+
+
 ### Installation
 Follow the [Sedna installation document](docs/setup/install.md) to install Sedna.
 
