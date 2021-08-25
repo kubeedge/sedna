@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import time
 
 from sedna.core.base import JobBase
@@ -24,15 +25,32 @@ from sedna.common.constant import K8sResourceKindStatus
 
 class FederatedLearning(JobBase):
     """
-    Federated learning
-    """
+    Federated learning enables multiple actors to build a common, robust
+    machine learning model without sharing data, thus allowing to address
+    critical issues such as data privacy, data security, data access rights
+    and access to heterogeneous data.
 
+    Sedna provide the related interfaces for application development.
+
+    Parameters
+    ----------
+    estimator: Instance
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your model.
+    aggregation: str
+        aggregation algo which has registered to ClassFactory,
+        see `sedna.algorithms.aggregation` for more detail.
+
+    Examples
+    --------
+    >>> Estimator = keras.models.Sequential()
+    >>> fl_model = FederatedLearning(
+            estimator=Estimator,
+            aggregation="FedAvg"
+        )
+    """
     def __init__(self, estimator, aggregation="FedAvg"):
-        """
-        Initial a FederatedLearning job
-        :param estimator: Customize estimator
-        :param aggregation: aggregation algorithm for FederatedLearning
-        """
 
         protocol = Context.get_parameters("AGG_PROTOCOL", "ws")
         agg_ip = Context.get_parameters("AGG_IP", "127.0.0.1")
@@ -53,6 +71,13 @@ class FederatedLearning(JobBase):
         self.register(timeout=connect_timeout)
 
     def register(self, timeout=300):
+        """
+        Deprecated, Client proactively subscribes to the aggregation service.
+
+        Parameters
+        ----------
+        timeout: int, connect timeout. Default: 300
+        """
         self.log.info(
             f"Node {self.worker_name} connect to : {self.config.agg_uri}")
         self.node = AggregationClient(
@@ -73,10 +98,20 @@ class FederatedLearning(JobBase):
               **kwargs):
         """
         Training task for FederatedLearning
-        :param train_data: datasource use for train
-        :param valid_data: datasource use for evaluation
-        :param post_process: post process
-        :param kwargs: params for training of customize estimator
+
+        Parameters
+        ----------
+        train_data: BaseDataSource
+            datasource use for train, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        valid_data:  BaseDataSource
+            datasource use for evaluation, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` training.
+        kwargs: Dict
+            parameters for `estimator` training,
+            Like:  `early_stopping_rounds` in Xgboost.XGBClassifier
         """
 
         callback_func = None

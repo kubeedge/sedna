@@ -15,6 +15,11 @@
 # Copy from https://github.com/huawei-noah/vega/blob/master/zeus/common/class_factory.py  # noqa
 # We made a re-modify due to vega is exceed out needs
 
+"""
+Management class registration and bind configuration properties,
+provides the type of class supported.
+"""
+
 from inspect import isfunction, isclass
 
 
@@ -34,7 +39,7 @@ class ClassType:
 
 class ClassFactory(object):
     """
-        A Factory Class to manage all class need to register with config.
+    A Factory Class to manage all class need to register with config.
     """
 
     __registry__ = {}
@@ -124,7 +129,7 @@ class ClassFactory(object):
 
         :param type_name: type name of class registry
         :param t_cls_name: class name
-        :return:t_cls
+        :return: t_cls
         """
         if not cls.is_exists(type_name, t_cls_name):
             raise ValueError(

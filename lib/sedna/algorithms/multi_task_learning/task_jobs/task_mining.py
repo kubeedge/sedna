@@ -12,6 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Mining tasks of inference sample base on task attribute extractor
+
+Parameters
+----------
+samples ： infer sample, see `sedna.datasources.BaseDataSource` for more detail.
+
+Returns
+-------
+allocations : tasks that assigned to each sample
+"""
+
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassFactory, ClassType
 
@@ -21,6 +33,14 @@ __all__ = ('TaskMiningBySVC', 'TaskMiningByDataAttr')
 
 @ClassFactory.register(ClassType.MTL)
 class TaskMiningBySVC:
+    """
+    Corresponding to `TaskDefinitionBySVC`
+
+    Parameters
+    ----------
+    task_extractor : Model
+        SVC Model used to predicting target tasks
+    """
     def __init__(self, task_extractor, **kwargs):
         self.task_extractor = task_extractor
 
@@ -38,6 +58,17 @@ class TaskMiningBySVC:
 
 @ClassFactory.register(ClassType.MTL)
 class TaskMiningByDataAttr:
+    """
+    Corresponding to `TaskDefinitionByDataAttr`
+
+    Parameters
+    ----------
+    task_extractor : Dict
+        used to match target tasks
+    attr_filed: List[Metadata]
+        metadata is usually a class feature
+        label with a finite values.
+    """
     def __init__(self, task_extractor, **kwargs):
         self.task_extractor = task_extractor
         self.attr_filed = kwargs.get("attribute", [])

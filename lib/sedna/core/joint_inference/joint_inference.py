@@ -29,6 +29,18 @@ class BigModelService(JobBase):
     """
     Large model services implemented
     Provides RESTful interfaces for large-model inference.
+
+    Parameters
+    ----------
+    estimator : Instance, big model
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your model.
+
+    Examples
+    --------
+    >>> Estimator = xgboost.XGBClassifier()
+    >>> BigModelService(estimator=Estimator).start()
     """
 
     def __init__(self, estimator=None):
@@ -44,7 +56,6 @@ class BigModelService(JobBase):
     def start(self):
         """
         Start inference rest server
-        :return:
         """
 
         if callable(self.estimator):
@@ -66,10 +77,21 @@ class BigModelService(JobBase):
     def inference(self, data=None, post_process=None, **kwargs):
         """
         Inference task for JointInference
-        :param data: inference sample
-        :param post_process: post process
-        :param kwargs: params for inference of big model
-        :return: inference result
+
+        Parameters
+        ----------
+        data: BaseDataSource
+            datasource use for inference, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` inference.
+        kwargs: Dict
+            parameters for `estimator` inference,
+            Like:  `ntree_limit` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        inference result
         """
 
         callback_func = None
@@ -87,16 +109,40 @@ class BigModelService(JobBase):
 
 class JointInference(JobBase):
     """
-    Joint inference
+    Sedna provide a framework make sure under the condition of limited
+    resources on the edge, difficult inference tasks are offloaded to the
+    cloud to improve the overall performance, keeping the throughput.
+
+    Parameters
+    ----------
+    estimator : Instance
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your model.
+    hard_example_mining : Dict
+        HEM algorithms with parameters which has registered to ClassFactory,
+        see `sedna.algorithms.hard_example_mining` for more detail.
+
+    Examples
+    --------
+    >>> Estimator = keras.models.Sequential()
+    >>> ji_service = JointInference(
+            estimator=Estimator,
+            hard_example_mining={
+                "method": "IBT",
+                "param": {
+                    "threshold_img": 0.9
+                }
+            }
+        )
+
+    Notes
+    -----
+    Sedna provide an interface call `get_hem_algorithm_from_config` to build
+    the `hard_example_mining` parameter from CRD definition.
     """
 
     def __init__(self, estimator=None, hard_example_mining: dict = None):
-        """
-        Initial a JointInference Job
-        :param estimator: Customize estimator
-        :param hard_example_mining: dict, hard example mining
-        """
-
         super(JointInference, self).__init__(estimator=estimator)
         self.job_kind = K8sResourceKind.JOINT_INFERENCE_SERVICE.value
         self.local_ip = get_host_ip()
@@ -141,8 +187,23 @@ class JointInference(JobBase):
     def get_hem_algorithm_from_config(cls, **param):
         """
         get the `algorithm` name and `param` of hard_example_mining from crd
-        :param param: update value in parameters of hard_example_mining
-        :return: dict, e.g.: {"method": "IBT", "param": {"threshold_img": 0.5}}
+
+        Parameters
+        ----------
+        param : Dict
+            update value in parameters of hard_example_mining
+
+        Returns
+        -------
+        dict
+            e.g.: {"method": "IBT", "param": {"threshold_img": 0.5}}
+
+        Examples
+        --------
+        >>> JointInference.get_hem_algorithm_from_config(
+                threshold_img=0.9
+            )
+        {"method": "IBT", "param": {"threshold_img": 0.9}}
         """
         return cls.parameters.get_algorithm_from_api(
             algorithm="HEM",
@@ -151,12 +212,25 @@ class JointInference(JobBase):
 
     def inference(self, data=None, post_process=None, **kwargs):
         """
-        Inference task for IncrementalLearning
-        :param data: inference sample
-        :param post_process: post process
-        :param kwargs: params for inference of customize estimator
-        :return: if is hard sample, real result,
-        little model result, big model result
+        Inference task with JointInference
+
+        Parameters
+        ----------
+        data: BaseDataSource
+            datasource use for inference, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` inference.
+        kwargs: Dict
+            parameters for `estimator` inference,
+            Like:  `ntree_limit` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        if is hard sample : bool
+        inference result : object
+        result from little-model : object
+        result from big-model: object
         """
 
         callback_func = None

@@ -18,21 +18,32 @@ import abc
 from copy import deepcopy
 from typing import List
 
-import numpy as np
-
 from sedna.common.class_factory import ClassFactory, ClassType
 
 __all__ = ('AggClient', 'FedAvg',)
 
 
 class AggClient:
-    """Aggregation clients"""
+    """
+    Client that interacts with cloud aggregator
+
+    Parameters
+    ----------
+    num_samples: int
+        number of samples for the current weights
+    weights: List
+        weights of the layer as a list of number-like array,
+        such as [[0, 0, 0, 0], [0, 0, 0, 0] ... ]
+    """
+
     num_samples: int
     weights: List
 
 
 class BaseAggregation(metaclass=abc.ABCMeta):
-    """Abstract class of aggregator"""
+    """
+    Abstract class of aggregator
+    """
 
     def __init__(self):
         self.total_size = 0
@@ -45,19 +56,41 @@ class BaseAggregation(metaclass=abc.ABCMeta):
         but some can be calculated only after all aggregated data is uploaded.
         therefore, this abstractmethod should consider that all weights are
         uploaded.
-        :param clients: All clients in federated learning job
-        :return: final weights
+
+        Parameters
+        ----------
+        clients: List
+            All clients in federated learning job
+
+        Returns
+        -------
+        Array-like
+            final weights use to update model layer
         """
 
 
 @ClassFactory.register(ClassType.FL_AGG)
 class FedAvg(BaseAggregation, abc.ABC):
     """
-    Federated averaging algorithm : Calculate the average weight
-    according to the number of samples
+    Federated averaging algorithm
     """
 
     def aggregate(self, clients: List[AggClient]):
+        """
+        Calculate the average weight according to the number of samples
+
+        Parameters
+        ----------
+        clients: List
+            All clients in federated learning job
+
+        Returns
+        -------
+        update_weights : Array-like
+            final weights use to update model layer
+        """
+        import numpy as np
+
         if not len(clients):
             return self.weights
         self.total_size = sum([c.num_samples for c in clients])

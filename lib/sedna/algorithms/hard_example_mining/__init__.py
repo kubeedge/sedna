@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .hard_example_mining import *
+from . import hard_example_mining

@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Integrate the inference results of all related tasks
+"""
+
 from typing import List
 
 import numpy as np
@@ -25,10 +29,26 @@ __all__ = ('DefaultInferenceIntegrate', )
 
 @ClassFactory.register(ClassType.MTL)
 class DefaultInferenceIntegrate:
+    """
+    Default calculation algorithm for inference integration
+
+    Parameters
+    ----------
+    models: All models used for sample inference
+    """
     def __init__(self, models: list, **kwargs):
         self.models = models
 
     def __call__(self, tasks: List[Task]):
+        """
+        Parameters
+        ----------
+        tasks: All tasks with sample result
+
+        Returns
+        -------
+        result: minimum result
+        """
         res = {}
         for task in tasks:
             res.update(dict(zip(task.samples.inx, task.result)))

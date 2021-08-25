@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Multiple task transfer learning algorithms"""
+
 import json
-import pandas as pd
 
 from sedna.datasources import BaseDataSource
 from sedna.backend import set_backend
@@ -29,6 +30,72 @@ __all__ = ('MulTaskLearning',)
 
 
 class MulTaskLearning:
+    """
+    An auto machine learning framework for edge-cloud multitask learning
+
+    See Also
+    --------
+    Train: Data + Estimator -> Task Definition -> Task Relationship Discovery
+           -> Feature Engineering -> Training
+    Inference: Data -> Task Allocation -> Task Mining -> Feature Engineering
+               -> Task Remodeling -> Inference
+
+    Parameters
+    ----------
+    estimator : Instance
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your model.
+    task_definition : Dict
+        Divide multiple tasks based on data,
+        see `task_jobs.task_definition` for more detail.
+    task_relationship_discovery : Dict
+        Discover relationships between all tasks, see
+        `task_jobs.task_relationship_discovery` for more detail.
+    task_mining : Dict
+        Mining tasks of inference sample,
+        see `task_jobs.task_mining` for more detail.
+    task_remodeling : Dict
+        Remodeling tasks based on their relationships,
+        see `task_jobs.task_remodeling` for more detail.
+    inference_integrate : Dict
+        Integrate the inference results of all related
+        tasks, see `task_jobs.inference_integrate` for more detail.
+
+    Examples
+    --------
+    >>> from xgboost import XGBClassifier
+    >>> from sedna.algorithms.multi_task_learning import MulTaskLearning
+    >>> estimator = XGBClassifier(objective="binary:logistic")
+    >>> task_definition = {
+            "method": "TaskDefinitionByDataAttr",
+            "param": {"attribute": ["season", "city"]}
+        }
+    >>> task_relationship_discovery = {
+            "method": "DefaultTaskRelationDiscover", "param": {}
+        }
+    >>> task_mining = {
+            "method": "TaskMiningByDataAttr",
+            "param": {"attribute": ["season", "city"]}
+        }
+    >>> task_remodeling = None
+    >>> inference_integrate = {
+            "method": "DefaultInferenceIntegrate", "param": {}
+        }
+    >>> mul_task_instance = MulTaskLearning(
+            estimator=estimator,
+            task_definition=task_definition,
+            task_relationship_discovery=task_relationship_discovery,
+            task_mining=task_mining,
+            task_remodeling=task_remodeling,
+            inference_integrate=inference_integrate
+        )
+
+    Notes
+    -----
+    All method defined under `task_jobs` and registered in `ClassFactory`.
+    """
+
     _method_pair = {
         'TaskDefinitionBySVC': 'TaskMiningBySVC',
         'TaskDefinitionByDataAttr': 'TaskMiningByDataAttr',
@@ -66,7 +133,7 @@ class MulTaskLearning:
         ))
 
     @staticmethod
-    def parse_param(param_str):
+    def _parse_param(param_str):
         if not param_str:
             return {}
         if isinstance(param_str, dict):
@@ -84,7 +151,7 @@ class MulTaskLearning:
         method_name = self.task_definition.get(
             "method", "TaskDefinitionByDataAttr"
         )
-        extend_param = self.parse_param(
+        extend_param = self._parse_param(
             self.task_definition.get("param")
         )
         method_cls = ClassFactory.get_cls(
@@ -96,7 +163,7 @@ class MulTaskLearning:
         Merge tasks from task_definition
         """
         method_name = self.task_relationship_discovery.get("method")
-        extend_param = self.parse_param(
+        extend_param = self._parse_param(
             self.task_relationship_discovery.get("param")
         )
         method_cls = ClassFactory.get_cls(
@@ -108,7 +175,7 @@ class MulTaskLearning:
         Mining tasks of inference sample base on task attribute extractor
         """
         method_name = self.task_mining.get("method")
-        extend_param = self.parse_param(
+        extend_param = self._parse_param(
             self.task_mining.get("param")
         )
 
@@ -118,7 +185,7 @@ class MulTaskLearning:
             )
             method_name = self._method_pair.get(task_definition,
                                                 'TaskMiningByDataAttr')
-            extend_param = self.parse_param(
+            extend_param = self._parse_param(
                 self.task_definition.get("param"))
         method_cls = ClassFactory.get_cls(ClassType.MTL, method_name)(
             task_extractor=self.extractor, **extend_param
@@ -130,7 +197,7 @@ class MulTaskLearning:
         Remodeling tasks from task mining
         """
         method_name = self.task_remodeling.get("method")
-        extend_param = self.parse_param(
+        extend_param = self._parse_param(
             self.task_remodeling.get("param"))
         method_cls = ClassFactory.get_cls(ClassType.MTL, method_name)(
             models=self.models, **extend_param)
@@ -141,7 +208,7 @@ class MulTaskLearning:
         Aggregate inference results from target models
         """
         method_name = self.inference_integrate.get("method")
-        extend_param = self.parse_param(
+        extend_param = self._parse_param(
             self.inference_integrate.get("param"))
         method_cls = ClassFactory.get_cls(ClassType.MTL, method_name)(
             models=self.models, **extend_param)
@@ -150,6 +217,29 @@ class MulTaskLearning:
     def train(self, train_data: BaseDataSource,
               valid_data: BaseDataSource = None,
               post_process=None, **kwargs):
+        """
+        fit for update the knowledge based on training data.
+
+        Parameters
+        ----------
+        train_data : BaseDataSource
+            Train data, see `sedna.datasources.BaseDataSource` for more detail.
+        valid_data : BaseDataSource
+            Valid data, BaseDataSource or None.
+        post_process : function
+            function or a registered method, callback after `estimator` train.
+        kwargs : Dict
+            parameters for `estimator` training, Like:
+            `early_stopping_rounds` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        feedback : Dict
+            contain all training result in each tasks.
+        task_index_url : str
+            task extractor model path, used for task mining.
+        """
+
         tasks, task_extractor, train_data = self._task_definition(train_data)
         self.extractor = task_extractor
         task_groups = self._task_relationship_discovery(tasks)
@@ -234,6 +324,16 @@ class MulTaskLearning:
         return feedback, self.task_index_url
 
     def load(self, task_index_url=None):
+        """
+        load task_detail (tasks/models etc ...) from task index file.
+        It'll automatically loaded during `inference` and `evaluation` phases.
+
+        Parameters
+        ----------
+        task_index_url : str
+            task index file path, default self.task_index_url.
+        """
+
         if task_index_url:
             self.task_index_url = task_index_url
         assert FileOps.exists(self.task_index_url), FileExistsError(
@@ -248,6 +348,28 @@ class MulTaskLearning:
 
     def predict(self, data: BaseDataSource,
                 post_process=None, **kwargs):
+        """
+        predict the result for input data based on training knowledge.
+
+        Parameters
+        ----------
+        data : BaseDataSource
+            inference sample, see `sedna.datasources.BaseDataSource` for
+            more detail.
+        post_process: function
+            function or a registered method,  effected after `estimator`
+            prediction, like: label transform.
+        kwargs: Dict
+            parameters for `estimator` predict, Like:
+            `ntree_limit` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        result : array_like
+            results array, contain all inference results in each sample.
+        tasks : List
+            tasks assigned to each sample.
+        """
 
         if not (self.models and self.extractor):
             self.load()
@@ -284,6 +406,31 @@ class MulTaskLearning:
                  metrics=None,
                  metrics_param=None,
                  **kwargs):
+        """
+        evaluated the performance of each task from training, filter tasks
+        based on the defined rules.
+
+        Parameters
+        ----------
+        data : BaseDataSource
+            valid data, see `sedna.datasources.BaseDataSource` for more detail.
+        metrics : function / str
+            Metrics to assess performance on the task by given prediction.
+        metrics_param : Dict
+            parameter for metrics function.
+        kwargs: Dict
+            parameters for `estimator` evaluate, Like:
+            `ntree_limit` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        task_eval_res : Dict
+            all metric results.
+        tasks_detail : List[Object]
+            all metric results in each task.
+        """
+
+        import pandas as pd
         from sklearn import metrics as sk_metrics
 
         result, tasks = self.predict(data, **kwargs)
@@ -325,7 +472,7 @@ class MulTaskLearning:
         if not metrics_param:
             metrics_param = {}
         elif isinstance(metrics_param, str):
-            metrics_param = self.parse_param(metrics_param)
+            metrics_param = self._parse_param(metrics_param)
         tasks_detail = []
         for task in tasks:
             sample = task.samples
