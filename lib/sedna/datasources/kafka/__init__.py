@@ -2,21 +2,24 @@ from sedna.common.log import LOGGER
 
 from kafka import KafkaProducer
 from kafka import KafkaConsumer
-from kafka import KafkaAdminClient, NewTopic
+from kafka import KafkaAdminClient
+
+from kafka.admin import NewTopic
 
 class Client():
     def __init__(self, address = ["localhost"], port = [9092]) -> None:
+        LOGGER.info("Loading Kafka connection parameters")
         self.kafka_address = address
         self.kafka_port =  port
         self.kafka_endpoints = []
-        self.admin_client
+
         for addr, port in zip(self.kafka_address, self.kafka_port):
             LOGGER.info(f"Adding address {addr} with port {port} to list of endpoints.")
             self.kafka_endpoints.append(f"{addr}:{port}")
 
 class AdminClient(Client):
     def __init__(self, address = ["localhost"], port = [9092]) -> None:
-        super.__init__(address, port)
+        super().__init__(address, port)
         self.admin_client = KafkaAdminClient(bootstrap_servers=self.kafka_endpoints, client_id='test')
 
     def _parse_topics(self, topics, num_partitions, replication_factor):

@@ -7,7 +7,8 @@ POLL_TIMEOUT_MS = 5000
 
 class Consumer(Client):
     def __init__(self, address = ["localhost"], port = [9092], group_id="default") -> None:
-        super.__init__(address, port)
+        super().__init__(address, port)
+        LOGGER.info("Creating Kafka consumer")
         self.consumer = KafkaConsumer(
             group_id=group_id,
             bootstrap_servers=self.kafka_endpoints,
@@ -40,10 +41,12 @@ class Consumer(Client):
                 LOGGER.info("No message(s) consumed (maybe we timed out waiting?)\n")
 
             LOGGER.info("Consuming messages")
-            for message in records:
-                message = message.value
+            for key, value in records.items():
+                LOGGER.info(key)
+                for record in value:
+                    # LOGGER.info(record.value)
+                    data.append(pickle.loads(record.value))
 
-                data.append(pickle.loads(message))
                 return data
         except Exception as e:
             LOGGER.error(f"Something went wrong.. {e}")

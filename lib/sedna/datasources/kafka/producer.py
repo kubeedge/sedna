@@ -5,7 +5,8 @@ from sedna.datasources.kafka import *
 
 class Producer(Client):
     def __init__(self, address = ["localhost"], port = [9092]) -> None:
-        super.__init__(address, port)
+        super().__init__(address, port)
+        LOGGER.info("Creating Kafka producer")
         self.producer = KafkaProducer(bootstrap_servers=self.kafka_endpoints)
 
     def publish_data(self, data, topic = "default") -> bool:

@@ -25,6 +25,9 @@ from sedna.common.log import LOGGER
 from sedna.common.benchmark import FTimer
 from sedna.algorithms.reid.mAP import cosine_similarity
 
+from sedna.datasources.kafka.producer import Producer
+from sedna.datasources.kafka.consumer import Consumer
+
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
 log_dir = Context.get_parameters('log_dir')
@@ -43,6 +46,9 @@ class Estimator:
         self.gallery_feats = torch.load(os.path.join(self.log_dir, dataset, gfeats), map_location=self.device)
         self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
         LOGGER.info(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
+
+        self.producer = Producer(address=["7.182.9.110"], port=[32523])
+        self.consumer = Consumer(address=["7.182.9.110"], port=[32523])
 
     def _extract_id(self, text):
         return text.split("/")[-1].split(".")[0].split("_")[0]

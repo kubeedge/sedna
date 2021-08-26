@@ -60,7 +60,7 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
-RUN pip install opencv-python pytorch-ignite
+RUN pip install opencv-python pytorch-ignite kafka-python
 
 COPY examples/multiedgetracking/reid/cloud_worker.py  /home/work/cloud.py
 ENV PYTHONPATH "${PYTHONPATH}:/home/lib/sedna/backend/nets"
