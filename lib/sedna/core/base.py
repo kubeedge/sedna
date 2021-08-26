@@ -17,6 +17,7 @@ import threading
 import gc
 import time
 import json
+import tempfile
 
 from sedna.common.log import LOGGER
 from sedna.common.file_ops import FileOps
@@ -32,36 +33,39 @@ __all__ = ('JobBase',)
 
 
 class ModelLoadingThread(threading.Thread):
-    """ MulThread support hot model loading"""
+    """Hot model loading with multithread support"""
     MODEL_MANIPULATION_SEM = threading.Semaphore(1)
-    MODEL_CHECK_TIME = max(
-        int(Context.get_parameters("MODEL_POLL_PERIOD_SECONDS", "60")), 1
-    )
-    MODEL_HOT_UPDATE_CONF = Context.get_parameters("MODEL_HOT_UPDATE_CONFIG")
-    MODEL_TEMP_SAVE = Context.get_parameters("MODEL_TEMP", "/tmp")
 
     def __init__(self,
                  estimator,
                  callback=None,
                  version="latest"
                  ):
+        self.run_flag = True
+        hot_update_conf = Context.get_parameters("MODEL_HOT_UPDATE_CONFIG")
+        if not hot_update_conf:
+            LOGGER.error("As `MODEL_HOT_UPDATE_CONF` unset a value, skipped")
+            self.run_flag = False
+        model_check_time = int(Context.get_parameters(
+            "MODEL_POLL_PERIOD_SECONDS", "60")
+        )
+        if model_check_time < 1:
+            LOGGER.warning("Catch an abnormal value in "
+                           "`MODEL_POLL_PERIOD_SECONDS`, fallback with 60")
+            model_check_time = 60
+        self.hot_update_conf = hot_update_conf
+        self.check_time = model_check_time
         self.production_estimator = estimator
         self.callback = callback
         self.version = version
-        self.temp_path = (self.MODEL_TEMP_SAVE
-                          if os.path.isdir(self.MODEL_TEMP_SAVE)
-                          else os.path.dirname(self.MODEL_TEMP_SAVE))
-
+        self.temp_path = tempfile.gettempdir()
         super(ModelLoadingThread, self).__init__()
 
     def run(self):
-        conf = FileOps.join_path(self.temp_path, "tmp.conf")
-        while 1:
-            time.sleep(self.MODEL_CHECK_TIME)
-            if not self.MODEL_HOT_UPDATE_CONF:
-                continue
-            conf = FileOps.download(self.MODEL_HOT_UPDATE_CONF, conf)
-            if not FileOps.exists(conf):
+        while self.run_flag:
+            time.sleep(self.check_time)
+            conf = FileOps.download(self.hot_update_conf)
+            if not (conf and FileOps.exists(conf)):
                 continue
             with open(conf, "r") as fin:
                 try:
@@ -76,7 +80,7 @@ class ModelLoadingThread(threading.Thread):
                     )
                 except (json.JSONDecodeError, KeyError):
                     LOGGER.error(f"fail to parse model hot update config: "
-                                 f"{self.MODEL_HOT_UPDATE_CONF}")
+                                 f"{self.hot_update_conf}")
                     continue
             if not (model and FileOps.exists(model)):
                 continue
