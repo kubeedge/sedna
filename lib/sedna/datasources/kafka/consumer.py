@@ -1,5 +1,5 @@
 import pickle
-from json import dumps
+
 from sedna.common.log import LOGGER
 from sedna.datasources.kafka import *
 

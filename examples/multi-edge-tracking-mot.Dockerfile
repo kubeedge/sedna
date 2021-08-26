@@ -42,7 +42,7 @@ RUN apt install -y gfortran libopenblas-dev liblapack-dev
 # RUN rm ai_models/deep_eff_reid/r50_ibn_a.pth
 
 ## Install base dependencies
-RUN pip install torch torchvision tqdm opencv-python pillow pytorch-ignite
+RUN pip install torch torchvision tqdm opencv-python pillow pytorch-ignite kafka-python
 
 ## Install project-specific dependencies
 # RUN pip install -r requirements.txt

@@ -23,6 +23,8 @@ from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
 from utils.utils import *
 
+from sedna.datasources.kafka.producer import Producer
+
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
 model_weights = Context.get_parameters('model_weights')
@@ -39,6 +41,8 @@ class Estimator:
         self.classify = False
         self.stride, self.names = 64, [f'class{i}' for i in range(1000)]  # assign defaults
         self.img_size = int(image_size)
+
+        self.producer = Producer(address=["7.182.9.110"], port=[32523])
     
     def load(self, model_url="", mmodel_name=None, **kwargs):
         LOGGER.info("Loading model")
@@ -116,3 +120,7 @@ class Estimator:
         #LOGGER.info(s)
         LOGGER.info(f"Found {len(bbs_list)} possible containers")
         return bbs_list
+
+    def push_data_to_kafka(self, bboxes):
+        self.producer.publish_data(bboxes, topic="camera1/object_detection")
+        return
