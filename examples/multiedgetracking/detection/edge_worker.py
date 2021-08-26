@@ -119,8 +119,5 @@ class Estimator:
         #LOGGER.debug(bbs_list[0])
         #LOGGER.info(s)
         LOGGER.info(f"Found {len(bbs_list)} possible containers")
+        self.producer.publish_data(bbs_list, topic="camera1/object_detection")
         return bbs_list
-
-    def push_data_to_kafka(self, bboxes):
-        self.producer.publish_data(bboxes, topic="camera1/object_detection")
-        return

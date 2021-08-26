@@ -263,8 +263,9 @@ class ObjectDetector(JobBase):
 
         if detection_result != None and len(detection_result) > 0:
             with FTimer(f"upload_bboxes"):
-                self.estimator.push_data_to_kafka(detection_result)
+                pass
+                #self.estimator.push_data_to_kafka(detection_result)
                 #cres = self.edge.feature_extraction(detection_result, post_process=post_process, **kwargs)
 
-        return [cres, detection_result]
+        return [None, detection_result]
 
