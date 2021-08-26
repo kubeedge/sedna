@@ -96,6 +96,15 @@ type InitialModel struct {
 
 type DeployModel struct {
 	Name string `json:"name"`
+	// HotUpdateEnabled will enable the model hot update feature if its value is true.
+	// Default value is false.
+	HotUpdateEnabled bool `json:"hotUpdateEnabled,omitempty"`
+	// PollPeriodSeconds is interval in seconds between echo poll of the deploy model config file.
+	// PollPeriodSeconds must be greater than zero and the default value is 60.
+	// It will be used only when HotUpdateEnabled is true.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:default:=60
+	PollPeriodSeconds int64 `json:"pollPeriodSeconds,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

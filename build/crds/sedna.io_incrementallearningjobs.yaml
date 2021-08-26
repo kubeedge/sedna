@@ -79,8 +79,21 @@ spec:
                     type: object
                   model:
                     properties:
+                      hotUpdateEnabled:
+                        description: HotUpdateEnabled will enable the model hot update
+                          feature if its value is true. Default value is false.
+                        type: boolean
                       name:
                         type: string
+                      pollPeriodSeconds:
+                        default: 60
+                        description: PollPeriodSeconds is interval in seconds between
+                          echo poll of the deploy model config file. PollPeriodSeconds
+                          must be greater than zero and the default value is 60. It
+                          will be used only when HotUpdateEnabled is true.
+                        format: int64
+                        minimum: 1
+                        type: integer
                     required:
                     - name
                     type: object

@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
 
@@ -76,20 +77,28 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 
 	var trainNodeName string
 	var evalNodeName string
+	var deployNodeName string
 
+	getAnnotationsNodeName := func(nodeName sednav1.ILJobStage) string {
+		return runtime.AnnotationsKeyPrefix + string(nodeName)
+	}
 	ann := job.GetAnnotations()
 	if ann != nil {
-		trainNodeName = ann[runtime.AnnotationsKeyPrefix+string(sednav1.ILJobTrain)]
-		evalNodeName = ann[runtime.AnnotationsKeyPrefix+string(sednav1.ILJobEval)]
+		trainNodeName = ann[getAnnotationsNodeName(sednav1.ILJobTrain)]
+		evalNodeName = ann[getAnnotationsNodeName(sednav1.ILJobEval)]
+		if _, ok := ann[runtime.ModelHotUpdateAnnotationsKey]; ok {
+			deployNodeName = ann[getAnnotationsNodeName(sednav1.ILJobDeploy)]
+		}
 	}
 
 	if eventType == watch.Deleted {
 		// delete jobs from all LCs
-		for _, v := range []string{dsNodeName, trainNodeName, evalNodeName} {
-			if v != "" {
-				c.sendToEdgeFunc(v, eventType, job)
-			}
+		nodes := sets.NewString(dsNodeName, trainNodeName, evalNodeName, deployNodeName)
+
+		for node := range nodes {
+			c.sendToEdgeFunc(node, eventType, job)
 		}
+
 		return nil
 	}
 
@@ -115,11 +124,20 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 
 	doJobStageEvent := func(modelName string, nodeName string) {
 		if currentType == sednav1.ILJobStageCondWaiting {
-			syncJobWithNodeName(dsNodeName)
-			syncModelWithName(modelName)
+			if jobStage != sednav1.ILJobDeploy {
+				syncJobWithNodeName(dsNodeName)
+				syncModelWithName(modelName)
+			}
 		} else if currentType == sednav1.ILJobStageCondRunning {
 			if nodeName != "" {
 				syncJobWithNodeName(nodeName)
+			}
+
+			if jobStage == sednav1.ILJobDeploy {
+				if evalNodeName != dsNodeName {
+					// delete LC's job from eval node that's different from dataset node when deploy worker's status is ready.
+					c.sendToEdgeFunc(evalNodeName, watch.Deleted, job)
+				}
 			}
 		} else if currentType == sednav1.ILJobStageCondCompleted || currentType == sednav1.ILJobStageCondFailed {
 			if nodeName != dsNodeName {
@@ -134,6 +152,8 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 		doJobStageEvent(job.Spec.InitialModel.Name, trainNodeName)
 	case sednav1.ILJobEval:
 		doJobStageEvent(job.Spec.DeploySpec.Model.Name, evalNodeName)
+	case sednav1.ILJobDeploy:
+		doJobStageEvent("", deployNodeName)
 	}
 
 	return nil

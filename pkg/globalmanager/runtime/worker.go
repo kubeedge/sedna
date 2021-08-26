@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"context"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -35,7 +37,14 @@ type WorkerParam struct {
 	// if true, force to use hostNetwork
 	HostNetwork bool
 
+	ModelHotUpdate ModelHotUpdate
+
 	RestartPolicy v1.RestartPolicy
+}
+
+type ModelHotUpdate struct {
+	Enable            bool
+	PollPeriodSeconds int64
 }
 
 // generateLabels generates labels for an object
@@ -109,6 +118,11 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInterface) {
 	InjectStorageInitializer(pod, workerParam)
 
+	if workerParam.WorkerType == InferencePodType && workerParam.ModelHotUpdate.Enable {
+		injectModelHotUpdateMount(pod, object)
+		setModelHotUpdateEnv(workerParam)
+	}
+
 	envs := createEnvVars(workerParam.Env)
 	for idx := range pod.Spec.Containers {
 		pod.Spec.Containers[idx].Env = append(
@@ -168,4 +182,43 @@ func createEnvVars(envMap map[string]string) []v1.EnvVar {
 		envVars = append(envVars, Env)
 	}
 	return envVars
+}
+
+// injectModelHotUpdateMount injects volume mounts when worker supports hot update of model
+func injectModelHotUpdateMount(pod *v1.Pod, object CommonInterface) {
+	hostPathType := v1.HostPathDirectoryOrCreate
+
+	var volumes []v1.Volume
+	var volumeMounts []v1.VolumeMount
+
+	modelHotUpdateHostDir, _ := filepath.Split(GetModelHotUpdateConfigFile(object, ModelHotUpdateHostPrefix))
+	volumeName := ConvertK8SValidName(ModelHotUpdateVolumeName)
+	volumes = append(volumes, v1.Volume{
+		Name: volumeName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{
+				Path: modelHotUpdateHostDir,
+				Type: &hostPathType,
+			},
+		},
+	})
+
+	volumeMounts = append(volumeMounts, v1.VolumeMount{
+		MountPath: ModelHotUpdateContainerPrefix,
+		Name:      volumeName,
+	})
+
+	injectVolume(pod, volumes, volumeMounts)
+}
+
+func GetModelHotUpdateConfigFile(object CommonInterface, prefix string) string {
+	return strings.ToLower(filepath.Join(prefix, object.GetNamespace(), object.GetObjectKind().GroupVersionKind().Kind,
+		object.GetName(), ModelHotUpdateConfigFile))
+}
+
+// setModelHotUpdateEnv sets envs of model hot update
+func setModelHotUpdateEnv(workerParam *WorkerParam) {
+	workerParam.Env["MODEL_HOT_UPDATE"] = "true"
+	workerParam.Env["MODEL_POLL_PERIOD_SECONDS"] = strconv.FormatInt(workerParam.ModelHotUpdate.PollPeriodSeconds, 10)
+	workerParam.Env["MODEL_HOT_UPDATE_CONFIG"] = filepath.Join(ModelHotUpdateContainerPrefix, ModelHotUpdateConfigFile)
 }
