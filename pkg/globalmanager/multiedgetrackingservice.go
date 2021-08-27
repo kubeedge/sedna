@@ -500,11 +500,11 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 
 	workerParam.hostNetwork = true
 	workerParam.env = map[string]string{
-		"NAMESPACE":    service.Namespace,
-		"SERVICE_NAME": service.Name,
-		"WORKER_NAME":  "reidworker-" + utilrand.String(5),
-
+		"NAMESPACE":            service.Namespace,
+		"SERVICE_NAME":         service.Name,
+		"WORKER_NAME":          "reidworker-" + utilrand.String(5),
 		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
+		"KAFKA_ENABLED":        strconv.FormatBool(service.Spec.ReIDDeploy.KafkaSupport),
 	}
 
 	/*
@@ -540,14 +540,13 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 
 	workerParam.workerType = FEWorker
 	workerParam.env = map[string]string{
-		"NAMESPACE":    service.Namespace,
-		"SERVICE_NAME": service.Name,
-		"WORKER_NAME":  "feworker-" + utilrand.String(5),
-
+		"NAMESPACE":            service.Namespace,
+		"SERVICE_NAME":         service.Name,
+		"WORKER_NAME":          "feworker-" + utilrand.String(5),
 		"REID_MODEL_BIND_URL":  reIDIP,
 		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPortService)),
-
-		"LC_SERVER": mc.cfg.LC.Server,
+		"KAFKA_ENABLED":        strconv.FormatBool(service.Spec.FEDeploy.KafkaSupport),
+		"LC_SERVER":            mc.cfg.LC.Server,
 	}
 	//workerParam.hostNetwork = true
 
@@ -577,13 +576,12 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	// Create parameters that will be used by the deployment
 	workerParam.workerType = MultiObjectTrackingWorker
 	workerParam.env = map[string]string{
-		"NAMESPACE":    service.Namespace,
-		"SERVICE_NAME": service.Name,
-		"WORKER_NAME":  "motworker-" + utilrand.String(5),
-
+		"NAMESPACE":         service.Namespace,
+		"SERVICE_NAME":      service.Name,
+		"WORKER_NAME":       "motworker-" + utilrand.String(5),
 		"FE_MODEL_BIND_URL": FEServiceURL,
-
-		"LC_SERVER": mc.cfg.LC.Server,
+		"KAFKA_ENABLED":     strconv.FormatBool(service.Spec.MultiObjectTrackingDeploy.KafkaSupport),
+		"LC_SERVER":         mc.cfg.LC.Server,
 	}
 	//workerParam.hostNetwork = true
 

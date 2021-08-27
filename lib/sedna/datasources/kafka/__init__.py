@@ -3,6 +3,7 @@ from sedna.common.log import LOGGER
 from kafka import KafkaProducer
 from kafka import KafkaConsumer
 from kafka import KafkaAdminClient
+from sedna.common.log import LOGGER
 
 from kafka.admin import NewTopic
 

@@ -4,6 +4,7 @@ metadata:
   name: container-tracking
 spec:
   motDeploy:
+    kafkaSupport: true
     spec:
       replicas: 3
       selector:
@@ -46,6 +47,7 @@ spec:
                 path: /data/yolo_lfs
                 type: Directory
   feDeploy:
+    kafkaSupport: true
     spec:
       replicas: 1
       selector:
@@ -90,6 +92,7 @@ spec:
                 type: Directory
 
   reIDDeploy:
+    kafkaSupport: true
     spec:
       replicas: 1
       selector:

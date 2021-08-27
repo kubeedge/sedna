@@ -16,7 +16,6 @@ import cv2
 import numpy as np
 import os
 import torch
-import time
 from PIL import Image
 
 from sedna.core.multi_edge_tracking import ReIDService
@@ -24,9 +23,6 @@ from sedna.common.config import Context
 from sedna.common.log import LOGGER
 from sedna.common.benchmark import FTimer
 from sedna.algorithms.reid.mAP import cosine_similarity
-
-from sedna.datasources.kafka.producer import Producer
-from sedna.datasources.kafka.consumer import Consumer
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
@@ -47,16 +43,13 @@ class Estimator:
         self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
         LOGGER.info(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
 
-        self.producer = Producer(address=["7.182.9.110"], port=[32523])
-        self.consumer = Consumer(address=["7.182.9.110"], port=[32523])
-
     def _extract_id(self, text):
         return text.split("/")[-1].split(".")[0].split("_")[0]
 
     def _write_id_on_image(self, img, text):
         # setup text
         font = cv2.FONT_HERSHEY_SIMPLEX
-        print(text)
+        #print(text)
         # get boundary of this text
         textsize = cv2.getTextSize(text, font, 1, 2)[0]
 

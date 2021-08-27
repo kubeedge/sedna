@@ -1,6 +1,5 @@
 import pickle
 
-from sedna.common.log import LOGGER
 from sedna.datasources.kafka import *
 
 class Producer(Client):

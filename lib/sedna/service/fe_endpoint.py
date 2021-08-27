@@ -2,7 +2,7 @@ from sedna.service.client import http_request
 from copy import deepcopy
 
 class FE:
-    """Endpoint to trigger the ReID"""
+    """Endpoint to trigger the Feature Extraction"""
 
     def __init__(self, service_name, version="",
                  host="127.0.0.1", port="8080", protocol="http"):

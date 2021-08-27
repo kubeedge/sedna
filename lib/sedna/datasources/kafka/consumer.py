@@ -1,6 +1,5 @@
 import pickle
 
-from sedna.common.log import LOGGER
 from sedna.datasources.kafka import *
 
 POLL_TIMEOUT_MS = 5000
