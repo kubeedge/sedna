@@ -39,9 +39,19 @@ class Estimator:
     def __init__(self) -> None:
         self.has_load = False
         self.network = None
-        self.train_network = None
 
     def train(self, train_data, **kwargs):
+        """The whole process of model training
+
+        The training process of the resnet model. At present, it supports single NPU and CPU.
+        Multi-GPU and multi-NPU will be supported in the future.
+
+        Args:
+            train_data: training dataset path
+            kwargs: Including args_opt and other parameters. args_opt is passed by train.py,
+                    includes some key parameters
+
+        """
         args_opt = kwargs.get("args_opt")
         target = args_opt.device_target
         if target == "CPU":
@@ -49,7 +59,7 @@ class Estimator:
 
         ckpt_save_dir = args_opt.model_save_path
 
-        # init context
+        # Multi-GPU/Multi-NPU
         if args_opt.run_distribute:
             if target == "Ascend":
                 device_id = int(os.getenv('DEVICE_ID'))
@@ -137,6 +147,7 @@ class Estimator:
             lr,
             config.momentum,
             loss_scale=config.loss_scale)
+
         # define loss, model
         if target == "Ascend":
             loss = SoftmaxCrossEntropyWithLogits(sparse=True, reduction='mean')
@@ -213,9 +224,20 @@ class Estimator:
             dataset_sink_mode=dataset_sink_mode)
 
     def evaluate(self, valid_data, **kwargs):
+        """The whole process of model evaluation.
+
+        The evaluation process of the resnet model. At present, it supports single NPU and CPU.
+        GPU will be supported in the future.
+
+        Args:
+            valid_data: evaluation dataset path.
+            kwargs: Including args_opt and other parameters. args_opt is passed by eval.py,
+                    includes some key parameters.
+
+        """
+
         args_opt = kwargs.get("args_opt")
         target = args_opt.device_target
-        # init context
         if target == "Ascend":
             device_id = int(os.getenv('DEVICE_ID'))
             context.set_context(device_id=device_id)
@@ -245,21 +267,50 @@ class Estimator:
         res = model.eval(dataset)
         print("result:", res, "ckpt=", args_opt.checkpoint_path)
 
-    def predict(self, data, class_name):
+    def predict(self, data):
+        """Inference for the image data
+
+        Infer the image data and output its category
+
+        Args:
+            data: image to be inferred
+        """
+
+        class_name = [
+            'airplane',
+            "automobile",
+            "bird",
+            "cat",
+            "deer",
+            "dog",
+            "frog",
+            "horse",
+            "ship",
+            "truck"]
 
         # define model
         model = Model(self.network)
 
         # infer data
         res = model.predict(data)
-        softmax = nn.Softmax()
 
+        # The output of the model is the score of each category, which needs to be softmax.
+        softmax = nn.Softmax()
         # get label result
         pred_class = class_name[np.argmax(softmax(res[0]))]
+
         print("This image belongs to: ", pred_class)
         return pred_class
 
     def load(self, model_url):
+        """load checkpoint into model
+
+        Initialize resnet model, and load the specified model file for evaluation and inference
+
+        Args:
+            model_url: Url of model file
+        """
+
         print("load model url: ", model_url)
         self.network = resnet(class_num=config.class_num)
         param_dict = load_checkpoint(model_url)

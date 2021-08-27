@@ -29,7 +29,6 @@ config1 = ed({
     "save_checkpoint": True,
     "save_checkpoint_epochs": 5,
     "keep_checkpoint_max": 10,
-    "save_checkpoint_path": "./",
     "warmup_epochs": 5,
     "lr_decay_mode": "poly",
     "lr_init": 0.01,

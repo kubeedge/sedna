@@ -3,8 +3,8 @@ import mindspore as ms
 from mindspore import Tensor
 import mindspore.dataset.vision.c_transforms as C
 import numpy as np
-from lib.sedna.backend import set_backend
 import cv2
+from sedna.backend import set_backend
 from interface import Estimator
 
 parser = argparse.ArgumentParser(description="resnet50 infer")
@@ -30,12 +30,15 @@ def preprocess():
 
 def main():
     args = parser.parse_args()
+
+    # read image and preprocess
     img = cv2.imread(args.image_path)
     data_preprocess = preprocess()
     for method in data_preprocess:
         img = method(img)
     img = np.expand_dims(img, 0)
     data = Tensor(img, ms.float32)
+
     model = set_backend(estimator=Estimator)
     return model.predict(data)
 

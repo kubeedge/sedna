@@ -15,7 +15,7 @@
 """train resnet."""
 import argparse
 from mindspore.common import set_seed
-from lib.sedna.backend import set_backend
+from sedna.backend import set_backend
 from interface import Estimator
 
 parser = argparse.ArgumentParser(description='Image classification')

@@ -15,8 +15,8 @@
 # ============================================================================
 
 if [ $# != 2 ]
-then
-    echo "Usage: sh run_test_cpu.sh [DATASET_PATH] [CHECKPOINT_PATH]"
+then 
+    echo "Usage: sh run_eval.sh [DATASET_PATH] [CHECKPOINT_PATH]"
 exit 1
 fi
 
@@ -30,38 +30,42 @@ get_real_path(){
 
 PATH1=$(get_real_path $1)
 PATH2=$(get_real_path $2)
-export BACKEND_TYPE="MINDSPORE"
-export DEVICE_CATEGORY="CPU"
+
 
 if [ ! -d $PATH1 ]
-then
+then 
     echo "error: DATASET_PATH=$PATH1 is not a directory"
 exit 1
-fi
+fi 
 
 if [ ! -f $PATH2 ]
-then
+then 
     echo "error: CHECKPOINT_PATH=$PATH2 is not a file"
 exit 1
-fi
+fi 
 
 ulimit -u unlimited
 dirPath=`dirname $PATH2`
 ckpt=`basename $PATH2`
 export MODEL_URL=$dirPath
 export MODEL_NAME=$ckpt
+export BACKEND_TYPE="MINDSPORE"
+export DEVICE_CATEGORY="NPU"
+export DEVICE_NUM=1
+export DEVICE_ID=0
+export RANK_SIZE=$DEVICE_NUM
+export RANK_ID=0
 
-if [ -d "test" ];
+if [ -d "eval" ];
 then
-    rm -rf ./test
+    rm -rf ./eval
 fi
-mkdir ./test
-cp ../*.py ./test
-cp *.sh ./test
-cp -r ../src ./test
-cp -r ../src ./test
-cd ./test || exit
+mkdir ./eval
+cp ../*.py ./eval
+cp *.sh ./eval
+cp -r ../src ./eval
+cd ./eval || exit
 env > env.log
-echo "start test for CPU"
-python test.py --device_target="CPU" --dataset_path=$PATH1 --checkpoint_path=$PATH2 &> log &
+echo "start evaluation for device $DEVICE_ID"
+python eval.py --dataset_path=$PATH1 --checkpoint_path=$PATH2 &> log &
 cd ..
