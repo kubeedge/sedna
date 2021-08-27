@@ -20,6 +20,7 @@ class Consumer(Client):
 
     def subscribe(self, topic):
         try:
+            LOGGER.info(f"Subscribing to topics {topic}")
             self.consumer.subscribe(topic)
         except Exception as e:
              LOGGER.error(f"Unable to subscribe to topic {e}")

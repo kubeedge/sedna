@@ -14,6 +14,7 @@ class Producer(Client):
         # Publishes a message
         try:
             self.producer.send(topic, value=data_input)
+            self.producer.flush()
             LOGGER.info(f"Message published on topic {topic}.")
             return True
         except Exception as e:
