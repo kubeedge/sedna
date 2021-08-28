@@ -15,11 +15,11 @@ kind: Secret
 metadata:
   name: mysecret
   annotations:
-    s3-endpoint: s3.amazonaws.com # replace with your s3 endpoint e.g minio-service.kubeflow:9000 
+    s3-endpoint: play.min.io # replace with your s3 endpoint
     s3-usehttps: "1" # by default 1, if testing with minio you can set to 0
-stringData: # use `stringData` for raw credential string or `data` for base64 encoded string
-  ACCESS_KEY_ID: XXXX
-  SECRET_ACCESS_KEY: XXXXXXXX
+stringData:
+  ACCESS_KEY_ID: Q3AM3UQ867SPQQA43P2F
+  SECRET_ACCESS_KEY: zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG
 EOF
 ```
 
