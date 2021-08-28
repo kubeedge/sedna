@@ -64,7 +64,7 @@ Please follow [the kubeedge instructions][kubeedge] to install KubeEdge.
 Once you've set up the prerequisites, continue with:
 - See [control plane development guide]
 for more details about how to build & test Sedna.
-- See [lib development guide TBD] for more details about how to develop AI algorithms and worker images based on [sedna lib code](/lib).
+- See [lib development guide] for more details about how to develop AI algorithms and worker images based on [sedna lib code](/lib).
 
 [git]: https://git-scm.com/
 [framework]: /docs/proposals/architecture.md#architecture
@@ -76,5 +76,5 @@ for more details about how to build & test Sedna.
 [kind]: https://kind.sigs.k8s.io
 [kubeedge]: https://kubeedge.io/en/docs/
 [kubeedge-k8s-compatibility]: https://github.com/kubeedge/kubeedge#kubernetes-compatibility
-
+[lib development guide]: ./lib/development.md 
 [control plane development guide]: ./control-plane/development.md

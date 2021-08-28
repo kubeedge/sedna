@@ -58,13 +58,15 @@ Sedna can simply enable edge-cloud synergy capabilities to existing training and
     :titlesonly:
     :glob:
 
-    api/crd/*
     api/lib/*
 
 .. toctree::
+    :maxdepth: 1
     :caption: Contributing
+    :titlesonly:
+    :glob:
 
-    Prepare <contributing/prepare-environment>
+    Control Plane <contributing/prepare-environment>
 
 
 .. toctree::
