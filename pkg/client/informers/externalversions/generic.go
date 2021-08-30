@@ -53,6 +53,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=sedna.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("dnnpartitioningservices"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().DNNPartitioningServices().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("datasets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().Datasets().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("federatedlearningjobs"):

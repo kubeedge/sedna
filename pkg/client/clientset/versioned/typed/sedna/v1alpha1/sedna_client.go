@@ -26,6 +26,7 @@ import (
 
 type SednaV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	DNNPartitioningServicesGetter
 	DatasetsGetter
 	FederatedLearningJobsGetter
 	IncrementalLearningJobsGetter
@@ -38,6 +39,10 @@ type SednaV1alpha1Interface interface {
 // SednaV1alpha1Client is used to interact with features provided by the sedna.io group.
 type SednaV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *SednaV1alpha1Client) DNNPartitioningServices(namespace string) DNNPartitioningServiceInterface {
+	return newDNNPartitioningServices(c, namespace)
 }
 
 func (c *SednaV1alpha1Client) Datasets(namespace string) DatasetInterface {

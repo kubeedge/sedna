@@ -18,7 +18,6 @@ package globalmanager
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -72,7 +71,7 @@ type DnnPartitioningServiceController struct {
 	// serviceStoreSynced returns true if the dnnpartitioningservice store has been synced at least once.
 	serviceStoreSynced cache.InformerSynced
 	// A store of service
-	serviceLister sednav1listers.DnnPartitioningServiceLister
+	serviceLister sednav1listers.DNNPartitioningServiceLister
 
 	// DnnPartitioningServices that need to be updated
 	queue workqueue.RateLimitingInterface
@@ -121,7 +120,7 @@ func (jc *DnnPartitioningServiceController) enqueueByPod(pod *v1.Pod, immediate 
 		return
 	}
 
-	service, err := jc.serviceLister.DnnPartitioningInferenceServices(pod.Namespace).Get(controllerRef.Name)
+	service, err := jc.serviceLister.DNNPartitioningServices(pod.Namespace).Get(controllerRef.Name)
 	if err != nil {
 		return
 	}
@@ -134,7 +133,7 @@ func (jc *DnnPartitioningServiceController) enqueueByPod(pod *v1.Pod, immediate 
 }
 
 // When a pod is created, enqueue the controller that manages it and update it's expectations.
-func (jc *DnnPartitioningInferenceServiceController) addPod(obj interface{}) {
+func (jc *DnnPartitioningServiceController) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	if pod.DeletionTimestamp != nil {
 		// on a restart of the controller, it's possible a new pod shows up in a state that
@@ -247,7 +246,7 @@ func (jc *DnnPartitioningServiceController) sync(key string) (bool, error) {
 	if len(ns) == 0 || len(name) == 0 {
 		return false, fmt.Errorf("invalid dnnpartitioning service key %q: either namespace or name is missing", key)
 	}
-	sharedDnnpartitioningservice, err := jc.serviceLister.DnnPartitioningServices(ns).Get(name)
+	sharedDnnpartitioningservice, err := jc.serviceLister.DNNPartitioningServices(ns).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("DnnPartitioningService has been deleted: %v", key)
@@ -282,7 +281,7 @@ func (jc *DnnPartitioningServiceController) sync(key string) (bool, error) {
 	var failed int32 = 0
 	// neededCounts requires that N pods should be created successfully
 	// N is given by the sum of (# edge pods) + (cloud pod)
-	var neededCounts int32 = int32(len(sharedDnnpartitioningservice.Spec.EdgeWorker)) + 1
+	var neededCounts int32 = int32(len(sharedDnnpartitioningservice.Spec.DNNPartitioningEdgeWorker)) + 1
 	// dnnpartitioningservice first start
 	if dnnpartitioningservice.Status.StartTime == nil {
 		now := metav1.Now()
@@ -312,7 +311,7 @@ func (jc *DnnPartitioningServiceController) sync(key string) (bool, error) {
 		// TODO: get the failed worker, and knows that which worker fails, edge inference worker or cloud inference worker
 		reason = "workerFailed"
 		message = "the worker of Dnnpartitioningservice failed"
-		newCondtionType = sednav1.DnnPartitioningServiceCondFailed
+		newCondtionType = sednav1.DNNPartitioningServiceCondFailed
 		jc.recorder.Event(&dnnpartitioningservice, v1.EventTypeWarning, reason, message)
 	} else {
 		if len(pods) == 0 {
@@ -321,11 +320,11 @@ func (jc *DnnPartitioningServiceController) sync(key string) (bool, error) {
 		if manageServiceErr != nil {
 			serviceFailed = true
 			message = error.Error(manageServiceErr)
-			newCondtionType = sednav1.DnnPartitioningServiceCondFailed
+			newCondtionType = sednav1.DNNPartitioningServiceCondFailed
 			failed = neededCounts - active
 		} else {
 			// TODO: handle the case that the pod phase is PodSucceeded
-			newCondtionType = sednav1.DnnPartitioningServiceCondRunning
+			newCondtionType = sednav1.DNNPartitioningServiceCondRunning
 		}
 	}
 
@@ -356,7 +355,7 @@ func (jc *DnnPartitioningServiceController) sync(key string) (bool, error) {
 }
 
 // NewDNNPartitioningServiceCondition creates a new DNNPartitioning condition
-func NewDNNPartitioningServiceCondition(conditionType sednav1.DNNPartitioningServiceConditionType, reason, message string) sednav1.DNNPartitioningServiceCondition {
+func NewDnnPartitioningServiceCondition(conditionType sednav1.DnnPartitioningServiceConditionType, reason, message string) sednav1.DNNPartitioningServiceCondition {
 	return sednav1.DNNPartitioningServiceCondition{
 		Type:               conditionType,
 		Status:             v1.ConditionTrue,
@@ -367,7 +366,7 @@ func NewDNNPartitioningServiceCondition(conditionType sednav1.DNNPartitioningSer
 	}
 }
 
-func (jc *DNNPartitioningServiceController) updateStatus(dnnpartitioningservice *sednav1.DNNPartitioningService) error {
+func (jc *DnnPartitioningServiceController) updateStatus(dnnpartitioningservice *sednav1.DNNPartitioningService) error {
 	serviceClient := jc.client.DNNPartitioningServices(dnnpartitioningservice.Namespace)
 	var err error
 	for i := 0; i <= ResourceUpdateRetries; i = i + 1 {
@@ -393,11 +392,11 @@ func isDnnpartitioningserviceFinished(j *sednav1.DNNPartitioningService) bool {
 	return false
 }
 
-func (jc *DNNPartitioningServiceController) createWorkers(service *sednav1.DNNPartitioningService) (active int32, err error) {
+func (jc *DnnPartitioningServiceController) createWorkers(service *sednav1.DNNPartitioningService) (active int32, err error) {
 	active = 0
 
 	// create cloud worker
-	err = jc.createCloudWorker(service)
+	err = jc.createDNNPartitioningCloudWorker(service)
 	if err != nil {
 		return active, err
 	}
@@ -406,14 +405,14 @@ func (jc *DNNPartitioningServiceController) createWorkers(service *sednav1.DNNPa
 	// create k8s service for cloudPod
 	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 	// will support Spec.NodeSelector.
-	cloudModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
+	cloudModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.DNNPartitioningCloudWorker.Template.Spec.NodeName)
 	cloudServicePort, err := CreateKubernetesService(jc.kubeClient, service, dnnPartitioningForCloud, cloudModelPort, cloudModelIP)
 	if err != nil {
 		return active, err
 	}
 
 	// create edge worker
-	err = jc.createEdgeWorker(service, cloudServicePort)
+	err = jc.createDNNPartitioningEdgeWorker(service, cloudServicePort)
 	if err != nil {
 		return active, err
 	}
@@ -422,9 +421,9 @@ func (jc *DNNPartitioningServiceController) createWorkers(service *sednav1.DNNPa
 	return active, err
 }
 
-func (jc *DNNPartitioningServiceController) createCloudWorker(service *sednav1.DNNPartitioningService) error {
+func (jc *DnnPartitioningServiceController) createDNNPartitioningCloudWorker(service *sednav1.DNNPartitioningService) error {
 	// deliver pod for cloudworker
-	cloudModelName := service.Spec.CloudWorker.Model.Name
+	cloudModelName := service.Spec.DNNPartitioningCloudWorker.Model.Name
 	cloudModel, err := jc.client.Models(service.Namespace).Get(context.Background(), cloudModelName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get cloud model %s: %w",
@@ -461,15 +460,15 @@ func (jc *DNNPartitioningServiceController) createCloudWorker(service *sednav1.D
 	// create cloud pod
 	_, err = createPodWithTemplate(jc.kubeClient,
 		service,
-		&service.Spec.CloudWorker.Template,
+		&service.Spec.DNNPartitioningCloudWorker.Template,
 		&workerParam)
 	return err
 }
 
-func (jc *DNNPartitioningServiceController) createEdgeWorker(service *sednav1.DNNPartitioningService, cloudServicePort int32) error {
+func (jc *DnnPartitioningServiceController) createDNNPartitioningEdgeWorker(service *sednav1.DNNPartitioningService, cloudServicePort int32) error {
 	// deliver pod for edgeworker
 	ctx := context.Background()
-	edgeWorker := service.Spec.EdgeWorker
+	edgeWorker := service.Spec.DNNPartitioningEdgeWorker
 	var perr error
 
 	for _, edgeNode := range edgeWorker {
@@ -490,7 +489,7 @@ func (jc *DNNPartitioningServiceController) createEdgeWorker(service *sednav1.DN
 		// FIXME(llhuii): only the case that Spec.NodeName specified is support,
 		// will support Spec.NodeSelector.
 		// get cloudModelIP from nodeName in cloudWorker
-		cloudModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
+		cloudModelIP, err := GetNodeIPByName(jc.kubeClient, service.Spec.DNNPartitioningCloudWorker.Template.Spec.NodeName)
 		if err != nil {
 			return fmt.Errorf("failed to get node ip: %w", err)
 		}
@@ -538,8 +537,8 @@ func (jc *DNNPartitioningServiceController) createEdgeWorker(service *sednav1.DN
 }
 
 // GetName returns the name of the DNNPartitioning inference controller
-func (jc *DNNPartitioningServiceController) GetName() string {
-	return "DNNPartitioningServiceController"
+func (jc *DnnPartitioningServiceController) GetName() string {
+	return "DnnPartitioningServiceController"
 }
 
 // NewDNNPartitioningController creates a new DNNPartitioningService controller that keeps the relevant pods
@@ -564,7 +563,7 @@ func NewDNNPartitioningtController(cfg *config.ControllerConfig) (FeatureControl
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
 
-	jc := &DNNPartitioningServiceController{
+	jc := &DnnPartitioningServiceController{
 		kubeClient: kubeClient,
 		client:     crdclient.SednaV1alpha1(),
 

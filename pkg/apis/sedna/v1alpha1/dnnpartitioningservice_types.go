@@ -38,18 +38,18 @@ type DNNPartitioningService struct {
 
 // DNNPartitioningServiceSpec is a description of a dnnpartitioningservice
 type DNNPartitioningServiceSpec struct {
-	EdgeWorker  []EdgeWorker `json:"edgeWorker"`
-	CloudWorker CloudWorker  `json:"cloudWorker"`
+	DNNPartitioningEdgeWorker  []DNNPartitioningEdgeWorker `json:"dnnpartitioningedgeWorker"`
+	DNNPartitioningCloudWorker DNNPartitioningCloudWorker  `json:"dnnpartitioningcloudWorker"`
 }
 
-// EdgeWorker describes the data a edge worker should have
-type EdgeWorker struct {
+// DNNPartitioningEdgeWorker describes the data a edge worker should have
+type DNNPartitioningEdgeWorker struct {
 	Model             EdgeModel         `json:"model"`
 	Template          v1.PodTemplateSpec `json:"template"`
 }
 
-// CloudWorker describes the data a cloud worker should have
-type CloudWorker struct {
+// DNNPartitioningCloudWorker describes the data a cloud worker should have
+type DNNPartitioningCloudWorker struct {
 	Model    CloudModel           `json:"model"`
 	Template v1.PodTemplateSpec `json:"template"`
 }
@@ -99,24 +99,24 @@ type DNNPartitioningServiceStatus struct {
 }
 
 // DNNPartitioningServiceConditionType defines the condition type
-type DNNPartitioningServiceConditionType string
+type DnnPartitioningServiceConditionType string
 
 // These are valid conditions of a service.
 const (
 	// DNNPartitioningServiceCondPending means the service has been accepted by the system,
 	// but one or more of the workers has not been started.
-	DNNPartitioningServiceCondPending DNNPartitioningServiceConditionType = "Pending"
+	DNNPartitioningServiceCondPending DnnPartitioningServiceConditionType = "Pending"
 	// DNNPartitioningServiceCondFailed means the service has failed its execution.
-	DNNPartitioningServiceCondFailed DNNPartitioningServiceConditionType = "Failed"
+	DNNPartitioningServiceCondFailed DnnPartitioningServiceConditionType = "Failed"
 	// DNNPartitioningServiceReady means the service has been ready.
-	DNNPartitioningServiceCondRunning DNNPartitioningServiceConditionType = "Running"
+	DNNPartitioningServiceCondRunning DnnPartitioningServiceConditionType = "Running"
 )
 
 // DNNPartitioningServiceCondition describes current state of a service.
 // see https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties for details.
 type DNNPartitioningServiceCondition struct {
 	// Type of service condition, Complete or Failed.
-	Type DNNPartitioningServiceConditionType `json:"type"`
+	Type DnnPartitioningServiceConditionType `json:"type"`
 	// Status of the condition, one of True, False, Unknown.
 	Status v1.ConditionStatus `json:"status"`
 	// last time we got an update on a given condition
