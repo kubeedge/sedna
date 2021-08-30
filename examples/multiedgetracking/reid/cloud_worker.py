@@ -65,7 +65,12 @@ class Estimator:
         pass
 
     def predict(self, data, **kwargs):
-        temp = np.array(data)
+        # If we get a list, fetch the first element.
+        # Otherwise run normally.
+        if len(data) == 1:
+            temp = np.array(data[0])
+        else:
+            temp = np.array(data)
         query_feat = torch.from_numpy(temp)
         query_feat = query_feat.float()
         

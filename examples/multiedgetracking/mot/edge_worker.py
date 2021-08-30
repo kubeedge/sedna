@@ -102,7 +102,11 @@ class Estimator:
         else:
             # TEST: We get only the first element in the list of bboxes
             # We receive the image from the detection pod via REST API
-            image_as_array = np.array(data[0][0]).astype(np.uint8)
+            if len(data) == 1:
+              image_as_array = np.array(data[0][0][0]).astype(np.uint8)
+            else:
+              image_as_array = np.array(data[0][0]).astype(np.uint8)
+            
             data = Image.fromarray(image_as_array)
             LOGGER.info('Finding ID {} ...'.format(data))
             input = torch.unsqueeze(self.transform(data), 0)
