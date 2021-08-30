@@ -88,7 +88,7 @@ class ReIDService(JobBase):
             try:
                 self.inference(token)
             except Exception as e:
-                LOGGER.info(f"Error processing token {token}: {e}")
+                LOGGER.info(f"Error processing received data: {e}")
 
             self.sync_queue.task_done()
 

@@ -6,7 +6,7 @@ class Producer(Client):
     def __init__(self, address = ["localhost"], port = [9092]) -> None:
         super().__init__(address, port)
         LOGGER.info("Creating Kafka producer")
-        self.producer = KafkaProducer(bootstrap_servers=self.kafka_endpoints)
+        self.producer = KafkaProducer(bootstrap_servers=self.kafka_endpoints, max_request_size=10000000)
 
     def publish_data(self, data, topic = "default") -> bool:
 
@@ -14,7 +14,7 @@ class Producer(Client):
         # Publishes a message
         try:
             self.producer.send(topic, value=data_input)
-            self.producer.flush()
+            #self.producer.flush()
             LOGGER.info(f"Message published on topic {topic}.")
             return True
         except Exception as e:

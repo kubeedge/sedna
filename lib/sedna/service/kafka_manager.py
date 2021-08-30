@@ -22,8 +22,7 @@ class KafkaProducer:
             LOGGER.error(f"Topic already created - skipping error. [{ex}]")
 
     def write_result(self, data):
-        self.producer.publish_data(data, topic=self.topic)
-        return
+        return self.producer.publish_data(data, topic=self.topic)
 
 class KafkaConsumerThread(Thread):
     # Address and port should come from the YAML
