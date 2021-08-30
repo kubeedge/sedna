@@ -32,7 +32,7 @@ from sedna.common.benchmark import FTimer
 from sedna.service.server import FEServer
 from sedna.service.server import ReIDServer
 
-__all__ = ("MultiObjectTracking", "ReIDService", "ObjectDetector")
+__all__ = ("FEService", "ReIDService", "ObjectDetector")
 
 # There is excessive code duplication, we need to refactor at some point.
 # Idea: create base SednaKafkaService and let the specific implementations override the infernece/predict function
@@ -109,13 +109,13 @@ class ReIDService(JobBase):
         return res
 
 
-class MultiObjectTracking(JobBase):
+class FEService(JobBase):
     """
    Feature Extraction service.
    """
 
     def __init__(self, estimator=None, config=None):
-        super(MultiObjectTracking, self).__init__(
+        super(FEService, self).__init__(
             estimator=estimator, config=config)
         self.log.info("Loading Feature Extraction module")
 

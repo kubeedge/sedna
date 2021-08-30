@@ -24,8 +24,8 @@ from sedna.backend.torch.nets.nn import Backbone
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
-from sedna.core.multi_edge_tracking import MultiObjectTracking
-from sedna.core.multi_edge_tracking.multi_edge_tracking import MultiObjectTracking
+from sedna.core.multi_edge_tracking import FEService
+from sedna.core.multi_edge_tracking.multi_edge_tracking import FEService
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
@@ -102,6 +102,7 @@ class Estimator:
         else:
             # TEST: We get only the first element in the list of bboxes
             # We receive the image from the detection pod via REST API
+            # This needs to be fixed.
             if len(data) == 1:
               image_as_array = np.array(data[0][0][0]).astype(np.uint8)
             else:
@@ -122,5 +123,5 @@ class Estimator:
             return self.convert_to_list(query_feat)
 
 # Starting the ReID module
-inference_instance = MultiObjectTracking(estimator=Estimator)
+inference_instance = FEService(estimator=Estimator)
 inference_instance.start()

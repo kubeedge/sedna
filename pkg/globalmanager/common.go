@@ -130,6 +130,29 @@ func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, erro
 	return "", fmt.Errorf("can't found node ip for node %s", name)
 }
 
+func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string) ([]string, error) {
+	s, err := kubeClient.CoreV1().Services("default").List(context.Background(), metav1.ListOptions{
+		// FieldSelector: "spec.selector.app=" + name,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	kafkaEndpoints := []string{}
+	for _, svc := range s.Items {
+		klog.Info(svc.GetName() + "" + svc.GetClusterName())
+		if strings.Contains(svc.GetName(), name) {
+			kafkaEndpoints = append(kafkaEndpoints, svc.GetName())
+		}
+	}
+
+	if len(kafkaEndpoints) > 0 {
+		return kafkaEndpoints, err
+	}
+
+	return nil, fmt.Errorf("can't found node ip for node %s", name)
+}
+
 // getBackoff calc the next wait time for the key
 func getBackoff(queue workqueue.RateLimitingInterface, key interface{}) time.Duration {
 	exp := queue.NumRequeues(key)

@@ -495,6 +495,10 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activePods = 0
 	activeDeployments = 0
 
+	// We should pass the identified service address to each pod/deployment with Kafka enabled
+	kfk, err := FindAvailableKafkaServices(mc.kubeClient, "kafka")
+	klog.Info("Available Kafka endpoints: %w", kfk)
+
 	var workerParam WorkerParam
 	workerParam.workerType = ReIDWoker
 

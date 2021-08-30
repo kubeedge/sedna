@@ -16,14 +16,14 @@ import time
 import cv2
 
 from sedna.common.config import Context
-from sedna.core.multi_edge_tracking import MultiObjectTracking
+from sedna.core.multi_edge_tracking import FEService
 from sedna.common.log import LOGGER
 from edge_worker import Estimator
 
 camera_address = Context.get_parameters('video_url')
 
 def main():
-    edge_worker = MultiObjectTracking(estimator=Estimator)
+    edge_worker = FEService(estimator=Estimator)
 
     camera = cv2.VideoCapture(camera_address)
     fps = 10

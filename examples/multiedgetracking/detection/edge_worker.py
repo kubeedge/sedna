@@ -22,6 +22,7 @@ from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
 from utils.utils import *
+from utils.general import save_one_box
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
@@ -101,16 +102,13 @@ class Estimator:
                     s += f"{n} {self.names[int(c)]}{'s' * (n > 1)}, "  # add to string
                 
                 # Write results
-                #for *xyxy, conf, cls in reversed(det):
+                for *xyxy, conf, cls in reversed(det):
                     #c = int(cls)  # integer class
                     #label = f'{self.names[c]} {conf:.2f}'
                     #plot_one_box(xyxy, data, label=label, color=colors(c, True))
                     #cv2.imwrite("test00.jpeg", data)
-                    #save_one_box(xyxy, imc, file='test.jpg', BGR=True)
-                
-                # Write results
-                for conf in reversed(det):
-                    bbs_list.append([imc.tolist(), conf.numpy().tolist()])
+                    crop = save_one_box(xyxy, imc, file='test.jpg', BGR=True, save=False)
+                    bbs_list.append([crop.tolist(), conf.numpy().tolist()])                   
 
         #LOGGER.debug(bbs_list[0])
         #LOGGER.info(s)
