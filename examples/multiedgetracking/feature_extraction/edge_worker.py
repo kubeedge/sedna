@@ -124,7 +124,7 @@ class Estimator:
 
             LOGGER.info(f"Image size: {image_as_array.nbytes} - Tensor size {sys.getsizeof(query_feat.storage())}")
             # It returns a tensor, it should be transformed into a list before TX
-            return self.convert_to_list(query_feat, camera_code)
+            return self.convert_to_list(query_feat, camera_code, det_time)
 
 # Starting the ReID module
 inference_instance = FEService(estimator=Estimator)
