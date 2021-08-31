@@ -59,6 +59,11 @@ class ReIDService(JobBase):
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
 
+            if isinstance(self.kafka_address, str):
+                LOGGER.info(f"Parsing string received from GOLANG controller {self.kafka_address},{self.kafka_port}")
+                self.kafka_address = self.kafka_address.split("|")
+                self.kafka_port = self.kafka_port.split("|")
+            
             self.sync_queue = queue.Queue()
 
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="reid")
@@ -137,69 +142,41 @@ class FEService(JobBase):
             self.sync_queue = queue.Queue()
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
+            
+            if isinstance(self.kafka_address, str):
+                LOGGER.info(f"Parsing string received from GOLANG controller {self.kafka_address},{self.kafka_port}")
+                self.kafka_address = self.kafka_address.split("|")
+                self.kafka_port = self.kafka_port.split("|")
+
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="feature_extraction")
             self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic="object_detection", sync_queue=self.sync_queue)
-
-        report_msg = {
-            "name": self.worker_name,
-            "namespace": self.config.namespace,
-            "ownerName": self.job_name,
-            "ownerKind": self.job_kind,
-            "kind": "inference",
-            "results": []
-        }
-        period_interval = int(self.get_parameters("LC_PERIOD", "30"))
-        self.lc_reporter = LCReporter(lc_server=self.config.lc_server,
-                                      message=report_msg,
-                                      period_interval=period_interval)
-        self.lc_reporter.setDaemon(True)
-        #self.lc_reporter.start()
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
 
-        if callable(self.estimator):
-            self.estimator = self.estimator()
-        # if not os.path.exists(self.model_path):
-        #     raise FileExistsError(f"{self.model_path} miss")
-        # else:
-            # We are using a PyTorch model which requires explicit weights loading.
-        self.log.info("Estimator -> Loading model and weights")
-        self.estimator.load()
-        #self.estimator.load_weights()
-
-        self.log.info("Estimator -> Evaluating model ..")
-        self.estimator.evaluate()
-
-        # The cloud node taking care of the reid step
-        self.cloud = ReID(service_name=self.job_name,
-                                 host=self.remote_ip, port=self.remote_port)
-
-        # Async parameters
-        self.parallelism = 1
-        self.queue = queue.Queue()
-        threading.Thread(target=self.get_data, daemon=True).start()
-
-
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
-        # The cloud instance only runs a distance function to do the ReID
-        # We don't load any model at this stage
-        # if not os.path.exists(self.model_path):
-        #     raise FileExistsError(f"{self.model_path} miss")
-        # else:
-        #     # self.estimator.load(self.model_path)
 
+        self.log.info("Estimator -> Loading model and weights")
+        self.estimator.load()
+
+        self.log.info("Estimator -> Evaluating model ..")
+        self.estimator.evaluate()
 
         if self.kafka_enabled:
             LOGGER.info("Creating sync_inference thread")
             self.sync_inference()
             # threading.Thread(target=self.sync_inference, daemon=True).start()
         else:
-            LOGGER.info("Starting default REST webservice")
-            app_server = FEServer(model=self, servername=self.job_name,
-                                     host=self.local_ip, http_port=self.local_port)
+            LOGGER.info("Starting default REST webservice/s")
+
+            self.cloud = ReID(service_name=self.job_name,host=self.remote_ip, port=self.remote_port)
+            app_server = FEServer(model=self, servername=self.job_name,host=self.local_ip, http_port=self.local_port)
+
+            self.queue = queue.Queue()
+            threading.Thread(target=self.get_data, daemon=True).start()
+
             app_server.start()
 
     def sync_inference(self):
@@ -278,44 +255,29 @@ class ObjectDetector(JobBase):
             LOGGER.info("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
+            
+            if isinstance(self.kafka_address, str):
+                LOGGER.info(f"Parsing string received from GOLANG controller {self.kafka_address},{self.kafka_port}")
+                self.kafka_address = self.kafka_address.split("|")
+                self.kafka_port = self.kafka_port.split("|")
+
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="object_detection")
-
-        report_msg = {
-            "name": self.worker_name,
-            "namespace": self.config.namespace,
-            "ownerName": self.job_name,
-            "ownerKind": self.job_kind,
-            "kind": "inference",
-            "results": []
-        }
-
-        period_interval = int(self.get_parameters("LC_PERIOD", "30"))
-        self.lc_reporter = LCReporter(lc_server=self.config.lc_server,
-                                      message=report_msg,
-                                      period_interval=period_interval)
-        self.lc_reporter.setDaemon(True)
-        #self.lc_reporter.start()
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
 
+    def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
-        # if not os.path.exists(self.model_path):
-        #     raise FileExistsError(f"{self.model_path} miss")
-        # else:
-        #     # We are using a PyTorch model which requires explicit weights loading.
-        #     self.log.info("Estimator -> Loading model and weights")
 
-        # We should pass the model path but, because it's in the container logic, we don't pass anything.
         self.estimator.load()
 
         self.log.info("Estimator -> Evaluating model ..")
         self.estimator.evaluate()
 
+        LOGGER.info("Starting default REST webservice/s")
         # The edge node in the next layer taking care of the feature extraction
-        self.edge = FE(service_name=self.job_name,
-                                 host=self.remote_ip, port=self.port)
+        self.edge = FE(service_name=self.job_name,host=self.remote_ip, port=self.port)
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
