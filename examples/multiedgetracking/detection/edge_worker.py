@@ -31,11 +31,8 @@ model_weights = Context.get_parameters('model_weights')
 classifier = Context.get_parameters('model_classifier')
 image_size = Context.get_parameters('input_shape') # in pixels!
 
-# WARNING: Only for demo purposes!
-camera_code = Context.get_parameters('video_url', "0").split("/")[-1]
-
 class Estimator:
-    def __init__(self):      
+    def __init__(self, **kwargs):
         # Initialize
         LOGGER.info("Starting object detection module")
         self.device = self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -44,6 +41,7 @@ class Estimator:
         self.classify = False
         self.stride, self.names = 64, [f'class{i}' for i in range(1000)]  # assign defaults
         self.img_size = int(image_size)
+        self.camera_code = kwargs.get('camera_code', 0)
   
     def load(self, model_url="", mmodel_name=None, **kwargs):
         LOGGER.info("Loading model")
