@@ -139,11 +139,17 @@ func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string) ([
 	kafkaAddresses := []string{}
 	kafkaPorts := []string{}
 
+	// For this to work, the kafka-service has to contain an annotation field
+	// containing the advertised_IP of the Kafka broker (the same as in the deployment).
+	// Ideally, it should match the KAFKA_ADVERTISED_HOST_NAME in the deployment configuration.
+	// Using the service name doesn't work using the defualt Kafka YAML file.
+
 	for _, svc := range s.Items {
 		klog.Info(svc.GetName() + "" + svc.GetClusterName())
 		if strings.Contains(svc.GetName(), name) {
-			kafkaAddresses = append(kafkaAddresses, svc.GetName())
-			kafkaPorts = append(kafkaAddresses, fmt.Sprint(svc.Spec.Ports[0].NodePort))
+			// kafkaAddresses = append(kafkaAddresses, svc.GetName())
+			kafkaAddresses = append(kafkaAddresses, svc.Annotations["advertised_ip"])
+			kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].NodePort))
 		}
 	}
 
@@ -151,7 +157,7 @@ func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string) ([
 		return kafkaAddresses, kafkaPorts, err
 	}
 
-	return nil, nil, fmt.Errorf("can't found node ip for node %s", name)
+	return nil, nil, fmt.Errorf("can't find node ip for node %s", name)
 }
 
 // getBackoff calc the next wait time for the key

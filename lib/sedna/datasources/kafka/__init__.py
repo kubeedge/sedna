@@ -9,7 +9,6 @@ from kafka.admin import NewTopic
 
 class Client():
     def __init__(self, address = ["localhost"], port = [9092]) -> None:
-        LOGGER.info("Loading Kafka connection parameters")
         self.kafka_address = address
         self.kafka_port =  port
         self.kafka_endpoints = []
@@ -21,7 +20,9 @@ class Client():
 class AdminClient(Client):
     def __init__(self, address = ["localhost"], port = [9092]) -> None:
         super().__init__(address, port)
+        LOGGER.info("Creating Kafka admin client")
         self.admin_client = KafkaAdminClient(bootstrap_servers=self.kafka_endpoints, client_id='test')
+
 
     def _parse_topics(self, topics, num_partitions, replication_factor):
         topic_list = []
