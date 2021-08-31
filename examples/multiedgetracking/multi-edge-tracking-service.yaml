@@ -64,7 +64,6 @@ spec:
             imagePullPolicy: IfNotPresent
             ports:
               - containerPort: 6000
-                hostPort: 6000
             name:  feature-extraction
             env:  # user defined environments
             - name: input_shape

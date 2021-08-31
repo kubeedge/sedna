@@ -54,7 +54,7 @@ class ReIDService(JobBase):
         if self.get_parameters("KAFKA_ENABLED", False):
             LOGGER.info("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
-            self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32523])
+            self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
 
             self.sync_queue = queue.Queue()
 
@@ -133,7 +133,7 @@ class FEService(JobBase):
             LOGGER.info("Kafka support enabled in YAML file")
             self.sync_queue = queue.Queue()
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
-            self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32523])
+            self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="feature_extraction")
             self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic="object_detection", sync_queue=self.sync_queue)
 
@@ -274,7 +274,7 @@ class ObjectDetector(JobBase):
         if self.kafka_enabled:
             LOGGER.info("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
-            self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32523])
+            self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="object_detection")
 
         report_msg = {

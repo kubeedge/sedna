@@ -511,6 +511,10 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 		"KAFKA_ENABLED":        strconv.FormatBool(service.Spec.ReIDDeploy.KafkaSupport),
 	}
 
+	// if kfk != nil {
+	// 	workerParam.env["KAFKA_BIND_IPS"] =
+	// }
+
 	/*
 
 		REID DEPLOYMENT

@@ -131,9 +131,7 @@ func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, erro
 }
 
 func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string) ([]string, error) {
-	s, err := kubeClient.CoreV1().Services("default").List(context.Background(), metav1.ListOptions{
-		// FieldSelector: "spec.selector.app=" + name,
-	})
+	s, err := kubeClient.CoreV1().Services("default").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +140,7 @@ func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string) ([
 	for _, svc := range s.Items {
 		klog.Info(svc.GetName() + "" + svc.GetClusterName())
 		if strings.Contains(svc.GetName(), name) {
-			kafkaEndpoints = append(kafkaEndpoints, svc.GetName())
+			kafkaEndpoints = append(kafkaEndpoints, svc.GetName(), fmt.Sprint(svc.Spec.Ports[0].NodePort))
 		}
 	}
 
