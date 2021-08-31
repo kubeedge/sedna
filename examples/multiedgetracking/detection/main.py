@@ -46,7 +46,6 @@ def retrieve_rtsp_stream() -> str:
 
 def start_stream_acquisition(stream_address):
     camera_code = stream_address.split("/")[-1] # WARNING: Only for demo purposes!
-
     edge_worker = ObjectDetector(estimator=Estimator(camera_code=camera_code))
 
     camera = cv2.VideoCapture(stream_address)

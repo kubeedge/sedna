@@ -112,7 +112,7 @@ class Estimator:
                     #plot_one_box(xyxy, data, label=label, color=colors(c, True))
                     #cv2.imwrite("test00.jpeg", data)
                     crop = save_one_box(xyxy, imc, file='test.jpg', BGR=True, save=False)
-                    bbs_list.append([crop.tolist(), conf.numpy().tolist(), camera_code, det_time])                   
+                    bbs_list.append([crop.tolist(), conf.numpy().tolist(), self.camera_code, det_time])                   
 
         #LOGGER.debug(bbs_list[0])
         #LOGGER.info(s)
