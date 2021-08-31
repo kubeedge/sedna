@@ -4,7 +4,7 @@ metadata:
   name: container-tracking
 spec:
   motDeploy:
-    kafkaSupport: true
+    kafkaSupport: False
     spec:
       replicas: 3
       selector:
@@ -47,7 +47,7 @@ spec:
                 path: /data/yolo_lfs
                 type: Directory
   feDeploy:
-    kafkaSupport: true
+    kafkaSupport: False
     spec:
       replicas: 1
       selector:
@@ -60,7 +60,7 @@ spec:
         spec:
           nodeName: "frapedge00001"
           containers:
-          - image: kubeedge/sedna-example-multi-edge-tracking-mot:v0.3.0
+          - image: kubeedge/sedna-example-multi-edge-tracking-feature-extraction:v0.3.0
             imagePullPolicy: IfNotPresent
             ports:
               - containerPort: 6000
@@ -91,7 +91,7 @@ spec:
                 type: Directory
 
   reIDDeploy:
-    kafkaSupport: true
+    kafkaSupport: False
     spec:
       replicas: 1
       selector:

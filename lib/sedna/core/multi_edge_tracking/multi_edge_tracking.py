@@ -32,6 +32,8 @@ from sedna.common.benchmark import FTimer
 from sedna.service.server import FEServer
 from sedna.service.server import ReIDServer
 
+import distutils.core
+
 __all__ = ("FEService", "ReIDService", "ObjectDetector")
 
 # There is excessive code duplication, we need to refactor at some point.
@@ -50,8 +52,9 @@ class ReIDService(JobBase):
 
         self.local_ip = self.get_parameters("REID_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
-        
-        if self.get_parameters("KAFKA_ENABLED", False):
+        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", False)))
+
+        if self.kafka_enabled:
             LOGGER.info("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
@@ -72,7 +75,7 @@ class ReIDService(JobBase):
         # else:
         #     # self.estimator.load(self.model_path)
 
-        if self.get_parameters("KAFKA_ENABLED", False):
+        if self.kafka_enabled:
             LOGGER.info("Creating sync_inference thread")
             self.sync_inference()
             # threading.Thread(target=self.sync_inference, daemon=True).start()
@@ -127,7 +130,7 @@ class FEService(JobBase):
         # Port and IP of the service this pod will contact (remote)
         self.remote_ip = self.get_parameters("REID_MODEL_BIND_URL", self.local_ip)
         self.remote_port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
-        self.kafka_enabled = self.get_parameters("KAFKA_ENABLED", False)
+        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", False)))
 
         if self.kafka_enabled:
             LOGGER.info("Kafka support enabled in YAML file")
@@ -269,7 +272,7 @@ class ObjectDetector(JobBase):
         self.remote_ip = self.get_parameters("FE_MODEL_BIND_URL", self.local_ip)
         self.port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
 
-        self.kafka_enabled = self.get_parameters("KAFKA_ENABLED", False)
+        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", False)))
 
         if self.kafka_enabled:
             LOGGER.info("Kafka support enabled in YAML file")
