@@ -68,9 +68,14 @@ class Estimator:
         # If we get a list, fetch the first element.
         # Otherwise run normally.
         if len(data) == 1:
-            temp = np.array(data[0])
+            temp = np.array(data[0][0])
+            camera_code = data[0][1]
+            det_time = data[0][2]
         else:
-            temp = np.array(data)
+            temp = np.array(data[0])
+            camera_code = data[1]
+            det_time = data[2]
+
         query_feat = torch.from_numpy(temp)
         query_feat = query_feat.float()
         
@@ -82,6 +87,8 @@ class Estimator:
         
         self._save_result(indices, camid='mixed', top_k=10)
 
+        LOGGER.info(f"Container with ID {self._extract_id(self.img_path[indices[0][0]])} detected in area {camera_code} with timestamp {det_time}")
+        
         return indices[0][:]
 
     def _save_result(self, indices, camid, top_k=10, img_size=[128, 128]):

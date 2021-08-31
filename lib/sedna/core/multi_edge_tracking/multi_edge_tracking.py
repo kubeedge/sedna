@@ -60,7 +60,7 @@ class ReIDService(JobBase):
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
 
             if isinstance(self.kafka_address, str):
-                LOGGER.info(f"Parsing string received from GOLANG controller {self.kafka_address},{self.kafka_port}")
+                LOGGER.info(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
                 self.kafka_address = self.kafka_address.split("|")
                 self.kafka_port = self.kafka_port.split("|")
             
@@ -144,7 +144,7 @@ class FEService(JobBase):
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
             
             if isinstance(self.kafka_address, str):
-                LOGGER.info(f"Parsing string received from GOLANG controller {self.kafka_address},{self.kafka_port}")
+                LOGGER.info(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
                 self.kafka_address = self.kafka_address.split("|")
                 self.kafka_port = self.kafka_port.split("|")
 
@@ -255,9 +255,9 @@ class ObjectDetector(JobBase):
             LOGGER.info("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
-            
+
             if isinstance(self.kafka_address, str):
-                LOGGER.info(f"Parsing string received from GOLANG controller {self.kafka_address},{self.kafka_port}")
+                LOGGER.info(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
                 self.kafka_address = self.kafka_address.split("|")
                 self.kafka_port = self.kafka_port.split("|")
 

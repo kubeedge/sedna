@@ -71,8 +71,8 @@ class Estimator:
         LOGGER.info(f"Evaluating model")
         self.model.eval()
 
-    def convert_to_list(self, data):
-        return data.numpy().tolist()
+    def convert_to_list(self, data, camera_code):
+        return [data.numpy().tolist(), camera_code]
 
     # def predict(self, data, **kwargs):
     #     if len(data) == 0:
@@ -105,8 +105,12 @@ class Estimator:
             # This needs to be fixed.
             if len(data) == 1:
               image_as_array = np.array(data[0][0][0]).astype(np.uint8)
+              camera_code = data[0][0][2]
+              det_time = data[0][0][3]
             else:
               image_as_array = np.array(data[0][0]).astype(np.uint8)
+              camera_code = data[0][2]
+              det_time = data[0][3]
             
             data = Image.fromarray(image_as_array)
             LOGGER.info('Finding ID {} ...'.format(data))
@@ -120,7 +124,7 @@ class Estimator:
 
             LOGGER.info(f"Image size: {image_as_array.nbytes} - Tensor size {sys.getsizeof(query_feat.storage())}")
             # It returns a tensor, it should be transformed into a list before TX
-            return self.convert_to_list(query_feat)
+            return self.convert_to_list(query_feat, camera_code)
 
 # Starting the ReID module
 inference_instance = FEService(estimator=Estimator)

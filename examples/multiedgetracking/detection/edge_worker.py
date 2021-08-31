@@ -14,6 +14,7 @@
 
 
 import os
+import datetime
 
 import torch
 import numpy as np
@@ -29,6 +30,9 @@ os.environ['BACKEND_TYPE'] = 'TORCH'
 model_weights = Context.get_parameters('model_weights')
 classifier = Context.get_parameters('model_classifier')
 image_size = Context.get_parameters('input_shape') # in pixels!
+
+# WARNING: Only for demo purposes!
+camera_code = Context.get_parameters('video_url', "0").split("/")[-1]
 
 class Estimator:
     def __init__(self):      
@@ -90,6 +94,8 @@ class Estimator:
         # # Process predictions
         s = ""
         bbs_list = []
+        det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
+
         for i, det in enumerate(pred):  # detections per image
             imc = data.copy()
             if len(det):
@@ -108,7 +114,7 @@ class Estimator:
                     #plot_one_box(xyxy, data, label=label, color=colors(c, True))
                     #cv2.imwrite("test00.jpeg", data)
                     crop = save_one_box(xyxy, imc, file='test.jpg', BGR=True, save=False)
-                    bbs_list.append([crop.tolist(), conf.numpy().tolist()])                   
+                    bbs_list.append([crop.tolist(), conf.numpy().tolist(), camera_code, det_time])                   
 
         #LOGGER.debug(bbs_list[0])
         #LOGGER.info(s)
