@@ -71,8 +71,8 @@ class Estimator:
         LOGGER.info(f"Evaluating model")
         self.model.eval()
 
-    def convert_to_list(self, data, camera_code):
-        return [data.numpy().tolist(), camera_code]
+    def convert_to_list(self, data, camera_code, det_time):
+        return [data.numpy().tolist(), camera_code, det_time]
 
     # def predict(self, data, **kwargs):
     #     if len(data) == 0:
@@ -105,10 +105,12 @@ class Estimator:
             # This needs to be fixed.
             if len(data) == 1:
               image_as_array = np.array(data[0][0][0]).astype(np.uint8)
+              conf_score = data[0][0][1]
               camera_code = data[0][0][2]
               det_time = data[0][0][3]
             else:
               image_as_array = np.array(data[0][0]).astype(np.uint8)
+              conf_score = data[0][1]
               camera_code = data[0][2]
               det_time = data[0][3]
             
