@@ -7,7 +7,7 @@ POLL_TIMEOUT_MS = 5000
 class Consumer(Client):
     def __init__(self, address = ["localhost"], port = [9092], group_id="default") -> None:
         super().__init__(address, port)
-        LOGGER.info("Creating Kafka consumer")
+        LOGGER.debug("Creating Kafka consumer")
         self.consumer = KafkaConsumer(
             group_id=group_id,
             bootstrap_servers=self.kafka_endpoints,
@@ -20,7 +20,7 @@ class Consumer(Client):
 
     def subscribe(self, topic):
         try:
-            LOGGER.info(f"Subscribing to topics {topic}")
+            LOGGER.debug(f"Subscribing to topics {topic}")
             self.consumer.subscribe(topic)
         except Exception as e:
              LOGGER.error(f"Unable to subscribe to topic {e}")
@@ -34,17 +34,17 @@ class Consumer(Client):
             return data
 
         try:
-            LOGGER.info("Polling topics ...")
+            LOGGER.debug("Polling topics ...")
             records = self.consumer.poll(timeout_ms=POLL_TIMEOUT_MS)
 
             if len(records)==0:
-                LOGGER.info("No message(s) consumed (maybe we timed out waiting?)\n")
+                LOGGER.debug("No message(s) consumed (maybe we timed out waiting?)\n")
 
-            LOGGER.info("Consuming messages")
+            LOGGER.debug("Consuming messages")
             for key, value in records.items():
-                LOGGER.info(key)
+                LOGGER.debug(key)
                 for record in value:
-                    # LOGGER.info(record.value)
+                    # LOGGER.debug(record.value)
                     data.append(pickle.loads(record.value))
 
                 return data
@@ -59,5 +59,5 @@ class Consumer(Client):
         pass
 
     def close(self):
-        LOGGER.info("Shutting down consumer")
+        LOGGER.debug("Shutting down consumer")
         self.consumer.close()

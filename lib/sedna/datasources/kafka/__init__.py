@@ -14,13 +14,13 @@ class Client():
         self.kafka_endpoints = []
 
         for addr, port in zip(self.kafka_address, self.kafka_port):
-            LOGGER.info(f"Adding address {addr} with port {port} to list of endpoints.")
+            LOGGER.debug(f"Adding address {addr} with port {port} to list of endpoints.")
             self.kafka_endpoints.append(f"{addr}:{port}")
 
 class AdminClient(Client):
     def __init__(self, address = ["localhost"], port = [9092]) -> None:
         super().__init__(address, port)
-        LOGGER.info("Creating Kafka admin client")
+        LOGGER.debug("Creating Kafka admin client")
         self.admin_client = KafkaAdminClient(bootstrap_servers=self.kafka_endpoints, client_id='test')
 
 
