@@ -35,8 +35,8 @@ from sedna.common.benchmark import FTimer
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
-model_path = Context.get_parameters('model_path')
-model_classes_path = Context.get_parameters('model_classes_path')
+model_path = "/home/data/" + Context.get_parameters('model_path')
+model_classes_path = "/home/data/" +Context.get_parameters('model_classes_path')
 model_name = Context.get_parameters('model_name')
 
 class Estimator:

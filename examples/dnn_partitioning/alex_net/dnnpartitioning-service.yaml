@@ -1,5 +1,5 @@
 apiVersion: sedna.io/v1alpha1
-kind: DnnPartitioningService
+kind: DNNPartitioningService
 metadata:
   name: "alex-net-inference"
 spec:
@@ -9,13 +9,7 @@ spec:
       name: "alex-net-inference-edge-model"
     template:
       spec:
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-                - matchExpressions:
-                    - key: node-role.kubernetes.io/agent
-                      operator: Exists
+        nodeName: "fraphisprk00034"
         containers:
         - image:  registry-cbu.huawei.com/kubeedge/sedna-example-dnn-partitioning-alex-net-edge:v0.3.0
           imagePullPolicy: IfNotPresent
@@ -24,11 +18,11 @@ spec:
           - name: "model_name"
             value: "model_1"
           - name: "model_path"
-            value: "/data/edge_model/model_1.pt"
+            value: "data/edge_model/model_1.pt"
           - name: "model_classes_path"
-            value: "/data/cloud_model/imagenet_classes.txt"
+            value: "data/cloud_model/imagenet_classes.txt"
           - name: "image_path"
-            value: "/data/images/dog.jpg"
+            value: "data/images/dog.jpg"
           resources:  # user defined resources
             requests:
               memory: 64M
@@ -50,13 +44,7 @@ spec:
       name: "alex-net-inference-cloud-model"
     template:
       spec:
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-                - matchExpressions:
-                    - key: node-role.kubernetes.io/agent
-                      operator: DoesNotExist
+        nodeName: "fraphisprk00033"
         containers:
           - image: registry-cbu.huawei.com/kubeedge/sedna-example-dnn-partitioning-alex-net-cloud:v0.3.0
             name:  cloud-model
@@ -65,7 +53,7 @@ spec:
             - name: "model_name"
               value: "model_2"
             - name: "model_path"
-              value: "/data/cloud_model/model_2.pt"
+              value: "data/cloud_model/model_2.pt"
             - name: "model_classes_path"
               value: "/data/cloud_model/imagenet_classes.txt"
             resources:  # user defined resources

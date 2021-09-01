@@ -58,6 +58,7 @@ class CloudInference(JobBase):
         """todo: no support yet"""
 
     def inference(self, data=None, post_process=None, **kwargs):
+        self.log.info(f"in cloud inference")
         callback_func = None
         if callable(post_process):
             callback_func = post_process
@@ -66,6 +67,7 @@ class CloudInference(JobBase):
                 ClassType.CALLBACK, post_process)
 
         with FTimer(f"{self.worker_name}_cloud_inference"):
+            self.log.info(f"calling cloud predict")
             res = self.estimator.predict(data, **kwargs)
 
         if callback_func:
@@ -113,8 +115,14 @@ class EdgeInference(JobBase):
 
         # We should pass the model path but, because it's in the container logic, we don't pass anything.
         self.estimator.load()
+        self.log.info(f"cloud host local ip: {self.local_ip}")
+        self.log.info(f"cloud host: {self.remote_ip}")
+        self.log.info(f"cloud port: {self.port}")
+
         self.cloud = ModelClient(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
+        
+        self.log.info(f"cloud obj: {self.cloud}")
         # self.hard_example_mining_algorithm = self.initial_hem
 
     def train(self, train_data,
@@ -135,6 +143,8 @@ class EdgeInference(JobBase):
             res = self.estimator.predict(data, **kwargs)
         edge_result = deepcopy(res)
 
+        self.log.info(f"edge inference completed")
+
         if callback_func:
             res = callback_func(res)
 
@@ -146,9 +156,11 @@ class EdgeInference(JobBase):
          # Send detection+tracking results to cloud
         # edge_result
 
-        if edge_result != None:
-            with FTimer(f"{os.uname()[1]}_cloud_inference_and_transmission"):
-                cloud_result = self.cloud.inference(edge_result, post_process=post_process, **kwargs)
+        #if edge_result != None:
+        with FTimer(f"{os.uname()[1]}_cloud_inference_and_transmission"):
+            self.log.info(f"calling cloud inference")
+            cloud_result = self.cloud.inference(edge_result, post_process=post_process, **kwargs)
+            self.log.info(f"cloud inference completed")
 
         return [None, cloud_result, edge_result, None]
 

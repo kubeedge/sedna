@@ -19,7 +19,7 @@ from interface import Estimator
 
 def run():
     inference_instance = EdgeInference(estimator=Estimator)
-    inference_instance.start()
+    inference_instance.inference()
 
 
 if __name__ == "__main__":
