@@ -22,7 +22,7 @@ spec:
           - name: "model_classes_path"
             value: "data/cloud_model/imagenet_classes.txt"
           - name: "image_path"
-            value: "data/images/dog.jpg"
+            value: "data/edge_model/images/dog.jpg"
           resources:  # user defined resources
             requests:
               memory: 64M
