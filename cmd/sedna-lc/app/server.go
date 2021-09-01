@@ -92,6 +92,8 @@ func runServer() {
 
 	jm := manager.NewJointInferenceManager(c)
 
+	dp := manager.NewDNNPartitioningManager(c)
+	
 	fm := manager.NewFederatedLearningManager(c)
 
 	im := manager.NewIncrementalJobManager(c, dm, mm, Options)
@@ -101,7 +103,7 @@ func runServer() {
 	s := server.New(Options)
 
 	for _, m := range []manager.FeatureManager{
-		dm, mm, jm, fm, im, lm,
+		dm, mm, jm, fm, im, lm, dp, 
 	} {
 		s.AddFeatureManager(m)
 		c.Subscribe(m)

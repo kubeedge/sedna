@@ -71,14 +71,14 @@ EOF
 
 #### Create DNNPartitioningService 
 
-
+```
 kubectl create -f - <<EOF
 apiVersion: sedna.io/v1alpha1
 kind: DnnPartitioningService
 metadata:
   name: "alex-net-inference"
 spec:
-  edgeWorker:
+  dnnpartitioningedgeWorker:
   - 
     model:
       name: "alex-net-inference-edge-model"
@@ -92,7 +92,7 @@ spec:
                     - key: node-role.kubernetes.io/agent
                       operator: Exists
         containers:
-        - image: kubeedge/sedna-example-dnn-partitioning-alex-net-edge:v0.1.0
+        - image:  registry-cbu.huawei.com/kubeedge/sedna-example-dnn-partitioning-alex-net-edge:v0.3.0
           imagePullPolicy: IfNotPresent
           name:  edge-model
           env:  # user defined environments
@@ -120,7 +120,7 @@ spec:
               path: /data/output/
               type: Directory
 
-  cloudWorker:
+  dnnpartitioningcloudWorker:
     model:
       name: "alex-net-inference-cloud-model"
     template:
@@ -133,7 +133,7 @@ spec:
                     - key: node-role.kubernetes.io/agent
                       operator: DoesNotExist
         containers:
-          - image: kubeedge/sedna-example-dnn-partitioning-alex-net-cloud:v0.1.0
+          - image: registry-cbu.huawei.com/kubeedge/sedna-example-dnn-partitioning-alex-net-cloud:v0.3.0
             name:  cloud-model
             imagePullPolicy: IfNotPresent
             env:  # user defined environments

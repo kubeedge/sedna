@@ -50,8 +50,8 @@ import (
 )
 
 const (
-	dnnPartitioningForEdge  = "Edge"
-	dnnPartitioningForCloud = "Cloud"
+	dnnPartitioningForEdge  = "edge"
+	dnnPartitioningForCloud = "cloud"
 )
 
 // dnnPartitioningServiceControllerKind contains the schema.GroupVersionKind for this controller type.
