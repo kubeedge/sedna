@@ -52,7 +52,7 @@ class ReIDService(JobBase):
 
         self.local_ip = self.get_parameters("REID_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
-        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", False)))
+        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
 
         if self.kafka_enabled:
             LOGGER.debug("Kafka support enabled in YAML file")
@@ -135,7 +135,7 @@ class FEService(JobBase):
         # Port and IP of the service this pod will contact (remote)
         self.remote_ip = self.get_parameters("REID_MODEL_BIND_URL", self.local_ip)
         self.remote_port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
-        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", False)))
+        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
 
         if self.kafka_enabled:
             LOGGER.debug("Kafka support enabled in YAML file")
@@ -249,7 +249,7 @@ class ObjectDetector(JobBase):
         self.remote_ip = self.get_parameters("FE_MODEL_BIND_URL", self.local_ip)
         self.port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
 
-        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", False)))
+        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
 
         if self.kafka_enabled:
             LOGGER.debug("Kafka support enabled in YAML file")
