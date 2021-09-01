@@ -303,7 +303,7 @@ class ObjectDetector(JobBase):
                 if self.kafka_enabled:
                     cres = self.producer.write_result(detection_result)
                 else:
-                    cres = self.edge.feature_extraction(detection_result, post_process=post_process, **kwargs)
+                    cres = self.edge.feature_extraction([detection_result], post_process=post_process, **kwargs)
 
         return [cres, detection_result]
 
