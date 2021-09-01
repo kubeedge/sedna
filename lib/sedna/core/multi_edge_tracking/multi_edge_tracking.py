@@ -24,7 +24,6 @@ from sedna.service.fe_endpoint import FE
 from sedna.service.kafka_manager import KafkaConsumerThread, KafkaProducer
 from sedna.service.reid_endpoint import ReID
 
-from sedna.service.client import LCReporter
 from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
 from sedna.common.benchmark import FTimer
@@ -38,6 +37,13 @@ __all__ = ("FEService", "ReIDService", "ObjectDetector")
 
 # There is excessive code duplication, we need to refactor at some point.
 # Idea: create base SednaKafkaService and let the specific implementations override the infernece/predict function
+
+class ODResult:
+    def __init__(self, data, confidence, camera_code, timestamp) -> None:
+        self.data  = data
+        self.confidence = confidence
+        self.camera_code = camera_code
+        self.timestamp = timestamp
 
 class ReIDService(JobBase):
     """
