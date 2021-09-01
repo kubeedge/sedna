@@ -36,7 +36,7 @@ def main():
             pass
 
         if not ret:
-            LOGGER.info(
+            LOGGER.debug(
                 f"camera is not open, camera_address={camera_address},"
                 f" sleep 5 second.")
             time.sleep(5)
@@ -52,7 +52,7 @@ def main():
 
         img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
         nframe += 1
-        LOGGER.info(f"camera is open, current frame index is {nframe}")
+        LOGGER.debug(f"camera is open, current frame index is {nframe}")
         edge_worker.inference(img_rgb)
 
 if __name__ == '__main__':

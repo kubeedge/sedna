@@ -26,5 +26,7 @@ COPY examples/multiedgetracking/detection/main.py  /home/work/detection.py
 COPY examples/multiedgetracking/detection/models /home/work/models
 COPY examples/multiedgetracking/detection/utils /home/work/utils
 
+ENV LOG_LEVEL="INFO"
+
 ENTRYPOINT ["python"]
 CMD ["detection.py"]

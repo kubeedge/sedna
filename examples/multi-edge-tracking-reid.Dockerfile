@@ -64,5 +64,7 @@ COPY ./lib /home/lib
 COPY examples/multiedgetracking/reid/cloud_worker.py  /home/work/cloud.py
 ENV PYTHONPATH "${PYTHONPATH}:/home/lib/sedna/backend/nets"
 
+ENV LOG_LEVEL="INFO"
+
 ENTRYPOINT ["python"]
 CMD ["cloud.py", "--config_file=efficientnetv2_market"]

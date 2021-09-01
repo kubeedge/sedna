@@ -36,12 +36,12 @@ dataset = Context.get_parameters('dataset')
 class Estimator:
 
     def __init__(self, **kwargs):
-        LOGGER.info("Initializing cloud ReID worker ...")
+        LOGGER.info("Starting ReID module")
         self.log_dir = log_dir
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.gallery_feats = torch.load(os.path.join(self.log_dir, dataset, gfeats), map_location=self.device)
         self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
-        LOGGER.info(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
+        LOGGER.debug(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
 
     def _extract_id(self, text):
         return text.split("/")[-1].split(".")[0].split("_")[0]
@@ -79,8 +79,8 @@ class Estimator:
         query_feat = torch.from_numpy(temp)
         query_feat = query_feat.float()
         
-        LOGGER.info(f"Running the cosine similarity function on input data")
-        LOGGER.info(f"{query_feat.shape} - {self.gallery_feats.shape}")
+        LOGGER.debug(f"Running the cosine similarity function on input data")
+        LOGGER.debug(f"{query_feat.shape} - {self.gallery_feats.shape}")
         with FTimer("cosine_similarity"):
             dist_mat = cosine_similarity(query_feat, self.gallery_feats)
             indices = np.argsort(dist_mat, axis=1)
@@ -92,7 +92,7 @@ class Estimator:
         return indices[0][:]
 
     def _save_result(self, indices, camid, top_k=10, img_size=[128, 128]):
-        LOGGER.info("Saving top-10 results")
+        LOGGER.debug("Saving top-10 results")
         figure = None
         for k in range(top_k):
             img = Image.open(os.path.join(img_dir, self.img_path[indices[0][k]])).resize(
@@ -107,7 +107,7 @@ class Estimator:
         result_path = os.path.join(self.log_dir, "results")
 
         if not os.path.exists(result_path):
-            LOGGER.info('Creating a new folder named results in {}'.format(self.log_dir))
+            LOGGER.debug('Creating a new folder named results in {}'.format(self.log_dir))
             os.makedirs(result_path)
 
         cv2.imwrite(os.path.join(

@@ -68,5 +68,7 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/work"
 #COPY examples/multiedgetracking/mot/main.py  /home/work/edge.py
 COPY examples/multiedgetracking/feature_extraction/edge_worker.py  /home/work/edge_worker.py
 
+ENV LOG_LEVEL="INFO"
+
 ENTRYPOINT ["python"]
 CMD ["edge_worker.py", "--config_file=efficientnetv2_market"]

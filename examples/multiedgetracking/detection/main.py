@@ -26,11 +26,11 @@ camera_address = Context.get_parameters('video_url')
 stream_dispatcher = Context.get_parameters('stream_dispatcher_url')
 
 def retrieve_rtsp_stream() -> str:
-    LOGGER.info(f'Finding target RTSP stream ...')
+    LOGGER.debug(f'Finding target RTSP stream ...')
     if stream_dispatcher != None:
         try:
             rtsp_stream = requests.get(stream_dispatcher)
-            LOGGER.info(f'Retrieved RTSP stream with address {rtsp_stream}')
+            LOGGER.debug(f'Retrieved RTSP stream with address {rtsp_stream}')
             # This is crazy, but we have to do it otherwise cv2 will silenty fail and never open the RTSP stream
             cv2_cleaned_string = rtsp_stream.text.strip().replace('"', '')
             return cv2_cleaned_string
@@ -38,7 +38,7 @@ def retrieve_rtsp_stream() -> str:
             LOGGER.error(f'Unable to access stream dispatcher server, using fallback value. [{ex}]')
             return camera_address
     else:
-        LOGGER.info(f'Using RTSP from env variable with address {camera_address}')
+        LOGGER.debug(f'Using RTSP from env variable with address {camera_address}')
         return camera_address
     
 
@@ -59,7 +59,7 @@ def start_stream_acquisition(stream_address):
             LOGGER.error(f'Unable to access stream [{ex}]')
             
         if not ret:
-            LOGGER.info(
+            LOGGER.debug(
                 f"camera is not open, camera_address={stream_address},"
                 f" sleep 5 second.")
             time.sleep(5)
@@ -75,7 +75,7 @@ def start_stream_acquisition(stream_address):
 
         img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
         nframe += 1
-        LOGGER.info(f"camera is open, current frame index is {nframe}")
+        LOGGER.debug(f"camera is open, current frame index is {nframe}")
         edge_worker.inference(img_rgb)
 
 if __name__ == '__main__':

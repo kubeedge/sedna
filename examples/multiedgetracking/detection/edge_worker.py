@@ -44,29 +44,29 @@ class Estimator:
         self.camera_code = kwargs.get('camera_code', 0)
   
     def load(self, model_url="", mmodel_name=None, **kwargs):
-        LOGGER.info("Loading model")
+        LOGGER.debug("Loading model")
         self.model = attempt_load(self.weights, map_location=self.device)  # load FP32 model
         self.stride = int(self.model.stride.max())  # model stride
         self.names = self.model.module.names if hasattr(self.model, 'module') else self.model.names  # get class names
 
-        #LOGGER.info("Loading classifier")
+        #LOGGER.debug("Loading classifier")
         #self.modelc.load_state_dict(torch.load(classifier, map_location=self.device)['model']).to(self.device).eval()
 
     def evaluate(self, **kwargs):
-        LOGGER.info(f"Evaluating model")
+        LOGGER.debug(f"Evaluating model")
         self.model.eval()
 
     def predict(self, data, **kwargs):
         # Padded resize
         print(data.shape)
-        LOGGER.info("Manipulating source image")
+        LOGGER.debug("Manipulating source image")
         img = letterbox(data, self.img_size, stride=self.stride)[0]
 
         # Convert
         img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
         img = np.ascontiguousarray(img)
 
-        LOGGER.info("Loading image to device")
+        LOGGER.debug("Loading image to device")
         img = torch.from_numpy(img).to(self.device)
         img = img.float()  # uint8 to fp16/32
 
@@ -115,7 +115,7 @@ class Estimator:
                     bbs_list.append([crop.tolist(), conf.numpy().tolist(), self.camera_code, det_time])                   
 
         #LOGGER.debug(bbs_list[0])
-        #LOGGER.info(s)
-        LOGGER.info(f"Found {len(bbs_list)} possible containers")
+        #LOGGER.debug(s)
+        LOGGER.info(f"Found {len(bbs_list)} possible containers in camera {self.camera_code}")
         
         return bbs_list

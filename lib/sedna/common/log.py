@@ -22,6 +22,7 @@ from sedna.common.config import BaseConfig
 
 # MEASUREMENT = 9
 LOG_DIR = "logs/"
+LOG_LEVEL = BaseConfig.log_level
 
 # logging.addLevelName(MEASUREMENT, "MEASUREMENT")
 
@@ -42,7 +43,7 @@ class Logger:
     def __init__(self, name: str = BaseConfig.job_name):
         
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(level=LOG_LEVEL)
 
         self.format = colorlog.ColoredFormatter(
             '%(log_color)s[%(asctime)-15s] %(filename)s(%(lineno)d)'
@@ -50,7 +51,7 @@ class Logger:
 
         self.handler = logging.StreamHandler()
         self.handler.setFormatter(self.format)
-        self.handler.setLevel(logging.DEBUG)
+        self.handler.setLevel(level=LOG_LEVEL)
 
         # self.logger.measurement = self.measurement
 
