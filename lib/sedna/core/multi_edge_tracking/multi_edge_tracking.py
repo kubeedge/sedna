@@ -251,6 +251,9 @@ class ObjectDetector(JobBase):
 
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
 
+        if estimator is None:
+            self.log.error("ERROR! Estimator is not set!")
+
         if self.kafka_enabled:
             LOGGER.debug("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
@@ -262,9 +265,8 @@ class ObjectDetector(JobBase):
                 self.kafka_port = self.kafka_port.split("|")
 
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="object_detection")
-
-        if estimator is None:
-            self.log.error("ERROR! Estimator is not set!")
+        
+        self.start()
 
     def start(self):
         if callable(self.estimator):
