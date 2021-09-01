@@ -193,17 +193,18 @@ class FEService(JobBase):
     def get_data(self):
         while True:
             token = self.queue.get()
-            self.log.info(f'Data consumed')
+            LOGGER.debug(f'Data consumed')
             try:
                 self.inference(token)
             except Exception as e:
-                self.log.info(f"Error processing token {token}: {e}")
+                msg = f"Error processing token {token}: {e}" 
+                LOGGER.error((msg[:60] + '..' + msg[len(msg)-40:-1]) if len(msg) > 60 else msg)
 
             self.queue.task_done()
 
     def put_data(self, data):
         self.queue.put(data)
-        self.log.info("Data deposited")
+        LOGGER.debug("Data deposited")
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
