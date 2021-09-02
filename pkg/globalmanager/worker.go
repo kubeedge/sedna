@@ -249,6 +249,9 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 		)
 	}
 
+	InjectStorageInitializerDeployment(deployment, workerParam)
+
+
 }
 
 //by EnfangCui
