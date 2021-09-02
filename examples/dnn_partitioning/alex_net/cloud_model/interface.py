@@ -66,11 +66,13 @@ class Estimator:
             # We receive the layer data from the detection pod via REST API
             temp = np.array(data)
             input_b = torch.from_numpy(temp)
-            input = input_b.to(self.device)
-
+            # input = input_b.to(self.device)
+            LOGGER.info(f"Tensor type: {input_b.type()}")
+            input_c = input_b.float()
+            LOGGER.info(f"Tensor type: {input_c.type()}")
             with FTimer(f"dnn_partitioning"):
                 with torch.no_grad():
-                    query_feat = self.model(input)
+                    query_feat = self.model(input_c)
                     LOGGER.info(f"Tensor with features: {query_feat}")
 
             probabilities = torch.nn.functional.softmax(query_feat[0], dim=0)

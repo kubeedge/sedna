@@ -43,10 +43,10 @@ class CloudInference(JobBase):
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
-        if not os.path.exists(self.model_path):
-            raise FileExistsError(f"{self.model_path} miss")
-        else:
-            self.estimator.load(self.model_path)
+        # if not os.path.exists(self.model_path):
+        #     raise FileExistsError(f"{self.model_path} miss")
+        # else:
+        self.estimator.load()
         app_server = InferenceServer(model=self, servername=self.job_name,
                                      host=self.local_ip, http_port=self.port)
         app_server.start()
