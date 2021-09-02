@@ -19,7 +19,8 @@ import os
 
 assert sys.version_info >= (3, 6), "Sorry, Python < 3.6 is not supported."
 
-with open("README.md", "r") as fh:
+with open(os.path.join(os.path.dirname(__file__), "sedna", "README.md"),
+          "r", encoding="utf-8") as fh:
     long_desc = fh.read()
 
 with open(os.path.join(os.path.dirname(__file__), 'sedna', 'VERSION'),
@@ -30,6 +31,18 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
     install_requires = [line.strip() for line in
                         fh.readlines() if line.strip()]
 
+with open("OWNERS", "r", encoding="utf-8") as fh:
+    check, approvers = False, set()
+    for line in fh:
+        if not line.strip():
+            continue
+        if check:
+            approvers.add(line.strip().split()[-1])
+        check = (line.startswith("approvers:") or
+                 (line.startswith(" -") and check))
+
+maintainer = ",".join(approvers) or "sedna"
+
 setup(
     name='sedna',
     version=__version__,
@@ -38,9 +51,9 @@ setup(
                 on Sedna project",
     packages=find_packages(exclude=["tests", "*.tests",
                                     "*.tests.*", "tests.*"]),
-    author="",
-    author_email="",
-    maintainer="",
+    author=maintainer,
+    author_email="pujie2@huawei.com",
+    maintainer=maintainer,
     maintainer_email="",
     include_package_data=True,
     python_requires=">=3.6",
