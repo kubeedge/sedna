@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,20 +39,20 @@ type DNNPartitioningService struct {
 
 // DNNPartitioningServiceSpec is a description of a dnnpartitioningservice
 type DNNPartitioningServiceSpec struct {
-	DNNPartitioningEdgeWorker  []DNNPartitioningEdgeWorker `json:"dnnpartitioningedgeWorker"`
+	DNNPartitioningEdgeWorker  DNNPartitioningEdgeWorker `json:"dnnpartitioningedgeWorker"`
 	DNNPartitioningCloudWorker DNNPartitioningCloudWorker  `json:"dnnpartitioningcloudWorker"`
 }
 
 // DNNPartitioningEdgeWorker describes the data a edge worker should have
 type DNNPartitioningEdgeWorker struct {
 	Model             EdgeModel         `json:"model"`
-	Template          v1.PodTemplateSpec `json:"template"`
+	Spec appsv1.DeploymentSpec `json:"spec"`
 }
 
 // DNNPartitioningCloudWorker describes the data a cloud worker should have
 type DNNPartitioningCloudWorker struct {
 	Model    CloudModel           `json:"model"`
-	Template v1.PodTemplateSpec `json:"template"`
+	Spec appsv1.DeploymentSpec `json:"spec"`
 }
 
 // EdgeModel describes the edge model

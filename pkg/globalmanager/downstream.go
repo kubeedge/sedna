@@ -96,19 +96,18 @@ func (dc *DownstreamController) syncJointInferenceService(eventType watch.EventT
 }
 
 // syncDNNPartitioningService syncs the DNNPartitioningService-service resources
-func (dc *DownstreamController) syncDNNPartitioningService(eventType watch.EventType, joint *sednav1.DNNPartitioningService) error {
+func (dc *DownstreamController) syncDNNPartitioningService(eventType watch.EventType, dp *sednav1.DNNPartitioningService) error {
 	// Here only propagate to the nodes with non empty name
 	// FIXME: only the case that Spec.NodeName specified is support
-	for _, dNNPartitioningEdgeWorker := range joint.Spec.DNNPartitioningEdgeWorker {
-		nodeName := dNNPartitioningEdgeWorker.Template.Spec.NodeName
+	nodeName := dp.Spec.DNNPartitioningEdgeWorker.Spec.Template.Spec.NodeName
 
-		if len(nodeName) == 0 {
-			return fmt.Errorf("empty node name")
-		}
-
-		dc.messageLayer.SendResourceObject(nodeName, eventType, joint)
-
+	if len(nodeName) == 0 {
+		return fmt.Errorf("empty node name")
 	}
+
+	dc.messageLayer.SendResourceObject(nodeName, eventType, dp)
+
+
 
 	return nil
 }

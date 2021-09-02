@@ -79,77 +79,61 @@ metadata:
   name: "alex-net-inference"
 spec:
   dnnpartitioningedgeWorker:
-    spec:
-      replicas: 1
-      selector:
-        matchLabels:
-          app: alex-net-inference-edge
-      model:
-        name: "alex-net-inference-edge-model"
-      template:
-        metadata:
-          labels:
-            app: alex-net-inference-edge
-        spec:
-          nodeName: "fraphisprk00034"
-          containers:
-          - image:  registry-cbu.huawei.com/kubeedge/sedna-example-dnn-partitioning-alex-net-edge:v0.3.0
-            imagePullPolicy: IfNotPresent
-            name:  edge-model
-            env:  # user defined environments
-            - name: "model_name"
-              value: "model_1"
-            - name: "model_path"
-              value: "data/edge_model/model_1.pt"
-            - name: "model_classes_path"
-              value: "data/cloud_model/imagenet_classes.txt"
-            - name: "image_path"
-              value: "data/edge_model/images/dog.jpg"
-            resources:  # user defined resources
-              requests:
-                memory: 64M
-                cpu: 100m
-              limits:
-                memory: 2Gi
-            volumeMounts:
-              - name: outputdir
-                mountPath: /data/
-          volumes:   # user defined volumes
+  - 
+    model:
+      name: "alex-net-inference-edge-model"
+    template:
+      spec:
+        nodeName: "fraphisprk00034"
+        containers:
+        - image:  registry-cbu.huawei.com/kubeedge/sedna-example-dnn-partitioning-alex-net-edge:v0.3.0
+          imagePullPolicy: IfNotPresent
+          name:  edge-model
+          env:  # user defined environments
+          - name: "model_name"
+            value: "model_1"
+          - name: "model_path"
+            value: "data/edge_model/model_1.pt"
+          - name: "model_classes_path"
+            value: "data/cloud_model/imagenet_classes.txt"
+          - name: "image_path"
+            value: "data/edge_model/images/dog.jpg"
+          resources:  # user defined resources
+            requests:
+              memory: 64M
+              cpu: 100m
+            limits:
+              memory: 2Gi
+          volumeMounts:
             - name: outputdir
-              hostPath:
-                # user must create the directory in host
-                path: /data/output/
-                type: Directory
+              mountPath: /data/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /data/output/
+              type: Directory
 
   dnnpartitioningcloudWorker:
-    spec:
-      replicas: 1
-      selector:
-        matchLabels:
-          app: alex-net-inference-cloud
-      model:
-        name: "alex-net-inference-cloud-model"
-      template:
-        metadata:
-          labels:
-            app: alex-net-inference-cloud
-        spec:
-          nodeName: "fraphisprk00033"
-          containers:
-            - image: registry-cbu.huawei.com/kubeedge/sedna-example-dnn-partitioning-alex-net-cloud:v0.3.0
-              name:  cloud-model
-              imagePullPolicy: IfNotPresent
-              env:  # user defined environments
-              - name: "model_name"
-                value: "model_2"
-              - name: "model_path"
-                value: "data/cloud_model/model_2.pt"
-              - name: "model_classes_path"
-                value: "data/cloud_model/imagenet_classes.txt"
-              resources:  # user defined resources
-                requests:
-                  memory: 2Gi
-
+    model:
+      name: "alex-net-inference-cloud-model"
+    template:
+      spec:
+        nodeName: "fraphisprk00033"
+        containers:
+          - image: registry-cbu.huawei.com/kubeedge/sedna-example-dnn-partitioning-alex-net-cloud:v0.3.0
+            name:  cloud-model
+            imagePullPolicy: IfNotPresent
+            env:  # user defined environments
+            - name: "model_name"
+              value: "model_2"
+            - name: "model_path"
+              value: "data/cloud_model/model_2.pt"
+            - name: "model_classes_path"
+              value: "/data/cloud_model/imagenet_classes.txt"
+            resources:  # user defined resources
+              requests:
+                memory: 2Gi
 EOF
 ```
 
