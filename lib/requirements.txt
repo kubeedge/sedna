@@ -4,8 +4,8 @@ websockets~=9.1  # BSD
 requests==2.24.0  # Apache-2.0
 PyYAML~=5.4.1  # MIT
 setuptools~=54.2.0
-fastapi~=0.63.0  # MIT
-starlette~=0.13.6  # BSD
+fastapi~=0.68.1  # MIT
+starlette~=0.14.2  # BSD
 pydantic~=1.8.1  # MIT
 tenacity~=8.0.1  # Apache-2.0
 joblib~=1.0.1  # BSD
