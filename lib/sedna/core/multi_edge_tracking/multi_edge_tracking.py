@@ -88,14 +88,14 @@ class ReIDService(JobBase):
 
         if self.kafka_enabled:
             LOGGER.debug("Creating sync_inference thread")
-            self.sync_inference()
+            self.fetch_data()
             # threading.Thread(target=self.sync_inference, daemon=True).start()
         else:
             LOGGER.debug("Starting default REST webservice")
             app_server = ReIDServer(model=self, servername=self.job_name, host=self.local_ip, http_port=self.port)
             app_server.start()
 
-    def sync_inference(self):
+    def fetch_data(self):
         while True:
             token = self.sync_queue.get()
             LOGGER.debug(f'Data consumed')
@@ -172,7 +172,7 @@ class FEService(JobBase):
 
         if self.kafka_enabled:
             LOGGER.debug("Creating sync_inference thread")
-            self.sync_inference()
+            self.fetch_data()
             # threading.Thread(target=self.sync_inference, daemon=True).start()
         else:
             LOGGER.debug("Starting default REST webservice/s")
@@ -181,11 +181,11 @@ class FEService(JobBase):
             app_server = FEServer(model=self, servername=self.job_name,host=self.local_ip, http_port=self.local_port)
 
             self.queue = queue.Queue()
-            threading.Thread(target=self.sync_inference, daemon=True).start()
+            threading.Thread(target=self.fetch_data, daemon=True).start()
 
             app_server.start()
 
-    def sync_inference(self):
+    def fetch_data(self):
         while True:
             token = self.sync_queue.get()
             LOGGER.debug(f'Data consumed')
@@ -197,20 +197,8 @@ class FEService(JobBase):
 
             self.sync_queue.task_done()
 
-    # def get_data(self):
-    #     while True:
-    #         token = self.queue.get()
-    #         LOGGER.debug(f'Data consumed')
-    #         try:
-    #             self.inference(token)
-    #         except Exception as e:
-    #             msg = f"Error processing token {token}: {e}" 
-    #             LOGGER.error((msg[:60] + '..' + msg[len(msg)-40:-1]) if len(msg) > 60 else msg)
-
-    #         self.queue.task_done()
-
     def put_data(self, data):
-        self.queue.put(data)
+        self.sync_queue.put(data)
         LOGGER.debug("Data deposited")
 
     def inference(self, data=None, post_process=None, **kwargs):
