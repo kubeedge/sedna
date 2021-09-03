@@ -95,6 +95,23 @@ func (dc *DownstreamController) syncJointInferenceService(eventType watch.EventT
 	return nil
 }
 
+// syncDNNPartitioningService syncs the DNNPartitioningService-service resources
+func (dc *DownstreamController) syncDNNPartitioningService(eventType watch.EventType, dp *sednav1.DNNPartitioningService) error {
+	// Here only propagate to the nodes with non empty name
+	// FIXME: only the case that Spec.NodeName specified is support
+	nodeName := dp.Spec.DNNPartitioningEdgeWorker.Spec.Template.Spec.NodeName
+
+	if len(nodeName) == 0 {
+		return fmt.Errorf("empty node name")
+	}
+
+	dc.messageLayer.SendResourceObject(nodeName, eventType, dp)
+
+
+
+	return nil
+}
+
 func (dc *DownstreamController) syncMultiEdgeTrackingService(eventType watch.EventType, met *sednav1.MultiEdgeTrackingService) error {
 
 	var workers []string
@@ -284,6 +301,27 @@ func (dc *DownstreamController) sync(stopCh <-chan struct{}) {
 				namespace = t.Namespace
 				name = t.Name
 				err = dc.syncJointInferenceService(e.Type, t)
+			
+			case (*sednav1.DNNPartitioningService):
+				// TODO: find a good way to avoid these duplicate codes
+				if len(t.Kind) == 0 {
+					t.Kind = "DNNPartitioningService"
+				}
+				kind = t.Kind
+				namespace = t.Namespace
+				name = t.Name
+				err = dc.syncDNNPartitioningService(e.Type, t)
+
+			
+			case (*sednav1.MultiEdgeTrackingService):
+				// TODO: find a good way to avoid these duplicate codes
+				if len(t.Kind) == 0 {
+					t.Kind = "MultiEdgeTrackingService"
+				}
+				kind = t.Kind
+				namespace = t.Namespace
+				name = t.Name
+				err = dc.syncMultiEdgeTrackingService(e.Type, t)
 
 			case (*sednav1.FederatedLearningJob):
 				if len(t.Kind) == 0 {
@@ -356,6 +394,8 @@ func (dc *DownstreamController) watch(stopCh <-chan struct{}) {
 	for resourceName, object := range map[string]runtime.Object{
 		"datasets":                &sednav1.Dataset{},
 		"jointinferenceservices":  &sednav1.JointInferenceService{},
+		"dnnpartitioningservices":  &sednav1.DNNPartitioningService{},
+		"multiedgetrackingservices":  &sednav1.MultiEdgeTrackingService{},
 		"federatedlearningjobs":   &sednav1.FederatedLearningJob{},
 		"incrementallearningjobs": &sednav1.IncrementalLearningJob{},
 		"lifelonglearningjobs":    &sednav1.LifelongLearningJob{},

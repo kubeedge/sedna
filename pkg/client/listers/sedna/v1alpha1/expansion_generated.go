@@ -18,6 +18,14 @@ limitations under the License.
 
 package v1alpha1
 
+// DNNPartitioningServiceListerExpansion allows custom methods to be added to
+// DNNPartitioningServiceLister.
+type DNNPartitioningServiceListerExpansion interface{}
+
+// DNNPartitioningServiceNamespaceListerExpansion allows custom methods to be added to
+// DNNPartitioningServiceNamespaceLister.
+type DNNPartitioningServiceNamespaceListerExpansion interface{}
+
 // DatasetListerExpansion allows custom methods to be added to
 // DatasetLister.
 type DatasetListerExpansion interface{}

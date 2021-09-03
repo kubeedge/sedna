@@ -48,6 +48,7 @@ func (c *MainController) Start() {
 		NewDownstreamController,
 		NewFederatedController,
 		NewJointController,
+		NewDNNPartitioningtController,
 		NewIncrementalJobController,
 		NewLifelongLearningJobController,
 		NewMultiEdgeTrackingServiceController,

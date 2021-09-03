@@ -28,6 +28,10 @@ type FakeSednaV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeSednaV1alpha1) DNNPartitioningServices(namespace string) v1alpha1.DNNPartitioningServiceInterface {
+	return &FakeDNNPartitioningServices{c, namespace}
+}
+
 func (c *FakeSednaV1alpha1) Datasets(namespace string) v1alpha1.DatasetInterface {
 	return &FakeDatasets{c, namespace}
 }

@@ -24,6 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// DNNPartitioningServices returns a DNNPartitioningServiceInformer.
+	DNNPartitioningServices() DNNPartitioningServiceInformer
 	// Datasets returns a DatasetInformer.
 	Datasets() DatasetInformer
 	// FederatedLearningJobs returns a FederatedLearningJobInformer.
@@ -49,6 +51,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// DNNPartitioningServices returns a DNNPartitioningServiceInformer.
+func (v *version) DNNPartitioningServices() DNNPartitioningServiceInformer {
+	return &dNNPartitioningServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Datasets returns a DatasetInformer.
