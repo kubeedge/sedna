@@ -237,10 +237,21 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 	deployment.Spec.Template.Labels["app"] = object.GetName() + "-" + workerParam.workerType + "-" + "svc"
 	deployment.Spec.Selector.MatchLabels["app"] = object.GetName() + "-" + workerParam.workerType + "-" + "svc"
 
-	if deployment.Spec.Template.Spec.Containers[0].Ports != nil {
-		deployment.Spec.Template.Spec.Containers[0].Ports[0].HostPort = port
-		deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = port
+	for _, cont := range deployment.Spec.Template.Spec.Containers {
+		for _, ports := range cont.Ports {
+			if ports.HostPort != 0 {
+				ports.HostPort = port
+			}
+			if ports.ContainerPort != 0 {
+				ports.ContainerPort = port
+			}
+		}
 	}
+
+	// if deployment.Spec.Template.Spec.Containers[0].Ports != nil {
+	// 	deployment.Spec.Template.Spec.Containers[0].Ports[0].HostPort = port
+	// 	deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = port
+	// }
 
 	envs := createEnvVars(workerParam.env)
 	for idx := range deployment.Spec.Template.Spec.Containers {

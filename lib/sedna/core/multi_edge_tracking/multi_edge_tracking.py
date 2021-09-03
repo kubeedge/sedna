@@ -236,7 +236,7 @@ class FEService(JobBase):
                 if self.kafka_enabled:
                     cres = self.producer.write_result(fe_result)
                 else:
-                    cres = self.cloud.reid(fe_result, post_process=post_process, **kwargs)
+                    cres = self.cloud.reid([fe_result], post_process=post_process, **kwargs)
 
         return [None, cres, fe_result, None]
 
