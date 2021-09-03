@@ -46,16 +46,14 @@ EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 dockerfiles_cloud=(
 # federated-learning-surface-defect-detection-aggregation.Dockerfile
 # joint-inference-helmet-detection-big.Dockerfile
-# multi-edge-tracking-reid.Dockerfile
-dnn-partitioning-alex-net-cloud.Dockerfile
+multi-edge-tracking-reid.Dockerfile
 )
 
 dockerfiles_edge=(
 # federated-learning-surface-defect-detection-train.Dockerfile
 # joint-inference-helmet-detection-little.Dockerfile
-# multi-edge-tracking-mot.Dockerfile
-# multi-edge-tracking-detection.Dockerfile
-dnn-partitioning-alex-net-edge.Dockerfile
+multi-edge-tracking-mot.Dockerfile
+multi-edge-tracking-detection.Dockerfile
 )
 
 dockerfiles_others=(
