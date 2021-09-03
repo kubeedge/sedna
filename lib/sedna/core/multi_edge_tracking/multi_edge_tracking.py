@@ -279,6 +279,8 @@ class ObjectDetector(JobBase):
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
+        cres = None
+        
         if callable(post_process):
             callback_func = post_process
         elif post_process is not None:
