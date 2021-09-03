@@ -271,6 +271,7 @@ class BaseConfig(ConfigSerializable):
 
     model_url = os.getenv("MODEL_URL")
     model_name = os.getenv("MODEL_NAME")
+    log_level = os.getenv("LOG_LEVEL", "INFO")
 
     # user parameter
     parameters = os.getenv("PARAMETERS")

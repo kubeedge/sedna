@@ -16,7 +16,6 @@ import cv2
 import numpy as np
 import os
 import torch
-import time
 from PIL import Image
 
 from sedna.core.multi_edge_tracking import ReIDService
@@ -37,12 +36,12 @@ dataset = Context.get_parameters('dataset')
 class Estimator:
 
     def __init__(self, **kwargs):
-        LOGGER.info("Initializing cloud ReID worker ...")
+        LOGGER.info("Starting ReID module")
         self.log_dir = log_dir
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.gallery_feats = torch.load(os.path.join(self.log_dir, dataset, gfeats), map_location=self.device)
         self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
-        LOGGER.info(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
+        LOGGER.debug(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
 
     def _extract_id(self, text):
         return text.split("/")[-1].split(".")[0].split("_")[0]
@@ -50,7 +49,7 @@ class Estimator:
     def _write_id_on_image(self, img, text):
         # setup text
         font = cv2.FONT_HERSHEY_SIMPLEX
-        print(text)
+        #print(text)
         # get boundary of this text
         textsize = cv2.getTextSize(text, font, 1, 2)[0]
 
@@ -66,22 +65,40 @@ class Estimator:
         pass
 
     def predict(self, data, **kwargs):
-        temp = np.array(data)
-        query_feat = torch.from_numpy(temp)
-        query_feat = query_feat.float()
+        # If we get a list, fetch the first element.
+        # Otherwise run normally.
         
-        LOGGER.info(f"Running the cosine similarity function on input data")
-        LOGGER.info(f"{query_feat.shape} - {self.gallery_feats.shape}")
-        with FTimer("cosine_similarity"):
-            dist_mat = cosine_similarity(query_feat, self.gallery_feats)
-            indices = np.argsort(dist_mat, axis=1)
-        
-        self._save_result(indices, camid='mixed', top_k=10)
+        for d in data:
+            temp = np.array(d[0][0])
+            camera_code = d[0][1]
+            det_time = d[0][2] 
 
+        # if len(data) == 1:
+        #     temp = np.array(data[0][0])
+        #     camera_code = data[0][1]
+        #     det_time = data[0][2]
+        # else:
+        #     temp = np.array(data[0])
+        #     camera_code = data[1]
+        #     det_time = data[2]
+
+            query_feat = torch.from_numpy(temp)
+            query_feat = query_feat.float()
+            
+            LOGGER.debug(f"Running the cosine similarity function on input data")
+            LOGGER.debug(f"{query_feat.shape} - {self.gallery_feats.shape}")
+            with FTimer("cosine_similarity"):
+                dist_mat = cosine_similarity(query_feat, self.gallery_feats)
+                indices = np.argsort(dist_mat, axis=1)
+            
+            self._save_result(indices, camid='mixed', top_k=10)
+
+            LOGGER.info(f"Container with ID {self._extract_id(self.img_path[indices[0][0]])} detected in area {camera_code} with timestamp {det_time}")
+        
         return indices[0][:]
 
     def _save_result(self, indices, camid, top_k=10, img_size=[128, 128]):
-        LOGGER.info("Saving top-10 results")
+        LOGGER.debug("Saving top-10 results")
         figure = None
         for k in range(top_k):
             img = Image.open(os.path.join(img_dir, self.img_path[indices[0][k]])).resize(
@@ -96,7 +113,7 @@ class Estimator:
         result_path = os.path.join(self.log_dir, "results")
 
         if not os.path.exists(result_path):
-            LOGGER.info('Creating a new folder named results in {}'.format(self.log_dir))
+            LOGGER.debug('Creating a new folder named results in {}'.format(self.log_dir))
             os.makedirs(result_path)
 
         cv2.imwrite(os.path.join(

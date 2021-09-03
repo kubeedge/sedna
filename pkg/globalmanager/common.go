@@ -130,6 +130,36 @@ func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, erro
 	return "", fmt.Errorf("can't found node ip for node %s", name)
 }
 
+func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string) ([]string, []string, error) {
+	s, err := kubeClient.CoreV1().Services("default").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	kafkaAddresses := []string{}
+	kafkaPorts := []string{}
+
+	// For this to work, the kafka-service has to contain an annotation field
+	// containing the advertised_IP of the Kafka broker (the same as in the deployment).
+	// Ideally, it should match the KAFKA_ADVERTISED_HOST_NAME in the deployment configuration.
+	// Using the service name doesn't work using the defualt Kafka YAML file.
+
+	for _, svc := range s.Items {
+		klog.Info(svc.GetName() + "" + svc.GetClusterName())
+		if strings.Contains(svc.GetName(), name) {
+			// kafkaAddresses = append(kafkaAddresses, svc.GetName())
+			kafkaAddresses = append(kafkaAddresses, svc.Annotations["advertised_ip"])
+			kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].NodePort))
+		}
+	}
+
+	if len(kafkaAddresses) > 0 && len(kafkaPorts) > 0 {
+		return kafkaAddresses, kafkaPorts, err
+	}
+
+	return nil, nil, fmt.Errorf("can't find node ip for node %s", name)
+}
+
 // getBackoff calc the next wait time for the key
 func getBackoff(queue workqueue.RateLimitingInterface, key interface{}) time.Duration {
 	exp := queue.NumRequeues(key)

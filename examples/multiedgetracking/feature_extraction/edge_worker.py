@@ -24,8 +24,8 @@ from sedna.backend.torch.nets.nn import Backbone
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer
 from sedna.common.log import LOGGER
-from sedna.core.multi_edge_tracking import MultiObjectTracking
-from sedna.core.multi_edge_tracking.multi_edge_tracking import MultiObjectTracking
+from sedna.core.multi_edge_tracking import FEService
+from sedna.core.multi_edge_tracking.multi_edge_tracking import FEService
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
@@ -37,12 +37,12 @@ image_size = Context.get_parameters('input_shape')
 class Estimator:
 
     def __init__(self, **kwargs):
-        LOGGER.info(f"Initializing edge worker ...")
+        LOGGER.info(f"Starting feature extraction module")
         self.model = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.image_size = [int(image_size.split(",")[0]), int(image_size.split(",")[1])] 
         
-        LOGGER.info(f"Expected image format is {self.image_size}")
+        LOGGER.debug(f"Expected image format is {self.image_size}")
 
         self.transform = T.Compose([
             T.Resize(self.image_size),
@@ -53,11 +53,11 @@ class Estimator:
     
     def load(self, model_url="", mmodel_name=None, **kwargs):
         # The model should be provided by a CRD
-        LOGGER.info(f"About to load model {model_name} with url {model_path}..")
+        LOGGER.debug(f"About to load model {model_name} with url {model_path}..")
         self.model = Backbone(num_classes=255, model_path=model_path, model_name=model_name, pretrain_choice="imagenet")
 
         # Here we load the model weights from the attached volume (.yaml)
-        LOGGER.info(f"About to load weights for the model {model_name}..")
+        LOGGER.debug(f"About to load weights for the model {model_name}..")
         self.model.load_param(model_weights)
         self.model = self.model.to(self.device)
 
@@ -68,11 +68,11 @@ class Estimator:
             dtype=_dtype)  # the target dtype for quantized weights
 
     def evaluate(self, **kwargs):
-        LOGGER.info(f"Evaluating model")
+        LOGGER.debug(f"Evaluating model")
         self.model.eval()
 
-    def convert_to_list(self, data):
-        return data.numpy().tolist()
+    def convert_to_list(self, data, camera_code, det_time):
+        return [data.numpy().tolist(), camera_code, det_time]
 
     # def predict(self, data, **kwargs):
     #     if len(data) == 0:
@@ -83,40 +83,62 @@ class Estimator:
     #         # We currently fetch the images from a video stream opened with OpenCV.
     #         # We need to convert the output from OpenCV into a format processable by the model.
     #         data = Image.fromarray(data)
-    #         LOGGER.info('Finding ID {} ...'.format(data))
+    #         LOGGER.debug('Finding ID {} ...'.format(data))
     #         input = torch.unsqueeze(self.transform(data), 0)
     #         input = input.to(self.device)
 
     #         with FTimer(f"feature_extraction"):
     #             with torch.no_grad():
     #                 query_feat = self.model(input)
-    #                 LOGGER.info(f"Tensor with features: {query_feat}")
+    #                 LOGGER.debug(f"Tensor with features: {query_feat}")
 
-    #         LOGGER.info(f"Image size: {raw_imgsize} - Tensor size {sys.getsizeof(query_feat.storage())}")
+    #         LOGGER.debug(f"Image size: {raw_imgsize} - Tensor size {sys.getsizeof(query_feat.storage())}")
     #         # It returns a tensor, it should be transformed into a list before TX
     #         return self.convert_to_list(query_feat)
 
     def predict(self, data, **kwargs):
+        result = []
+
         if len(data) == 0:
             return []
         else:
             # TEST: We get only the first element in the list of bboxes
             # We receive the image from the detection pod via REST API
-            image_as_array = np.array(data[0][0]).astype(np.uint8)
-            data = Image.fromarray(image_as_array)
-            LOGGER.info('Finding ID {} ...'.format(data))
-            input = torch.unsqueeze(self.transform(data), 0)
-            input = input.to(self.device)
+            # This needs to be fixed.
+            for d in data:
+                image_as_array = np.array(d[0][0]).astype(np.uint8)
+                conf_score = d[0][1]
+                camera_code = d[0][2]
+                det_time = d[0][3]
 
-            with FTimer(f"feature_extraction"):
-                with torch.no_grad():
-                    query_feat = self.model(input)
-                    LOGGER.info(f"Tensor with features: {query_feat}")
+            # if len(data) == 1:
+            #   image_as_array = np.array(data[0][0][0]).astype(np.uint8)
+            #   conf_score = data[0][0][1]
+            #   camera_code = data[0][0][2]
+            #   det_time = data[0][0][3]
+            # else:
+            #   image_as_array = np.array(data[0][0]).astype(np.uint8)
+            #   conf_score = data[0][1]
+            #   camera_code = data[0][2]
+            #   det_time = data[0][3]
+            
+                data = Image.fromarray(image_as_array)
+                LOGGER.debug('Finding ID {} ...'.format(data))
+                input = torch.unsqueeze(self.transform(data), 0)
+                input = input.to(self.device)
 
-            LOGGER.info(f"Image size: {image_as_array.nbytes} - Tensor size {sys.getsizeof(query_feat.storage())}")
-            # It returns a tensor, it should be transformed into a list before TX
-            return self.convert_to_list(query_feat)
+                with FTimer(f"feature_extraction"):
+                    with torch.no_grad():
+                        query_feat = self.model(input)
+                        LOGGER.info(f"Extracted ReID features for container/s received from camera {camera_code}")
+                        LOGGER.debug(f"Tensor with features: {query_feat}")
+
+                LOGGER.debug(f"Image size: {image_as_array.nbytes} - Tensor size {sys.getsizeof(query_feat.storage())}")
+                # It returns a tensor, it should be transformed into a list before TX
+                result.append(self.convert_to_list(query_feat, camera_code, det_time))
+
+            return result 
 
 # Starting the ReID module
-inference_instance = MultiObjectTracking(estimator=Estimator)
+inference_instance = FEService(estimator=Estimator)
 inference_instance.start()

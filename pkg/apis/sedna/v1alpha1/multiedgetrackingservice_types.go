@@ -45,15 +45,18 @@ type MultiEdgeTrackingServiceSpec struct {
 
 // EdgeWorker describes the data a edge worker should have
 type MultiObjectTrackingDeploy struct {
-	Spec appsv1.DeploymentSpec `json:"spec"`
+	Spec         appsv1.DeploymentSpec `json:"spec"`
+	KafkaSupport bool                  `json:"kafkaSupport,omitempty"`
 }
 
 type FEDeploy struct {
-	Spec appsv1.DeploymentSpec `json:"spec"`
+	Spec         appsv1.DeploymentSpec `json:"spec"`
+	KafkaSupport bool                  `json:"kafkaSupport,omitempty"`
 }
 
 type ReIDDeploy struct {
-	Spec appsv1.DeploymentSpec `json:"spec"`
+	Spec         appsv1.DeploymentSpec `json:"spec"`
+	KafkaSupport bool                  `json:"kafkaSupport,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

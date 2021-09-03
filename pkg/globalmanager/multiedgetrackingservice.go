@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -495,16 +496,25 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activePods = 0
 	activeDeployments = 0
 
+	// We should pass the identified service address to each pod/deployment with Kafka enabled
+	kfk_addresses, kfk_ports, err := FindAvailableKafkaServices(mc.kubeClient, "kafka")
+	klog.Info("Available Kafka endpoints: %v", kfk_addresses, kfk_ports)
+
 	var workerParam WorkerParam
 	workerParam.workerType = ReIDWoker
 
 	workerParam.hostNetwork = true
 	workerParam.env = map[string]string{
-		"NAMESPACE":    service.Namespace,
-		"SERVICE_NAME": service.Name,
-		"WORKER_NAME":  "reidworker-" + utilrand.String(5),
-
+		"NAMESPACE":            service.Namespace,
+		"SERVICE_NAME":         service.Name,
+		"WORKER_NAME":          "reidworker-" + utilrand.String(5),
 		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
+	}
+
+	if service.Spec.ReIDDeploy.KafkaSupport {
+		workerParam.env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.ReIDDeploy.KafkaSupport)
+		workerParam.env["KAFKA_BIND_IPS"] = strings.Join(kfk_addresses, "|")
+		workerParam.env["KAFKA_BIND_PORTS"] = strings.Join(kfk_ports, "|")
 	}
 
 	/*
@@ -540,15 +550,20 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 
 	workerParam.workerType = FEWorker
 	workerParam.env = map[string]string{
-		"NAMESPACE":    service.Namespace,
-		"SERVICE_NAME": service.Name,
-		"WORKER_NAME":  "feworker-" + utilrand.String(5),
-
+		"NAMESPACE":            service.Namespace,
+		"SERVICE_NAME":         service.Name,
+		"WORKER_NAME":          "feworker-" + utilrand.String(5),
 		"REID_MODEL_BIND_URL":  reIDIP,
 		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPortService)),
-
-		"LC_SERVER": mc.cfg.LC.Server,
+		"LC_SERVER":            mc.cfg.LC.Server,
 	}
+
+	if service.Spec.FEDeploy.KafkaSupport {
+		workerParam.env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.FEDeploy.KafkaSupport)
+		workerParam.env["KAFKA_BIND_IPS"] = strings.Join(kfk_addresses, "|")
+		workerParam.env["KAFKA_BIND_PORTS"] = strings.Join(kfk_ports, "|")
+	}
+
 	//workerParam.hostNetwork = true
 
 	// Create FE deployment AND related pods (as part of the deployment creation)
@@ -577,15 +592,18 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	// Create parameters that will be used by the deployment
 	workerParam.workerType = MultiObjectTrackingWorker
 	workerParam.env = map[string]string{
-		"NAMESPACE":    service.Namespace,
-		"SERVICE_NAME": service.Name,
-		"WORKER_NAME":  "motworker-" + utilrand.String(5),
-
+		"NAMESPACE":         service.Namespace,
+		"SERVICE_NAME":      service.Name,
+		"WORKER_NAME":       "motworker-" + utilrand.String(5),
 		"FE_MODEL_BIND_URL": FEServiceURL,
-
-		"LC_SERVER": mc.cfg.LC.Server,
+		"LC_SERVER":         mc.cfg.LC.Server,
 	}
-	//workerParam.hostNetwork = true
+
+	if service.Spec.MultiObjectTrackingDeploy.KafkaSupport {
+		workerParam.env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.MultiObjectTrackingDeploy.KafkaSupport)
+		workerParam.env["KAFKA_BIND_IPS"] = strings.Join(kfk_addresses, "|")
+		workerParam.env["KAFKA_BIND_PORTS"] = strings.Join(kfk_ports, "|")
+	}
 
 	// Create OD deployment AND related pods (as part of the deployment creation)
 	_, err = CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.MultiObjectTrackingDeploy.Spec, &workerParam, 7000)

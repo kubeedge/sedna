@@ -41,6 +41,7 @@ RUN apt install -y gfortran libopenblas-dev liblapack-dev
 
 ## Install base dependencies
 RUN pip install torch torchvision tqdm pillow
+RUN pip install opencv-python pytorch-ignite kafka-python
 
 #WORKDIR /code/deep-efficient-person-reid
 
@@ -60,10 +61,10 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
-RUN pip install opencv-python pytorch-ignite
-
 COPY examples/multiedgetracking/reid/cloud_worker.py  /home/work/cloud.py
 ENV PYTHONPATH "${PYTHONPATH}:/home/lib/sedna/backend/nets"
+
+ENV LOG_LEVEL="INFO"
 
 ENTRYPOINT ["python"]
 CMD ["cloud.py", "--config_file=efficientnetv2_market"]

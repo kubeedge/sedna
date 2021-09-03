@@ -39,6 +39,8 @@ spec:
             properties:
               feDeploy:
                 properties:
+                  kafkaSupport:
+                    type: boolean
                   spec:
                     description: DeploymentSpec is the specification of the desired
                       behavior of the Deployment.
@@ -7097,6 +7099,8 @@ spec:
               motDeploy:
                 description: EdgeWorker describes the data a edge worker should have
                 properties:
+                  kafkaSupport:
+                    type: boolean
                   spec:
                     description: DeploymentSpec is the specification of the desired
                       behavior of the Deployment.
@@ -14154,6 +14158,8 @@ spec:
                 type: object
               reIDDeploy:
                 properties:
+                  kafkaSupport:
+                    type: boolean
                   spec:
                     description: DeploymentSpec is the specification of the desired
                       behavior of the Deployment.

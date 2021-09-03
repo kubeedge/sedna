@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import os, queue
 from copy import deepcopy
 import threading
+from sedna.common.log import LOGGER
 
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
 
 from sedna.service.fe_endpoint import FE
+from sedna.service.kafka_manager import KafkaConsumerThread, KafkaProducer
 from sedna.service.reid_endpoint import ReID
 
-from sedna.service.client import LCReporter
 from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
 from sedna.common.benchmark import FTimer
@@ -31,8 +31,19 @@ from sedna.common.benchmark import FTimer
 from sedna.service.server import FEServer
 from sedna.service.server import ReIDServer
 
-__all__ = ("MultiObjectTracking", "ReIDService", "ObjectDetector")
+import distutils.core
 
+__all__ = ("FEService", "ReIDService", "ObjectDetector")
+
+# There is excessive code duplication, we need to refactor at some point.
+# Idea: create base SednaKafkaService and let the specific implementations override the infernece/predict function
+
+class ODResult:
+    def __init__(self, data, confidence, camera_code, timestamp) -> None:
+        self.data  = data
+        self.confidence = confidence
+        self.camera_code = camera_code
+        self.timestamp = timestamp
 
 class ReIDService(JobBase):
     """
@@ -47,6 +58,23 @@ class ReIDService(JobBase):
 
         self.local_ip = self.get_parameters("REID_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
+        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
+
+        if self.kafka_enabled:
+            LOGGER.debug("Kafka support enabled in YAML file")
+            self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
+            self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
+
+            if isinstance(self.kafka_address, str):
+                LOGGER.debug(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
+                self.kafka_address = self.kafka_address.split("|")
+                self.kafka_port = self.kafka_port.split("|")
+            
+            self.sync_queue = queue.Queue()
+
+            self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="reid")
+            self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic="feature_extraction", sync_queue=self.sync_queue)
+            
 
     def start(self):
         if callable(self.estimator):
@@ -57,9 +85,26 @@ class ReIDService(JobBase):
         #     raise FileExistsError(f"{self.model_path} miss")
         # else:
         #     # self.estimator.load(self.model_path)
-        app_server = ReIDServer(model=self, servername=self.job_name,
-                                     host=self.local_ip, http_port=self.port)
-        app_server.start()
+
+        if self.kafka_enabled:
+            LOGGER.debug("Creating sync_inference thread")
+            self.fetch_data()
+            # threading.Thread(target=self.sync_inference, daemon=True).start()
+        else:
+            LOGGER.debug("Starting default REST webservice")
+            app_server = ReIDServer(model=self, servername=self.job_name, host=self.local_ip, http_port=self.port)
+            app_server.start()
+
+    def fetch_data(self):
+        while True:
+            token = self.sync_queue.get()
+            LOGGER.debug(f'Data consumed')
+            try:
+                self.inference(token)
+            except Exception as e:
+                LOGGER.debug(f"Error processing received data: {e}")
+
+            self.sync_queue.task_done()
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
@@ -78,15 +123,15 @@ class ReIDService(JobBase):
         return res
 
 
-class MultiObjectTracking(JobBase):
+class FEService(JobBase):
     """
-   MultiObject Tracking service.
+   Feature Extraction service.
    """
 
     def __init__(self, estimator=None, config=None):
-        super(MultiObjectTracking, self).__init__(
+        super(FEService, self).__init__(
             estimator=estimator, config=config)
-        self.log.info("Loading MultiObjectTracking module")
+        self.log.info("Loading Feature Extraction module")
 
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         # Port and IP of the service this pod will host (local)
@@ -96,75 +141,65 @@ class MultiObjectTracking(JobBase):
         # Port and IP of the service this pod will contact (remote)
         self.remote_ip = self.get_parameters("REID_MODEL_BIND_URL", self.local_ip)
         self.remote_port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
+        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
+        self.sync_queue = queue.Queue()
 
-        report_msg = {
-            "name": self.worker_name,
-            "namespace": self.config.namespace,
-            "ownerName": self.job_name,
-            "ownerKind": self.job_kind,
-            "kind": "inference",
-            "results": []
-        }
-        period_interval = int(self.get_parameters("LC_PERIOD", "30"))
-        self.lc_reporter = LCReporter(lc_server=self.config.lc_server,
-                                      message=report_msg,
-                                      period_interval=period_interval)
-        self.lc_reporter.setDaemon(True)
-        #self.lc_reporter.start()
+        if self.kafka_enabled:
+            LOGGER.debug("Kafka support enabled in YAML file")
+            self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
+            self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
+            
+            if isinstance(self.kafka_address, str):
+                LOGGER.debug(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
+                self.kafka_address = self.kafka_address.split("|")
+                self.kafka_port = self.kafka_port.split("|")
+
+            self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="feature_extraction")
+            self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic="object_detection", sync_queue=self.sync_queue)
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
 
+    def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
-        # if not os.path.exists(self.model_path):
-        #     raise FileExistsError(f"{self.model_path} miss")
-        # else:
-            # We are using a PyTorch model which requires explicit weights loading.
+
         self.log.info("Estimator -> Loading model and weights")
         self.estimator.load()
-        #self.estimator.load_weights()
 
         self.log.info("Estimator -> Evaluating model ..")
         self.estimator.evaluate()
 
-        # The cloud node taking care of the reid step
-        self.cloud = ReID(service_name=self.job_name,
-                                 host=self.remote_ip, port=self.remote_port)
+        if self.kafka_enabled:
+            LOGGER.debug("Creating sync_inference thread")
+            self.fetch_data()
+            # threading.Thread(target=self.sync_inference, daemon=True).start()
+        else:
+            LOGGER.debug("Starting default REST webservice/s")
 
-        # Async parameters
-        self.parallelism = 1
-        self.queue = queue.Queue()
-        threading.Thread(target=self.get_data, daemon=True).start()
+            self.cloud = ReID(service_name=self.job_name,host=self.remote_ip, port=self.remote_port)
+            app_server = FEServer(model=self, servername=self.job_name,host=self.local_ip, http_port=self.local_port)
 
+            self.queue = queue.Queue()
+            threading.Thread(target=self.fetch_data, daemon=True).start()
 
-    def start(self):
-        if callable(self.estimator):
-            self.estimator = self.estimator()
-        # The cloud instance only runs a distance function to do the ReID
-        # We don't load any model at this stage
-        # if not os.path.exists(self.model_path):
-        #     raise FileExistsError(f"{self.model_path} miss")
-        # else:
-        #     # self.estimator.load(self.model_path)
-        app_server = FEServer(model=self, servername=self.job_name,
-                                     host=self.local_ip, http_port=self.local_port)
-        app_server.start()
+            app_server.start()
 
-    def get_data(self):
+    def fetch_data(self):
         while True:
-            token = self.queue.get()
-            self.log.info(f'Data consumed')
+            token = self.sync_queue.get()
+            LOGGER.debug(f'Data consumed')
             try:
                 self.inference(token)
             except Exception as e:
-                self.log.info(f"Error processing token {token}: {e}")
+                msg = f"Error processing token {token}: {e}" 
+                LOGGER.error((msg[:60] + '..' + msg[len(msg)-40:-1]) if len(msg) > 60 else msg)
 
-            self.queue.task_done()
+            self.sync_queue.task_done()
 
     def put_data(self, data):
-        self.queue.put(data)
-        self.log.info("Data deposited")
+        self.sync_queue.put(data)
+        LOGGER.debug("Data deposited")
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
@@ -176,7 +211,7 @@ class MultiObjectTracking(JobBase):
 
         with FTimer(f"{os.uname()[1]}_feature_extraction"):
             res = self.estimator.predict(data, **kwargs)
-        edge_result = deepcopy(res)
+        fe_result = deepcopy(res)
 
         if callback_func:
             res = callback_func(res)
@@ -185,11 +220,14 @@ class MultiObjectTracking(JobBase):
         # Send detection+tracking results to cloud
         # edge_result
 
-        if edge_result != None:
+        if fe_result != None:
             with FTimer(f"upload_plus_reid"):
-                cres = self.cloud.reid(edge_result, post_process=post_process, **kwargs)
+                if self.kafka_enabled:
+                    cres = self.producer.write_result(fe_result)
+                else:
+                    cres = self.cloud.reid([fe_result], post_process=post_process, **kwargs)
 
-        return [None, cres, edge_result, None]
+        return [None, cres, fe_result, None]
 
 
 class ObjectDetector(JobBase):
@@ -204,49 +242,45 @@ class ObjectDetector(JobBase):
         self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         self.local_ip = get_host_ip()
 
-        self.remote_ip = self.get_parameters(
-            "FE_MODEL_BIND_URL", self.local_ip)
+        self.remote_ip = self.get_parameters("FE_MODEL_BIND_URL", self.local_ip)
         self.port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
 
-        report_msg = {
-            "name": self.worker_name,
-            "namespace": self.config.namespace,
-            "ownerName": self.job_name,
-            "ownerKind": self.job_kind,
-            "kind": "inference",
-            "results": []
-        }
-
-        period_interval = int(self.get_parameters("LC_PERIOD", "30"))
-        self.lc_reporter = LCReporter(lc_server=self.config.lc_server,
-                                      message=report_msg,
-                                      period_interval=period_interval)
-        self.lc_reporter.setDaemon(True)
-        #self.lc_reporter.start()
+        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
 
+        if self.kafka_enabled:
+            LOGGER.debug("Kafka support enabled in YAML file")
+            self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
+            self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
+
+            if isinstance(self.kafka_address, str):
+                LOGGER.debug(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
+                self.kafka_address = self.kafka_address.split("|")
+                self.kafka_port = self.kafka_port.split("|")
+
+            self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="object_detection")
+        
+        self.start()
+
+    def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
-        # if not os.path.exists(self.model_path):
-        #     raise FileExistsError(f"{self.model_path} miss")
-        # else:
-        #     # We are using a PyTorch model which requires explicit weights loading.
-        #     self.log.info("Estimator -> Loading model and weights")
 
-        # We should pass the model path but, because it's in the container logic, we don't pass anything.
         self.estimator.load()
 
         self.log.info("Estimator -> Evaluating model ..")
         self.estimator.evaluate()
 
+        LOGGER.debug("Starting default REST webservice/s")
         # The edge node in the next layer taking care of the feature extraction
-        self.edge = FE(service_name=self.job_name,
-                                 host=self.remote_ip, port=self.port)
+        self.edge = FE(service_name=self.job_name,host=self.remote_ip, port=self.port)
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
+        cres = None
+        
         if callable(post_process):
             callback_func = post_process
         elif post_process is not None:
@@ -263,7 +297,10 @@ class ObjectDetector(JobBase):
 
         if detection_result != None and len(detection_result) > 0:
             with FTimer(f"upload_bboxes"):
-                cres = self.edge.feature_extraction(detection_result, post_process=post_process, **kwargs)
+                if self.kafka_enabled:
+                    cres = self.producer.write_result(detection_result)
+                else:
+                    cres = self.edge.feature_extraction([detection_result], post_process=post_process, **kwargs)
 
         return [cres, detection_result]
 
