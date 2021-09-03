@@ -106,10 +106,10 @@ class Estimator:
             # We receive the image from the detection pod via REST API
             # This needs to be fixed.
             for d in data:
-                image_as_array = np.array(d[0][0][0]).astype(np.uint8)
-                conf_score = d[0][0][1]
-                camera_code = d[0][0][2]
-                det_time = d[0][0][3]
+                image_as_array = np.array(d[0][0]).astype(np.uint8)
+                conf_score = d[0][1]
+                camera_code = d[0][2]
+                det_time = d[0][3]
 
             # if len(data) == 1:
             #   image_as_array = np.array(data[0][0][0]).astype(np.uint8)

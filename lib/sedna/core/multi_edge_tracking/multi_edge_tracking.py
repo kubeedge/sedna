@@ -142,10 +142,10 @@ class FEService(JobBase):
         self.remote_ip = self.get_parameters("REID_MODEL_BIND_URL", self.local_ip)
         self.remote_port = int(self.get_parameters("REID_MODEL_PORT", "5000"))
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
+        self.sync_queue = queue.Queue()
 
         if self.kafka_enabled:
             LOGGER.debug("Kafka support enabled in YAML file")
-            self.sync_queue = queue.Queue()
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
             
@@ -181,7 +181,7 @@ class FEService(JobBase):
             app_server = FEServer(model=self, servername=self.job_name,host=self.local_ip, http_port=self.local_port)
 
             self.queue = queue.Queue()
-            threading.Thread(target=self.get_data, daemon=True).start()
+            threading.Thread(target=self.sync_inference, daemon=True).start()
 
             app_server.start()
 
@@ -192,21 +192,22 @@ class FEService(JobBase):
             try:
                 self.inference(token)
             except Exception as e:
-                LOGGER.debug(f"Error processing token {token}: {e}")
-
-            self.sync_queue.task_done()
-
-    def get_data(self):
-        while True:
-            token = self.queue.get()
-            LOGGER.debug(f'Data consumed')
-            try:
-                self.inference(token)
-            except Exception as e:
                 msg = f"Error processing token {token}: {e}" 
                 LOGGER.error((msg[:60] + '..' + msg[len(msg)-40:-1]) if len(msg) > 60 else msg)
 
-            self.queue.task_done()
+            self.sync_queue.task_done()
+
+    # def get_data(self):
+    #     while True:
+    #         token = self.queue.get()
+    #         LOGGER.debug(f'Data consumed')
+    #         try:
+    #             self.inference(token)
+    #         except Exception as e:
+    #             msg = f"Error processing token {token}: {e}" 
+    #             LOGGER.error((msg[:60] + '..' + msg[len(msg)-40:-1]) if len(msg) > 60 else msg)
+
+    #         self.queue.task_done()
 
     def put_data(self, data):
         self.queue.put(data)
