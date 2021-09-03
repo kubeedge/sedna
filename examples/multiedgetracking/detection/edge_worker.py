@@ -95,6 +95,7 @@ class Estimator:
         det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
 
         for i, det in enumerate(pred):  # detections per image
+            LOGGER.info(len(pred))
             imc = data.copy()
             if len(det):
                 # Rescale boxes from img_size to im0 size
@@ -116,6 +117,6 @@ class Estimator:
 
         #LOGGER.debug(bbs_list[0])
         #LOGGER.debug(s)
-        LOGGER.info(f"Found {len(bbs_list)} possible containers in camera {self.camera_code}")
+        LOGGER.info(f"Found {len(bbs_list)} container/s in camera {self.camera_code}")
         
         return bbs_list
