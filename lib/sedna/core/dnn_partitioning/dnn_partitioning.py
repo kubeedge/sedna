@@ -160,7 +160,7 @@ class EdgeInference(JobBase):
         with FTimer(f"{os.uname()[1]}_cloud_inference_and_transmission"):
             self.log.info(f"calling cloud inference")
             cloud_result = self.cloud.inference(edge_result, post_process=post_process, **kwargs)
-            self.log.info(f"cloud inference completed")
+            self.log.info(f"cloud inference completed", cloud_result)
 
         return [None, cloud_result, edge_result, None]
 
