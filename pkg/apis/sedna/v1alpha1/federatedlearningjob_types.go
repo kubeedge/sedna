@@ -39,25 +39,49 @@ type FederatedLearningJob struct {
 type FLJobSpec struct {
 	AggregationWorker AggregationWorker `json:"aggregationWorker"`
 	TrainingWorkers   []TrainingWorker  `json:"trainingWorkers"`
+	PretrainedModel   PretrainedModel   `json:"pretrainedModel,omitempty"`
+	Transmitter       Transmitter       `json:"transmitter,omitempty"`
 }
+
+// Transmitter describes the transmitter of data plane between training workers and aggregation worker
+type Transmitter struct {
+	S3 *S3Transmitter `json:"s3,omitempty"`
+	WS *WSTransmitter `json:"ws,omitempty"`
+}
+
+// S3Transmitter describes the s3 transmitter
+type S3Transmitter struct {
+	AggregationDataPath string `json:"aggDataPath"`
+	CredentialName      string `json:"credentialName,omitempty"`
+}
+
+// WSTransmitter describes the websocket transmitter
+type WSTransmitter struct{}
 
 // AggregationWorker describes the data an aggregation worker should have
 type AggregationWorker struct {
-	Model    modelRefer         `json:"model"`
+	// Model defines train model of federated learning job
+	Model    TrainModel         `json:"model"`
 	Template v1.PodTemplateSpec `json:"template"`
 }
 
-// TrrainingWorker describes the data a training worker should have
+// TrainingWorker describes the data a training worker should have
 type TrainingWorker struct {
-	Dataset  datasetRefer       `json:"dataset"`
+	Dataset  TrainDataset       `json:"dataset"`
 	Template v1.PodTemplateSpec `json:"template"`
 }
 
-type datasetRefer struct {
+// TrainDataset defines dataset of federated learning job
+type TrainDataset struct {
 	Name string `json:"name"`
 }
 
-type modelRefer struct {
+type TrainModel struct {
+	Name string `json:"name"`
+}
+
+// PretrainedModel defines pretrained model of federated learning job
+type PretrainedModel struct {
 	Name string `json:"name"`
 }
 
