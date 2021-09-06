@@ -543,8 +543,10 @@ func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32,
 	c.addWorkerMount(&aggWorkerParam, model.Spec.URL, "MODEL_URL",
 		modelSecret, true)
 
-	c.addWorkerMount(&aggWorkerParam, pretrainedModel.Spec.URL, "PRETRAINED_MODEL_URL",
-		pretrainedModelSecret, true)
+	if pretrainedModel != nil {
+		c.addWorkerMount(&aggWorkerParam, pretrainedModel.Spec.URL, "PRETRAINED_MODEL_URL",
+			pretrainedModelSecret, true)
+	}
 
 	// create aggpod based on configured parameters
 	_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, &aggWorker.Template, &aggWorkerParam)
@@ -575,8 +577,10 @@ func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32,
 
 		c.addWorkerMount(&workerParam, model.Spec.URL, "MODEL_URL", modelSecret, true)
 
-		c.addWorkerMount(&workerParam, pretrainedModel.Spec.URL, "PRETRAINED_MODEL_URL",
-			pretrainedModelSecret, true)
+		if pretrainedModel != nil {
+			c.addWorkerMount(&workerParam, pretrainedModel.Spec.URL, "PRETRAINED_MODEL_URL",
+				pretrainedModelSecret, true)
+		}
 
 		datasetName := trainingWorker.Dataset.Name
 		dataset, datasetSecret, err := c.getDatasetAndItsSecret(ctx, job.Namespace, datasetName)
