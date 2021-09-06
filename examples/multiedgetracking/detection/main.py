@@ -16,6 +16,7 @@ import time
 
 import requests
 import cv2
+import threading
 
 from sedna.common.config import Context
 from sedna.core.multi_edge_tracking import ObjectDetector
@@ -49,19 +50,24 @@ def start_stream_acquisition(stream_address):
     edge_worker = ObjectDetector(estimator=Estimator(camera_code=camera_code))
 
     camera = cv2.VideoCapture(stream_address)
-    fps = 10
+    fps = 0.5
     nframe = 0
-    
+    startTime = time.time()
+
     while True:
         try:
-            ret, input_yuv = camera.read()
+            # We use grab to avoid populating the camera buffer with image from the past
+            # If the detection would be fast enough, we would need this workaround.
+            # Also this should be event based rather than using time intervals.
+            ret = camera.grab()
+            nowTime = time.time()
         except Exception as ex:
             LOGGER.error(f'Unable to access stream [{ex}]')
-            
+    
         if not ret:
             LOGGER.debug(
-                f"camera is not open, camera_address={stream_address},"
-                f" sleep 5 second.")
+                f" Camera is not open, camera_address={stream_address},"
+                f" Sleep 5 second.")
             time.sleep(5)
             try:
                 camera = cv2.VideoCapture(stream_address)
@@ -73,11 +79,17 @@ def start_stream_acquisition(stream_address):
             nframe += 1
             continue
 
-        img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
-        nframe += 1
-        LOGGER.debug(f"camera is open, current frame index is {nframe}")
-        edge_worker.inference(img_rgb)
+        if nowTime - startTime > 1/fps:
+            ret, input_yuv = camera.read()
+            startTime = time.time() # reset time
+
+            img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
+            nframe += 1
+            LOGGER.debug(f"Camera is open, current frame index is {nframe}")
+            threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=True).start()
+            #edge_worker.inference(img_rgb)
 
 if __name__ == '__main__':
     result = retrieve_rtsp_stream()
     start_stream_acquisition(result)
+7
