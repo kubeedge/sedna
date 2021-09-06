@@ -56,9 +56,9 @@ def start_stream_acquisition(stream_address):
 
     while True:
         try:
-            # We use grab to avoid populating the camera buffer with image from the past
-            # If the detection would be fast enough, we would need this workaround.
-            # Also this should be event based rather than using time intervals.
+            # We use grab() to avoid populating the camera buffer with images from the past.
+            # If the detection would be fast enough, we would not need this workaround.
+            # Also, this should be event based rather than using time intervals.
             ret = camera.grab()
             nowTime = time.time()
         except Exception as ex:
@@ -86,7 +86,7 @@ def start_stream_acquisition(stream_address):
             img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
             nframe += 1
             LOGGER.debug(f"Camera is open, current frame index is {nframe}")
-            threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=True).start()
+            threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
             #edge_worker.inference(img_rgb)
 
 if __name__ == '__main__':

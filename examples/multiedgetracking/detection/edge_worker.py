@@ -94,8 +94,8 @@ class Estimator:
         bbs_list = []
         det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
 
-        for i, det in enumerate(pred):  # detections per image
-            LOGGER.info(len(pred))
+        for _, det in enumerate(pred):  # detections per image
+            #LOGGER.info(len(pred))
             imc = data.copy()
             if len(det):
                 # Rescale boxes from img_size to im0 size
