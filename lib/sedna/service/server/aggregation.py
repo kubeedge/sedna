@@ -26,6 +26,7 @@ from starlette.endpoints import WebSocketEndpoint
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from sedna.common.log import LOGGER
+from sedna.common.config import Context
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.algorithms.aggregation import AggClient
@@ -211,12 +212,14 @@ class AggregationServer(BaseServer):
             self,
             aggregation: str,
             host: str = None,
-            http_port: int = 7363,
+            http_port: int = None,
             exit_round: int = 1,
             participants_count: int = 1,
             ws_size: int = 10 * 1024 * 1024):
         if not host:
-            host = get_host_ip()
+            host = Context.get_parameters("AGG_BIND_IP", get_host_ip())
+        if not http_port:
+            http_port = int(Context.get_parameters("AGG_BIND_PORT", 7363))
         super(
             AggregationServer,
             self).__init__(
