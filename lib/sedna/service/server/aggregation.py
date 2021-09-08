@@ -13,27 +13,27 @@
 # limitations under the License.
 
 import time
-from typing import List, Optional, Dict, Any
-
 import uuid
-from pydantic import BaseModel
+from typing import Any, Dict, List, Optional
+
 from fastapi import FastAPI, WebSocket
 from fastapi.routing import APIRoute
+from pydantic import BaseModel
+from starlette.endpoints import WebSocketEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import WebSocketRoute
-from starlette.endpoints import WebSocketEndpoint
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from sedna.algorithms.aggregation import AggClient
+from sedna.common.config import BaseConfig, Context
+from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.common.log import LOGGER
 from sedna.common.config import Context
 from sedna.common.utils import get_host_ip
-from sedna.common.class_factory import ClassFactory, ClassType
-from sedna.algorithms.aggregation import AggClient
-
 from .base import BaseServer
 
-__all__ = ('AggregationServer',)
+__all__ = ('AggregationServer', 'AggregationServerV2')
 
 
 class WSClientInfo(BaseModel):  # pylint: disable=too-few-public-methods
@@ -269,3 +269,56 @@ class AggregationServer(BaseServer):
         if client_id:
             return server.get_client(client_id)
         return WSClientInfoList(clients=server.client_list)
+
+
+class AggregationServerV2():
+    def __init__(self, data=None, estimator=None,
+                 aggregation=None, transmitter=None,
+                 chooser=None) -> None:
+        from plato.config import Config
+        from plato.servers import registry as server_registry
+        # set parameters
+        server = Config.server._asdict()
+        clients = Config.clients._asdict()
+        datastore = Config.data._asdict()
+        train = Config.trainer._asdict()
+
+        if data is not None:
+            datastore.update(data.parameters)
+            Config.data = Config.namedtuple_from_dict(datastore)
+
+        self.model = None
+        if estimator is not None:
+            self.model = estimator.model
+            if estimator.pretrained is not None:
+                LOGGER.info(estimator.pretrained)
+                Config.params['model_dir'] = estimator.pretrained
+            train.update(estimator.hyperparameters)
+            Config.trainer = Config.namedtuple_from_dict(train)
+
+        server["address"] = Context.get_parameters("AGG_BIND_IP", "0.0.0.0")
+        server["port"] = Context.get_parameters("AGG_BIND_PORT", 7363)
+        if transmitter is not None:
+            server.update(transmitter.parameters)
+
+        if aggregation is not None:
+            Config.algorithm = Config.namedtuple_from_dict(
+                aggregation.parameters)
+            if aggregation.parameters["type"] == "mistnet":
+                clients["type"] = "mistnet"
+                server["type"] = "mistnet"
+
+        if chooser is not None:
+            clients["per_round"] = chooser.parameters["per_round"]
+
+        LOGGER.info("address %s, port %s", server["address"], server["port"])
+
+        Config.server = Config.namedtuple_from_dict(server)
+        Config.clients = Config.namedtuple_from_dict(clients)
+
+        # Config.store()
+        # create a server
+        self.server = server_registry.get(model=self.model)
+
+    def start(self):
+        self.server.run()
