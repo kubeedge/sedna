@@ -176,6 +176,7 @@ func injectHostPathMount(pod *v1.Pod, workerParam *WorkerParam) {
 	var initContainerVolumeMounts []v1.VolumeMount
 
 	uniqVolumeName := make(map[string]bool)
+	uniqMountPath := make(map[string]bool)
 
 	hostPathType := v1.HostPathDirectory
 
@@ -205,14 +206,18 @@ func injectHostPathMount(pod *v1.Pod, workerParam *WorkerParam) {
 				uniqVolumeName[volumeName] = true
 			}
 
-			vm := v1.VolumeMount{
-				MountPath: m.MountPath,
-				Name:      volumeName,
-			}
-			if m.Indirect {
-				initContainerVolumeMounts = append(initContainerVolumeMounts, vm)
-			} else {
-				volumeMounts = append(volumeMounts, vm)
+			if _, ok := uniqMountPath[m.MountPath]; !ok {
+				vm := v1.VolumeMount{
+					MountPath: m.MountPath,
+					Name:      volumeName,
+				}
+
+				if m.Indirect {
+					initContainerVolumeMounts = append(initContainerVolumeMounts, vm)
+				} else {
+					volumeMounts = append(volumeMounts, vm)
+				}
+				uniqMountPath[m.MountPath] = true
 			}
 		}
 	}
@@ -329,6 +334,7 @@ func injectInitializerContainer(pod *v1.Pod, workerParam *WorkerParam) {
 			Limits: map[v1.ResourceName]resource.Quantity{
 				// limit one cpu
 				v1.ResourceCPU: resource.MustParse("1"),
+
 				// limit 1Gi memory
 				v1.ResourceMemory: resource.MustParse("1Gi"),
 			},
