@@ -15,7 +15,7 @@
 from sedna.algorithms.aggregation import MistNet
 from sedna.algorithms.client_choose import SimpleClientChoose
 from sedna.common.config import Context
-from sedna.core.federated_learning import FederatedLearning
+from sedna.core.federated_learning import FederatedLearningV2
 
 simple_chooser = SimpleClientChoose(per_round=1)
 
@@ -24,7 +24,7 @@ mistnet = MistNet(cut_layer=Context.get_parameters("cut_layer"),
                   epsilon=Context.get_parameters("epsilon"))
 
 # The function `get_transmitter_from_config()` returns an object instance.
-s3_transmitter = FederatedLearning.get_transmitter_from_config()
+s3_transmitter = FederatedLearningV2.get_transmitter_from_config()
 
 
 class Dataset:
@@ -44,6 +44,7 @@ class Dataset:
             "num_classes": 80,
             # image size
             "image_size": 640,
+            "download_urls": ["https://github.com/ultralytics/yolov5/releases/download/v1.0/coco128.zip",],
             "classes":
                 [
                     "person",
@@ -134,6 +135,7 @@ class Dataset:
 class Estimator:
     def __init__(self) -> None:
         self.model = None
+        self.pretrained = None
         self.hyperparameters = {
             "type": "yolov5",
             "rounds": 1,

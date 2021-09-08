@@ -110,8 +110,18 @@ class FedAvg(BaseAggregation, abc.ABC):
 class MistNet(BaseAggregation, abc.ABC):
     def __init__(self, cut_layer, epsilon=100):
         super().__init__()
-        self.cut_layer = cut_layer
-        self.epsilon = epsilon
+        self.parameters = {
+            "type": "mistnet",
+            "cut_layer": cut_layer,
+            "epsilon": epsilon
+        }
+        if isinstance(self.parameters["cut_layer"], str):
+            if self.parameters["cut_layer"].isdigit():
+                self.parameters["cut_layer"] = int(cut_layer)
+
+        if isinstance(self.parameters["epsilon"], str):
+            if self.parameters["epsilon"].isdigit():
+                self.parameters["epsilon"] = int(cut_layer)
 
     def aggregate(self, clients: List[AggClient]):
         pass

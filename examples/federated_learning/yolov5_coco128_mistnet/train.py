@@ -11,23 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
 from interface import mistnet, s3_transmitter
 from interface import Dataset, Estimator
-from sedna.core.federated_learning import FederatedLearning
-
+from sedna.common.config import BaseConfig
+from sedna.core.federated_learning import FederatedLearningV2
 
 def main():
     data = Dataset()
     estimator = Estimator()
-
-    fl_model = FederatedLearning(
+    data.parameters["data_path"] = BaseConfig.train_dataset_url.replace("robot.txt", "")
+    data.parameters["train_path"] = os.path.join(data.parameters["data_path"], "./coco128/images/train2017/")
+    data.parameters["test_path"] = data.parameters["train_path"]
+    fl_model = FederatedLearningV2(
+        data=data,
         estimator=estimator,
         aggregation=mistnet,
         transmitter=s3_transmitter)
 
-    fl_model.train(data)
-
+    fl_model.train()
 
 if __name__ == '__main__':
     main()

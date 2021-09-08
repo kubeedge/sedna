@@ -17,9 +17,6 @@ import asyncio
 import sys
 import time
 
-from plato.clients import registry as client_registry
-from plato.config import Config
-
 from sedna.algorithms.transmitter import S3Transmitter, WSTransmitter
 from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.common.config import BaseConfig, Context
@@ -28,8 +25,10 @@ from sedna.common.file_ops import FileOps
 from sedna.core.base import JobBase
 from sedna.service.client import AggregationClient
 
+__all__ = ('FederatedLearning', 'FederatedLearningV2')
 
-class FederatedLearningV0(JobBase):
+
+class FederatedLearning(JobBase):
     """
     Federated learning enables multiple actors to build a common, robust
     machine learning model without sharing data, thus allowing to address
@@ -187,8 +186,12 @@ class FederatedLearningV0(JobBase):
                     task_info_res)
 
 
-class FederatedLearning:
-    def __init__(self, data=None, estimator=None, aggregation=None, transmitter=None) -> None:
+class FederatedLearningV2:
+    def __init__(self, data=None, estimator=None,
+                 aggregation=None, transmitter=None) -> None:
+
+        from plato.config import Config
+        from plato.clients import registry as client_registry
         # set parameters
         server = Config.server._asdict()
         clients = Config.clients._asdict()
@@ -196,32 +199,27 @@ class FederatedLearning:
         train = Config.trainer._asdict()
 
         if data is not None:
-            for xkey in data.parameters:
-                datastore[xkey] = data.parameters[xkey]
+            datastore.update(data.parameters)
             Config.data = Config.namedtuple_from_dict(datastore)
 
         self.model = None
         if estimator is not None:
             self.model = estimator.model
-            for xkey in estimator.hyperparameters:
-                train[xkey] = estimator.hyperparameters[xkey]
+            train.update(estimator.hyperparameters)
             Config.trainer = Config.namedtuple_from_dict(train)
 
         if aggregation is not None:
-            Config.algorithm = Config.namedtuple_from_dict(aggregation.parameters)
+            Config.algorithm = Config.namedtuple_from_dict(
+                aggregation.parameters)
             if aggregation.parameters["type"] == "mistnet":
                 clients["type"] = "mistnet"
                 server["type"] = "mistnet"
 
-        if isinstance(transmitter, S3Transmitter):
-            server["address"] = Context.get_parameters("AGG_IP")
-            server["port"] = Context.get_parameters("AGG_PORT")
-            server["s3_endpoint_url"] = transmitter.s3_endpoint_url
-            server["s3_bucket"] = transmitter.s3_bucket
-            server["access_key"] = transmitter.access_key
-            server["secret_key"] = transmitter.secret_key
-        elif isinstance(transmitter, WSTransmitter):
-            pass
+        server["address"] = Context.get_parameters("AGG_IP")
+        server["port"] = Context.get_parameters("AGG_PORT")
+
+        if transmitter is not None:
+            server.update(transmitter.parameters)
 
         Config.server = Config.namedtuple_from_dict(server)
         Config.clients = Config.namedtuple_from_dict(clients)

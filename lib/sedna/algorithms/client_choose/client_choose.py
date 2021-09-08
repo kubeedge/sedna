@@ -33,4 +33,6 @@ class SimpleClientChoose(AbstractClientChoose):
 
     def __init__(self, per_round=1):
         super().__init__()
-        self.per_round = per_round
+        self.parameters = {
+            "per_round": per_round
+        }

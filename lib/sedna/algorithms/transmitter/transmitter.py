@@ -35,6 +35,9 @@ class WSTransmitter(AbstractTransmitter, ABC):
     An implementation of Transmitter based on WebSocket.
     """
 
+    def __init__(self):
+        self.parameters = {}
+
     def recv(self):
         pass
 
@@ -52,10 +55,12 @@ class S3Transmitter(AbstractTransmitter, ABC):
                  access_key,
                  secret_key,
                  transmitter_url):
-        self.s3_endpoint_url = s3_endpoint_url
-        self.access_key = access_key
-        self.secret_key = secret_key
-        self.transmitter_url = transmitter_url
+        self.parameters = {
+            "s3_endpoint_url": s3_endpoint_url,
+            "s3_bucket": transmitter_url,
+            "access_key": access_key,
+            "secret_key": secret_key
+        }
 
     def recv(self):
         pass
