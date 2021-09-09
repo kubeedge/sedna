@@ -256,6 +256,71 @@ func (uc *UpstreamController) updateJointInferenceFromEdge(name, namespace, oper
 	return nil
 }
 
+func (uc *UpstreamController) updateDNNPartitioningMetrics(name, namespace string, metrics []sednav1.Metric) error {
+	client := uc.client.JointInferenceServices(namespace)
+
+	return retryUpdateStatus(name, namespace, func() error {
+		dnnPartition, err := client.Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		dnnPartition.Status.Metrics = metrics
+		_, err = client.UpdateStatus(context.TODO(), dnnPartition, metav1.UpdateOptions{})
+		return err
+	})
+}
+
+// updateDNNPartitioningFromEdge syncs the edge updates to k8s
+func (uc *UpstreamController) updateDNNPartitioningFromEdge(name, namespace, operation string, content []byte) error {
+	err := checkUpstreamOperation(operation)
+	if err != nil {
+		return err
+	}
+
+	// Output defines owner output information
+	type Output struct {
+		ServiceInfo map[string]interface{} `json:"ownerInfo"`
+	}
+
+	var status struct {
+		// Phase always should be "inference"
+		Phase  string  `json:"phase"`
+		Status string  `json:"status"`
+		Output *Output `json:"output"`
+	}
+
+	err = json.Unmarshal(content, &status)
+	if err != nil {
+		return newUnmarshalError(namespace, name, operation, content)
+	}
+
+	// TODO: propagate status.Status to k8s
+
+	output := status.Output
+	if output == nil || output.ServiceInfo == nil {
+		// no output info
+		klog.Warningf("empty status info for dnn partitioning service %s/%s", namespace, name)
+		return nil
+	}
+
+	info := output.ServiceInfo
+
+	for _, ignoreTimeKey := range []string{
+		"startTime",
+		"updateTime",
+	} {
+		delete(info, ignoreTimeKey)
+	}
+
+	metrics := convertToMetrics(info)
+
+	err = uc.updateDNNPartitioningMetrics(name, namespace, metrics)
+	if err != nil {
+		return fmt.Errorf("failed to update metrics, err:%+w", err)
+	}
+	return nil
+}
+
 func (uc *UpstreamController) updateModelMetrics(name, namespace string, metrics []sednav1.Metric) error {
 	client := uc.client.Models(namespace)
 
@@ -575,9 +640,11 @@ func NewUpstreamController(cfg *config.ControllerConfig) (FeatureControllerI, er
 	uc.updateHandlers = map[string]updateHandler{
 		"dataset":                uc.updateDatasetFromEdge,
 		"jointinferenceservice":  uc.updateJointInferenceFromEdge,
+		"dnnpartitioningservice": uc.updateDNNPartitioningFromEdge,
 		"federatedlearningjob":   uc.updateFederatedLearningJobFromEdge,
 		"incrementallearningjob": uc.updateIncrementalLearningFromEdge,
 		"lifelonglearningjob":    uc.updateLifelongLearningJobFromEdge,
+		"multiedgetrackingservice": uc.updateMultiEdgeTrackingFromEdge,
 	}
 
 	return uc, nil

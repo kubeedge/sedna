@@ -47,6 +47,7 @@ dockerfiles_cloud=(
 # federated-learning-surface-defect-detection-aggregation.Dockerfile
 # joint-inference-helmet-detection-big.Dockerfile
 multi-edge-tracking-reid.Dockerfile
+# dnn-partitioning-alex-net-cloud.Dockerfile
 )
 
 dockerfiles_edge=(
@@ -54,6 +55,7 @@ dockerfiles_edge=(
 # joint-inference-helmet-detection-little.Dockerfile
 multi-edge-tracking-feature-extraction.Dockerfile
 multi-edge-tracking-detection.Dockerfile
+# dnn-partitioning-alex-net-edge.Dockerfile
 )
 
 dockerfiles_others=(

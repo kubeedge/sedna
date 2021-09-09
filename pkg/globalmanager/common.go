@@ -37,6 +37,7 @@ const (
 	// MaxBackOff is the max backoff period
 	MaxBackOff         = 360 * time.Second
 	bigModelPort int32 = 5000
+	cloudModelPort int32 = 5000
 	// ResourceUpdateRetries defines times of retrying to update resource
 	ResourceUpdateRetries = 3
 )

@@ -20,15 +20,17 @@ set -o pipefail
 
 SEDNA_VERSION=v0.3.0
 KB_VERSION=v0.3.0
+SEDNA_GM_NODE=fraphisprk00033
 
 TMP_DIR=$(mktemp -d --suffix=.sedna)
-SEDNA_ROOT=${SEDNA_ROOT:-$TMP_DIR}
+#SEDNA_ROOT=${SEDNA_ROOT:-$TMP_DIR}
+SEDNA_ROOT=/home/ansjin/sedna
 
 GM_NODE_NAME=${SEDNA_GM_NODE:-}
 KB_NODE_NAME=${SEDNA_GM_NODE:-}
+SEDNA_ACTION=$1
 
-
-trap "rm -rf '$TMP_DIR'" EXIT 
+trap "rm -rf '$TMP_DIR'" EXIT
 
 _download_yamls() {
 
@@ -41,7 +43,7 @@ _download_yamls() {
 
     echo downloading $yaml into ${SEDNA_ROOT}/$yaml_dir
     local try_times=30 i=1 timeout=2
-    while ! timeout ${timeout}s curl -sSO https://raw.githubusercontent.com/kubeedge/sedna/main/$yaml_dir/$yaml; do
+    while ! timeout ${timeout}s curl -k -sSO https://raw.githubusercontent.com/kubeedge/sedna/main/$yaml_dir/$yaml; do
       ((++i>try_times)) && {
         echo timeout to download $yaml
         exit 2
@@ -76,7 +78,7 @@ prepare_install(){
 
 prepare() {
   mkdir -p ${SEDNA_ROOT}
-  
+
   # we only need build directory
   # here don't use git clone because of large vendor directory
   download_yamls
@@ -239,7 +241,7 @@ spec:
       serviceAccountName: sedna
       containers:
       - name: gm
-        image: kubeedge/sedna-gm:$SEDNA_VERSION
+        image: registry-cbu.huawei.com/kubeedge/sedna-gm:v0.3.1
         command: ["sedna-gm", "--config", "/config/$config_file_name", "-v2"]
         volumeMounts:
         - name: gm-config
@@ -292,14 +294,21 @@ spec:
       labels:
         sedna: lc
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/agent
+                    operator: Exists
       containers:
         - name: lc
-          image: kubeedge/sedna-lc:$SEDNA_VERSION
+          image: registry-cbu.huawei.com/kubeedge/sedna-lc:v0.3.1
           env:
             - name: GM_ADDRESS
               value: $GM_ADDRESS
             - name: BIND_PORT
-              value: "${LC_BIND_PORT:-9100}"
+              value: "${SEDNA_LC_BIND_PORT:-9100}"
             - name: NODENAME
               valueFrom:
                 fieldRef:
@@ -354,11 +363,11 @@ check_action() {
     echo "You need to specify it by setting $(red_text SEDNA_ACTION) environment variable when running this script!" >&2
     exit 2
   fi
-  
+
 }
 
 check_node() {
-  if [ -z "$GM_NODE_NAME" ] || ! kubectl get node $GM_NODE_NAME; then 
+  if [ -z "$GM_NODE_NAME" ] || ! kubectl get node $GM_NODE_NAME; then
     echo "ERROR: $(red_text GM node name \`$GM_NODE_NAME\` does not exist in k8s cluster)!" >&2
     echo "You need to specify it by setting $(red_text SEDNA_GM_NODE) environment variable when running this script!" >&2
     exit 1
@@ -393,7 +402,7 @@ red_text() {
 
 do_check
 
-prepare
+#prepare
 case "$action" in
   create)
     prepare_install

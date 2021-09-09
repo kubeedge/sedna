@@ -1,0 +1,8 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: alex-net-inference-cloud-model
+  namespace: default
+spec:
+  url: "/data/cloud_model/model_2.pt"
+  format: "pt"

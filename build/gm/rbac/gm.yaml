@@ -15,6 +15,7 @@ rules:
     - incrementallearningjobs
     - lifelonglearningjobs
     - multiedgetrackingservices
+    - dnnpartitioningservices
     verbs:
     - get
     - list
@@ -31,6 +32,7 @@ rules:
     - incrementallearningjobs/status
     - lifelonglearningjobs/status
     - multiedgetrackingservices/status
+    - dnnpartitioningservices/status
     verbs:
     - get
     - update
