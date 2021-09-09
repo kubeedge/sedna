@@ -92,4 +92,3 @@ def start_stream_acquisition(stream_address):
 if __name__ == '__main__':
     result = retrieve_rtsp_stream()
     start_stream_acquisition(result)
-7
