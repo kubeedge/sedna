@@ -65,22 +65,10 @@ class Estimator:
         pass
 
     def predict(self, data, **kwargs):
-        # If we get a list, fetch the first element.
-        # Otherwise run normally.
-        
         for d in data:
             temp = np.array(d[0][0])
             camera_code = d[0][1]
             det_time = d[0][2] 
-
-        # if len(data) == 1:
-        #     temp = np.array(data[0][0])
-        #     camera_code = data[0][1]
-        #     det_time = data[0][2]
-        # else:
-        #     temp = np.array(data[0])
-        #     camera_code = data[1]
-        #     det_time = data[2]
 
             query_feat = torch.from_numpy(temp)
             query_feat = query_feat.float()
@@ -91,7 +79,8 @@ class Estimator:
                 dist_mat = cosine_similarity(query_feat, self.gallery_feats)
                 indices = np.argsort(dist_mat, axis=1)
             
-            self._save_result(indices, camid='mixed', top_k=10)
+            # Uncomment this line if you have the bboxes images available (img_dir) to create the top-10 result collage.
+            # self._save_result(indices, camid='mixed', top_k=10)
 
             LOGGER.info(f"Container with ID {self._extract_id(self.img_path[indices[0][0]])} detected in area {camera_code} with timestamp {det_time}")
         
