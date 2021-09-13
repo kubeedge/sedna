@@ -14,4 +14,6 @@
 
 """sedna version information."""
 
-__version__ = '0.3.1'
+with open("./VERSION", "r", encoding="utf-8") as fin:
+    tmp = [line.strip() for line in fin if line.strip()]
+    __version__ = "-".join(tmp) if tmp else "dev"
