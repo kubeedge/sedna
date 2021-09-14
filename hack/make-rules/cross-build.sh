@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Copyright 2021 The KubeEdge Authors.
 #
@@ -14,12 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
+set -o errexit
+set -o nounset
+set -o pipefail
 
-source build_image.sh
+SEDNA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
-if [ -z "${PLATFORMS:-}" ]; then
-  docker push $IMAGE
-else
-  docker buildx build --push --platform $PLATFORMS -t $IMAGE --label sedna=scripts .
-fi
+source "${SEDNA_ROOT}/hack/lib/init.sh"
+sedna::buildx::build-multi-platform-images

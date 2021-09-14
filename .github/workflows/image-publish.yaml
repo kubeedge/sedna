@@ -29,5 +29,5 @@ jobs:
           # ${GITHUB_REF} => refs/tags/v0.0.1
           # IMAGE_REPO=kubeedge IMAGE_TAG=v0.0.1
           # see https://docs.github.com/en/actions/reference/environment-variables#default-environment-variables
-          make push-all IMAGE_REPO=${GITHUB_REPOSITORY%/*} IMAGE_TAG=${GITHUB_REF#refs/*/}
+          make push-all IMAGE_REPO=$(echo ${GITHUB_REPOSITORY%/*} | tr A-Z a-z) IMAGE_TAG=${GITHUB_REF#refs/*/}
         working-directory: ./src/github.com/${{ github.repository }}
