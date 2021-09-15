@@ -15,7 +15,7 @@
 import cv2
 import numpy as np
 import os
-import torch
+import torch, json
 from PIL import Image
 
 from sedna.core.multi_edge_tracking import ReIDService
@@ -81,8 +81,15 @@ class Estimator:
             
             # Uncomment this line if you have the bboxes images available (img_dir) to create the top-10 result collage.
             # self._save_result(indices, camid='mixed', top_k=10)
-
-            LOGGER.info(f"Container with ID {self._extract_id(self.img_path[indices[0][0]])} detected in area {camera_code} with timestamp {det_time}")
+            result = {
+                "container_id": self._extract_id(self.img_path[indices[0][0]]),
+                "detection_area": camera_code,
+                "detection_time": det_time
+            }
+            
+            LOGGER.info(json.dumps(result))
+            
+            # LOGGER.info(f"Container with ID {self._extract_id(self.img_path[indices[0][0]])} detected in area {camera_code} with timestamp {det_time}")
         
         return indices[0][:]
 

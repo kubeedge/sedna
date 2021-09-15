@@ -496,7 +496,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activePods = 0
 	activeDeployments = 0
 
-	// We should pass the identified service address to each pod/deployment with Kafka enabled
+	// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
 	kfk_addresses, kfk_ports, err := FindAvailableKafkaServices(mc.kubeClient, "kafka")
 	klog.Info("Available Kafka endpoints: %v", kfk_addresses, kfk_ports)
 
