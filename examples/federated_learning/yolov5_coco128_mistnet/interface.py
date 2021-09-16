@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
 from sedna.algorithms.aggregation import MistNet
 from sedna.algorithms.client_choose import SimpleClientChoose
 from sedna.common.config import Context
@@ -131,17 +131,17 @@ class Dataset:
             "partition_size": 128,
         }
 
-
 class Estimator:
     def __init__(self) -> None:
         self.model = None
         self.pretrained = None
+        self.saved = None
         self.hyperparameters = {
             "type": "yolov5",
             "rounds": 1,
             "target_accuracy": 0.99,
-            "epochs": 500,
-            "batch_size": 16,
+            "epochs": int(Context.get_parameters("EPOCHS", 500)),
+            "batch_size": int(Context.get_parameters("BATCH_SIZE", 16)),
             "optimizer": "SGD",
             "linear_lr": False,
             # The machine learning model

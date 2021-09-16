@@ -125,3 +125,15 @@ class MistNet(BaseAggregation, abc.ABC):
 
     def aggregate(self, clients: List[AggClient]):
         pass
+
+
+@ClassFactory.register(ClassType.FL_AGG)
+class FedAvgV2(BaseAggregation, abc.ABC):
+    def __init__(self):
+        super().__init__()
+        self.parameters = {
+            "type": "fedavg",
+        }
+
+    def aggregate(self, clients: List[AggClient]):
+        pass

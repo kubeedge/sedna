@@ -191,29 +191,37 @@ class FederatedLearningV2:
                  aggregation=None, transmitter=None) -> None:
 
         from plato.config import Config
-        from plato.clients import registry as client_registry
+        from plato.datasources import base
         # set parameters
-        server = Config.server._asdict()
-        clients = Config.clients._asdict()
-        datastore = Config.data._asdict()
-        train = Config.trainer._asdict()
-
+        server = Config().server._asdict()
+        clients = Config().clients._asdict()
+        datastore = Config().data._asdict()
+        train = Config().trainer._asdict()
+        self.datasource = None
         if data is not None:
-            datastore.update(data.parameters)
-            Config.data = Config.namedtuple_from_dict(datastore)
+            if hasattr(data, "customized"):
+                if data.customized:
+                    self.datasource = base.DataSource()
+                    self.datasource.trainset = data.trainset
+                    self.datasource.testset = data.testset
+            else:
+                datastore.update(data.parameters)
+                Config().data = Config.namedtuple_from_dict(datastore)
 
         self.model = None
         if estimator is not None:
             self.model = estimator.model
             train.update(estimator.hyperparameters)
-            Config.trainer = Config.namedtuple_from_dict(train)
+            Config().trainer = Config.namedtuple_from_dict(train)
 
         if aggregation is not None:
-            Config.algorithm = Config.namedtuple_from_dict(
+            Config().algorithm = Config.namedtuple_from_dict(
                 aggregation.parameters)
             if aggregation.parameters["type"] == "mistnet":
                 clients["type"] = "mistnet"
                 server["type"] = "mistnet"
+            else:
+                clients["do_test"] = True
 
         server["address"] = Context.get_parameters("AGG_IP")
         server["port"] = Context.get_parameters("AGG_PORT")
@@ -221,12 +229,12 @@ class FederatedLearningV2:
         if transmitter is not None:
             server.update(transmitter.parameters)
 
-        Config.server = Config.namedtuple_from_dict(server)
-        Config.clients = Config.namedtuple_from_dict(clients)
+        Config().server = Config.namedtuple_from_dict(server)
+        Config().clients = Config.namedtuple_from_dict(clients)
 
-        # Config.store()
-        # create a client
-        self.client = client_registry.get(model=self.model)
+        from plato.clients import registry as client_registry
+        self.client = client_registry.get(model=self.model,
+                                          datasource=self.datasource)
         self.client.configure()
 
     @classmethod

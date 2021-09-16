@@ -276,48 +276,49 @@ class AggregationServerV2():
                  aggregation=None, transmitter=None,
                  chooser=None) -> None:
         from plato.config import Config
-        from plato.servers import registry as server_registry
         # set parameters
-        server = Config.server._asdict()
-        clients = Config.clients._asdict()
-        datastore = Config.data._asdict()
-        train = Config.trainer._asdict()
+        server = Config().server._asdict()
+        clients = Config().clients._asdict()
+        datastore = Config().data._asdict()
+        train = Config().trainer._asdict()
 
         if data is not None:
             datastore.update(data.parameters)
-            Config.data = Config.namedtuple_from_dict(datastore)
+            Config().data = Config.namedtuple_from_dict(datastore)
 
         self.model = None
         if estimator is not None:
             self.model = estimator.model
             if estimator.pretrained is not None:
-                LOGGER.info(estimator.pretrained)
-                Config.params['model_dir'] = estimator.pretrained
+                Config().params['pretrained_model_dir'] = estimator.pretrained
+            if estimator.saved is not None:
+                Config().params['model_dir'] = estimator.saved
             train.update(estimator.hyperparameters)
-            Config.trainer = Config.namedtuple_from_dict(train)
+            Config().trainer = Config.namedtuple_from_dict(train)
 
         server["address"] = Context.get_parameters("AGG_BIND_IP", "0.0.0.0")
-        server["port"] = Context.get_parameters("AGG_BIND_PORT", 7363)
+        server["port"] = int(Context.get_parameters("AGG_BIND_PORT", 7363))
         if transmitter is not None:
             server.update(transmitter.parameters)
 
         if aggregation is not None:
-            Config.algorithm = Config.namedtuple_from_dict(
+            Config().algorithm = Config.namedtuple_from_dict(
                 aggregation.parameters)
             if aggregation.parameters["type"] == "mistnet":
                 clients["type"] = "mistnet"
                 server["type"] = "mistnet"
+            else:
+                clients["do_test"] = True
 
         if chooser is not None:
             clients["per_round"] = chooser.parameters["per_round"]
 
         LOGGER.info("address %s, port %s", server["address"], server["port"])
 
-        Config.server = Config.namedtuple_from_dict(server)
-        Config.clients = Config.namedtuple_from_dict(clients)
+        Config().server = Config.namedtuple_from_dict(server)
+        Config().clients = Config.namedtuple_from_dict(clients)
 
-        # Config.store()
-        # create a server
+        from plato.servers import registry as server_registry
         self.server = server_registry.get(model=self.model)
 
     def start(self):
