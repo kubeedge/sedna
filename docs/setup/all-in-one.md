@@ -23,7 +23,7 @@ Above command installs a mini Sedna environment, including:
   - KubeEdge with multi nodes, default is latest KubeEdge and one edge node.
   - Sedna, latest release version.
 
-You can play it online on [https://www.katacoda.com/sedna-ai/scenarios/all-in-one].
+You can play it online on [katacoda](https://www.katacoda.com/kubeedge-sedna/scenarios/all-in-one).
 
 Advanced options:
 | Env Variable |  Description| Default Value|
