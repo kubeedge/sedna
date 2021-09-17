@@ -29,18 +29,25 @@
 #
 # Advanced options, influential env vars:
 #
-# NUM_CLOUD_WORKERS   | optional | The cloud workers, default 0
-# NUM_EDGE_WORKERS    | optional | The KubeEdge workers, default 1
-# KUBEEDGE_VERSION   | optional | The KubeEdge version to be installed.
-#                              if not specified, it will get latest release version.
-# CLUSTER_NAME      | optional | The all-in-one cluster name, default 'sedna-mini'
-# FORCE_INSTALL_SEDNA      | optional | If 'true', force reinstall Sedna, default false.
-# NODE_IMAGE      | optional | Custom node image
-# REUSE_EDGE_CONTAINER      | optional | Whether reuse edge node containers or not, default is true
+# NUM_CLOUD_WORKERS     | optional | The cloud workers, default 0
+# NUM_EDGE_WORKERS      | optional | The KubeEdge workers, default 1
+# KUBEEDGE_VERSION      | optional | The KubeEdge version to be installed.
+#                                    if not specified, it try to get latest version or v1.8.0
+# SEDNA_VERSION         | optional | The Sedna version to be installed.
+#                                    if not specified, it will get latest release or v0.4.1
+# CLUSTER_NAME          | optional | The all-in-one cluster name, default 'sedna-mini'
+# FORCE_INSTALL_SEDNA   | optional | If 'true', force reinstall Sedna, default false.
+# NODE_IMAGE            | optional | Custom node image
+# REUSE_EDGE_CONTAINER  | optional | Whether reuse edge node containers or not, default is true
 
 set -o errexit
 set -o nounset
 set -o pipefail
+
+
+DEFAULT_SEDNA_VERSION=v0.4.1
+DEFAULT_KUBEEDGE_VERSION=v1.8.0
+DEFAULT_NODE_IMAGE_VERSION=v1.21.1
 
 
 function prepare_env() {
@@ -48,16 +55,17 @@ function prepare_env() {
 
   # here not use := because it ignore the error of get_latest_version command
   if [ -z "${KUBEEDGE_VERSION:-}" ]; then
-    KUBEEDGE_VERSION=$(get_latest_version kubeedge/kubeedge v1.8.0)
+    KUBEEDGE_VERSION=$(get_latest_version kubeedge/kubeedge $DEFAULT_KUBEEDGE_VERSION)
+  fi
+
+  if [ -z "${SEDNA_VERSION:-}" ]; then
+    SEDNA_VERSION=$(get_latest_version kubeedge/sedna $DEFAULT_SEDNA_VERSION)
   fi
 
   : ${NUM_CLOUD_WORKERS:=0}
   : ${NUM_EDGE_WORKERS:=1}
 
-  # just reuse kind base image
-  # https://github.com/kubernetes-sigs/kind/blob/4910c3e221a858e68e29f9494170a38e1c4e8b80/pkg/build/nodeimage/defaults.go#L23
-
-  : ${ALLINONE_NODE_IMAGE:=kubeedge/sedna-allinone-node:v1.21.1}
+  : ${ALLINONE_NODE_IMAGE:=kubeedge/sedna-allinone-node:$DEFAULT_NODE_IMAGE_VERSION}
 
   readonly MAX_CLOUD_WORKERS=2
   readonly MAX_EDGE_WORKERS=3
@@ -339,6 +347,7 @@ function create_and_setup_edgenodes() {
      }
 
     "
+    # fix cni config file
     gen_cni_config | docker exec -i $containername tee /etc/cni/net.d/10-edgecni.conflist >/dev/null
    
   done
@@ -381,12 +390,12 @@ function install_sedna() {
   if run_in_control_plane kubectl get ns sedna; then
     if [ "$FORCE_INSTALL_SEDNA" != true ]; then
       log_info '"sedna" namespace already exists, no install Sedna control components.'
-      log_info 'If want to reinstall them, you can remove it `kubectl delete ns sedna` or set FORCE_INSTALL_SEDNA=true!'
+      log_info 'If want to reinstall them, you can remove it by `kubectl delete ns sedna` or set FORCE_INSTALL_SEDNA=true!'
       log_info
       return
     fi
     run_in_control_plane bash -ec "
-    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$gm_node SEDNA_ACTION=clean bash -
+    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$gm_node SEDNA_ACTION=clean SEDNA_VERSION=$SEDNA_VERSION bash -
   "
   fi
 
@@ -399,7 +408,7 @@ function install_sedna() {
 
 function get_latest_version() {
   # get the latest version of specified gh repo
-  local repo=${1} default_version=${2}
+  local repo=${1} default_version=${2:-}
   # output of this latest page:
   # ...
   # "tag_name": "v1.0.0",
@@ -410,8 +419,10 @@ function get_latest_version() {
   local url=https://api.github.com/repos/$repo/releases/latest
   if ! curl --fail -s $url | awk '/"tag_name":/&&$0=$2' | sed 's/[",]//g'; then
     log_error "Error to get latest version of $repo: $(curl -s $url | head)"
-    log_error "Fall back to default version: $default_version"
-    echo $default_version
+    [ -n "$default_version" ] && {
+      log_error "Fall back to default version: $default_version"
+      echo $default_version
+    }
   fi
 }
 
@@ -468,7 +479,6 @@ function main() {
 
   case "$action" in
     create)
-      # llh
       setup_cloud
       setup_edge
       install_sedna
