@@ -1,4 +1,6 @@
-This guide covers how to install Sedna on an existing Kubernetes environment, i.e. its two main components: [GM(GlobalManager)](/README.md#globalmanager) and [LC(LocalController)](/README.md#localcontroller).
+This guide covers how to install Sedna on an existing Kubernetes environment.
+
+For interested readers, Sedna also has two important components that would be mentioned below, i.e., [GM(GlobalManager)](/README.md#globalmanager) and [LC(LocalController)](/README.md#localcontroller) for workerload generation and maintenance.
 
 If you don't have an existing Kubernetes, you can:
 1) Install Kubernetes by following the [Kubernetes website](https://kubernetes.io/docs/setup/).
