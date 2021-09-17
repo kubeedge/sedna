@@ -249,7 +249,7 @@ spec:
             memory: 32Mi
             cpu: 100m
           limits:
-            memory: 128Mi
+            memory: 256Mi
       volumes:
         - name: gm-config
           configMap:
