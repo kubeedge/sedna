@@ -92,10 +92,7 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 		},
 		Spec: v1.ServiceSpec{
 			Selector: generateLabels(object, workerType),
-			ExternalIPs: []string{
-				inputIP,
-			},
-			Type: v1.ServiceTypeNodePort,
+			Type:     v1.ServiceTypeNodePort,
 			Ports: []v1.ServicePort{
 				{
 					Port:       inputPort,
