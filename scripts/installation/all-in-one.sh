@@ -72,6 +72,7 @@ function prepare_env() {
 
   # TODO: find a better way to figure this kind control plane
   readonly CONTROL_PLANE_NAME=${CLUSTER_NAME}-control-plane 
+  readonly CLOUD_WORKER_NODE_NAME=${CLUSTER_NAME}-worker
 
   # cloudcore default websocket port 
   : ${CLOUDCORE_WS_PORT:=10000}
@@ -401,7 +402,9 @@ function install_sedna() {
 
   log_info "Installing Sedna Control Components..."
 
+
   run_in_control_plane bash -ec "
+    kubectl taint $gm_node node-role.kubernetes.io/master- 2>/dev/null || true
     curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$gm_node SEDNA_ACTION=create bash -
   "
 }
