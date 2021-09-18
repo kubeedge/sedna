@@ -29,8 +29,8 @@
 #
 # Advanced options, influential env vars:
 #
-# NUM_CLOUD_WORKERS     | optional | The cloud workers, default 0
-# NUM_EDGE_WORKERS      | optional | The KubeEdge workers, default 1
+# NUM_CLOUD_WORKER_NODES| optional | The number of cloud worker nodes, default 0
+# NUM_EDGE_NODES        | optional | The number of KubeEdge nodes, default 1
 # KUBEEDGE_VERSION      | optional | The KubeEdge version to be installed.
 #                                    if not specified, it try to get latest version or v1.8.0
 # SEDNA_VERSION         | optional | The Sedna version to be installed.
@@ -62,13 +62,13 @@ function prepare_env() {
     SEDNA_VERSION=$(get_latest_version kubeedge/sedna $DEFAULT_SEDNA_VERSION)
   fi
 
-  : ${NUM_CLOUD_WORKERS:=0}
-  : ${NUM_EDGE_WORKERS:=1}
+  : ${NUM_CLOUD_WORKER_NODES:=0}
+  : ${NUM_EDGE_NODES:=1}
 
   : ${ALLINONE_NODE_IMAGE:=kubeedge/sedna-allinone-node:$DEFAULT_NODE_IMAGE_VERSION}
 
-  readonly MAX_CLOUD_WORKERS=2
-  readonly MAX_EDGE_WORKERS=3
+  readonly MAX_CLOUD_WORKER_NODES=2
+  readonly MAX_EDGE_WORKER_NODES=3
 
   # TODO: find a better way to figure this kind control plane
   readonly CONTROL_PLANE_NAME=${CLUSTER_NAME}-control-plane 
@@ -101,12 +101,12 @@ function prepare_env() {
 
 function validate_env() {
 
-  ((NUM_CLOUD_WORKERS<=MAX_CLOUD_WORKERS)) || {
-    log_fault "Only support NUM_CLOUD_WORKERS at most $MAX_CLOUD_WORKERS"
+  ((NUM_CLOUD_WORKER_NODES<=MAX_CLOUD_WORKER_NODES)) || {
+    log_fault "Only support NUM_CLOUD_WORKER_NODES at most $MAX_CLOUD_WORKER_NODES"
   }
 
-  ((NUM_EDGE_WORKERS<=MAX_EDGE_WORKERS)) || {
-    log_fault "Only support NUM_EDGE_WORKERS at most $MAX_EDGE_WORKERS"
+  ((NUM_EDGE_NODES<=MAX_EDGE_WORKER_NODES)) || {
+    log_fault "Only support NUM_EDGE_NODES at most $MAX_EDGE_WORKER_NODES"
   }
 }
 
@@ -145,7 +145,7 @@ nodes:
     - containerPort: $CLOUDCORE_CERT_PORT
 EOF
 
-  for((i=0;i<NUM_CLOUD_WORKERS;i++)); do
+  for((i=0;i<NUM_CLOUD_WORKER_NODES;i++)); do
   cat <<EOF
   - role: worker
     image: $ALLINONE_NODE_IMAGE
@@ -280,7 +280,7 @@ EOF
 
 function create_and_setup_edgenodes() {
 
-  for((i=0;i<NUM_EDGE_WORKERS;i++)); do
+  for((i=0;i<NUM_EDGE_NODES;i++)); do
     log_info "Installing $i-th edge node..."
     local containername=sedna-mini-edge$i
     local hostname=edge$i
