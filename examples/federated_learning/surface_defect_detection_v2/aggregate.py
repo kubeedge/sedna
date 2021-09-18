@@ -12,22 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from interface import mistnet, s3_transmitter, simple_chooser
-from interface import Dataset, Estimator
+from interface import fedavg, s3_transmitter, simple_chooser
+from interface import Estimator
 from sedna.service.server import AggregationServerV2
 from sedna.common.config import BaseConfig
 
 def run_server():
-    data = Dataset()
     estimator = Estimator()
-
-    estimator.pretrained = BaseConfig.pretrained_model_url.replace("yolov5.pth", "")
-    estimator.saved = BaseConfig.model_url.replace("yolov5.pth", "")
+    estimator.saved = BaseConfig.model_url
 
     server = AggregationServerV2(
-        data=data,
+        data=None, # mistnet, train, test
         estimator=estimator,
-        aggregation=mistnet,
+        aggregation=fedavg,
         transmitter=s3_transmitter,
         chooser=simple_chooser)
 

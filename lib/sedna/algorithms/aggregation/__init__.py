@@ -13,4 +13,4 @@
 # limitations under the License.
 
 from . import aggregation
-from .aggregation import FedAvg, MistNet, AggClient
+from .aggregation import FedAvg, MistNet, AggClient, FedAvgV2

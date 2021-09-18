@@ -29,6 +29,8 @@ spec:
                 value: "mistnet"
               - name: "batch_size"
                 value: "32"
+              - name: "epochs"
+                value: "100"
             resources: # user defined resources
               limits:
                 memory: 8Gi
