@@ -50,6 +50,8 @@ def start_stream_acquisition(stream_address):
     edge_worker = ObjectDetector(estimator=Estimator(camera_code=camera_code))
 
     camera = cv2.VideoCapture(stream_address)
+    camera.set(cv2.CAP_PROP_BUFFERSIZE, 0)
+
     fps = 0.5
     nframe = 0
     startTime = time.time()
