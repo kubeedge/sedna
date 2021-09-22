@@ -498,6 +498,21 @@ func (c *Controller) createWorkers(service *sednav1.ObjectSearchService) (active
 	activePods = 0
 	activeDeployments = 0
 
+	// create reid worker deployment
+	var reidWorkerParam runtime.WorkerParam
+	reidWorkerParam.WorkerType = objectSearchReidWorker
+	_, err = runtime.CreateDeploymentWithTemplate(c.kubeClient, service, &service.Spec.ReidWorkers.DeploymentSpec, &reidWorkerParam, reidServicePort)
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create reid worker deployment: %w", err)
+	}
+	activeDeployments++
+
+	// create reid worker edgemesh service
+	reidServiceURL, err := runtime.CreateEdgeMeshService(c.kubeClient, service, objectSearchReidWorker, reidServicePort)
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create reid worker edgemesh service: %w", err)
+	}
+
 	return activePods, activeDeployments, err
 }
 
