@@ -538,6 +538,25 @@ func (c *Controller) createWorkers(service *sednav1.ObjectSearchService) (active
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}
+
+	// create tracking worker pods
+	var trackingWorkerParam runtime.WorkerParam
+	trackingWorkerParam.WorkerType = objectSearchTrackingWorker
+	for i, trackingWorker := range service.Spec.TrackingWorkers {
+		trackingWorkerParam.Env = map[string]string{
+			"NAMESPACE":      service.Namespace,
+			"SERVICE_NAME":   service.Name,
+			"WORKER_NAME":    "trackingworker-" + utilrand.String(5),
+			"USERWORKER_URL": userWorkerURL,
+			"EDGEMESH_URL":   reidServiceURL,
+		}
+		_, err = runtime.CreatePodWithTemplate(c.kubeClient, service, &trackingWorker.Template, &trackingWorkerParam)
+		if err != nil {
+			return activePods, activeDeployments, fmt.Errorf("failed to create %dth tracking worker: %w", i, err)
+		}
+		activePods++
+	}
+
 	return activePods, activeDeployments, err
 }
 

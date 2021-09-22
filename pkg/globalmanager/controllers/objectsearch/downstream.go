@@ -17,37 +17,10 @@ limitations under the License.
 package objectsearch
 
 import (
-	//"fmt"
-
-	//"k8s.io/apimachinery/pkg/watch"
-
-	//sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
 
-// func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) error {
-// 	joint, ok := obj.(*sednav1.JointInferenceService)
-// 	if !ok {
-// 		return nil
-// 	}
-
-// 	// Since Kind may be empty,
-// 	// we need to fix the kind here if missing.
-// 	// more details at https://github.com/kubernetes/kubernetes/issues/3030
-// 	joint.Kind = KindName
-
-// 	// Here only propagate to the nodes with non empty name
-// 	// FIXME: only the case that Spec.NodeName specified is support
-// 	nodeName := joint.Spec.EdgeWorker.Template.Spec.NodeName
-// 	if len(nodeName) == 0 {
-// 		return fmt.Errorf("empty node name")
-// 	}
-
-// 	if len(joint.Kind) == 0 {
-// 		joint.Kind = KindName
-// 	}
-// 	return c.sendToEdgeFunc(nodeName, eventType, joint)
-// }
+// TODO: sync the object search service info to edge nodes
 
 func (c *Controller) SetDownstreamSendFunc(f runtime.DownstreamSendFunc) error {
 	c.sendToEdgeFunc = f

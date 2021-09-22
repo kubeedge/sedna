@@ -182,6 +182,7 @@ func CreatePodWithTemplate(client kubernetes.Interface, object CommonInterface, 
 
 // CreateEdgeMeshService creates a kubeedge edgemesh service for an object, and returns an edgemesh service URL.
 // Since edgemesh can realize Cross-Edge-Cloud communication, the service can be created both on the cloud or edge side.
+// TODO: Integrate this function with CreateKubernetesService function.
 func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32) (string, error) {
 	ctx := context.Background()
 	name := object.GetName()
