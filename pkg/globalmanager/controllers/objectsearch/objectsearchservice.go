@@ -532,6 +532,12 @@ func (c *Controller) createWorkers(service *sednav1.ObjectSearchService) (active
 		return activePods, activeDeployments, fmt.Errorf("failed to create user worker: %w", err)
 	}
 	activeDeployments++
+
+	// create user worker service
+	userWorkerURL, err := runtime.CreateEdgeMeshService(c.kubeClient, service, objectSearchUserWorker, userWorkerPort)
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
+	}
 	return activePods, activeDeployments, err
 }
 
