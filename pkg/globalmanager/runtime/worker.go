@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -72,6 +73,15 @@ func GenerateSelector(object CommonInterface) (labels.Selector, error) {
 	return metav1.LabelSelectorAsSelector(ls)
 }
 
+// GenerateWorkerSelector generates the selector of an object for specific worker type
+func GenerateWorkerSelector(object CommonInterface, workerType string) (labels.Selector, error) {
+	ls := &metav1.LabelSelector{
+		// select any type workers
+		MatchLabels: generateLabels(object, workerType),
+	}
+	return metav1.LabelSelectorAsSelector(ls)
+}
+
 // CreateKubernetesService creates a k8s service for an object given ip and port
 func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32, inputIP string) (int32, error) {
 	ctx := context.Background()
@@ -92,7 +102,10 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 		},
 		Spec: v1.ServiceSpec{
 			Selector: generateLabels(object, workerType),
-			Type:     v1.ServiceTypeNodePort,
+			ExternalIPs: []string{
+				inputIP,
+			},
+			Type: v1.ServiceTypeNodePort,
 			Ports: []v1.ServicePort{
 				{
 					Port:       inputPort,
@@ -165,6 +178,107 @@ func CreatePodWithTemplate(client kubernetes.Interface, object CommonInterface, 
 	}
 	klog.V(2).Infof("pod %s is created successfully for %s %s", createdPod.Name, objectKind, objectName)
 	return createdPod, nil
+}
+
+// CreateEdgeMeshService creates a kubeedge edgemesh service for an object, and returns an edgemesh service URL.
+// Since edgemesh can realize Cross-Edge-Cloud communication, the service can be created both on the cloud or edge side.
+func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32) (string, error) {
+	ctx := context.Background()
+	name := object.GetName()
+	namespace := object.GetNamespace()
+	kind := object.GroupVersionKind().Kind
+	targePort := intstr.IntOrString{
+		IntVal: inputPort,
+	}
+	serviceSpec := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name + "-" + workerType + "-" + "svc",
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+			},
+			Labels: generateLabels(object, workerType),
+		},
+		Spec: v1.ServiceSpec{
+			Selector: generateLabels(object, workerType),
+			Ports: []v1.ServicePort{
+				{
+					Name:       "http-0",
+					Protocol:   "TCP",
+					Port:       inputPort,
+					TargetPort: targePort,
+				},
+			},
+		},
+	}
+	service, err := kubeClient.CoreV1().Services(namespace).Create(ctx, serviceSpec, metav1.CreateOptions{})
+	if err != nil {
+		klog.Warningf("failed to create service for %v %v/%v, err:%s", kind, namespace, name, err)
+		return "", err
+	}
+
+	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
+	edgeMeshURL := name + "-" + workerType + "-" + "svc" + "." + namespace + ":" + strconv.Itoa(int(inputPort))
+	return edgeMeshURL, nil
+}
+
+// CreateDeploymentWithTemplate creates and returns a deployment object given a crd object, deployment template
+func CreateDeploymentWithTemplate(client kubernetes.Interface, object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam, port int32) (*appsv1.Deployment, error) {
+	objectKind := object.GroupVersionKind()
+	objectName := object.GetNamespace() + "/" + object.GetName()
+	deployment := newDeployment(object, spec, workerParam)
+	injectDeploymentParam(deployment, workerParam, object, port)
+	createdDeployment, err := client.AppsV1().Deployments(object.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
+	if err != nil {
+		klog.Warningf("failed to create deployment for %s %s, err:%s", objectKind, objectName, err)
+		return nil, err
+	}
+	klog.V(2).Infof("deployment %s is created successfully for %s %s", createdDeployment.Name, objectKind, objectName)
+	return createdDeployment, nil
+}
+
+func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam) *appsv1.Deployment {
+	nameSpace := object.GetNamespace()
+	deploymentName := object.GetName() + "-" + "deployment" + "-" + strings.ToLower(workerParam.WorkerType) + "-"
+	matchLabel := make(map[string]string)
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: deploymentName,
+			Namespace:    nameSpace,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: (*spec).Replicas,
+			Template: (*spec).Template,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: matchLabel,
+			},
+		},
+	}
+}
+
+// injectDeploymentParam modifies deployment in-place
+func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, port int32) {
+	// inject our labels
+	if deployment.Labels == nil {
+		deployment.Labels = make(map[string]string)
+	}
+	if deployment.Spec.Template.Labels == nil {
+		deployment.Spec.Template.Labels = make(map[string]string)
+	}
+
+	for k, v := range generateLabels(object, workerParam.WorkerType) {
+		deployment.Labels[k] = v
+		deployment.Spec.Template.Labels[k] = v
+		deployment.Spec.Selector.MatchLabels[k] = v
+	}
+	deployment.Spec.Template.Spec.Containers[0].Ports = []v1.ContainerPort{
+		{
+			ContainerPort: port,
+		},
+	}
 }
 
 // createEnvVars creates EnvMap for container
