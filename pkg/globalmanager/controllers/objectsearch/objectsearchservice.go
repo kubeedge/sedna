@@ -513,6 +513,25 @@ func (c *Controller) createWorkers(service *sednav1.ObjectSearchService) (active
 		return activePods, activeDeployments, fmt.Errorf("failed to create reid worker edgemesh service: %w", err)
 	}
 
+	// create user worker deployment
+	userWorkerReplicas := int32(1)
+	userWorkerDeployment := &appsv1.DeploymentSpec{
+		Replicas: &userWorkerReplicas,
+		Template: service.Spec.UserWorker.Template,
+	}
+	var userWorkerParam runtime.WorkerParam
+	userWorkerParam.WorkerType = objectSearchUserWorker
+	userWorkerParam.Env = map[string]string{
+		"NAMESPACE":    service.Namespace,
+		"SERVICE_NAME": service.Name,
+		"WORKER_NAME":  "userworker-" + utilrand.String(5),
+	}
+	_, err = runtime.CreateDeploymentWithTemplate(c.kubeClient, service, userWorkerDeployment, &userWorkerParam, userWorkerPort)
+
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("failed to create user worker: %w", err)
+	}
+	activeDeployments++
 	return activePods, activeDeployments, err
 }
 
