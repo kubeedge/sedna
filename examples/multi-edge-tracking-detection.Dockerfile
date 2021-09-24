@@ -9,7 +9,7 @@ RUN apt install libgl1-mesa-glx -y
 RUN apt install -y gfortran libopenblas-dev liblapack-dev
 
 ## Install applications dependencies
-RUN pip install torch torchvision tqdm pillow opencv-python pytorch-ignite asyncio kafka-python
+RUN pip install torch torchvision tqdm pillow opencv-python pytorch-ignite asyncio kafka-python fluent-logger
 
 ## SEDNA SECTION ##
   
@@ -27,6 +27,7 @@ COPY examples/multiedgetracking/detection/models /home/work/models
 COPY examples/multiedgetracking/detection/utils /home/work/utils
 
 ENV LOG_LEVEL="INFO"
+ENV FLUENTD="172.17.0.2"
 
 ENTRYPOINT ["python"]
 CMD ["detection.py"]

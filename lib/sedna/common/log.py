@@ -15,7 +15,7 @@
 """Base logger"""
 
 import logging
-
+import json
 import colorlog
 
 from sedna.common.config import BaseConfig
@@ -33,6 +33,15 @@ class LogFilter(object):
     def filter(self, logRecord):
         return logRecord.levelno <= self.__level
 
+class JsonFormatter:
+   def format(self, record):
+       formatted_record = dict()
+
+       for key in ['created', 'levelname', 'pathname', 'funcName', 'msg']:
+           formatted_record[key] = getattr(record, key)
+
+       return json.dumps(formatted_record, indent=None)
+
 class Logger:
     """
     Deafult logger in sedna
@@ -45,10 +54,11 @@ class Logger:
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level=LOG_LEVEL)
 
-        self.format = colorlog.ColoredFormatter(
-            '%(log_color)s[%(asctime)-15s] %(filename)s(%(lineno)d)'
-            ' [%(levelname)s]%(reset)s - %(message)s', )
+        # self.format = colorlog.ColoredFormatter(
+        #     '%(log_color)s[%(asctime)-15s] %(filename)s(%(lineno)d)'
+        #     ' [%(levelname)s]%(reset)s - %(message)s', )
 
+        self.format= JsonFormatter()
         self.handler = logging.StreamHandler()
         self.handler.setFormatter(self.format)
         self.handler.setLevel(level=LOG_LEVEL)
@@ -56,10 +66,10 @@ class Logger:
         # self.logger.measurement = self.measurement
 
         # Create file handler
-        self.fh = logging.FileHandler('spam.log')
-        self.fh.setFormatter(self.format)
-        self.fh.addFilter(LogFilter(logging.DEBUG))
-        self.fh.setLevel(logging.DEBUG)
+        # self.fh = logging.FileHandler('spam.log')
+        # self.fh.setFormatter(self.format)
+        # self.fh.addFilter(LogFilter(logging.DEBUG))
+        # self.fh.setLevel(logging.DEBUG)
 
         self.logger.addHandler(self.handler)
         # self.logger.addHandler(self.fh)

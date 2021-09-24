@@ -42,7 +42,7 @@ RUN apt install -y gfortran libopenblas-dev liblapack-dev
 # RUN rm ai_models/deep_eff_reid/r50_ibn_a.pth
 
 ## Install base dependencies
-RUN pip install torch torchvision tqdm opencv-python pillow pytorch-ignite kafka-python
+RUN pip install torch torchvision tqdm opencv-python pillow pytorch-ignite kafka-python fluent-logger
 
 ## Install project-specific dependencies
 # RUN pip install -r requirements.txt
@@ -69,6 +69,7 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/work"
 COPY examples/multiedgetracking/feature_extraction/edge_worker.py  /home/work/edge_worker.py
 
 ENV LOG_LEVEL="INFO"
+ENV FLUENTD="172.17.0.2"
 
 ENTRYPOINT ["python"]
 CMD ["edge_worker.py", "--config_file=efficientnetv2_market"]
