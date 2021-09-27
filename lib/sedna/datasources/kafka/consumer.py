@@ -19,11 +19,13 @@ class Consumer(Client):
         return self.consumer.topics()
 
     def subscribe(self, topic):
-        try:
-            LOGGER.debug(f"Subscribing to topics {topic}")
-            self.consumer.subscribe(topic)
-        except Exception as e:
-             LOGGER.error(f"Unable to subscribe to topic {e}")
+        for t in topic:
+            try:
+                LOGGER.debug(f"Subscribing to topics {t}")
+                self.consumer.subscribe(t)
+            except Exception as e:
+                LOGGER.error(f"Unable to subscribe to topic {e}")
+
 
     # This should work with callbacks?
     def consume_json_data(self):
