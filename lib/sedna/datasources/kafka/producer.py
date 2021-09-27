@@ -12,14 +12,15 @@ class Producer(Client):
 
         data_input = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
         # Publishes a message
-        try:
-            self.producer.send(topic, value=data_input)
-            #self.producer.flush()
-            LOGGER.debug(f"Message published on topic {topic}.")
-            return True
-        except Exception as e:
-            LOGGER.error(f"Something went wrong.. {e}")
-            return False
+        for t in topic:
+            try:
+                self.producer.send(t, value=data_input)
+                #self.producer.flush()
+                LOGGER.debug(f"Message published on topic {topic}.")
+                return True
+            except Exception as e:
+                LOGGER.error(f"Something went wrong.. {e}")
+                return False
 
 
     def close(self):
