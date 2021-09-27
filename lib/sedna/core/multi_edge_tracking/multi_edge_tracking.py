@@ -72,8 +72,8 @@ class ReIDService(JobBase):
             
             self.sync_queue = queue.Queue()
 
-            self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="reid")
-            self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic="feature_extraction", sync_queue=self.sync_queue)
+            self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic=["reid"])
+            self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic=["feature_extraction"], sync_queue=self.sync_queue)
             
 
     def start(self):
@@ -154,8 +154,8 @@ class FEService(JobBase):
                 self.kafka_address = self.kafka_address.split("|")
                 self.kafka_port = self.kafka_port.split("|")
 
-            self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="feature_extraction")
-            self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic="object_detection", sync_queue=self.sync_queue)
+            self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic=["feature_extraction"])
+            self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic=["object_detection"], sync_queue=self.sync_queue)
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
@@ -260,7 +260,7 @@ class ObjectDetector(JobBase):
                 self.kafka_address = self.kafka_address.split("|")
                 self.kafka_port = self.kafka_port.split("|")
 
-            self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic="object_detection")
+            self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic=["object_detection"])
         
         self.start()
 

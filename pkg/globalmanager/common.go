@@ -35,8 +35,8 @@ const (
 	// DefaultBackOff is the default backoff period
 	DefaultBackOff = 10 * time.Second
 	// MaxBackOff is the max backoff period
-	MaxBackOff         = 360 * time.Second
-	bigModelPort int32 = 5000
+	MaxBackOff           = 360 * time.Second
+	bigModelPort   int32 = 5000
 	cloudModelPort int32 = 5000
 	// ResourceUpdateRetries defines times of retrying to update resource
 	ResourceUpdateRetries = 3
@@ -131,7 +131,26 @@ func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, erro
 	return "", fmt.Errorf("can't found node ip for node %s", name)
 }
 
-func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string) ([]string, []string, error) {
+// This function returns the "sector" in which the node is deployed (edge or cloud)
+func IdentifyNodeSector(kubeClient kubernetes.Interface, name string) (string, error) {
+	n, err := kubeClient.CoreV1().Nodes().Get(context.Background(), name, metav1.GetOptions{})
+
+	if err != nil {
+		return "", err
+	}
+
+	// The label sedna-role=edge is assigned by default to all edge node in the Sedna cluster
+	// The master node (or the cloud) usually doesn't have this flag set, so we just return "cloud"
+	v, found := n.GetLabels()["sedna-role"]
+	if found {
+		return v, err
+	} else {
+		return "cloud", err
+	}
+
+}
+
+func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string, sector string) ([]string, []string, error) {
 	s, err := kubeClient.CoreV1().Services("default").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, nil, err
@@ -145,14 +164,36 @@ func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string) ([
 	// Ideally, it should match the KAFKA_ADVERTISED_HOST_NAME in the deployment configuration.
 	// Using the service name doesn't work using the defualt Kafka YAML file.
 
-	for _, svc := range s.Items {
-		klog.Info(svc.GetName() + "" + svc.GetClusterName())
-		if strings.Contains(svc.GetName(), name) {
-			// kafkaAddresses = append(kafkaAddresses, svc.GetName())
-			kafkaAddresses = append(kafkaAddresses, svc.Annotations["advertised_ip"])
-			kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].NodePort))
+	if sector == "edge" {
+		for _, svc := range s.Items {
+			if strings.Contains(svc.GetName(), name) && svc.GetLabels()["sector"] == sector {
+				klog.Info("Found Apache Kafka edge service: " + svc.GetName() + "" + svc.GetClusterName())
+				kafkaAddresses = append(kafkaAddresses, svc.GetName()+"."+svc.GetNamespace())
+				kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].Port))
+			}
+		}
+	} else {
+		for _, svc := range s.Items {
+			val, found := svc.GetLabels()["sector"] // If we don't find it, it's a cloud service
+			if strings.Contains(svc.GetName(), name) && (!found || val == sector) {
+				klog.Info("Found Apache Kafka cloud service: " + svc.GetName() + "" + svc.GetClusterName())
+				kafkaAddresses = append(kafkaAddresses, svc.Annotations["advertised_ip"])
+				kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].NodePort))
+			}
 		}
 	}
+
+	// for _, svc := range s.Items {
+	// 	if strings.Contains(svc.GetName(), name) {
+	// 		klog.Info(svc.GetName() + "" + svc.GetClusterName())
+	// 		if svc.GetLabels()["sector"] == 0 || svc.GetLabels()["sector"] == sector_optional {
+	// 			kafkaAddresses = append(kafkaAddresses, svc.Annotations["advertised_ip"])
+	// 			kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].NodePort))
+	// 		} else {
+	// 			kafkaAddresses = append(kafkaAddresses, svc.GetName() + "." + svc.GetNamespace())
+	// 			kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].Port))
+	// 	}
+	// }
 
 	if len(kafkaAddresses) > 0 && len(kafkaPorts) > 0 {
 		return kafkaAddresses, kafkaPorts, err

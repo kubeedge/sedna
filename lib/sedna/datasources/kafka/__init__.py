@@ -21,7 +21,7 @@ class AdminClient(Client):
     def __init__(self, address = ["localhost"], port = [9092]) -> None:
         super().__init__(address, port)
         LOGGER.debug("Creating Kafka admin client")
-        self.admin_client = KafkaAdminClient(bootstrap_servers=self.kafka_endpoints, client_id='test')
+        self.admin_client = KafkaAdminClient(bootstrap_servers=self.kafka_endpoints, request_timeout_ms=20000)
 
 
     def _parse_topics(self, topics, num_partitions, replication_factor):

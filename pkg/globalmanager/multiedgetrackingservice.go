@@ -496,8 +496,11 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	activePods = 0
 	activeDeployments = 0
 
+	// Sector represent the location in the network where the node is deployed (edge or cloud)
+	sector, err := IdentifyNodeSector(mc.kubeClient, service.Spec.ReIDDeploy.Spec.Template.Spec.NodeName)
+
 	// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
-	kfk_addresses, kfk_ports, err := FindAvailableKafkaServices(mc.kubeClient, "kafka")
+	kfk_addresses, kfk_ports, err := FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
 	klog.Info("Available Kafka endpoints: %v", kfk_addresses, kfk_ports)
 
 	var workerParam WorkerParam
@@ -548,6 +551,12 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 
 	// Create parameters that will be used in the deployment
 
+	// Disabled until the edge kafka broker is working
+	// sector, err = IdentifyNodeSector(mc.kubeClient, service.Spec.FEDeploy.Spec.Template.Spec.NodeName)
+
+	// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
+	kfk_addresses, kfk_ports, err = FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
+
 	workerParam.workerType = FEWorker
 	workerParam.env = map[string]string{
 		"NAMESPACE":            service.Namespace,
@@ -588,6 +597,11 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 		OD DEPLOYMENT
 
 	*/
+	// Disabled until the edge kafka broker is working
+	// sector, err = IdentifyNodeSector(mc.kubeClient, service.Spec.MultiObjectTrackingDeploy.Spec.Template.Spec.NodeName)
+
+	// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
+	kfk_addresses, kfk_ports, err = FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
 
 	// Create parameters that will be used by the deployment
 	workerParam.workerType = MultiObjectTrackingWorker
