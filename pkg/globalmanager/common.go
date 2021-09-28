@@ -150,6 +150,35 @@ func IdentifyNodeSector(kubeClient kubernetes.Interface, name string) (string, e
 
 }
 
+func FindColocatedFluentdPod(kubeClient kubernetes.Interface, name string) (string, error) {
+	pods, err := kubeClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+		FieldSelector: "spec.nodeName=" + name,
+		LabelSelector: "app=" + "fluentd",
+	})
+
+	if len(pods.Items) > 0 {
+		klog.Info("Found local Fluentd service with IP: " + pods.Items[0].Status.PodIP)
+		return pods.Items[0].Status.PodIP, nil
+	}
+
+	return "", err
+}
+
+func FindDaemonSetByLabel(kubeClient kubernetes.Interface, namespace string, label string) ([]string, error) {
+	labelSelector := fmt.Sprintf(label)
+	s, err := kubeClient.AppsV1().DaemonSets(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelector})
+
+	if len(s.Items) == 0 {
+		return nil, fmt.Errorf("Unable to find any DaemonSet with label %s in namespace %s", label, namespace)
+	} else {
+		for _, ds := range s.Items {
+			ds.Spec.Template.Spec.Overhead.Pods()
+		}
+	}
+
+	return nil, err
+}
+
 func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string, sector string) ([]string, []string, error) {
 	s, err := kubeClient.CoreV1().Services("default").List(context.Background(), metav1.ListOptions{})
 	if err != nil {

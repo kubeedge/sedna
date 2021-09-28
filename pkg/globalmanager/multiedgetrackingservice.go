@@ -498,6 +498,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 
 	// Sector represent the location in the network where the node is deployed (edge or cloud)
 	sector, err := IdentifyNodeSector(mc.kubeClient, service.Spec.ReIDDeploy.Spec.Template.Spec.NodeName)
+	fluentdIP, err := FindColocatedFluentdPod(mc.kubeClient, service.Spec.ReIDDeploy.Spec.Template.Spec.NodeName)
 
 	// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
 	kfk_addresses, kfk_ports, err := FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
@@ -512,6 +513,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 		"SERVICE_NAME":         service.Name,
 		"WORKER_NAME":          "reidworker-" + utilrand.String(5),
 		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
+		"FLUENTD_IP":           fluentdIP,
 	}
 
 	if service.Spec.ReIDDeploy.KafkaSupport {
@@ -554,6 +556,9 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	// Disabled until the edge kafka broker is working
 	// sector, err = IdentifyNodeSector(mc.kubeClient, service.Spec.FEDeploy.Spec.Template.Spec.NodeName)
 
+	// Find Fluentd service IP
+	fluentdIP, err = FindColocatedFluentdPod(mc.kubeClient, service.Spec.FEDeploy.Spec.Template.Spec.NodeName)
+
 	// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
 	kfk_addresses, kfk_ports, err = FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
 
@@ -565,6 +570,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 		"REID_MODEL_BIND_URL":  reIDIP,
 		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPortService)),
 		"LC_SERVER":            mc.cfg.LC.Server,
+		"FLUENTD_IP":           fluentdIP,
 	}
 
 	if service.Spec.FEDeploy.KafkaSupport {
@@ -600,6 +606,8 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 	// Disabled until the edge kafka broker is working
 	// sector, err = IdentifyNodeSector(mc.kubeClient, service.Spec.MultiObjectTrackingDeploy.Spec.Template.Spec.NodeName)
 
+	fluentdIP, err = FindColocatedFluentdPod(mc.kubeClient, service.Spec.MultiObjectTrackingDeploy.Spec.Template.Spec.NodeName)
+
 	// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
 	kfk_addresses, kfk_ports, err = FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
 
@@ -611,6 +619,7 @@ func (mc *MultiEdgeTrackingServiceController) createWorkers(service *sednav1.Mul
 		"WORKER_NAME":       "motworker-" + utilrand.String(5),
 		"FE_MODEL_BIND_URL": FEServiceURL,
 		"LC_SERVER":         mc.cfg.LC.Server,
+		"FLUENTD_IP":        fluentdIP,
 	}
 
 	if service.Spec.MultiObjectTrackingDeploy.KafkaSupport {

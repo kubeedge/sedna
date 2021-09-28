@@ -4,7 +4,7 @@ metadata:
   name: container-tracking
 spec:
   motDeploy:
-    kafkaSupport: true
+    kafkaSupport: false
     spec:
       replicas: 3
       selector:
@@ -30,7 +30,7 @@ spec:
               - name: "model_classifier"
                 value: "/home/v00609018/.cache/torch/hub/checkpoints/resnet50-0676ba61.pth"
               - name: "model_weights"
-                value: "/data/ai_models/object_detection/best_small.pt"
+                value: "/data/ai_models/object_detection/best_toy_small.pt"
               resources:  # user defined resources
                 requests:
                   memory: 64M
@@ -47,9 +47,9 @@ spec:
                 path: /data/ai_models
                 type: Directory
   feDeploy:
-    kafkaSupport: true
+    kafkaSupport: false
     spec:
-      replicas: 3
+      replicas: 1
       selector:
         matchLabels:
           app: feature-extraction
@@ -91,7 +91,7 @@ spec:
                 type: Directory
 
   reIDDeploy:
-    kafkaSupport: true
+    kafkaSupport: false
     spec:
       replicas: 1
       selector:
@@ -122,7 +122,7 @@ spec:
               - name: "imgpath"
                 value: "imgpath.npy"
               - name: "dataset"
-                value: "efficientnetv2_containers2021_3"
+                value: "efficientnetv2_containers2021_toy"
               resources:  # user defined resources
                 requests:
                   memory: 2Gi

@@ -14,12 +14,13 @@ class KafkaProducer:
         self.producer = Producer(address=address, port=port)
         self.topic = topic
 
-        from sedna.datasources.kafka import AdminClient
-        ac = AdminClient(address, port)
-        try:
-            ac.create_topics(self.topic)
-        except Exception as ex: # Should be TopicAlreadyExistsError?
-            LOGGER.error(f"Topic already created - skipping error. [{ex}]")
+        # This is not needed as usually brokers have auto.create.topics.enable = true
+        # from sedna.datasources.kafka import AdminClient
+        # ac = AdminClient(address, port)
+        # try:
+        #     ac.create_topics(self.topic)
+        # except Exception as ex: # Should be TopicAlreadyExistsError?
+        #     LOGGER.error(f"Topic already created - skipping error. [{ex}]")
 
     def write_result(self, data):
         return self.producer.publish_data(data, topic=self.topic)

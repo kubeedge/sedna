@@ -30,7 +30,7 @@ spec:
               - name: "model_classifier"
                 value: "/home/v00609018/.cache/torch/hub/checkpoints/resnet50-0676ba61.pth"
               - name: "model_weights"
-                value: "/data/yolo_lfs/runs/train/exp4/weights/best.pt"
+                value: "/data/ai_models/object_detection/best_small.pt"
               resources:  # user defined resources
                 requests:
                   memory: 64M
@@ -39,12 +39,12 @@ spec:
                   memory: 2Gi
               volumeMounts:
               - name: outputdir
-                mountPath: /data/yolo_lfs/
+                mountPath: /data/ai_models/
           volumes:   # user defined volumes
             - name: outputdir
               hostPath:
                 # user must create the directory in host
-                path: /data/yolo_lfs
+                path: /data/ai_models
                 type: Directory
   feDeploy:
     kafkaSupport: false

@@ -1,8 +1,11 @@
 import time, json
-from sedna.common.config import BaseConfig
+from sedna.common.config import Context
 from sedna.common.log import LOGGER
 
-FLUENTD_ADDRESS = BaseConfig.fluentd_address
+# This belong to a ConfigMap
+FLUENTD_ADDRESS = Context.get_parameters("FLUENTD_IP", None)
+FLUENTD_PORT = 24224
+FLUENTD_INDEX = 'sedna'
 
 if FLUENTD_ADDRESS:
     from fluent import sender
@@ -16,7 +19,7 @@ class FTimer():
 
         if FLUENTD_ADDRESS:
             # 'sedna' is a dedicated index in ES
-            sender.setup('sedna', host=FLUENTD_ADDRESS, port=24224)
+            sender.setup(FLUENTD_INDEX, host=FLUENTD_ADDRESS, port=FLUENTD_PORT)
 
     def __enter__(self):
         return self
@@ -34,28 +37,4 @@ class FTimer():
             # filter/parser in the fluentd configuration we created for Sedna
             event.Event('follow', {'message': json.dumps(result)})
 
-        self.log.debug(json.dumps(result)) 
-
-# if __name__ == '__main__':
-#     with MyTimer():
-#         long_runner()
-
-
-# def benchmark_time(func):
-#     """
-#     A timer decorator
-#     """
-#     def function_timer(*args, **kwargs):
-#         """
-#         A nested function for timing other functions
-#         """
-#         start = time.time()
-#         value = func(*args, **kwargs)
-#         end = time.time()
-#         runtime = end - start
-#         msg = "{func}:{time}s"
-#         LOGGER.info(msg.format(func=func.__name__,
-#                          time=runtime))
-#         return value
-#     return function_timer
-
+        self.log.debug(json.dumps(result))
