@@ -42,7 +42,7 @@ class BaseFilter(metaclass=abc.ABCMeta):
 
 
 @ClassFactory.register(ClassType.OF, alias="LukasKanade")
-class LukasKanadeOF(BaseFilter, abc.ABC):
+class LukasKanade(BaseFilter, abc.ABC):
     def __init__(self, **kwargs):
         # Parameters for ShiTomasi corner detection
         self.feature_params = dict(maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)

@@ -15,9 +15,8 @@
 import time
 
 import requests
-import cv2, numpy
+import cv2
 import threading
-from sedna.algorithms.optical_flow import LukasKanadeOF
 from sedna.common.class_factory import ClassFactory, ClassType
 
 from sedna.common.config import Context
