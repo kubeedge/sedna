@@ -20,7 +20,7 @@ import torch
 import numpy as np
 
 from sedna.common.config import Context
-from sedna.common.benchmark import FLUENTD_ADDRESS, FTimer, FluentdHelper
+from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
 from utils.utils import *
 from utils.general import save_one_box
@@ -31,7 +31,7 @@ model_weights = Context.get_parameters('model_weights')
 classifier = Context.get_parameters('model_classifier')
 image_size = Context.get_parameters('input_shape') # in pixels!
 
-class Estimator:
+class Estimator(FluentdHelper):
     def __init__(self, **kwargs):
         # Initialize
         LOGGER.info("Starting object detection module")
@@ -55,6 +55,15 @@ class Estimator:
     def evaluate(self, **kwargs):
         LOGGER.debug(f"Evaluating model")
         self.model.eval()
+
+    def write_to_fluentd(self, data):
+        for elem in data:
+            msg = {
+                "outbound_data": elem[0].nbytes, 
+                "confidence": elem[1]
+            }
+            
+            self.send_json_msg(msg)
 
     def predict(self, data, **kwargs):
         # Padded resize
@@ -115,8 +124,7 @@ class Estimator:
                     crop = save_one_box(xyxy, imc, file='test.jpg', BGR=True, save=False)
                     bbs_list.append([crop.tolist(), conf.numpy().tolist(), self.camera_code, det_time])                   
 
-        #LOGGER.debug(bbs_list[0])
-        #LOGGER.debug(s)
+        self.write_to_fluentd(bbs_list)
         LOGGER.info(f"Found {len(bbs_list)} container/s in camera {self.camera_code}")
         
         return bbs_list
