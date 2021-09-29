@@ -15,7 +15,6 @@
 """Optical Flow Algorithms"""
 import abc
 import cv2
-
 from sedna.common.class_factory import ClassFactory, ClassType
 
 __all__ = ('LukasKanade')
@@ -40,7 +39,7 @@ class BaseFilter(metaclass=abc.ABCMeta):
         return 0 <= float(data) <= 1
 
 
-@ClassFactory.register(ClassType.OF, alias="LukasKanade")
+@ClassFactory.register(ClassType.OF, alias="LukasKanadeOF")
 class LukasKanade(BaseFilter, abc.ABC):
     def __init__(self, **kwargs):
         # Parameters for ShiTomasi corner detection

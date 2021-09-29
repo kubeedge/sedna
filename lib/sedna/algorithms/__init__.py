@@ -15,5 +15,5 @@
 from .aggregation import *
 from .hard_example_mining import *
 from .multi_task_learning import *
-from .optical_flow import *
+from .optical_flow import LukasKanade
 from .unseen_task_detect import *
