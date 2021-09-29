@@ -85,6 +85,7 @@ class Estimator:
         # We receive the image from the detection pod via REST API
         # This needs to be fixed.
         for d in data:
+            # Perform image decoding and store in array
             image_as_array = cv2.imdecode(np.array(d[0][0]).astype(np.uint8), cv2.IMREAD_COLOR)
             conf_score = d[0][1]
             camera_code = d[0][2]
