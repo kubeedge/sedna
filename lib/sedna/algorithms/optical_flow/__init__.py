@@ -65,10 +65,6 @@ class LukasKanade(BaseFilter, abc.ABC):
         :param current_img: next_image to check for motion
         :return: `True` means that there is movement in two subsequent frames, `False` means that there is no movement.
         """
-        # if invalid input, return False
-        if old_frame.size or current_frame.size:
-            return False
-
         old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
         p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **self.feature_params)
 
@@ -92,10 +88,8 @@ class LukasKanade(BaseFilter, abc.ABC):
 
         # We perform rounding because there might ba a minimal difference 
         # even between two images of the same subject (image compared against itsel)
-        # With the roudning we do not assert the presence of movement in 
-        # this cases
-        if numpy.array_equal(numpy.rint(good_new), numpy.rint(good_old)):
-            return False
-        else:
-            return True
+        # With the rounding we do not assert the presence of movement in 
+        # this cases. Allclose is used instead of array_equal to support array of floats.
+        movement = not numpy.allclose(numpy.rint(good_new), numpy.rint(good_old))
+        return movement
         

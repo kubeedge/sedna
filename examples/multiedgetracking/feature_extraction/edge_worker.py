@@ -14,6 +14,7 @@
 
 import sys
 import os
+import cv2
 
 import torch
 import torchvision.transforms as T
@@ -84,7 +85,7 @@ class Estimator:
         # We receive the image from the detection pod via REST API
         # This needs to be fixed.
         for d in data:
-            image_as_array = np.array(d[0][0]).astype(np.uint8)
+            image_as_array = cv2.imdecode(np.array(d[0][0]).astype(np.uint8), cv2.IMREAD_COLOR)
             conf_score = d[0][1]
             camera_code = d[0][2]
             det_time = d[0][3]

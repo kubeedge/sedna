@@ -15,15 +15,18 @@
 
 import os
 import datetime
+from sedna.common.utils import flatten_nested_list
 
 import torch
 import numpy as np
+import cv2
 
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
 from utils.utils import *
 from utils.general import save_one_box
+
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
@@ -57,13 +60,19 @@ class Estimator(FluentdHelper):
         self.model.eval()
 
     def write_to_fluentd(self, data):
-        for elem in data:
-            msg = {
-                "outbound_data": elem[0].nbytes, 
-                "confidence": elem[1]
-            }
-            
-            self.send_json_msg(msg)
+        try:
+            for elem in data:
+                bts = np.sum(list(map(lambda x: np.asarray(x).nbytes, elem[0])))
+                
+                msg = {
+                    "worker": self.work_name,
+                    "outbound_data": int(bts),
+                    "confidence": elem[1]
+                }
+                
+                self.send_json_msg(msg)
+        except Exception as ex:
+            LOGGER.error(f"Error while transmitting data to fluentd. Details: [{ex}]")
 
     def predict(self, data, **kwargs):
         # Padded resize
@@ -122,9 +131,17 @@ class Estimator(FluentdHelper):
                     #plot_one_box(xyxy, data, label=label, color=colors(c, True))
                     #cv2.imwrite("test00.jpeg", data)
                     crop = save_one_box(xyxy, imc, file='test.jpg', BGR=True, save=False)
-                    bbs_list.append([crop.tolist(), conf.numpy().tolist(), self.camera_code, det_time])                   
+                    # crop = crop.convert('P', palette=Image.ADAPTIVE)
+                    crop = save_one_box(xyxy, imc, file='test.jpg', BGR=True, save=False)
+                    
+                    # Perform cropped image compression to reduce size
+                    crop_encoded = np.array(cv2.imencode('.jpg', crop)[1])
+                    
+                    bbs_list.append([crop_encoded.tolist(), conf.numpy().tolist(), self.camera_code, det_time])                   
 
+        # Send some data to fluentd for monitoring
         self.write_to_fluentd(bbs_list)
+
         LOGGER.info(f"Found {len(bbs_list)} container/s in camera {self.camera_code}")
         
         return bbs_list
