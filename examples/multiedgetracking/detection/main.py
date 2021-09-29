@@ -15,8 +15,10 @@
 import time
 
 import requests
-import cv2
+import cv2, numpy
 import threading
+from sedna.algorithms.optical_flow import LukasKanadeOF
+from sedna.common.class_factory import ClassFactory, ClassType
 
 from sedna.common.config import Context
 from sedna.core.multi_edge_tracking import ObjectDetector
@@ -43,9 +45,8 @@ def retrieve_rtsp_stream() -> str:
         return camera_address
     
 
-
-
 def start_stream_acquisition(stream_address):
+    optical_flow = ClassFactory.get_cls(ClassType.OF)
     camera_code = stream_address.split("/")[-1] # WARNING: Only for demo purposes!
     edge_worker = ObjectDetector(estimator=Estimator(camera_code=camera_code))
 
@@ -55,6 +56,7 @@ def start_stream_acquisition(stream_address):
     fps = 0.5
     nframe = 0
     startTime = time.time()
+    prev_frame = None
 
     while True:
         try:
@@ -81,8 +83,14 @@ def start_stream_acquisition(stream_address):
             nframe += 1
             continue
 
+
         if nowTime - startTime > 1/fps:
             ret, input_yuv = camera.read()
+            if prev_frame:
+                if optical_flow(prev_frame, ret):
+                    LOGGER.info("Movement detected")
+                    
+            prev_frame = ret
             startTime = time.time() # reset time
 
             img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)

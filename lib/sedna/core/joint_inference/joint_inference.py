@@ -127,8 +127,7 @@ class JointInference(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{os.uname()[1]}_edge_inference"):
-            res = self.estimator.predict(data, **kwargs)
+        res = self.estimator.predict(data, **kwargs)
         edge_result = deepcopy(res)
 
         if callback_func:
@@ -142,11 +141,7 @@ class JointInference(JobBase):
         if self.hard_example_mining_algorithm:
             is_hard_example = self.hard_example_mining_algorithm(res)
             if is_hard_example:
-                with FTimer(f"{os.uname()[1]}_cloud_inference_and_transmission"):
-                    cloud_result = self.cloud.inference(
-                        data.tolist(), post_process=post_process, **kwargs)
-
-                size = sys.getsizeof(0) * len(flatten_nested_list(cloud_result['result']))
-                self.log.info(f"Received data: {size} bytes.")
+                cloud_result = self.cloud.inference(
+                data.tolist(), post_process=post_process, **kwargs)
                 self.lc_reporter.update_for_collaboration_inference()
         return [is_hard_example, res, edge_result, cloud_result]

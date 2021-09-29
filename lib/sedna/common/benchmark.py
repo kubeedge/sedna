@@ -11,8 +11,20 @@ if FLUENTD_ADDRESS:
     from fluent import sender
     from fluent import event
 
+class FluentdHelper():
+    def __init__(self):
+        self.log = LOGGER
+
+        if FLUENTD_ADDRESS:
+            # 'sedna' is a dedicated index in ES
+            sender.setup(FLUENTD_INDEX, host=FLUENTD_ADDRESS, port=FLUENTD_PORT)
+    
+    # msg must be a json dict (e.g, {'valA' : 1 ..})
+    def send_json_msg(self, msg):
+        event.Event('follow', {'message': json.dumps(msg)})
+
 class FTimer():
-    def __init__(self, name=""):
+    def __init__(self, name="", extra=None):
         self.start = time.time()
         self.log = LOGGER
         self.name = name
@@ -26,7 +38,7 @@ class FTimer():
     def __exit__(self, exc_type, exc_val, exc_tb):
         end = time.time()
         runtime = end - self.start
-        
+
         result = {
             "execution_time": runtime,
             "method_name": self.name
