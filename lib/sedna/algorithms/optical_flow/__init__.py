@@ -14,6 +14,8 @@
 
 """Optical Flow Algorithms"""
 import abc
+
+import numpy
 import cv2
 from sedna.common.class_factory import ClassFactory, ClassType
 
@@ -64,7 +66,7 @@ class LukasKanade(BaseFilter, abc.ABC):
         :return: `True` means that there is movement in two subsequent frames, `False` means that there is no movement.
         """
         # if invalid input, return False
-        if not old_frame or not current_frame:
+        if old_frame.size or current_frame.size:
             return False
 
         old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
@@ -88,8 +90,11 @@ class LukasKanade(BaseFilter, abc.ABC):
         #     mask = cv2.line(mask, (a, b), (c, d), self.color[i].tolist(), 2)
         #     frame = cv2.circle(frame, (a, b), 5, self.color[i].tolist(), -1)
 
-        # Does this work?
-        if good_new == good_old or err:
+        # We perform rounding because there might ba a minimal difference 
+        # even between two images of the same subject (image compared against itsel)
+        # With the roudning we do not assert the presence of movement in 
+        # this cases
+        if numpy.array_equal(numpy.rint(good_new), numpy.rint(good_old)):
             return False
         else:
             return True

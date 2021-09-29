@@ -13,10 +13,12 @@
 # limitations under the License.
 
 import time
+import numpy
 
 import requests
 import cv2
 import threading
+from sedna.algorithms.optical_flow import LukasKanade
 from sedna.common.class_factory import ClassFactory, ClassType
 
 from sedna.common.config import Context
@@ -45,7 +47,7 @@ def retrieve_rtsp_stream() -> str:
     
 
 def start_stream_acquisition(stream_address):
-    optical_flow = ClassFactory.get_cls(ClassType.OF)
+    optical_flow = LukasKanade()
     camera_code = stream_address.split("/")[-1] # WARNING: Only for demo purposes!
     edge_worker = ObjectDetector(estimator=Estimator(camera_code=camera_code))
 
@@ -55,7 +57,7 @@ def start_stream_acquisition(stream_address):
     fps = 0.5
     nframe = 0
     startTime = time.time()
-    prev_frame = None
+    prev_frame = numpy.empty(0)
 
     while True:
         try:
@@ -85,14 +87,15 @@ def start_stream_acquisition(stream_address):
 
         if nowTime - startTime > 1/fps:
             ret, input_yuv = camera.read()
-            if prev_frame:
-                if optical_flow(prev_frame, ret):
+            img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
+            
+            if prev_frame.size:
+                if optical_flow(prev_frame, img_rgb):
                     LOGGER.info("Movement detected")
                     
-            prev_frame = ret
+            prev_frame = img_rgb
             startTime = time.time() # reset time
 
-            img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
             nframe += 1
             LOGGER.debug(f"Camera is open, current frame index is {nframe}")
             threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
