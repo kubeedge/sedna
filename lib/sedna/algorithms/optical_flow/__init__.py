@@ -15,7 +15,6 @@
 """Optical Flow Algorithms"""
 import abc
 import cv2
-import numpy as np
 
 from sedna.common.class_factory import ClassFactory, ClassType
 
@@ -55,7 +54,7 @@ class LukasKanade(BaseFilter, abc.ABC):
         )
 
         # Create random colors
-        self.color = np.random.randint(0, 255, (100, 3))
+        # self.color = np.random.randint(0, 255, (100, 3))
 
 
 
