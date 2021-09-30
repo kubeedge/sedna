@@ -38,7 +38,7 @@ image_size = Context.get_parameters('input_shape')
 class Estimator(FluentdHelper):
 
     def __init__(self, **kwargs):
-        super(FluentdHelper, self).__init__()
+        super(Estimator, self).__init__()
         LOGGER.info(f"Starting feature extraction module")
         self.model = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"

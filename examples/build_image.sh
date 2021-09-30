@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+export GOINSECURE="dmitri.shuralyov.com"
+export GOPRIVATE=*
+
 helpFunction()
 {
    echo ""
@@ -86,4 +89,6 @@ for dockerfile in ${dockerfiles[@]}; do
   echo "Building $dockerfile" 
   example_name=${dockerfile/.Dockerfile}
   docker build -f $dockerfile -t ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} --label sedna=examples ..
+  docker tag ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} registry-cbu.huawei.com/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
+  docker push registry-cbu.huawei.com/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
 done
