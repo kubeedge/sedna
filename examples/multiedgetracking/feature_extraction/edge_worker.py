@@ -23,7 +23,7 @@ import numpy as np
 
 from sedna.backend.torch.nets.nn import Backbone
 from sedna.common.config import Context
-from sedna.common.benchmark import FTimer
+from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
 from sedna.core.multi_edge_tracking import FEService
 from sedna.core.multi_edge_tracking.multi_edge_tracking import FEService
@@ -35,7 +35,7 @@ model_path = Context.get_parameters('model_path')
 model_name = Context.get_parameters('model_name')
 image_size = Context.get_parameters('input_shape')
 
-class Estimator:
+class Estimator(FluentdHelper):
 
     def __init__(self, **kwargs):
         LOGGER.info(f"Starting feature extraction module")
@@ -75,6 +75,18 @@ class Estimator:
     def convert_to_list(self, data, camera_code, det_time):
         return [data.numpy().tolist(), camera_code, det_time]
 
+    def write_to_fluentd(self, data):
+        try:
+            msg = {
+                "worker": self.work_name,
+                "outbound_data": data
+            }
+            
+            self.send_json_msg(msg)
+        except Exception as ex:
+            LOGGER.error(f"Error while transmitting data to fluentd. Details: [{ex}]")
+
+
     def predict(self, data, **kwargs):
         result = []
 
@@ -104,6 +116,9 @@ class Estimator:
 
             LOGGER.debug(f"Input image size: {image_as_array.nbytes}")
             LOGGER.debug(f"Output tensor size {sys.getsizeof(query_feat.storage())}")
+            
+            self.write_to_fluentd(sys.getsizeof(query_feat.storage()))
+
             # It returns a tensor, it should be transformed into a list before TX
             result.append(self.convert_to_list(query_feat, camera_code, det_time))
 

@@ -92,14 +92,14 @@ def start_stream_acquisition(stream_address):
             if prev_frame.size:
                 if optical_flow(prev_frame, img_rgb):
                     LOGGER.info("Movement detected")
-                    
+
+                    nframe += 1
+                    LOGGER.debug(f"Camera is open, current frame index is {nframe}")
+                    threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
+                    #edge_worker.inference(img_rgb)
+            
             prev_frame = img_rgb
             startTime = time.time() # reset time
-
-            nframe += 1
-            LOGGER.debug(f"Camera is open, current frame index is {nframe}")
-            threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
-            #edge_worker.inference(img_rgb)
 
 if __name__ == '__main__':
     result = retrieve_rtsp_stream()

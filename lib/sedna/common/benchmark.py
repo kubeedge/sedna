@@ -13,8 +13,6 @@ if FLUENTD_ADDRESS:
 
 class FluentdHelper():
     def __init__(self):
-        self.log = LOGGER
-
         if FLUENTD_ADDRESS:
             # 'sedna' is a dedicated index in ES
             sender.setup(FLUENTD_INDEX, host=FLUENTD_ADDRESS, port=FLUENTD_PORT)
@@ -23,15 +21,11 @@ class FluentdHelper():
     def send_json_msg(self, msg):
         event.Event('follow', {'message': json.dumps(msg)})
 
-class FTimer():
+class FTimer(FluentdHelper):
     def __init__(self, name="", extra=None):
         self.start = time.time()
         self.log = LOGGER
         self.name = name
-
-        if FLUENTD_ADDRESS:
-            # 'sedna' is a dedicated index in ES
-            sender.setup(FLUENTD_INDEX, host=FLUENTD_ADDRESS, port=FLUENTD_PORT)
 
     def __enter__(self):
         return self
@@ -44,9 +38,5 @@ class FTimer():
             "method_name": self.name
         }
 
-        if FLUENTD_ADDRESS:
-            # The parameters "follow" and "message" are connected to the 
-            # filter/parser in the fluentd configuration we created for Sedna
-            event.Event('follow', {'message': json.dumps(result)})
-
+        self.send_json_msg(result)
         self.log.debug(json.dumps(result))

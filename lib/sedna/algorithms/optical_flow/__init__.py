@@ -35,12 +35,6 @@ class BaseFilter(metaclass=abc.ABCMeta):
         """
         raise NotImplementedError
 
-    @classmethod
-    def data_check(cls, data):
-        """Check the data in [0,1]."""
-        return 0 <= float(data) <= 1
-
-
 @ClassFactory.register(ClassType.OF, alias="LukasKanadeOF")
 class LukasKanade(BaseFilter, abc.ABC):
     def __init__(self, **kwargs):
@@ -53,11 +47,6 @@ class LukasKanade(BaseFilter, abc.ABC):
             maxLevel=2,
             criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03),
         )
-
-        # Create random colors
-        # self.color = np.random.randint(0, 255, (100, 3))
-
-
 
     def __call__(self, old_frame=None, current_frame=None):
         """
@@ -79,17 +68,9 @@ class LukasKanade(BaseFilter, abc.ABC):
         good_new = p1[st == 1]
         good_old = p0[st == 1]
 
-        # # Draw the tracks
-        # for i, (new, old) in enumerate(zip(good_new, good_old)):
-        #     a, b = new.ravel()
-        #     c, d = old.ravel()
-        #     mask = cv2.line(mask, (a, b), (c, d), self.color[i].tolist(), 2)
-        #     frame = cv2.circle(frame, (a, b), 5, self.color[i].tolist(), -1)
-
         # We perform rounding because there might ba a minimal difference 
         # even between two images of the same subject (image compared against itsel)
-        # With the rounding we do not assert the presence of movement in 
-        # this cases. Allclose is used instead of array_equal to support array of floats.
+        # Allclose is used instead of array_equal to support array of floats (if we remove rounding).
         movement = not numpy.allclose(numpy.rint(good_new), numpy.rint(good_old))
         return movement
         
