@@ -88,16 +88,19 @@ def start_stream_acquisition(stream_address):
         if nowTime - startTime > 1/fps:
             ret, input_yuv = camera.read()
             img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
-            
+            LOGGER.debug(f"Camera is open, current frame index is {nframe}")
+
             if prev_frame.size:
                 if optical_flow(prev_frame, img_rgb):
                     LOGGER.info("Movement detected")
-
-                    nframe += 1
-                    LOGGER.debug(f"Camera is open, current frame index is {nframe}")
                     threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
-                    #edge_worker.inference(img_rgb)
+            else:
+                # The first time we are going to process the frame anyway
+                LOGGER.info("Processing first frame in the RTSP stream")
+                threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
+                #edge_worker.inference(img_rgb)
             
+            nframe += 1
             prev_frame = img_rgb
             startTime = time.time() # reset time
 

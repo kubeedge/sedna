@@ -23,6 +23,7 @@ class FluentdHelper():
 
 class FTimer(FluentdHelper):
     def __init__(self, name="", extra=None):
+        super(FluentdHelper, self).__init__()
         self.start = time.time()
         self.log = LOGGER
         self.name = name
