@@ -37,6 +37,7 @@ image_size = Context.get_parameters('input_shape') # in pixels!
 class Estimator(FluentdHelper):
     def __init__(self, **kwargs):
         # Initialize
+        super(FluentdHelper, self).__init__()
         LOGGER.info("Starting object detection module")
         self.device = self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = None
