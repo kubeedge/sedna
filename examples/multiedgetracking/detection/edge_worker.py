@@ -66,7 +66,7 @@ class Estimator(FluentdHelper):
                 bts = np.sum(list(map(lambda x: np.asarray(x).nbytes, elem[0])))
                 
                 msg = {
-                    "worker": self.work_name,
+                    "worker": "l2-object-detector",
                     "outbound_data": int(bts),
                     "confidence": elem[1]
                 }

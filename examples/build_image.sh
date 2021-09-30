@@ -21,7 +21,7 @@ helpFunction()
 {
    echo ""
    echo "Usage: $0 -t type"
-   echo -e "\t-t The type parameters allows to select which kind of images to build (edge, cloud, others, all)"
+   echo -e "\t-t The type parameters allows to select which kind of images to build (cm5, cm6, others, all)"
    exit 1 # Exit script after printing help
 }
 
@@ -46,19 +46,15 @@ IMAGE_TAG=${IMAGE_TAG:-v0.3.0}
 
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 
-dockerfiles_cloud=(
-# federated-learning-surface-defect-detection-aggregation.Dockerfile
-# joint-inference-helmet-detection-big.Dockerfile
-multi-edge-tracking-reid.Dockerfile
-# dnn-partitioning-alex-net-cloud.Dockerfile
-)
-
-dockerfiles_edge=(
-# federated-learning-surface-defect-detection-train.Dockerfile
-# joint-inference-helmet-detection-little.Dockerfile
+dockerfiles_cm5=(
 multi-edge-tracking-feature-extraction.Dockerfile
 multi-edge-tracking-detection.Dockerfile
-# dnn-partitioning-alex-net-edge.Dockerfile
+multi-edge-tracking-reid.Dockerfile
+)
+
+dockerfiles_cm6=(
+dnn-partitioning-alex-net-edge.Dockerfile
+dnn-partitioning-alex-net-cloud.Dockerfile
 )
 
 dockerfiles_others=(
@@ -68,12 +64,12 @@ dockerfiles_others=(
 
 case $type in
 
-  cloud)
-    dockerfiles=${dockerfiles_cloud[@]}
+  cm5)
+    dockerfiles=${dockerfiles_cm5[@]}
     ;;
 
-  edge)
-    dockerfiles=${dockerfiles_edge[@]}
+  cm6)
+    dockerfiles=${dockerfiles_cm6[@]}
     ;;
 
   others)
@@ -81,7 +77,7 @@ case $type in
     ;;
 
   all | *)
-    dockerfiles+=( "${dockerfiles_cloud[@]}" "${dockerfiles_edge[@]}" "${dockerfiles_others[@]}" )
+    dockerfiles+=( "${dockerfiles_cloud[@]}" "${dockerfiles_cm5[@]}" "${dockerfiles_cm6[@]}" "${dockerfiles_others[@]}" )
     ;;
 esac
 

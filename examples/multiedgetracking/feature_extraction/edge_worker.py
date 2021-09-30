@@ -79,7 +79,7 @@ class Estimator(FluentdHelper):
     def write_to_fluentd(self, data):
         try:
             msg = {
-                "worker": self.work_name,
+                "worker": "l1-feature-extractor",
                 "outbound_data": data
             }
             
