@@ -43,7 +43,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 IMAGE_REPO=${IMAGE_REPO:-kubeedge}
 IMAGE_TAG=${IMAGE_TAG:-v0.3.0}
-
+HUAWEI_DOCKER_REPOSITORY="registry-cbu.huawei.com"
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 
 dockerfiles_cm5=(
@@ -85,6 +85,6 @@ for dockerfile in ${dockerfiles[@]}; do
   echo "Building $dockerfile" 
   example_name=${dockerfile/.Dockerfile}
   docker build -f $dockerfile -t ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} --label sedna=examples ..
-  docker tag ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} registry-cbu.huawei.com/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
-  docker push registry-cbu.huawei.com/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
+  docker tag ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} ${HUAWEI_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
+  docker push ${HUAWEI_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
 done

@@ -87,7 +87,6 @@ class Estimator(FluentdHelper):
         except Exception as ex:
             LOGGER.error(f"Error while transmitting data to fluentd. Details: [{ex}]")
 
-
     def predict(self, data, **kwargs):
         result = []
 
@@ -103,7 +102,7 @@ class Estimator(FluentdHelper):
             conf_score = d[0][1]
             camera_code = d[0][2]
             det_time = d[0][3]
-
+            
             data = Image.fromarray(image_as_array)
             LOGGER.debug(f'Performing feature extraction for received image')
             input = torch.unsqueeze(self.transform(data), 0)
