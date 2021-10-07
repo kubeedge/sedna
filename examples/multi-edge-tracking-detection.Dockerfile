@@ -1,4 +1,5 @@
 FROM python:3.7
+#FROM python:3.7-slim-bullseye
 
 WORKDIR /home
 
@@ -9,7 +10,13 @@ RUN apt install libgl1-mesa-glx -y
 RUN apt install -y gfortran libopenblas-dev liblapack-dev
 
 ## Install applications dependencies
-RUN pip install torch torchvision tqdm pillow opencv-python pytorch-ignite asyncio kafka-python fluent-logger
+RUN pip install torch torchvision tqdm pillow opencv-python pytorch-ignite asyncio
+
+## Add Kafka Python library
+RUN pip install kafka-python 
+
+## Add Fluentd Python library
+RUN pip install fluent-logger
 
 ## SEDNA SECTION ##
   

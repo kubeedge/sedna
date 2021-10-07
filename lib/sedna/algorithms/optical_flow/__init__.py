@@ -18,6 +18,7 @@ import abc
 import numpy
 import cv2
 from sedna.common.class_factory import ClassFactory, ClassType
+from sedna.common.benchmark import FTimer
 
 __all__ = ('LukasKanade')
 
@@ -54,23 +55,24 @@ class LukasKanade(BaseFilter, abc.ABC):
         :param current_img: next_image to check for motion
         :return: `True` means that there is movement in two subsequent frames, `False` means that there is no movement.
         """
-        old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
-        p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **self.feature_params)
+        with FTimer(f"LukasKanadeOF"):
+            old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
+            p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **self.feature_params)
 
-        current_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
+            current_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
 
-        # Calculate Optical Flow
-        p1, st, err = cv2.calcOpticalFlowPyrLK(
-            old_gray, current_gray, p0, None, **self.lk_params
-        )
+            # Calculate Optical Flow
+            p1, st, err = cv2.calcOpticalFlowPyrLK(
+                old_gray, current_gray, p0, None, **self.lk_params
+            )
 
-        # Select good points
-        good_new = p1[st == 1]
-        good_old = p0[st == 1]
+            # Select good points
+            good_new = p1[st == 1]
+            good_old = p0[st == 1]
 
-        # We perform rounding because there might ba a minimal difference 
-        # even between two images of the same subject (image compared against itsel)
-        # Allclose is used instead of array_equal to support array of floats (if we remove rounding).
-        movement = not numpy.allclose(numpy.rint(good_new), numpy.rint(good_old))
-        return movement
+            # We perform rounding because there might ba a minimal difference 
+            # even between two images of the same subject (image compared against itself)
+            # Allclose is used instead of array_equal to support array of floats (if we remove rounding).
+            movement = not numpy.allclose(numpy.rint(good_new), numpy.rint(good_old))
+            return movement
         

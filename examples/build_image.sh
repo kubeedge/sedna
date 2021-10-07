@@ -84,7 +84,7 @@ esac
 for dockerfile in ${dockerfiles[@]}; do
   echo "Building $dockerfile" 
   example_name=${dockerfile/.Dockerfile}
-  docker build -f $dockerfile -t ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} --label sedna=examples ..
-  docker tag ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} ${HUAWEI_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
+  docker build -f $dockerfile -t ${HUAWEI_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} --label sedna=examples ..
+  # docker tag ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} ${HUAWEI_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
   docker push ${HUAWEI_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
 done

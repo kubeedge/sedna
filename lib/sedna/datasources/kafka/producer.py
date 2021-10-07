@@ -1,12 +1,16 @@
 import pickle
-
 from sedna.datasources.kafka import *
+from sedna.datasources.kafka.fluentd_reporter import FluentdReporter
 
 class Producer(Client):
-    def __init__(self, address = ["localhost"], port = [9092]) -> None:
+    def __init__(self, address = ["localhost"], port = [9092], _metric_reporters=[FluentdReporter]) -> None:
         super().__init__(address, port)
         LOGGER.debug("Creating Kafka producer")
-        self.producer = KafkaProducer(bootstrap_servers=self.kafka_endpoints, max_request_size=10000000)
+        self.producer = KafkaProducer(
+            bootstrap_servers=self.kafka_endpoints,
+            max_request_size=10000000,
+            metric_reporters=_metric_reporters
+            )
 
     def publish_data(self, data, topic = "default") -> bool:
 

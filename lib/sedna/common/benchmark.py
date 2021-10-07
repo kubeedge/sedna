@@ -7,7 +7,7 @@ from sedna.common.log import LOGGER
 # This belong to a ConfigMap
 FLUENTD_ADDRESS = Context.get_parameters("FLUENTD_IP", None)
 FLUENTD_PORT = 24224
-FLUENTD_INDEX = 'sedna'
+SEDNA_INDEX = 'sedna'
 
 if FLUENTD_ADDRESS:
     from fluent import sender
@@ -15,11 +15,11 @@ if FLUENTD_ADDRESS:
 
 # Base class to send events to the Fluentd daemon in the cluster (if available)
 class FluentdHelper():
-    def __init__(self):
+    def __init__(self, index=SEDNA_INDEX):
         super().__init__()
         if FLUENTD_ADDRESS:
             # 'sedna' is a dedicated index in ES
-            sender.setup(FLUENTD_INDEX, host=FLUENTD_ADDRESS, port=FLUENTD_PORT)
+            sender.setup(SEDNA_INDEX, host=FLUENTD_ADDRESS, port=FLUENTD_PORT)
     
     # msg must be a json dict (e.g, {'valA' : 1 ..})
     def send_json_msg(self, msg):
