@@ -1,12 +1,11 @@
 import pickle
 
 from sedna.datasources.kafka import *
-from sedna.datasources.kafka.fluentd_reporter import FluentdReporter
 
 POLL_TIMEOUT_MS = 5000
 
 class Consumer(Client):
-    def __init__(self, address = ["localhost"], port = [9092], group_id="default", _metric_reporters=[FluentdReporter]) -> None:
+    def __init__(self, address = ["localhost"], port = [9092], group_id="default", _metric_reporters=[]) -> None:
         super().__init__(address, port)
         LOGGER.debug("Creating Kafka consumer")
         self.consumer = KafkaConsumer(
