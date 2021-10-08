@@ -39,4 +39,4 @@ This changes can be found in the `pkg` folder:
 
 - [I][M] Modified the `build_image.sh` file to building Docker images by example rather than building all of them.
 - [SC][S] Modified the Sedns requirements.txt to load the extra `kafka-python` and `fluent-logger` dependecies.
-
+- [SC][S] Modified `hack\update-codegen.sh` to fix a problem where Sedna home does not match GOLANG home. In this case, the generated code was never updated in the Sedna framework. 
