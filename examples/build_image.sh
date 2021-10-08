@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Can help when behind corporate network
 export GOINSECURE="dmitri.shuralyov.com"
 export GOPRIVATE=*
 
@@ -43,48 +44,77 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 IMAGE_REPO=${IMAGE_REPO:-kubeedge}
 IMAGE_TAG=${IMAGE_TAG:-v0.3.0}
-HUAWEI_DOCKER_REPOSITORY="registry-cbu.huawei.com"
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 
-dockerfiles_cm5=(
+# Uncomment this line if you want to push your images to a private repository
+PRIVATE_DOCKER_REPOSITORY="registry-cbu.huawei.com"
+
+dockerfiles_multiedgetracking=(
 multi-edge-tracking-feature-extraction.Dockerfile
 multi-edge-tracking-detection.Dockerfile
 multi-edge-tracking-reid.Dockerfile
 )
 
-dockerfiles_cm6=(
+dockerfiles_dnn_partitioning=(
 dnn-partitioning-alex-net-edge.Dockerfile
 dnn-partitioning-alex-net-cloud.Dockerfile
 )
 
-dockerfiles_others=(
-#incremental-learning-helmet-detection.Dockerfile
-#lifelong-learning-atcii-classifier.Dockerfile
+dockerfiles_federated_learning=(
+federated-learning-surface-defect-detection-aggregation.Dockerfile
+federated-learning-surface-defect-detection-aggregation-train.Dockerfile
+)
+
+dockerfiles_joint_inference=(
+joint-inference-helmet-detection-big.Dockerfile
+joint-inference-helmet-detection-little.Dockerfile
+)
+
+dockerfiles_lifelong_learning=(
+lifelong-learning-atcii-classifier.Dockerfile
+)
+
+
+dockerfiles_incremental_learning=(
+incremental-learning-helmet-detection.Dockerfile
 )
 
 case $type in
 
-  cm5)
-    dockerfiles=${dockerfiles_cm5[@]}
+  multiedgetracking)
+    dockerfiles=${dockerfiles_multiedgetracking[@]}
     ;;
 
-  cm6)
-    dockerfiles=${dockerfiles_cm6[@]}
+  dnn_partitioning)
+    dockerfiles=${dockerfiles_dnn_partitioning[@]}
     ;;
 
-  others)
-    dockerfiles=${dockerfiles_others[@]}
+  federated_learning)
+    dockerfiles=${dockerfiles_federated_learning[@]}
+    ;;
+
+  joint_inference)
+    dockerfiles=${dockerfiles_joint_inference[@]}
+    ;;
+
+  lifelong_learning)
+    dockerfiles=${dockerfiles_lifelong_learning[@]}
+    ;;
+
+  incremental_learning)
+    dockerfiles=${dockerfiles_incremental_learning[@]}
     ;;
 
   all | *)
-    dockerfiles+=( "${dockerfiles_cloud[@]}" "${dockerfiles_cm5[@]}" "${dockerfiles_cm6[@]}" "${dockerfiles_others[@]}" )
+    dockerfiles+=( "${dockerfiles_multiedgetracking[@]}" "${dockerfiles_dnn_partitioning[@]}" "${dockerfiles_federated_learning[@]}" "${dockerfiles_joint_inference[@]}" "${dockerfiles_lifelong_learning[@]}" "${dockerfiles_incremental_learning[@]}" )
     ;;
 esac
+
+if [ -z ${PRIVATE_DOCKER_REPOSITORY+x} ]; then TARGET_REPO=${EXAMPLE_REPO_PREFIX}; else TARGET_REPO=${PRIVATE_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}; fi
 
 for dockerfile in ${dockerfiles[@]}; do
   echo "Building $dockerfile" 
   example_name=${dockerfile/.Dockerfile}
-  docker build -f $dockerfile -t ${HUAWEI_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} --label sedna=examples ..
-  # docker tag ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} ${HUAWEI_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
-  docker push ${HUAWEI_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG}
+  docker build -f $dockerfile -t ${TARGET_REPO}${example_name}:${IMAGE_TAG} --label sedna=examples ..
+  docker push ${TARGET_REPO}${example_name}:${IMAGE_TAG}
 done

@@ -248,11 +248,6 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 		}
 	}
 
-	// if deployment.Spec.Template.Spec.Containers[0].Ports != nil {
-	// 	deployment.Spec.Template.Spec.Containers[0].Ports[0].HostPort = port
-	// 	deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = port
-	// }
-
 	envs := createEnvVars(workerParam.env)
 	for idx := range deployment.Spec.Template.Spec.Containers {
 		deployment.Spec.Template.Spec.Containers[idx].Env = append(
@@ -261,7 +256,6 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 	}
 
 	InjectStorageInitializerDeployment(deployment, workerParam)
-
 
 }
 

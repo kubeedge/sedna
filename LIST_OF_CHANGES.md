@@ -5,7 +5,7 @@ Below are listed the changes applied to the original Sedna repository divided in
 - [I] Invasive: Affects the Sedna framework as a whole and can potentially introduce breaking changes. Requires recompilation.
 - [SC] Self-contained: Can be integrated without affecting other modules in Sedna (e.g., Kafka module).
 - [ND] Effect on Sedna is non-determined.
-- [S/M/B] Size of the features: Small/Medium/Big
+- [S/M/B] Size of the features: Small/Medium/Big.
 
 ## Applications
 
@@ -38,5 +38,5 @@ This changes can be found in the `pkg` folder:
 ## Extra
 
 - [I][M] Modified the `build_image.sh` file to building Docker images by example rather than building all of them.
-- [SC][S] Modified the Sedns requirements.txt to load the extra `kafka-python` and `fluent-logger` dependecies.
+- [SC][S] Modified the Sedna requirements.txt to load the extra `kafka-python` and `fluent-logger` dependecies.
 - [SC][S] Modified `hack\update-codegen.sh` to fix a problem where Sedna home does not match GOLANG home. In this case, the generated code was never updated in the Sedna framework. 

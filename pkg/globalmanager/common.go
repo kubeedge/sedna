@@ -42,7 +42,7 @@ const (
 	ResourceUpdateRetries = 3
 )
 
-// GetNodeIPByName get node ip by node name
+// GetNodeIPByName get node ip by label
 func GetNodeIPByLabel(kubeClient kubernetes.Interface, label map[string]string, namespace string) (string, error) {
 	// Gives back the list of nodes with the specified selector field
 	var nodes []v1.Node
@@ -190,6 +190,8 @@ func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string, se
 
 	// For this to work, the kafka-service has to contain an annotation field
 	// containing the advertised_IP of the Kafka broker (the same as in the deployment).
+	// Additionally, another label field called `sector` has to be set in the Kafka service
+	// to indicate where the broker is deployed Kafka broker is at the edge.
 	// Ideally, it should match the KAFKA_ADVERTISED_HOST_NAME in the deployment configuration.
 	// Using the service name doesn't work using the defualt Kafka YAML file.
 
@@ -211,18 +213,6 @@ func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string, se
 			}
 		}
 	}
-
-	// for _, svc := range s.Items {
-	// 	if strings.Contains(svc.GetName(), name) {
-	// 		klog.Info(svc.GetName() + "" + svc.GetClusterName())
-	// 		if svc.GetLabels()["sector"] == 0 || svc.GetLabels()["sector"] == sector_optional {
-	// 			kafkaAddresses = append(kafkaAddresses, svc.Annotations["advertised_ip"])
-	// 			kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].NodePort))
-	// 		} else {
-	// 			kafkaAddresses = append(kafkaAddresses, svc.GetName() + "." + svc.GetNamespace())
-	// 			kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].Port))
-	// 	}
-	// }
 
 	if len(kafkaAddresses) > 0 && len(kafkaPorts) > 0 {
 		return kafkaAddresses, kafkaPorts, err

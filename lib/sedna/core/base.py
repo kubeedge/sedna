@@ -13,8 +13,6 @@
 # limitations under the License.
 
 import os.path
-import json
-
 from sedna.common.log import LOGGER
 from sedna.common.file_ops import FileOps
 from sedna.common.config import BaseConfig
@@ -23,11 +21,6 @@ from sedna.common.constant import K8sResourceKind
 from sedna.service.client import LCClient
 from sedna.backend import set_backend
 from sedna.common.class_factory import ClassFactory, ClassType
-
-import queue
-from sedna.common.utils import get_host_ip
-from sedna.service.kafka_manager import KafkaConsumerThread, KafkaProducer
-import distutils.core
 
 __all__ = ('JobBase',)
 
