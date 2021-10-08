@@ -15,7 +15,6 @@
 import os, queue
 from copy import deepcopy
 import threading
-from sedna.common.log import LOGGER
 
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
@@ -24,7 +23,6 @@ from sedna.service.fe_endpoint import FE
 from sedna.service.kafka_manager import KafkaConsumerThread, KafkaProducer
 from sedna.service.reid_endpoint import ReID
 
-from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
 from sedna.common.benchmark import FTimer
 
@@ -61,12 +59,12 @@ class ReIDService(JobBase):
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
 
         if self.kafka_enabled:
-            LOGGER.debug("Kafka support enabled in YAML file")
+            self.log.debug("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
 
             if isinstance(self.kafka_address, str):
-                LOGGER.debug(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
+                self.log.debug(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
                 self.kafka_address = self.kafka_address.split("|")
                 self.kafka_port = self.kafka_port.split("|")
             
@@ -87,22 +85,22 @@ class ReIDService(JobBase):
         #     # self.estimator.load(self.model_path)
 
         if self.kafka_enabled:
-            LOGGER.debug("Creating sync_inference thread")
+            self.log.debug("Creating sync_inference thread")
             self.fetch_data()
             # threading.Thread(target=self.sync_inference, daemon=True).start()
         else:
-            LOGGER.debug("Starting default REST webservice")
+            self.log.debug("Starting default REST webservice")
             app_server = ReIDServer(model=self, servername=self.job_name, host=self.local_ip, http_port=self.port)
             app_server.start()
 
     def fetch_data(self):
         while True:
             token = self.sync_queue.get()
-            LOGGER.debug(f'Data consumed')
+            self.log.debug(f'Data consumed')
             try:
                 self.inference(token)
             except Exception as e:
-                LOGGER.debug(f"Error processing received data: {e}")
+                self.log.debug(f"Error processing received data: {e}")
 
             self.sync_queue.task_done()
 
@@ -133,7 +131,6 @@ class FEService(JobBase):
             estimator=estimator, config=config)
         self.log.info("Loading Feature Extraction module")
 
-        self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
         # Port and IP of the service this pod will host (local)
         self.local_ip = self.get_parameters(get_host_ip())
         self.local_port = int(self.get_parameters("FE_MODEL_BIND_PORT", "6000"))
@@ -145,12 +142,12 @@ class FEService(JobBase):
         self.sync_queue = queue.Queue()
 
         if self.kafka_enabled:
-            LOGGER.debug("Kafka support enabled in YAML file")
+            self.log.debug("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
             
             if isinstance(self.kafka_address, str):
-                LOGGER.debug(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
+                self.log.debug(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
                 self.kafka_address = self.kafka_address.split("|")
                 self.kafka_port = self.kafka_port.split("|")
 
@@ -164,18 +161,18 @@ class FEService(JobBase):
         if callable(self.estimator):
             self.estimator = self.estimator()
 
-        self.log.info("Estimator -> Loading model and weights")
+        self.log.info("Loading model")
         self.estimator.load()
 
-        self.log.info("Estimator -> Evaluating model ..")
+        self.log.info("Evaluating model")
         self.estimator.evaluate()
 
         if self.kafka_enabled:
-            LOGGER.debug("Creating sync_inference thread")
+            self.log.debug("Creating Apache Kafka thread to fetch data")
             self.fetch_data()
             # threading.Thread(target=self.sync_inference, daemon=True).start()
         else:
-            LOGGER.debug("Starting default REST webservice/s")
+            self.log.debug("Starting default REST webservice/s")
 
             self.cloud = ReID(service_name=self.job_name,host=self.remote_ip, port=self.remote_port)
             app_server = FEServer(model=self, servername=self.job_name,host=self.local_ip, http_port=self.local_port)
@@ -188,18 +185,18 @@ class FEService(JobBase):
     def fetch_data(self):
         while True:
             token = self.sync_queue.get()
-            LOGGER.debug(f'Data consumed')
+            self.log.debug(f'Data consumed')
             try:
                 self.inference(token)
             except Exception as e:
                 msg = f"Error processing token {token}: {e}" 
-                LOGGER.error((msg[:60] + '..' + msg[len(msg)-40:-1]) if len(msg) > 60 else msg)
+                self.log.error((msg[:60] + '..' + msg[len(msg)-40:-1]) if len(msg) > 60 else msg)
 
             self.sync_queue.task_done()
 
     def put_data(self, data):
         self.sync_queue.put(data)
-        LOGGER.debug("Data deposited")
+        self.log.debug("Data deposited")
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None
@@ -221,7 +218,7 @@ class FEService(JobBase):
         # edge_result
 
         if fe_result != None:
-            with FTimer(f"upload_plus_reid"):
+            with FTimer(f"upload_fe_results"):
                 if self.kafka_enabled:
                     cres = self.producer.write_result(fe_result)
                 else:
@@ -239,7 +236,7 @@ class ObjectDetector(JobBase):
         super(ObjectDetector, self).__init__(
             estimator=estimator, config=config)
         self.log.info("Loading ObjectDetector module")
-        self.job_kind = K8sResourceKind.MULTI_EDGE_TRACKING_SERVICE.value
+        
         self.local_ip = get_host_ip()
 
         self.remote_ip = self.get_parameters("FE_MODEL_BIND_URL", self.local_ip)
@@ -251,12 +248,12 @@ class ObjectDetector(JobBase):
             self.log.error("ERROR! Estimator is not set!")
 
         if self.kafka_enabled:
-            LOGGER.debug("Kafka support enabled in YAML file")
+            self.log.debug("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
             self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
 
             if isinstance(self.kafka_address, str):
-                LOGGER.debug(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
+                self.log.debug(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
                 self.kafka_address = self.kafka_address.split("|")
                 self.kafka_port = self.kafka_port.split("|")
 
@@ -268,14 +265,17 @@ class ObjectDetector(JobBase):
         if callable(self.estimator):
             self.estimator = self.estimator()
 
+        self.log.info("Loading model")
         self.estimator.load()
 
-        self.log.info("Estimator -> Evaluating model ..")
+        self.log.info("Evaluating model")
         self.estimator.evaluate()
 
-        LOGGER.debug("Starting default REST webservice/s")
-        # The edge node in the next layer taking care of the feature extraction
-        self.edge = FE(service_name=self.job_name,host=self.remote_ip, port=self.port)
+        self.log.debug("Starting default REST webservice/s")
+
+        if not self.kafka_enabled:
+            # The edge node in the next layer taking care of the feature extraction
+            self.edge = FE(service_name=self.job_name,host=self.remote_ip, port=self.port)
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None

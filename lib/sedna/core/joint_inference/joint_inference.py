@@ -17,7 +17,7 @@ import json
 from copy import deepcopy
 import sys
 
-from sedna.common.utils import get_host_ip, flatten_nested_list
+from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.service.server import InferenceServer
 from sedna.service.client import ModelClient, LCReporter
@@ -112,6 +112,27 @@ class JointInference(JobBase):
         self.cloud = ModelClient(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
         self.hard_example_mining_algorithm = self.initial_hem
+
+    @property
+    def initial_hem(self):
+        hem = self.get_parameters("HEM_NAME")
+        hem_parameters = self.get_parameters("HEM_PARAMETERS")
+
+        try:
+            hem_parameters = json.loads(hem_parameters)
+            hem_parameters = {
+                p["key"]: p.get("value", "")
+                for p in hem_parameters if "key" in p
+            }
+        except Exception as err:
+            self.log.warn(f"Parse HEM_PARAMETERS failure, "
+                          f"fallback to empty: {err}")
+            hem_parameters = {}
+
+        if hem is None:
+            hem = self.config.get("hem_name") or "IBT"
+
+        return ClassFactory.get_cls(ClassType.HEM, hem)(**hem_parameters)
 
     def train(self, train_data,
               valid_data=None,

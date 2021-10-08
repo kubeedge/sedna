@@ -48,7 +48,7 @@ class FTimer(FluentdHelper):
         self.send_json_msg(result)
         self.log.debug(json.dumps(result))
 
-# Class to monitor resource utlization of a pod belonging to Sedna
+# Class to monitor resource utlization of a pod belonging to Sedna (acutally this collects stats of the node)
 # class ResourceMonitor(FluentdHelper, Thread):
 #     def __init__(self, interval = 1, refresh_interval = 0.5) -> None:
 #         super().__init__()

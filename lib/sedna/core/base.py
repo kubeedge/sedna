@@ -24,6 +24,11 @@ from sedna.service.client import LCClient
 from sedna.backend import set_backend
 from sedna.common.class_factory import ClassFactory, ClassType
 
+import queue
+from sedna.common.utils import get_host_ip
+from sedna.service.kafka_manager import KafkaConsumerThread, KafkaProducer
+import distutils.core
+
 __all__ = ('JobBase',)
 
 
@@ -34,6 +39,7 @@ class DistributedWorker:
     __worker_module__ = None
     # id params
     __worker_id__ = 0
+    parameters = Context
 
     def __init__(self):
         DistributedWorker.__worker_id__ += 1
@@ -57,8 +63,6 @@ class DistributedWorker:
 
 class JobBase(DistributedWorker):
     """ sedna feature base class """
-    parameters = Context
-
     def __init__(self, estimator, config=None):
         super(JobBase, self).__init__()
         self.config = BaseConfig()
@@ -70,27 +74,6 @@ class JobBase(DistributedWorker):
         self.job_name = self.config.job_name or self.config.service_name
         work_name = f"{self.job_name}-{self.worker_id}"
         self.worker_name = self.config.worker_name or work_name
-
-    @property
-    def initial_hem(self):
-        hem = self.get_parameters("HEM_NAME")
-        hem_parameters = self.get_parameters("HEM_PARAMETERS")
-
-        try:
-            hem_parameters = json.loads(hem_parameters)
-            hem_parameters = {
-                p["key"]: p.get("value", "")
-                for p in hem_parameters if "key" in p
-            }
-        except Exception as err:
-            self.log.warn(f"Parse HEM_PARAMETERS failure, "
-                          f"fallback to empty: {err}")
-            hem_parameters = {}
-
-        if hem is None:
-            hem = self.config.get("hem_name") or "IBT"
-
-        return ClassFactory.get_cls(ClassType.HEM, hem)(**hem_parameters)
 
     @property
     def model_path(self):
