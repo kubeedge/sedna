@@ -18,7 +18,7 @@
 # - A Kubernetes v1.21 cluster with multi worker nodes, default none worker node.
 # - KubeEdge with multi nodes, default is latest KubeEdge and one edge node.
 # - Sedna, default is latest release version.
-# 
+#
 # It requires you:
 # - 2 CPUs or more
 # - 2GB+ free memory, depends on node number setting
@@ -71,12 +71,12 @@ function prepare_env() {
   readonly MAX_EDGE_WORKER_NODES=3
 
   # TODO: find a better way to figure this kind control plane
-  readonly CONTROL_PLANE_NAME=${CLUSTER_NAME}-control-plane 
+  readonly CONTROL_PLANE_NAME=${CLUSTER_NAME}-control-plane
   readonly CLOUD_WORKER_NODE_NAME=${CLUSTER_NAME}-worker
 
-  # cloudcore default websocket port 
+  # cloudcore default websocket port
   : ${CLOUDCORE_WS_PORT:=10000}
-  # cloudcore default cert port 
+  # cloudcore default cert port
   : ${CLOUDCORE_CERT_PORT:=10002}
 
   # for debug purpose
@@ -95,6 +95,7 @@ function prepare_env() {
   # TODO(llhuii): find a way to use the default docker network 'bridge'.
   : ${EDGE_NODE_NETWORK:=kind}
 
+  : ${RUN_MODE:=cloud}
 
   validate_env
 }
@@ -159,7 +160,7 @@ function patch_kindnet() {
   # which would require KUBERNETES_SERVICE_HOST/KUBERNETES_SERVICE_PORT environment variables.
   # But edgecore(up to 1.8.0) does not inject these environments.
   # Here make a patch: can be any value
-  run_in_control_plane kubectl set env -n kube-system daemonset/kindnet KUBERNETES_SERVICE_HOST=10.96.0.1 KUBERNETES_SERVICE_PORT=443 
+  run_in_control_plane kubectl set env -n kube-system daemonset/kindnet KUBERNETES_SERVICE_HOST=10.96.0.1 KUBERNETES_SERVICE_PORT=443
 }
 
 function create_k8s_cluster() {
@@ -201,21 +202,38 @@ function setup_control_kubeconfig() {
   "
 }
 
+function get_default_address() {
+  ip route get 1.2.3.4 | awk '$0=$7'
+}
+
+function setup_cloudcore_config() {
+
+  if [ "$RUN_MODE" = cloud ]; then
+    CLOUDCORE_LOCAL_IP=$(get_control_plane_ip)
+
+    CLOUDCORE_EXPOSED_IP=$(get_default_address)
+
+    CLOUDCORE_EXPOSED_WS_PORT=$(get_control_plane_exposed_port $CLOUDCORE_WS_PORT)
+    CLOUDCORE_EXPOSED_CERT_PORT=$(get_control_plane_exposed_port $CLOUDCORE_CERT_PORT)
+    CLOUDCORE_ADVERTISE_ADDRESSES=$CLOUDCORE_LOCAL_IP,$CLOUDCORE_EXPOSED_IP
+    CLOUDCORE_EXPOSED_ADDR=$CLOUDCORE_EXPOSED_IP:$CLOUDCORE_EXPOSED_WS_PORT
+  else
+    CLOUDCORE_EXPOSED_CERT_PORT=$CLOUDCORE_CERT_PORT
+    CLOUDCORE_EXPOSED_ADDR=$CLOUDCORE_ADDR
+    KUBEEDGE_TOKEN=$TOKEN
+    # fallback default docker network
+    EDGE_NODE_NETWORK=bridge
+  fi
+
+}
+
 function setup_cloudcore() {
   # keadm already built into control plane
 
-  CLOUDCORE_LOCAL_IP=$(get_control_plane_ip)
-
-  # Use default docker network for edge nodes to separate the network of control plane which uses the defined network 'kind'
-  CLOUDCORE_EXPOSED_IP=$(get_docker_network_gw $EDGE_NODE_NETWORK)
-
-  CLOUDCORE_EXPOSED_WS_PORT=$(get_control_plane_exposed_port $CLOUDCORE_WS_PORT)
-  CLOUDCORE_EXPOSED_CERT_PORT=$(get_control_plane_exposed_port $CLOUDCORE_CERT_PORT)
-  CLOUDCORE_ADVERTISE_ADDRESSES=$CLOUDCORE_LOCAL_IP,$CLOUDCORE_EXPOSED_IP
-  CLOUDCORE_EXPOSED_ADDR=$CLOUDCORE_EXPOSED_IP:$CLOUDCORE_EXPOSED_WS_PORT
+  setup_cloudcore_config
 
   # keadm accepts version format: 1.8.0
-  local version=${KUBEEDGE_VERSION/v} 
+  local version=${KUBEEDGE_VERSION/v}
   run_in_control_plane bash -euc "
     # install cloudcore
     pgrep cloudcore >/dev/null || keadm init --kubeedge-version=$version --advertise-address=$CLOUDCORE_ADVERTISE_ADDRESSES"'
@@ -350,12 +368,12 @@ function create_and_setup_edgenodes() {
     "
     # fix cni config file
     gen_cni_config | docker exec -i $containername tee /etc/cni/net.d/10-edgecni.conflist >/dev/null
-   
+
   done
 }
 
 function clean_edgenodes() {
-  for cid in $(docker ps -a --filter label=sedna.io=sedna-mini-edge -q); do 
+  for cid in $(docker ps -a --filter label=sedna.io=sedna-mini-edge -q); do
     docker stop $cid; docker rm $cid
   done
 }
@@ -416,7 +434,7 @@ function get_latest_version() {
   # ...
   # "tag_name": "v1.0.0",
   # ...
-  
+
   # Sometimes this will reach rate limit
   # https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting
   local url=https://api.github.com/repos/$repo/releases/latest
@@ -440,7 +458,7 @@ function arch() {
 
 function _download_tool() {
   local name=$1 url=$2
-  local file=/usr/local/bin/$name 
+  local file=/usr/local/bin/$name
 	curl -Lo $file $url
   chmod +x $file
 }
@@ -475,6 +493,19 @@ function ensure_tools() {
   ensure_kubectl
 }
 
+function join_print_env() {
+  setup_cloudcore_config
+
+  KUBEEDGE_TOKEN=$(run_in_control_plane keadm gettoken)
+  echo CLOUDCORE_ADDR=$CLOUDCORE_EXPOSED_ADDR CLOUDCORE_CERT_PORT=$CLOUDCORE_EXPOSED_CERT_PORT TOKEN=$KUBEEDGE_TOKEN
+}
+
+function join() {
+
+  setup_cloudcore_config
+  setup_edge
+}
+
 function main() {
   ensure_tools
   prepare_env
@@ -492,6 +523,15 @@ function main() {
       clean_edge
       clean_cloud
       log_info "Mini Sedna is uninstalled successfully"
+      ;;
+
+    join-env)
+      join_print_env
+      ;;
+
+    join)
+      RUN_MODE=edge
+      join
       ;;
 
     # As a source file, noop
