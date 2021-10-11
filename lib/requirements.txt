@@ -13,4 +13,4 @@ pandas~=1.1.5  # BSD
 six~=1.15.0  # MIT
 minio~=7.0.3  # Apache-2.0
 uvicorn~=0.14.0  # BSD
-kafka-python~=2.6 # Apache-2.0
+kafka-python~=2.0.2 # Apache-2.0
