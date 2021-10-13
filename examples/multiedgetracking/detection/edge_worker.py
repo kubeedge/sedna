@@ -15,7 +15,6 @@
 
 import os
 import datetime
-from sedna.common.utils import flatten_nested_list
 
 import torch
 import numpy as np

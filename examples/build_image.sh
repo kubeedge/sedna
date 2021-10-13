@@ -22,7 +22,7 @@ helpFunction()
 {
    echo ""
    echo "Usage: $0 -t type"
-   echo -e "\t-t The type parameters allows to select which kind of images to build (cm5, cm6, others, all)"
+   echo -e "\t-t The type parameters allows to select which Sedna example to build (joint_inference, federated_learning, etc..)"
    exit 1 # Exit script after printing help
 }
 
@@ -74,18 +74,17 @@ dockerfiles_lifelong_learning=(
 lifelong-learning-atcii-classifier.Dockerfile
 )
 
-
 dockerfiles_incremental_learning=(
 incremental-learning-helmet-detection.Dockerfile
 )
 
 case $type in
 
-  multiedgetracking)
+  multiedgetracking | cm5)
     dockerfiles=${dockerfiles_multiedgetracking[@]}
     ;;
 
-  dnn_partitioning)
+  dnn_partitioning | cm6)
     dockerfiles=${dockerfiles_dnn_partitioning[@]}
     ;;
 
@@ -106,10 +105,16 @@ case $type in
     ;;
 
   all | *)
-    dockerfiles+=( "${dockerfiles_multiedgetracking[@]}" "${dockerfiles_dnn_partitioning[@]}" "${dockerfiles_federated_learning[@]}" "${dockerfiles_joint_inference[@]}" "${dockerfiles_lifelong_learning[@]}" "${dockerfiles_incremental_learning[@]}" )
+    dockerfiles+=( "${dockerfiles_multiedgetracking[@]}"
+      "${dockerfiles_dnn_partitioning[@]}"
+      "${dockerfiles_federated_learning[@]}"
+      "${dockerfiles_joint_inference[@]}"
+      "${dockerfiles_lifelong_learning[@]}"
+      "${dockerfiles_incremental_learning[@]}")
     ;;
 esac
 
+# If no private Docker repo is set, fallback to the default one.
 if [ -z ${PRIVATE_DOCKER_REPOSITORY+x} ]; then TARGET_REPO=${EXAMPLE_REPO_PREFIX}; else TARGET_REPO=${PRIVATE_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}; fi
 
 for dockerfile in ${dockerfiles[@]}; do

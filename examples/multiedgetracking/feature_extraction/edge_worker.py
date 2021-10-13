@@ -93,9 +93,6 @@ class Estimator(FluentdHelper):
         if len(data) == 0:
             return result
 
-        # TEST: We get only the first element in the list of bboxes
-        # We receive the image from the detection pod via REST API
-        # This needs to be fixed.
         for d in data:
             # Perform image decoding and store in array
             image_as_array = cv2.imdecode(np.array(d[0][0]).astype(np.uint8), cv2.IMREAD_COLOR)
