@@ -125,6 +125,13 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 	return service.Spec.Ports[0].NodePort, nil
 }
 
+func GenerateEdgeMeshSelector(workerName string) map[string]string {
+	selector := make(map[string]string)
+	selector["app"] = workerName
+
+	return selector
+}
+
 // injectWorkerParam modifies pod in-place
 func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInterface) {
 	InjectStorageInitializer(pod, workerParam)

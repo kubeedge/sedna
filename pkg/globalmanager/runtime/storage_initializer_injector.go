@@ -426,8 +426,6 @@ func injectEnvs(pod *v1.Pod, envs []v1.EnvVar) {
  Deployment Storage Hooks
 */
 
-
-
 func injectHostPathMountDeployment(deployment *appsv1.Deployment, workerParam *WorkerParam) {
 	var volumes []v1.Volume
 	var volumeMounts []v1.VolumeMount
@@ -437,7 +435,7 @@ func injectHostPathMountDeployment(deployment *appsv1.Deployment, workerParam *W
 
 	hostPathType := v1.HostPathDirectory
 
-	for _, mount := range workerParam.mounts {
+	for _, mount := range workerParam.Mounts {
 		for _, m := range mount.URLs {
 			if m.HostPath == "" {
 				continue
@@ -498,7 +496,7 @@ func injectHostPathMountDeployment(deployment *appsv1.Deployment, workerParam *W
 
 func injectWorkerSecretsDeployment(deployment *appsv1.Deployment, workerParam *WorkerParam) {
 	var secretEnvs []v1.EnvVar
-	for _, mount := range workerParam.mounts {
+	for _, mount := range workerParam.Mounts {
 		for _, m := range mount.URLs {
 			if m.Disable || m.DownloadByInitializer {
 				continue
@@ -517,7 +515,7 @@ func injectInitializerContainerDeployment(deployment *appsv1.Deployment, workerP
 
 	var downloadPairs []string
 	var secretEnvs []v1.EnvVar
-	for _, mount := range workerParam.mounts {
+	for _, mount := range workerParam.Mounts {
 		for _, m := range mount.URLs {
 			if m.Disable {
 				continue
@@ -603,7 +601,7 @@ func injectInitializerContainerDeployment(deployment *appsv1.Deployment, workerP
 func InjectStorageInitializerDeployment(deployment *appsv1.Deployment, workerParam *WorkerParam) {
 	var mounts []WorkerMount
 	// parse the mounts and environment key
-	for _, mount := range workerParam.mounts {
+	for _, mount := range workerParam.Mounts {
 		var envPaths []string
 
 		if mount.URL != nil {
@@ -632,13 +630,13 @@ func InjectStorageInitializerDeployment(deployment *appsv1.Deployment, workerPar
 		}
 
 		if mount.EnvName != "" {
-			workerParam.env[mount.EnvName] = strings.Join(
+			workerParam.Env[mount.EnvName] = strings.Join(
 				envPaths, urlsFieldSep,
 			)
 		}
 	}
 
-	workerParam.mounts = mounts
+	workerParam.Mounts = mounts
 
 	// need to call injectInitializerContainer before injectHostPathMount
 	// since injectHostPathMount could inject volumeMount to init container
