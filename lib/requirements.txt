@@ -5,11 +5,10 @@ requests==2.24.0  # Apache-2.0
 PyYAML~=5.4.1  # MIT
 setuptools~=54.2.0
 fastapi~=0.63.0  # MIT
-starlette~=0.13.6  # BSD
-pydantic~=1.8.1  # MIT
+pydantic>=1.8.1  # MIT
 tenacity~=8.0.1  # Apache-2.0
 joblib~=1.0.1  # BSD
 pandas~=1.1.5  # BSD
 six~=1.15.0  # MIT
 minio~=7.0.3  # Apache-2.0
-uvicorn~=0.14.0  # BSD
+uvicorn>=0.14.0  # BSD
