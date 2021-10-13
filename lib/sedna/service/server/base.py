@@ -15,7 +15,6 @@
 import contextlib
 import time
 import threading
-import asyncio
 
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware

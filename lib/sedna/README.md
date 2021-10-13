@@ -29,6 +29,10 @@ pip install dist/sedna*.whl
 Install via Setuptools
 
 ```bash
+# Install dependence
+pip install -r requirements.txt
+
+# Install sedna
 python setup.py install --user
 ```
 
