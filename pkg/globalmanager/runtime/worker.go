@@ -270,6 +270,27 @@ func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerPa
 }
 
 // injectDeploymentParam modifies deployment in-place
+// func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, port int32) {
+// 	// inject our labels
+// 	if deployment.Labels == nil {
+// 		deployment.Labels = make(map[string]string)
+// 	}
+// 	if deployment.Spec.Template.Labels == nil {
+// 		deployment.Spec.Template.Labels = make(map[string]string)
+// 	}
+
+// 	for k, v := range generateLabels(object, workerParam.WorkerType) {
+// 		deployment.Labels[k] = v
+// 		deployment.Spec.Template.Labels[k] = v
+// 		deployment.Spec.Selector.MatchLabels[k] = v
+// 	}
+// 	deployment.Spec.Template.Spec.Containers[0].Ports = []v1.ContainerPort{
+// 		{
+// 			ContainerPort: port,
+// 		},
+// 	}
+// }
+
 func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, port int32) {
 	// inject our labels
 	if deployment.Labels == nil {
@@ -278,17 +299,41 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 	if deployment.Spec.Template.Labels == nil {
 		deployment.Spec.Template.Labels = make(map[string]string)
 	}
+	if deployment.Spec.Selector.MatchLabels == nil {
+		deployment.Spec.Selector.MatchLabels = make(map[string]string)
+	}
 
 	for k, v := range generateLabels(object, workerParam.WorkerType) {
 		deployment.Labels[k] = v
 		deployment.Spec.Template.Labels[k] = v
 		deployment.Spec.Selector.MatchLabels[k] = v
 	}
-	deployment.Spec.Template.Spec.Containers[0].Ports = []v1.ContainerPort{
-		{
-			ContainerPort: port,
-		},
+
+	// Edgemesh part
+	deployment.Labels["app"] = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
+	deployment.Spec.Template.Labels["app"] = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
+	deployment.Spec.Selector.MatchLabels["app"] = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
+
+	for _, cont := range deployment.Spec.Template.Spec.Containers {
+		for _, ports := range cont.Ports {
+			if ports.HostPort != 0 {
+				ports.HostPort = port
+			}
+			if ports.ContainerPort != 0 {
+				ports.ContainerPort = port
+			}
+		}
 	}
+
+	envs := createEnvVars(workerParam.Env)
+	for idx := range deployment.Spec.Template.Spec.Containers {
+		deployment.Spec.Template.Spec.Containers[idx].Env = append(
+			deployment.Spec.Template.Spec.Containers[idx].Env, envs...,
+		)
+	}
+
+	InjectStorageInitializerDeployment(deployment, workerParam)
+
 }
 
 // createEnvVars creates EnvMap for container
