@@ -1,0 +1,4 @@
+# federated_learning
+plato-learn~=0.26  # Apache-2.0
+# lifelong_learning
+scikit-learn~=0.24.1  # BSD
