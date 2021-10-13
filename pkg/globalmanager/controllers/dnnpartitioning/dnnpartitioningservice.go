@@ -50,8 +50,9 @@ import (
 )
 
 const (
-	dnnPartitioningForEdge  = "edge"
-	dnnPartitioningForCloud = "cloud"
+	dnnPartitioningForEdge        = "edge"
+	dnnPartitioningForCloud       = "cloud"
+	cloudModelPort          int32 = 5000
 )
 
 const (
@@ -532,7 +533,7 @@ func (dc *Controller) createDNNPartitioningCloudWorker(service *sednav1.DNNParti
 		EnvName: "MODEL_URL",
 	})
 
-	workerParam.env = map[string]string{
+	workerParam.Env = map[string]string{
 		"NAMESPACE":    service.Namespace,
 		"SERVICE_NAME": service.Name,
 		"WORKER_NAME":  "cloudworker-" + utilrand.String(5),

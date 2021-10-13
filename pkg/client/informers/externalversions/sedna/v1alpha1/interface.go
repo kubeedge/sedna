@@ -92,11 +92,11 @@ func (v *version) Models() ModelInformer {
 	return &modelInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-<<<<<<< HEAD
 // MultiEdgeTrackingServices returns a MultiEdgeTrackingServiceInformer.
 func (v *version) MultiEdgeTrackingServices() MultiEdgeTrackingServiceInformer {
 	return &multiEdgeTrackingServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-=======
+}
+
 // ObjectSearchServices returns a ObjectSearchServiceInformer.
 func (v *version) ObjectSearchServices() ObjectSearchServiceInformer {
 	return &objectSearchServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
@@ -105,5 +105,4 @@ func (v *version) ObjectSearchServices() ObjectSearchServiceInformer {
 // ObjectTrackingServices returns a ObjectTrackingServiceInformer.
 func (v *version) ObjectTrackingServices() ObjectTrackingServiceInformer {
 	return &objectTrackingServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
->>>>>>> sedna_github/main
 }
