@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import os
 
 import numpy as np
@@ -65,7 +64,7 @@ def main():
     fl_model = FederatedLearning(
         estimator=Estimator,
         aggregation=aggregation_algorithm)
-    fl_model.register()
+
     train_jobs = fl_model.train(
         train_data=train_data,
         valid_data=valid_data,
@@ -74,6 +73,7 @@ def main():
         learning_rate=learning_rate,
         validation_split=validation_split
     )
+    
     return train_jobs
 
 

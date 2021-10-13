@@ -13,11 +13,10 @@
 # limitations under the License.
 
 import time
-import cv2
 import copy
 import logging
 
-import tensorflow as tf
+import cv2
 import numpy as np
 
 from sedna.common.config import Context
@@ -25,6 +24,7 @@ from sedna.common.file_ops import FileOps
 from sedna.core.joint_inference import JointInference
 
 from interface import Estimator
+
 
 LOG = logging.getLogger(__name__)
 
@@ -46,26 +46,6 @@ FileOps.clean_folder([
     hard_example_cloud_output_path,
     hard_example_edge_output_path
 ], clean=False)
-
-
-class InferenceResult:
-    """The Result class for joint inference
-
-    :param is_hard_example: `True` means a hard example, `False` means not a
-        hard example
-    :param final_result: the final inference result
-    :param hard_example_edge_result: the edge little model inference result of
-        hard example
-    :param hard_example_cloud_result: the cloud big model inference result of
-        hard example
-    """
-
-    def __init__(self, is_hard_example, final_result,
-                 hard_example_edge_result, hard_example_cloud_result):
-        self.is_hard_example = is_hard_example
-        self.final_result = final_result
-        self.hard_example_edge_result = hard_example_edge_result
-        self.hard_example_cloud_result = hard_example_cloud_result
 
 
 def draw_boxes(img, bboxes, colors, text_thickness, box_thickness):
@@ -97,20 +77,32 @@ def draw_boxes(img, bboxes, colors, text_thickness, box_thickness):
         p2 = (int(bbox[3]), int(bbox[2]))
         if (p2[0] - p1[0] < 1) or (p2[1] - p1[1] < 1):
             continue
-        cv2.rectangle(img_copy, p1[::-1], p2[::-1], colors_code[label],
-                      box_thickness)
-        cv2.putText(img_copy, text, (p1[1], p1[0] + 20 * (label + 1)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0),
-                    text_thickness, line_type)
-
+        try:
+            cv2.rectangle(img_copy, p1[::-1], p2[::-1], colors_code[label],
+                          box_thickness)
+            cv2.putText(img_copy, text, (p1[1], p1[0] + 20 * (label + 1)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0),
+                        text_thickness, line_type)
+        except TypeError as err:
+            # error message from pyopencv,  cv2.circle only can accept centre
+            # coordinates precision up to float32. If the coordinates are in
+            # float64, it will throw this error.
+            LOG.warning(f"Draw box fail: {err}")
     return img_copy
 
 
-def output_deal(inference_result: InferenceResult, nframe, img_rgb):
+def output_deal(
+        final_result,
+        is_hard_example,
+        cloud_result,
+        edge_result,
+        nframe,
+        img_rgb
+):
     # save and show image
     img_rgb = np.array(img_rgb)
     img_rgb = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
-    collaboration_frame = draw_boxes(img_rgb, inference_result.final_result,
+    collaboration_frame = draw_boxes(img_rgb, final_result,
                                      colors="green,blue,yellow,red",
                                      text_thickness=None,
                                      box_thickness=None)
@@ -118,15 +110,15 @@ def output_deal(inference_result: InferenceResult, nframe, img_rgb):
     cv2.imwrite(f"{all_output_path}/{nframe}.jpeg", collaboration_frame)
 
     # save hard example image to dir
-    if not inference_result.is_hard_example:
+    if not is_hard_example:
         return
 
-    if inference_result.hard_example_cloud_result is not None:
+    if cloud_result is not None:
         cv2.imwrite(f"{hard_example_cloud_output_path}/{nframe}.jpeg",
                     collaboration_frame)
     edge_collaboration_frame = draw_boxes(
         img_rgb,
-        inference_result.hard_example_edge_result,
+        edge_result,
         colors="green,blue,yellow,red",
         text_thickness=None,
         box_thickness=None)
@@ -135,9 +127,16 @@ def output_deal(inference_result: InferenceResult, nframe, img_rgb):
 
 
 def main():
-    tf.set_random_seed(22)
 
-    inference_instance = JointInference(estimator=Estimator)
+    # get hard exmaple mining algorithm from config
+    hard_example_mining = JointInference.get_hem_algorithm_from_config(
+        threshold_img=0.9
+    )
+
+    inference_instance = JointInference(
+        estimator=Estimator,
+        hard_example_mining=hard_example_mining
+    )
 
     camera = cv2.VideoCapture(camera_address)
     fps = 10
@@ -159,9 +158,17 @@ def main():
         img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
         nframe += 1
         LOG.info(f"camera is open, current frame index is {nframe}")
-        inference_result = InferenceResult(
-            *inference_instance.inference(img_rgb))
-        output_deal(inference_result, nframe, img_rgb)
+        is_hard_example, final_result, edge_result, cloud_result = (
+            inference_instance.inference(img_rgb)
+        )
+        output_deal(
+            final_result,
+            is_hard_example,
+            cloud_result,
+            edge_result,
+            nframe,
+            img_rgb
+        )
 
 
 if __name__ == '__main__':

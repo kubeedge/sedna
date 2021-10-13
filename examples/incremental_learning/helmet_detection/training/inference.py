@@ -25,10 +25,11 @@ from sedna.core.incremental_learning import IncrementalLearning
 from interface import Estimator
 
 
-he_saved_url = Context.get_parameters("HE_SAVED_URL")
+he_saved_url = Context.get_parameters("HE_SAVED_URL", '/tmp')
+rsl_saved_url = Context.get_parameters("RESULT_SAVED_URL", '/tmp')
 class_names = ['person', 'helmet', 'helmet_on', 'helmet_off']
 
-FileOps.clean_folder([he_saved_url], clean=False)
+FileOps.clean_folder([he_saved_url, rsl_saved_url], clean=False)
 
 
 def draw_boxes(img, labels, scores, bboxes, class_names, colors):
@@ -59,11 +60,14 @@ def draw_boxes(img, labels, scores, bboxes, class_names, colors):
         p2 = (int(bbox[2]), int(bbox[3]))
         if (p2[0] - p1[0] < 1) or (p2[1] - p1[1] < 1):
             continue
-        cv2.rectangle(img, p1[::-1], p2[::-1],
-                      colors_code[labels[i]], box_thickness)
-        cv2.putText(img, text, (p1[1], p1[0] + 20 * (label + 1)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0),
-                    text_thickness, line_type)
+        try:
+            cv2.rectangle(img, p1[::-1], p2[::-1],
+                          colors_code[labels[i]], box_thickness)
+            cv2.putText(img, text, (p1[1], p1[0] + 20 * (label + 1)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0),
+                        text_thickness, line_type)
+        except TypeError as err:
+            warnings.warn(f"Draw box fail: {err}")
     return img
 
 
@@ -72,12 +76,13 @@ def output_deal(is_hard_example, infer_result, nframe, img_rgb):
     img_rgb = np.array(img_rgb)
     img_rgb = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
     colors = 'yellow,blue,green,red'
-    if not is_hard_example:
-        return
+
     lables, scores, bbox_list_pred = infer_result
     img = draw_boxes(img_rgb, lables, scores, bbox_list_pred, class_names,
                      colors)
-    cv2.imwrite(f"{he_saved_url}/{nframe}.jpeg", img)
+    if is_hard_example:
+        cv2.imwrite(f"{he_saved_url}/{nframe}.jpeg", img)
+    cv2.imwrite(f"{rsl_saved_url}/{nframe}.jpeg", img)
 
 
 def mkdir(path):
@@ -100,10 +105,17 @@ def deal_infer_rsl(model_output):
 def run():
     camera_address = Context.get_parameters('video_url')
 
+    # get hard exmaple mining algorithm from config
+    hard_example_mining = IncrementalLearning.get_hem_algorithm_from_config(
+        threshold_img=0.9
+    )
+
     input_shape_str = Context.get_parameters("input_shape")
     input_shape = tuple(int(v) for v in input_shape_str.split(","))
-    # create little model object
-    model = IncrementalLearning(estimator=Estimator)
+    # create Incremental Learning instance
+    incremental_instance = IncrementalLearning(
+        estimator=Estimator, hard_example_mining=hard_example_mining
+    )
     # use video streams for testing
     camera = cv2.VideoCapture(camera_address)
     fps = 10
@@ -122,8 +134,9 @@ def run():
 
         img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
         nframe += 1
-        warnings.warn(f"camera is open, current frame index is {nframe}")
-        results, _, is_hard_example = model.inference(
+        if nframe % 1000 == 1:  # logs every 1000 frames
+            warnings.warn(f"camera is open, current frame index is {nframe}")
+        results, _, is_hard_example = incremental_instance.inference(
             img_rgb, post_process=deal_infer_rsl, input_shape=input_shape)
         output_deal(is_hard_example, results, nframe, img_rgb)
 

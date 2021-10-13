@@ -26,17 +26,29 @@ from interface import DATACONF, Estimator, feature_process
 
 def main():
 
-    utd = Context.get_parameters("UTD_NAME", "TaskAttr")
+    utd = Context.get_parameters("UTD_NAME", "TaskAttrFilter")
     attribute = json.dumps({"attribute": DATACONF["ATTRIBUTES"]})
     utd_parameters = Context.get_parameters("UTD_PARAMETERS", {})
     ut_saved_url = Context.get_parameters("UTD_SAVED_URL", "/tmp")
 
-    ll_job = LifelongLearning(
+    task_mining = {
+        "method": "TaskMiningByDataAttr",
+        "param": attribute
+    }
+
+    unseen_task_detect = {
+        "method": utd,
+        "param": utd_parameters
+    }
+
+    ll_service = LifelongLearning(
         estimator=Estimator,
-        task_mining="TaskMiningByDataAttr",
-        task_mining_param=attribute,
-        unseen_task_detect=utd,
-        unseen_task_detect_param=utd_parameters)
+        task_mining=task_mining,
+        task_definition=None,
+        task_relationship_discovery=None,
+        task_remodeling=None,
+        inference_integrate=None,
+        unseen_task_detect=unseen_task_detect)
 
     infer_dataset_url = Context.get_parameters('infer_dataset_url')
     file_handle = open(infer_dataset_url, "r", encoding="utf-8")
@@ -60,12 +72,14 @@ def main():
         rows = reader[0]
         data = dict(zip(header, rows))
         infer_data.parse(data, label=DATACONF["LABEL"])
-        rsl, is_unseen, target_task = ll_job.inference(infer_data)
+        rsl, is_unseen, target_task = ll_service.inference(infer_data)
 
         rows.append(list(rsl)[0])
+
+        output = "\t".join(map(str, rows)) + "\n"
         if is_unseen:
-            unseen_sample.write("\t".join(map(str, rows)) + "\n")
-        output_sample.write("\t".join(map(str, rows)) + "\n")
+            unseen_sample.write(output)
+        output_sample.write(output)
     unseen_sample.close()
     output_sample.close()
 

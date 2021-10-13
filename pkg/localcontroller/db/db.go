@@ -18,6 +18,7 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -75,6 +76,18 @@ func SaveResource(name string, typeMeta, objectMeta, spec interface{}) error {
 	}
 
 	return nil
+}
+
+// GetResource gets resource info in db
+func GetResource(name string) (*Resource, error) {
+	r := Resource{}
+
+	queryResult := dbClient.Where("name = ?", name).First(&r)
+	if queryResult.RowsAffected == 0 {
+		return nil, fmt.Errorf("resource(name=%s) not in db", name)
+	}
+
+	return &r, nil
 }
 
 // DeleteResource deletes resource info in db

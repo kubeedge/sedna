@@ -28,13 +28,23 @@ def main():
     train_data.parse(train_dataset_url, label=DATACONF["LABEL"])
     attribute = json.dumps({"attribute": DATACONF["ATTRIBUTES"]})
     early_stopping_rounds = int(
-        Context.get_parameters(
-            "early_stopping_rounds", 100))
+        Context.get_parameters("early_stopping_rounds", 100)
+    )
     metric_name = Context.get_parameters("metric_name", "mlogloss")
+
+    task_definition = {
+        "method": "TaskDefinitionByDataAttr",
+        "param": attribute
+    }
+
     ll_job = LifelongLearning(
         estimator=Estimator,
-        task_definition="TaskDefinitionByDataAttr",
-        task_definition_param=attribute
+        task_definition=task_definition,
+        task_relationship_discovery=None,
+        task_mining=None,
+        task_remodeling=None,
+        inference_integrate=None,
+        unseen_task_detect=None
     )
     train_experiment = ll_job.train(
         train_data=train_data,

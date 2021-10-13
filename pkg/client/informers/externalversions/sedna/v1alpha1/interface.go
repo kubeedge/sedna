@@ -40,6 +40,10 @@ type Interface interface {
 	Models() ModelInformer
 	// MultiEdgeTrackingServices returns a MultiEdgeTrackingServiceInformer.
 	MultiEdgeTrackingServices() MultiEdgeTrackingServiceInformer
+	// ObjectSearchServices returns a ObjectSearchServiceInformer.
+	ObjectSearchServices() ObjectSearchServiceInformer
+	// ObjectTrackingServices returns a ObjectTrackingServiceInformer.
+	ObjectTrackingServices() ObjectTrackingServiceInformer
 }
 
 type version struct {
@@ -88,7 +92,18 @@ func (v *version) Models() ModelInformer {
 	return &modelInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
+<<<<<<< HEAD
 // MultiEdgeTrackingServices returns a MultiEdgeTrackingServiceInformer.
 func (v *version) MultiEdgeTrackingServices() MultiEdgeTrackingServiceInformer {
 	return &multiEdgeTrackingServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+=======
+// ObjectSearchServices returns a ObjectSearchServiceInformer.
+func (v *version) ObjectSearchServices() ObjectSearchServiceInformer {
+	return &objectSearchServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ObjectTrackingServices returns a ObjectTrackingServiceInformer.
+func (v *version) ObjectTrackingServices() ObjectTrackingServiceInformer {
+	return &objectTrackingServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+>>>>>>> sedna_github/main
 }

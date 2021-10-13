@@ -13,9 +13,9 @@
 # limitations under the License.
 
 import os
-import cv2
 import logging
 
+import cv2
 import numpy as np
 import tensorflow as tf
 

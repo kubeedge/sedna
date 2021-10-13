@@ -61,6 +61,8 @@ dnn-partitioning-alex-net-cloud.Dockerfile
 )
 
 dockerfiles_federated_learning=(
+federated-learning-mistnet-yolo-aggregator.Dockerfile
+federated-learning-mistnet-yolo-client.Dockerfile
 federated-learning-surface-defect-detection-aggregation.Dockerfile
 federated-learning-surface-defect-detection-aggregation-train.Dockerfile
 )

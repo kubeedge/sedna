@@ -29,7 +29,13 @@ import (
 	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
 	"github.com/kubeedge/sedna/pkg/localcontroller/common/constants"
 	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
-	"github.com/kubeedge/sedna/pkg/localcontroller/manager"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers/dataset"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers/federatedlearning"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers/incrementallearning"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers/jointinference"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers/lifelonglearning"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers/model"
 	"github.com/kubeedge/sedna/pkg/localcontroller/server"
 	"github.com/kubeedge/sedna/pkg/version/verflag"
 )
@@ -86,24 +92,33 @@ func runServer() {
 		return
 	}
 
-	dm := manager.NewDatasetManager(c, Options)
+	dm := dataset.New(c, Options)
 
-	mm := manager.NewModelManager(c)
+	mm := model.New(c)
 
-	jm := manager.NewJointInferenceManager(c)
+	jm := jointinference.New(c)
 
+<<<<<<< HEAD
 	dp := manager.NewDNNPartitioningManager(c)
 	
 	fm := manager.NewFederatedLearningManager(c)
+=======
+	fm := federatedlearning.New(c)
+>>>>>>> sedna_github/main
 
-	im := manager.NewIncrementalJobManager(c, dm, mm, Options)
+	im := incrementallearning.New(c, dm, mm, Options)
 
-	lm := manager.NewLifelongLearningJobManager(c, dm, mm, Options)
+	lm := lifelonglearning.New(c, dm, Options)
 
 	s := server.New(Options)
 
+<<<<<<< HEAD
 	for _, m := range []manager.FeatureManager{
 		dm, mm, jm, fm, im, lm, dp, 
+=======
+	for _, m := range []managers.FeatureManager{
+		dm, mm, jm, fm, im, lm,
+>>>>>>> sedna_github/main
 	} {
 		s.AddFeatureManager(m)
 		c.Subscribe(m)

@@ -25,7 +25,8 @@ import (
 
 	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
 	"github.com/kubeedge/sedna/pkg/localcontroller/common/constants"
-	"github.com/kubeedge/sedna/pkg/localcontroller/manager"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers"
+	workertypes "github.com/kubeedge/sedna/pkg/localcontroller/worker"
 )
 
 // Server defines server
@@ -37,7 +38,7 @@ type Server struct {
 
 // Resource defines resource
 type Resource struct {
-	Worker map[string]manager.WorkerMessage
+	Worker map[string]workertypes.MessageContent
 }
 
 // ResponseMessage defines send message to worker
@@ -46,7 +47,7 @@ type ResponseMessage struct {
 	Message string
 }
 
-type featureManagerMap map[string]manager.FeatureManager
+type featureManagerMap map[string]managers.FeatureManager
 
 // New creates a new LC server
 func New(options *options.LocalControllerOptions) *Server {
@@ -59,7 +60,7 @@ func New(options *options.LocalControllerOptions) *Server {
 	return &s
 }
 
-func (s *Server) AddFeatureManager(m manager.FeatureManager) {
+func (s *Server) AddFeatureManager(m managers.FeatureManager) {
 	s.fmm[m.GetName()] = m
 }
 
@@ -95,7 +96,7 @@ func (s *Server) reply(response *restful.Response, statusCode int, msg string) e
 func (s *Server) messageHandler(request *restful.Request, response *restful.Response) {
 	var err error
 	workerName := request.PathParameter("worker-name")
-	workerMessage := manager.WorkerMessage{}
+	workerMessage := workertypes.MessageContent{}
 
 	err = request.ReadEntity(&workerMessage)
 	if workerMessage.Name != workerName || err != nil {
@@ -130,7 +131,7 @@ func (s *Server) messageHandler(request *restful.Request, response *restful.Resp
 // ListenAndServe starts server
 func (s *Server) ListenAndServe() {
 	wsContainer := restful.NewContainer()
-	resource := Resource{map[string]manager.WorkerMessage{}}
+	resource := Resource{map[string]workertypes.MessageContent{}}
 	s.Resource = &resource
 	s.register(wsContainer)
 

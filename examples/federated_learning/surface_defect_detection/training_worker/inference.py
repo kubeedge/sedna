@@ -45,8 +45,8 @@ def main():
     test_data = TxtDataParse(data_type="test", func=image_process)
     test_data.parse(fl_instance.config.test_dataset_url)
 
-    fl_instance.evaluate(test_data)
+    return fl_instance.inference(test_data.x)
 
 
 if __name__ == '__main__':
-    main()
+    print(main())

@@ -1,0 +1,64 @@
+apiVersion: sedna.io/v1alpha1
+kind: FederatedLearningJob
+metadata:
+  name: surface-defect-detection
+spec:
+  transmitter: # option
+    ws: { } # option, by default
+  aggregationWorker:
+    model:
+      name: "surface-defect-detection-model"
+    template:
+      spec:
+        nodeName: "sedna-control-plane"
+        containers:
+          - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-aggregation:v0.4.0
+            name:  agg-worker
+            imagePullPolicy: IfNotPresent
+            env: # user defined environments
+              - name: "exit_round"
+                value: "10"
+            resources:  # user defined resources
+              limits:
+                memory: 2Gi
+  trainingWorkers:
+    - dataset:
+        name: "edge1-surface-defect-detection-dataset"
+      template:
+        spec:
+          nodeName: "edge-node"
+          containers:
+            - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-train:v0.4.0
+              name:  train-worker
+              imagePullPolicy: IfNotPresent
+              args: [ "-i", "1" ]
+              env:  # user defined environments
+                - name: "batch_size"
+                  value: "32"
+                - name: "learning_rate"
+                  value: "0.001"
+                - name: "epochs"
+                  value: "1"
+              resources:  # user defined resources
+                limits:
+                  memory: 2Gi
+    - dataset:
+          name: "edge2-surface-defect-detection-dataset"
+      template:
+        spec:
+          nodeName: "edge-node"
+          containers:
+            - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-train:v0.4.0
+              name:  train-worker
+              imagePullPolicy: IfNotPresent
+              args: [ "-i", "2" ]
+              env:  # user defined environments
+                - name: "batch_size"
+                  value: "32"
+                - name: "learning_rate"
+                  value: "0.001"
+                - name: "epochs"
+                  value: "1"
+              resources:  # user defined resources
+                limits:
+                  memory: 2Gi
