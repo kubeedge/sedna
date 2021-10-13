@@ -44,6 +44,7 @@ spec:
                   should have
                 properties:
                   model:
+                    description: Model defines train model of federated learning job
                     properties:
                       name:
                         type: string
@@ -6622,12 +6623,23 @@ spec:
                 - model
                 - template
                 type: object
+              pretrainedModel:
+                description: PretrainedModel defines pretrained model of federated
+                  learning job
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
               trainingWorkers:
                 items:
-                  description: TrrainingWorker describes the data a training worker
+                  description: TrainingWorker describes the data a training worker
                     should have
                   properties:
                     dataset:
+                      description: TrainDataset defines dataset of federated learning
+                        job
                       properties:
                         name:
                           type: string
@@ -13338,6 +13350,24 @@ spec:
                   - template
                   type: object
                 type: array
+              transmitter:
+                description: Transmitter describes the transmitter of data plane between
+                  training workers and aggregation worker
+                properties:
+                  s3:
+                    description: S3Transmitter describes the s3 transmitter
+                    properties:
+                      aggDataPath:
+                        type: string
+                      credentialName:
+                        type: string
+                    required:
+                    - aggDataPath
+                    type: object
+                  ws:
+                    description: WSTransmitter describes the websocket transmitter
+                    type: object
+                type: object
             required:
             - aggregationWorker
             - trainingWorkers

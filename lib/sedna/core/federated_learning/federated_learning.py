@@ -13,14 +13,19 @@
 # limitations under the License.
 
 
+import asyncio
+import sys
 import time
 
-from sedna.core.base import JobBase
-from sedna.common.config import Context
-from sedna.common.file_ops import FileOps
+from sedna.algorithms.transmitter import S3Transmitter, WSTransmitter
 from sedna.common.class_factory import ClassFactory, ClassType
-from sedna.service.client import AggregationClient
+from sedna.common.config import BaseConfig, Context
 from sedna.common.constant import K8sResourceKindStatus
+from sedna.common.file_ops import FileOps
+from sedna.core.base import JobBase
+from sedna.service.client import AggregationClient
+
+__all__ = ('FederatedLearning', 'FederatedLearningV2')
 
 
 class FederatedLearning(JobBase):
@@ -50,6 +55,7 @@ class FederatedLearning(JobBase):
             aggregation="FedAvg"
         )
     """
+
     def __init__(self, estimator, aggregation="FedAvg"):
 
         protocol = Context.get_parameters("AGG_PROTOCOL", "ws")
@@ -178,3 +184,72 @@ class FederatedLearning(JobBase):
                     task_info,
                     K8sResourceKindStatus.RUNNING.value,
                     task_info_res)
+
+
+class FederatedLearningV2:
+    def __init__(self, data=None, estimator=None,
+                 aggregation=None, transmitter=None) -> None:
+
+        from plato.config import Config
+        from plato.datasources import base
+        # set parameters
+        server = Config().server._asdict()
+        clients = Config().clients._asdict()
+        datastore = Config().data._asdict()
+        train = Config().trainer._asdict()
+        self.datasource = None
+        if data is not None:
+            if hasattr(data, "customized"):
+                if data.customized:
+                    self.datasource = base.DataSource()
+                    self.datasource.trainset = data.trainset
+                    self.datasource.testset = data.testset
+            else:
+                datastore.update(data.parameters)
+                Config().data = Config.namedtuple_from_dict(datastore)
+
+        self.model = None
+        if estimator is not None:
+            self.model = estimator.model
+            train.update(estimator.hyperparameters)
+            Config().trainer = Config.namedtuple_from_dict(train)
+
+        if aggregation is not None:
+            Config().algorithm = Config.namedtuple_from_dict(
+                aggregation.parameters)
+            if aggregation.parameters["type"] == "mistnet":
+                clients["type"] = "mistnet"
+                server["type"] = "mistnet"
+            else:
+                clients["do_test"] = True
+
+        server["address"] = Context.get_parameters("AGG_IP")
+        server["port"] = Context.get_parameters("AGG_PORT")
+
+        if transmitter is not None:
+            server.update(transmitter.parameters)
+
+        Config().server = Config.namedtuple_from_dict(server)
+        Config().clients = Config.namedtuple_from_dict(clients)
+
+        from plato.clients import registry as client_registry
+        self.client = client_registry.get(model=self.model,
+                                          datasource=self.datasource)
+        self.client.configure()
+
+    @classmethod
+    def get_transmitter_from_config(cls):
+        if BaseConfig.transmitter == "ws":
+            return WSTransmitter()
+        elif BaseConfig.transmitter == "s3":
+            return S3Transmitter(s3_endpoint_url=BaseConfig.s3_endpoint_url,
+                                 access_key=BaseConfig.access_key_id,
+                                 secret_key=BaseConfig.secret_access_key,
+                                 transmitter_url=BaseConfig.agg_data_path)
+
+    def train(self):
+        if int(sys.version[2]) <= 6:
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self.client.start_client())
+        else:
+            asyncio.run(self.client.start_client())

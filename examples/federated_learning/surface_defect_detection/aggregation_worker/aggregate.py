@@ -26,12 +26,9 @@ def run_server():
     participants_count = int(Context.get_parameters(
         "participants_count", 1
     ))
-    agg_ip = Context.get_parameters("AGG_IP", "0.0.0.0")
-    agg_port = int(Context.get_parameters("AGG_PORT", "7363"))
+
     server = AggregationServer(
         aggregation=aggregation_algorithm,
-        host=agg_ip,
-        http_port=agg_port,
         exit_round=exit_round,
         ws_size=20 * 1024 * 1024,
         participants_count=participants_count

@@ -402,21 +402,118 @@ func IsJobFinished(j *sednav1.FederatedLearningJob) bool {
 	return false
 }
 
+func (c *Controller) getSecret(namespace, name, ownerStr string) (secret *v1.Secret, err error) {
+	if name != "" {
+		secret, err = c.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			err = fmt.Errorf("failed to get the secret %s for %s: %w",
+				name,
+				ownerStr, err)
+		}
+	}
+
+	return
+}
+
+func (c *Controller) getModelAndItsSecret(ctx context.Context, namespace, name string) (model *sednav1.Model, secret *v1.Secret, err error) {
+	if name != "" {
+		model, err = c.client.Models(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			err = fmt.Errorf("failed to get the model %s: %w", name, err)
+		}
+	}
+
+	if model != nil {
+		secret, err = c.getSecret(
+			namespace,
+			model.Spec.CredentialName,
+			fmt.Sprintf("model %s", name),
+		)
+	}
+
+	return
+}
+
+func (c *Controller) getDatasetAndItsSecret(ctx context.Context, namespace, name string) (dataset *sednav1.Dataset, secret *v1.Secret, err error) {
+	if name != "" {
+		dataset, err = c.client.Datasets(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			err = fmt.Errorf("failed to get the dataset %s: %w", name, err)
+		}
+	}
+
+	if dataset != nil {
+		secret, err = c.getSecret(
+			namespace,
+			dataset.Spec.CredentialName,
+			fmt.Sprintf("model %s", name),
+		)
+	}
+
+	return
+}
+
+// addWorkerMount adds CR(e.g., model, dataset)'s url to worker mount.
+func (c *Controller) addWorkerMount(workerParam *runtime.WorkerParam, url string, envName string,
+	secret *v1.Secret, downloadByInitializer bool) {
+	if url != "" {
+		workerParam.Mounts = append(workerParam.Mounts,
+			runtime.WorkerMount{
+				URL: &runtime.MountURL{
+					URL:                   url,
+					Secret:                secret,
+					DownloadByInitializer: downloadByInitializer,
+				},
+				EnvName: envName,
+			},
+		)
+	}
+}
+
+// addTransmitterToWorkerParam adds transmitter to the WorkerParam
+func (c *Controller) addTransmitterToWorkerParam(param *runtime.WorkerParam, job *sednav1.FederatedLearningJob) error {
+	transmitter := job.Spec.Transmitter
+
+	if transmitter.S3 != nil {
+		param.Env["TRANSMITTER"] = "s3"
+		url := transmitter.S3.AggregationDataPath
+		secret, err := c.getSecret(
+			job.Namespace,
+			transmitter.S3.CredentialName,
+			fmt.Sprintf("for aggregationData: %s", url))
+		if err != nil {
+			return err
+		}
+		param.Mounts = append(param.Mounts,
+			runtime.WorkerMount{
+				URL: &runtime.MountURL{
+					URL:    url,
+					Secret: secret,
+				},
+				EnvName: "AGG_DATA_PATH",
+			},
+		)
+	} else {
+		param.Env["TRANSMITTER"] = "ws"
+	}
+
+	return nil
+}
+
 func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32, err error) {
 	active = 0
 	ctx := context.Background()
 
-	modelName := job.Spec.AggregationWorker.Model.Name
-	model, err := c.client.Models(job.Namespace).Get(ctx, modelName, metav1.GetOptions{})
+	pretrainedModelName := job.Spec.PretrainedModel.Name
+	pretrainedModel, pretrainedModelSecret, err := c.getModelAndItsSecret(ctx, job.Namespace, pretrainedModelName)
 	if err != nil {
-		return active, fmt.Errorf("failed to get model %s: %w",
-			modelName, err)
+		return active, err
 	}
 
-	secretName := model.Spec.CredentialName
-	var modelSecret *v1.Secret
-	if secretName != "" {
-		modelSecret, _ = c.kubeClient.CoreV1().Secrets(job.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	modelName := job.Spec.AggregationWorker.Model.Name
+	model, modelSecret, err := c.getModelAndItsSecret(ctx, job.Namespace, modelName)
+	if err != nil {
+		return active, err
 	}
 
 	participantsCount := strconv.Itoa(len(job.Spec.TrainingWorkers))
@@ -436,19 +533,20 @@ func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32,
 		"PARTICIPANTS_COUNT": participantsCount,
 	}
 
+	if err := c.addTransmitterToWorkerParam(&aggWorkerParam, job); err != nil {
+		return active, err
+	}
+
 	aggWorkerParam.WorkerType = jobStageAgg
 	aggWorkerParam.RestartPolicy = v1.RestartPolicyOnFailure
 
-	aggWorkerParam.Mounts = append(aggWorkerParam.Mounts,
-		runtime.WorkerMount{
-			URL: &runtime.MountURL{
-				URL:                   model.Spec.URL,
-				Secret:                modelSecret,
-				DownloadByInitializer: false,
-			},
-			EnvName: "MODEL_URL",
-		},
-	)
+	c.addWorkerMount(&aggWorkerParam, model.Spec.URL, "MODEL_URL",
+		modelSecret, true)
+
+	if pretrainedModel != nil {
+		c.addWorkerMount(&aggWorkerParam, pretrainedModel.Spec.URL, "PRETRAINED_MODEL_URL",
+			pretrainedModelSecret, true)
+	}
 
 	// create aggpod based on configured parameters
 	_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, &aggWorker.Template, &aggWorkerParam)
@@ -474,39 +572,24 @@ func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32,
 
 	// deliver pod for training worker
 	for i, trainingWorker := range job.Spec.TrainingWorkers {
-		// get dataseturl through parsing crd of dataset
-		datasetName := trainingWorker.Dataset.Name
-		dataset, err := c.client.Datasets(job.Namespace).Get(ctx, datasetName, metav1.GetOptions{})
-		if err != nil {
-			return active, fmt.Errorf("failed to get dataset %s: %w",
-				datasetName, err)
-		}
-
-		secretName := dataset.Spec.CredentialName
-		var datasetSecret *v1.Secret
-		if secretName != "" {
-			datasetSecret, _ = c.kubeClient.CoreV1().Secrets(job.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
-		}
-
 		// Configure training worker's mounts and envs
 		var workerParam runtime.WorkerParam
-		workerParam.Mounts = append(workerParam.Mounts,
-			runtime.WorkerMount{
-				URL: &runtime.MountURL{
-					URL:    model.Spec.URL,
-					Secret: modelSecret,
-				},
-				EnvName: "MODEL_URL",
-			},
 
-			runtime.WorkerMount{
-				URL: &runtime.MountURL{
-					URL:    dataset.Spec.URL,
-					Secret: datasetSecret,
-				},
-				EnvName: "TRAIN_DATASET_URL",
-			},
-		)
+		c.addWorkerMount(&workerParam, model.Spec.URL, "MODEL_URL", modelSecret, true)
+
+		if pretrainedModel != nil {
+			c.addWorkerMount(&workerParam, pretrainedModel.Spec.URL, "PRETRAINED_MODEL_URL",
+				pretrainedModelSecret, true)
+		}
+
+		datasetName := trainingWorker.Dataset.Name
+		dataset, datasetSecret, err := c.getDatasetAndItsSecret(ctx, job.Namespace, datasetName)
+		if err != nil {
+			return active, err
+		}
+
+		c.addWorkerMount(&workerParam, dataset.Spec.URL, "TRAIN_DATASET_URL",
+			datasetSecret, true)
 
 		workerParam.Env = map[string]string{
 			"AGG_PORT": strconv.Itoa(int(aggServicePort)),
@@ -523,6 +606,10 @@ func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32,
 		workerParam.WorkerType = runtime.TrainPodType
 		workerParam.HostNetwork = true
 		workerParam.RestartPolicy = v1.RestartPolicyOnFailure
+
+		if err := c.addTransmitterToWorkerParam(&workerParam, job); err != nil {
+			return active, err
+		}
 
 		// create training worker based on configured parameters
 		_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, &trainingWorker.Template, &workerParam)

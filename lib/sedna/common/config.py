@@ -269,8 +269,15 @@ class BaseConfig(ConfigSerializable):
     # the name of FederatedLearningJob and others Job
     job_name = os.getenv("JOB_NAME", "sedna")
 
+    pretrained_model_url = os.getenv("PRETRAINED_MODEL_URL", "./")
     model_url = os.getenv("MODEL_URL")
     model_name = os.getenv("MODEL_NAME")
+
+    transmitter = os.getenv("TRANSMITTER", "ws")
+    agg_data_path = os.getenv("AGG_DATA_PATH", "./")
+    s3_endpoint_url = os.getenv("S3_ENDPOINT_URL", "")
+    access_key_id = os.getenv("ACCESS_KEY_ID", "")
+    secret_access_key = os.getenv("SECRET_ACCESS_KEY", "")
 
     # user parameter
     parameters = os.getenv("PARAMETERS")
