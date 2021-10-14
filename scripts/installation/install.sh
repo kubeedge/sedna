@@ -52,7 +52,6 @@ get_latest_version() {
 }
 
 : ${SEDNA_VERSION:=$(get_latest_version)}
-: ${KB_VERSION:=v0.3.0}
 
 _download_yamls() {
 
@@ -162,7 +161,7 @@ spec:
       containers:
       - name: kb
         imagePullPolicy: IfNotPresent
-        image: kubeedge/sedna-kb:$KB_VERSION
+        image: kubeedge/sedna-kb:$SEDNA_VERSION
         env:
           - name: KB_URL
             value: "sqlite:///db/kb.sqlite3"
