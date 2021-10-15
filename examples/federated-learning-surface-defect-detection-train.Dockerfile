@@ -1,28 +1,12 @@
-FROM tensorflow/tensorflow:2.3.0
+FROM sedna-tensorflow:2.3.3 as builder
 
-RUN apt update \
-  && apt install -y libgl1-mesa-glx git
+FROM python:3.6.6-slim
 
-COPY ./lib/requirements.txt /home
-
-RUN python -m pip install --upgrade pip
-
-COPY ./lib/requirements.txt /home
-RUN pip install -r /home/requirements.txt
-RUN pip install keras
-RUN pip install opencv-python
-RUN pip install Pillow
-RUN pip install tensorflow-datasets
-
-ENV PYTHONPATH "/home/lib:/home/plato"
-
-COPY ./lib /home/lib
-RUN git clone https://github.com/TL-System/plato.git /home/plato
-RUN rm -rf /home/plato/.git
-
-RUN pip install -r /home/plato/requirements.txt
+ENV PYTHONPATH "${PYTHONPATH}:/usr/local/lib/python3.6/dist-packages"
+COPY --from=builder /usr/lib/python3/dist-packages /usr/local/lib/python3.6/dist-packages
+COPY --from=builder /usr/local/lib/python3.6/dist-packages /usr/local/lib/python3.6/dist-packages
 
 WORKDIR /home/work
-COPY examples/federated_learning/surface_defect_detection_v2  /home/work/
+COPY examples/federated_learning/surface_defect_detection/training_worker/  /home/work/
 
 ENTRYPOINT ["python", "train.py"]

@@ -1,20 +1,11 @@
-FROM tensorflow/tensorflow:1.15.4
+FROM sedna-tensorflow:1.15.4 as builder
 
-RUN apt update \
-  && apt install -y libgl1-mesa-glx
-  
-COPY ./lib/requirements.txt /home
-RUN pip install -r /home/requirements.txt
-RUN pip install opencv-python==4.4.0.44
-RUN pip install Pillow==8.0.1
+FROM python:3.7.7-slim
 
-ENV PYTHONPATH "/home/lib"
+COPY --from=builder /usr/local/lib/python3.7/site-packages /usr/local/lib/python3.7/site-packages
+COPY --from=builder /home/opencv-so/* /usr/lib/
 
 WORKDIR /home/work
-COPY ./lib /home/lib
+COPY examples/joint_inference/helmet_detection_inference/little_model/  /home/work/
 
-ENTRYPOINT ["python"]
-COPY examples/joint_inference/helmet_detection_inference/little_model/little_model.py  /home/work/infer.py
-COPY examples/joint_inference/helmet_detection_inference/little_model/interface.py  /home/work/interface.py
-
-CMD ["infer.py"]  
+ENTRYPOINT ["python", "little_model.py"]]

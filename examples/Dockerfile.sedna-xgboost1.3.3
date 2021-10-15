@@ -1,0 +1,18 @@
+FROM python:3.7.7
+
+# install sedna 
+COPY ./lib /home/lib
+RUN cd /home/lib && python setup.py bdist_wheel && pip install dist/sedna*.whl
+
+# install extra requirements for example
+RUN pip install pandas~=1.1.5 && pip install scikit-learn~=0.24.1 \
+	&& pip install xgboost~=1.3.3
+
+# remove unused dependencies of sedna
+RUN pip uninstall -y setuptools && pip uninstall -y zipp \
+	&& pip uninstall -y importlib-metadata && pip uninstall -y pip
+
+# remove pyc files
+RUN find /usr/local/lib -name '*.pyc' -delete
+
+ENTRYPOINT ["python"]

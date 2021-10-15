@@ -1,0 +1,43 @@
+FROM python:3.7.7 as builder
+
+# install sedna 
+COPY ./lib /home/lib
+RUN cd /home/lib && python setup.py bdist_wheel && pip install dist/sedna*.whl
+
+# install extra requirements for example
+RUN pip install tqdm==4.56.0 && pip install matplotlib==3.3.3 \
+    && pip install opencv-python==4.4.0.44 && pip install tensorflow==1.15.4
+
+# remove unused dependencies of sedna
+RUN pip uninstall -y setuptools && pip uninstall -y zipp \
+	&& pip uninstall -y importlib-metadata
+
+# remove unused dependencies of tensorflow
+RUN pip uninstall -y grpcio && pip uninstall -y werkzeug \
+    && pip uninstall -y markdown && pip uninstall -y tensorboard \
+    && pip uninstall -y opt-einsum && pip uninstall -y google-pasta  \
+    && pip uninstall -y h5py && pip uninstall -y cached-property \
+    && pip uninstall -y pip
+
+# remove pyc files
+RUN find /usr/local/lib -name '*.pyc' -delete
+
+# remove unused files of tensorflow package
+RUN rm -r /usr/local/lib/python3.7/site-packages/tensorflow_core/include
+
+# folder opencv-so contains required so dependencies of opencv
+RUN apt update && apt install -y libgl1-mesa-glx && apt install -y libglib2.0-0 \
+	&& mkdir /home/opencv-so && cd /usr/lib/x86_64-linux-gnu \
+	&& cp libGLX.so* /home/opencv-so/ \
+	&& cp libgthread-2.0.so* /home/opencv-so/ \
+	&& cp libGLdispatch.so* /home/opencv-so/ \
+	&& cp libX11.so* /home/opencv-so/ \
+	&& cp libXext.so* /home/opencv-so/ \
+	&& cp libxcb.so* /home/opencv-so/ \
+	&& cp libXau.so* /home/opencv-so/ \
+	&& cp libXdmcp.so* /home/opencv-so/ \
+	&& cp libbsd.so* /home/opencv-so/ \
+	&& cp libGL.so* /home/opencv-so/ \
+	&& cp libglib-2.0.so* /home/opencv-so/
+
+ENTRYPOINT ["python"]

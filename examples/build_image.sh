@@ -26,11 +26,18 @@ federated-learning-mistnet-yolo-aggregator.Dockerfile
 federated-learning-mistnet-yolo-client.Dockerfile
 federated-learning-surface-defect-detection-aggregation.Dockerfile
 federated-learning-surface-defect-detection-train.Dockerfile
+federated-learning-surface-defect-detection-aggregation-v2.Dockerfile
+federated-learning-surface-defect-detection-train-v2.Dockerfile
 incremental-learning-helmet-detection.Dockerfile
 joint-inference-helmet-detection-big.Dockerfile
 joint-inference-helmet-detection-little.Dockerfile
 lifelong-learning-atcii-classifier.Dockerfile
 )
+
+# build common images
+docker build -f ./Dockerfile.sedna-tensorflow1.15.4 -t sedna-tensorflow:1.15.4 --label sedna=examples ..
+docker build -f ./Dockerfile.sedna-tensorflow2.3.3 -t sedna-tensorflow:2.3.3 --label sedna=examples ..
+docker build -f ./Dockerfile.sedna-xgboost1.3.3 -t sedna-xgboost:1.3.3 --label sedna=examples ..
 
 for dockerfile in ${dockerfiles[@]}; do
   example_name=${dockerfile/.Dockerfile}

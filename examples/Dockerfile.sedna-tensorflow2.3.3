@@ -1,0 +1,37 @@
+FROM tensorflow/tensorflow:2.3.3
+
+# install sedna 
+COPY ./lib /home/lib
+RUN cd /home/lib && python setup.py bdist_wheel && pip install dist/sedna*.whl
+
+# install extra requirements for example
+RUN pip install keras~=2.4.3 && pip install Pillow~=8.0.1
+
+# remove unused dependencies of sedna
+RUN pip uninstall -y starlette && pip uninstall -y dataclasses \
+	&& pip uninstall -y pydantic && pip uninstall -y fastapi \
+	&& pip uninstall -y setuptools && pip uninstall -y asgiref \
+	&& pip uninstall -y zipp && pip uninstall -y importlib-metadata \
+	&& pip uninstall -y click && pip uninstall -y h11 \
+	&& pip uninstall -y uvicorn
+
+# remove unused dependencies of tensorflow
+RUN pip uninstall -y grpcio && pip uninstall -y werkzeug \
+    && pip uninstall -y markdown && pip uninstall -y tensorboard \
+	&& pip uninstall -y tensorboard_plugin_wit \
+    && pip uninstall -y google-pasta && pip uninstall -y tensorboard_data_server \
+    && pip uninstall -y h5py && pip uninstall -y google_auth_oauthlib \
+	&& pip uninstall -y google_auth && pip uninstall -y cachetools \
+	&& pip uninstall -y wheel && pip uninstall -y rsa \
+	&& pip uninstall -y pyasn1 && pip uninstall -y pyasn1_modules \
+	&& pip uninstall -y scipy && pip uninstall -y oauthlib \
+	&& pip uninstall -y requests-oauthlib && pip uninstall -y typing_extensions \
+	&& pip uninstall -y pip
+
+# remove pyc files
+RUN find /usr/local/lib -name '*.pyc' -delete
+
+# remove unused files of tensorflow package
+RUN rm -r /usr/local/lib/python3.6/dist-packages/tensorflow/include
+
+ENTRYPOINT ["python"]
