@@ -404,7 +404,7 @@ function install_sedna() {
 
 
   run_in_control_plane bash -ec "
-    kubectl taint $gm_node node-role.kubernetes.io/master- 2>/dev/null || true
+    kubectl taint node $gm_node node-role.kubernetes.io/master- || true
     curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$gm_node SEDNA_ACTION=create bash -
   "
 }
