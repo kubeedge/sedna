@@ -101,8 +101,7 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 			Labels: generateLabels(object, workerType),
 		},
 		Spec: v1.ServiceSpec{
-			// Selector: generateLabels(object, workerType),
-			Selector: GenerateEdgeMeshSelector(name + "-" + workerType + "-" + "svc"),
+			Selector: generateLabels(object, workerType),
 			ExternalIPs: []string{
 				inputIP,
 			},
@@ -123,13 +122,6 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 
 	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
 	return service.Spec.Ports[0].NodePort, nil
-}
-
-func GenerateEdgeMeshSelector(workerName string) map[string]string {
-	selector := make(map[string]string)
-	selector["app"] = workerName
-
-	return selector
 }
 
 // injectWorkerParam modifies pod in-place
@@ -209,8 +201,7 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 			Labels: generateLabels(object, workerType),
 		},
 		Spec: v1.ServiceSpec{
-			// Selector: generateLabels(object, workerType),
-			Selector: GenerateEdgeMeshSelector(name + "-" + workerType + "-" + "svc"),
+			Selector: generateLabels(object, workerType),
 			Ports: []v1.ServicePort{
 				{
 					Name:       "http-0",
@@ -237,7 +228,9 @@ func CreateDeploymentWithTemplate(client kubernetes.Interface, object CommonInte
 	objectKind := object.GroupVersionKind()
 	objectName := object.GetNamespace() + "/" + object.GetName()
 	deployment := newDeployment(object, spec, workerParam)
+
 	injectDeploymentParam(deployment, workerParam, object, port)
+
 	createdDeployment, err := client.AppsV1().Deployments(object.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
 	if err != nil {
 		klog.Warningf("failed to create deployment for %s %s, err:%s", objectKind, objectName, err)
@@ -269,29 +262,36 @@ func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerPa
 	}
 }
 
-// injectDeploymentParam modifies deployment in-place
-// func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, port int32) {
-// 	// inject our labels
-// 	if deployment.Labels == nil {
-// 		deployment.Labels = make(map[string]string)
-// 	}
-// 	if deployment.Spec.Template.Labels == nil {
-// 		deployment.Spec.Template.Labels = make(map[string]string)
+// func InjectAffinityParam(deployment *appsv1.Deployment) {
+// 	var location string
+// 	if deployment.Spec.Selector.MatchLabels != nil {
+// 		location = deployment.Spec.Template.Spec.NodeName
+// 		klog.Info(location)
 // 	}
 
-// 	for k, v := range generateLabels(object, workerParam.WorkerType) {
-// 		deployment.Labels[k] = v
-// 		deployment.Spec.Template.Labels[k] = v
-// 		deployment.Spec.Selector.MatchLabels[k] = v
+// 	if location == "" {
+// 		klog.Info("Append affinity")
+// 		deployment.Spec.Template.Spec.Affinity = &v1.Affinity{
+// 			NodeAffinity: &v1.NodeAffinity{
+// 				RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+// 					NodeSelectorTerms: []v1.NodeSelectorTerm{{
+// 						MatchExpressions: []v1.NodeSelectorRequirement{{
+// 							Key:      "node-role.kubernetes.io/agent",
+// 							Operator: v1.NodeSelectorOpExists,
+// 						}},
+// 					}},
+// 				},
+// 			},
+// 		}
 // 	}
-// 	deployment.Spec.Template.Spec.Containers[0].Ports = []v1.ContainerPort{
-// 		{
-// 			ContainerPort: port,
-// 		},
-// 	}
+
 // }
 
-func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, port int32) {
+// injectDeploymentParam modifies deployment in-place
+func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, _port int32) {
+	var appLabelKey = "app.sedna.io"
+	var appLabelValue = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
+
 	// inject our labels
 	if deployment.Labels == nil {
 		deployment.Labels = make(map[string]string)
@@ -309,22 +309,12 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 		deployment.Spec.Selector.MatchLabels[k] = v
 	}
 
-	// Edgemesh part
-	deployment.Labels["app"] = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
-	deployment.Spec.Template.Labels["app"] = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
-	deployment.Spec.Selector.MatchLabels["app"] = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
+	// Edgemesh part, useful for service mapping (not necessary!)
+	deployment.Labels[appLabelKey] = appLabelValue
+	deployment.Spec.Template.Labels[appLabelKey] = appLabelValue
+	deployment.Spec.Selector.MatchLabels[appLabelKey] = appLabelValue
 
-	for _, cont := range deployment.Spec.Template.Spec.Containers {
-		for _, ports := range cont.Ports {
-			if ports.HostPort != 0 {
-				ports.HostPort = port
-			}
-			if ports.ContainerPort != 0 {
-				ports.ContainerPort = port
-			}
-		}
-	}
-
+	// Env variables injection
 	envs := createEnvVars(workerParam.Env)
 	for idx := range deployment.Spec.Template.Spec.Containers {
 		deployment.Spec.Template.Spec.Containers[idx].Env = append(

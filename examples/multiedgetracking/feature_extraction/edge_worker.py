@@ -121,6 +121,6 @@ class Estimator(FluentdHelper):
 
         return result 
 
-# Starting the ReID module
+# Starting the FE module
 inference_instance = FEService(estimator=Estimator)
 inference_instance.start()
