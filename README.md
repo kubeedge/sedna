@@ -84,7 +84,7 @@ Follow the [Sedna installation document](docs/setup/quick-start.md) to install S
 Example1：[Using Joint Inference Service in Helmet Detection Scenario](/examples/joint_inference/helmet_detection_inference/README.md).  
 Example2：[Using Incremental Learning Job in Helmet Detection Scenario](/examples/incremental_learning/helmet_detection/README.md).  
 Example3：[Using Federated Learning Job in Surface Defect Detection Scenario](/examples/federated_learning/surface_defect_detection/README.md).  
-Example4：[Using Federated Learning Job in YoLov5-based Object Detection](/examples/federated_learning/yolov5_coco128_mistnet/README.md). 
+Example4：[Using Federated Learning Job in YoLov5-based Object Detection](/examples/federated_learning/yolov5_coco128_mistnet/README.md).  
 Example5：[Using Lifelong Learning Job in Thermal Comfort Prediction Scenario](/examples/lifelong_learning/atcii/README.md).
 
 ## Roadmap
