@@ -563,11 +563,10 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	secretName := feModel.Spec.CredentialName
 	var modelSecret *v1.Secret
 	if secretName != "" {
-		modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+		modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.Background(), secretName, metav1.GetOptions{})
 	}
 
-	workerParam.Mounts = nil
-	workerParam.Mounts = append(workerParam.Mounts, runtime.WorkerMount{
+	workerParam.Mounts = append(make([]runtime.WorkerMount, 1), runtime.WorkerMount{
 		URL: &runtime.MountURL{
 			URL:                   feModel.Spec.URL,
 			Secret:                modelSecret,
@@ -638,8 +637,7 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 		modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	}
 
-	workerParam.Mounts = nil
-	workerParam.Mounts = append(workerParam.Mounts, runtime.WorkerMount{
+	workerParam.Mounts = append(make([]runtime.WorkerMount, 1), runtime.WorkerMount{
 		URL: &runtime.MountURL{
 			URL:                   detectionModel.Spec.URL,
 			Secret:                modelSecret,
