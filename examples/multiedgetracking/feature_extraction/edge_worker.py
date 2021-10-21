@@ -30,9 +30,6 @@ from sedna.core.multi_edge_tracking.multi_edge_tracking import FEService
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
-model_weights = Context.get_parameters('edge_model_weights')
-model_path = Context.get_parameters('model_path')
-model_name = Context.get_parameters('model_name')
 image_size = Context.get_parameters('input_shape')
 
 class Estimator(FluentdHelper):
@@ -54,14 +51,7 @@ class Estimator(FluentdHelper):
 
     
     def load(self, model_url="", mmodel_name=None, **kwargs):
-        # The model should be provided by a CRD
-        LOGGER.debug(f"About to load model {model_name} with url {model_path}..")
-        self.model = Backbone(num_classes=255, model_path=model_path, model_name=model_name, pretrain_choice="imagenet")
-
-        # Here we load the model weights from the attached volume (.yaml)
-        LOGGER.debug(f"About to load weights for the model {model_name}..")
-        self.model.load_param(model_weights)
-        self.model = self.model.to(self.device)
+        self.model = torch.load(model_url, map_location=torch.device(self.device))
 
     def quantize(self, layers = {torch.nn.Linear}, _dtype = torch.qint8):
         self.model = torch.quantization.quantize_dynamic(
@@ -70,7 +60,7 @@ class Estimator(FluentdHelper):
             dtype=_dtype)  # the target dtype for quantized weights
 
     def evaluate(self, **kwargs):
-        LOGGER.debug(f"Evaluating feature extraction model {model_name}")
+        LOGGER.debug(f"Evaluating feature extraction model")
         self.model.eval()
 
     def convert_to_list(self, data, camera_code, det_time):

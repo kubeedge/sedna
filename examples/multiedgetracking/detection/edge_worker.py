@@ -29,8 +29,8 @@ from utils.general import save_one_box
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
-model_weights = Context.get_parameters('model_weights')
-classifier = Context.get_parameters('model_classifier')
+# model_weights = Context.get_parameters('model_weights')
+# classifier = Context.get_parameters('model_classifier')
 image_size = Context.get_parameters('input_shape') # in pixels!
 
 class Estimator(FluentdHelper):
@@ -40,15 +40,14 @@ class Estimator(FluentdHelper):
         LOGGER.info("Starting object detection module")
         self.device = self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = None
-        self.weights = model_weights
-        self.classify = False
+        # self.weights = model_weights
+        # self.classify = False
         self.stride, self.names = 64, [f'class{i}' for i in range(1000)]  # assign defaults
         self.img_size = int(image_size)
         self.camera_code = kwargs.get('camera_code', 0)
   
     def load(self, model_url="", mmodel_name=None, **kwargs):
-        LOGGER.debug("Loading model")
-        self.model = attempt_load(self.weights, map_location=self.device)  # load FP32 model
+        self.model = attempt_load(model_url, map_location=self.device)  # load FP32 model
         self.stride = int(self.model.stride.max())  # model stride
         self.names = self.model.module.names if hasattr(self.model, 'module') else self.model.names  # get class names
 
@@ -103,9 +102,9 @@ class Estimator(FluentdHelper):
 
 
         # Second-stage classifier (optional)
-        if self.classify:
-            with FTimer("classify"):
-                pred = apply_classifier(pred, self.modelc, img, data)
+        # if self.classify:
+        #     with FTimer("classify"):
+        #         pred = apply_classifier(pred, self.modelc, img, data)
 
         # # Process predictions
         s = ""

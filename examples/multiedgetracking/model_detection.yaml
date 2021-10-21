@@ -1,8 +1,8 @@
 apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
-  name: yolov5
+  name: detection-yolov5s
   namespace: default
 spec:
-  url: "/data/yolo_lfs/runs/train/exp4/weights/best.pt"
+  url: "/data/ai_models/object_detection/best_small.pt"
   format: "pt"

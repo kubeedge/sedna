@@ -1,8 +1,0 @@
-apiVersion: sedna.io/v1alpha1
-kind: Model
-metadata:
-  name: mot-resnet
-  namespace: default
-spec:
-  url: "/data/ai_models/deep_eff_reid/r50_ibn_a.pth"
-  format: "pth"

@@ -552,6 +552,31 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	kfk_addresses, kfk_ports, err = runtime.FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
 
 	workerParam.WorkerType = FEWorker
+
+	// Load model used by the pods in this deployment
+	feModelName := service.Spec.FEDeploy.Model.Name
+	feModel, err := mc.client.Models(service.Namespace).Get(context.Background(), feModelName, metav1.GetOptions{})
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("Failed to get model %s: %w", feModelName, err)
+	}
+
+	secretName := feModel.Spec.CredentialName
+	var modelSecret *v1.Secret
+	if secretName != "" {
+		modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	}
+
+	workerParam.Mounts = nil
+	workerParam.Mounts = append(workerParam.Mounts, runtime.WorkerMount{
+		URL: &runtime.MountURL{
+			URL:                   feModel.Spec.URL,
+			Secret:                modelSecret,
+			DownloadByInitializer: true,
+		},
+		Name:    "model",
+		EnvName: "MODEL_URL",
+	})
+
 	workerParam.Env = map[string]string{
 		"NAMESPACE":            service.Namespace,
 		"SERVICE_NAME":         service.Name,
@@ -568,12 +593,10 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 		workerParam.Env["KAFKA_BIND_PORTS"] = strings.Join(kfk_ports, "|")
 	}
 
-	//workerParam.hostNetwork = true
-
 	// Create FE deployment AND related pods (as part of the deployment creation)
 	_, err = runtime.CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
 	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
+		return activePods, activeDeployments, fmt.Errorf("failed to create feature extraction workers deployment: %w", err)
 	}
 	activeDeployments++
 
@@ -602,6 +625,30 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 
 	// Create parameters that will be used by the deployment
 	workerParam.WorkerType = MultiObjectTrackingWorker
+
+	// Load model used by the pods in this deployment
+	detectionModelName := service.Spec.MultiObjectTrackingDeploy.Model.Name
+	detectionModel, err := mc.client.Models(service.Namespace).Get(context.Background(), detectionModelName, metav1.GetOptions{})
+	if err != nil {
+		return activePods, activeDeployments, fmt.Errorf("Failed to get model %s: %w", detectionModelName, err)
+	}
+
+	secretName = detectionModel.Spec.CredentialName
+	if secretName != "" {
+		modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	}
+
+	workerParam.Mounts = nil
+	workerParam.Mounts = append(workerParam.Mounts, runtime.WorkerMount{
+		URL: &runtime.MountURL{
+			URL:                   detectionModel.Spec.URL,
+			Secret:                modelSecret,
+			DownloadByInitializer: true,
+		},
+		Name:    "model",
+		EnvName: "MODEL_URL",
+	})
+
 	workerParam.Env = map[string]string{
 		"NAMESPACE":         service.Namespace,
 		"SERVICE_NAME":      service.Name,
@@ -620,14 +667,14 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	// Create OD deployment AND related pods (as part of the deployment creation)
 	_, err = runtime.CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.MultiObjectTrackingDeploy.Spec, &workerParam, 7000)
 	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
+		return activePods, activeDeployments, fmt.Errorf("Failed to create detection workers deployment: %w", err)
 	}
 	activeDeployments++
 
 	// Create edgemesh service for OD
 	_, err = runtime.CreateEdgeMeshService(mc.kubeClient, service, MultiObjectTrackingWorker, 7000)
 	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
+		return activePods, activeDeployments, fmt.Errorf("Failed to create edgemesh service: %w", err)
 	}
 	activePods++
 

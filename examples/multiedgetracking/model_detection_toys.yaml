@@ -1,8 +1,8 @@
 apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
-  name: mot-efficientnet
+  name: detection-toys-yolov5s
   namespace: default
 spec:
-  url: "/data/ai_models/deep_eff_reid/efficienetv2_imagenet.pt"
+  url: "/data/ai_models/object_detection/best_toy_small.pt"
   format: "pt"

@@ -4,6 +4,8 @@ metadata:
   name: container-tracking
 spec:
   motDeploy:
+    model:
+      name: "detection-yolov5s"
     kafkaSupport: true
     spec:
       replicas: 3
@@ -27,26 +29,16 @@ spec:
                 value: "rtsp://172.17.0.1/video/0"
               - name: "stream_dispatcher_url"
                 value: "http://7.182.9.110:8478/get_rtsp_stream" # we should have a k8s deploy+service+pod for this later
-              - name: "model_classifier"
-                value: "/home/v00609018/.cache/torch/hub/checkpoints/resnet50-0676ba61.pth"
-              - name: "model_weights"
-                value: "/data/ai_models/object_detection/best_small.pt"
               resources:  # user defined resources
                 requests:
                   memory: 64M
                   cpu: 500m
                 limits:
                   memory: 2Gi
-              volumeMounts:
-              - name: outputdir
-                mountPath: /data/ai_models/
-          volumes:   # user defined volumes
-            - name: outputdir
-              hostPath:
-                # user must create the directory in host
-                path: /data/ai_models
-                type: Directory
+
   feDeploy:
+    model:
+      name: "feature-extraction-efficientnet"
     kafkaSupport: true
     spec:
       replicas: 3
@@ -68,27 +60,12 @@ spec:
             env:  # user defined environments
             - name: input_shape
               value: "256,128"
-            - name: "model_name"
-              value: "efficientnet_v2"
-            - name: "model_path"
-              value: "/data/ai_models/deep_eff_reid/efficienetv2_imagenet.pt"
-            - name: "edge_model_weights"
-              value: "/data/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
             resources:  # user defined resources
               requests:
                 memory: 128M
                 cpu: 500m
               limits:
                 memory: 2Gi
-            volumeMounts:
-              - name: outputdir
-                mountPath: /data/ai_models/deep_eff_reid/
-          volumes:   # user defined volumes
-            - name: outputdir
-              hostPath:
-                # user must create the directory in host
-                path: /data/ai_models/deep_eff_reid/
-                type: Directory
 
   reIDDeploy:
     kafkaSupport: true

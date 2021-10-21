@@ -117,6 +117,7 @@ class JobBase:
         self.worker_name = self.config.worker_name or self.job_name
         self.namespace = self.config.namespace or self.job_name
         self.lc_server = self.config.lc_server
+
         if str(
                 self.get_parameters("MODEL_HOT_UPDATE", "False")
         ).lower() == "true":

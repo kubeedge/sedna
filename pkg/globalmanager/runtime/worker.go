@@ -82,6 +82,14 @@ func GenerateWorkerSelector(object CommonInterface, workerType string) (labels.S
 	return metav1.LabelSelectorAsSelector(ls)
 }
 
+// Obsolete
+// func GenerateEdgeMeshSelector(workerName string) map[string]string {
+// 	selector := make(map[string]string)
+// 	selector["app"] = workerName
+
+// 	return selector
+// }
+
 // CreateKubernetesService creates a k8s service for an object given ip and port
 func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32, inputIP string) (int32, error) {
 	ctx := context.Background()
@@ -292,6 +300,12 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 	var appLabelKey = "app.sedna.io"
 	var appLabelValue = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
 
+	// Injection of the storage variables must be done before loading
+	// the environment variables!
+	if workerParam.Mounts != nil {
+		InjectStorageInitializerDeployment(deployment, workerParam)
+	}
+
 	// inject our labels
 	if deployment.Labels == nil {
 		deployment.Labels = make(map[string]string)
@@ -321,8 +335,6 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 			deployment.Spec.Template.Spec.Containers[idx].Env, envs...,
 		)
 	}
-
-	InjectStorageInitializerDeployment(deployment, workerParam)
 
 }
 

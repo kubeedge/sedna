@@ -161,8 +161,11 @@ class FEService(JobBase):
         if callable(self.estimator):
             self.estimator = self.estimator()
 
-        self.log.info("Loading model")
-        self.estimator.load()
+        self.log.info(f"Loading model")
+        if not os.path.exists(self.model_path):
+            raise FileExistsError(f"{self.model_path} miss")
+        else:
+            self.estimator.load(self.model_path)
 
         self.log.info("Evaluating model")
         self.estimator.evaluate()
@@ -266,7 +269,10 @@ class ObjectDetector(JobBase):
             self.estimator = self.estimator()
 
         self.log.info("Loading model")
-        self.estimator.load()
+        if not os.path.exists(self.model_path):
+            raise FileExistsError(f"Cannot find model: {self.model_path}")
+        else:
+            self.estimator.load(self.model_path)
 
         self.log.info("Evaluating model")
         self.estimator.evaluate()
