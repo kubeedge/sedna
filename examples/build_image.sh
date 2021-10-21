@@ -37,7 +37,7 @@ done
 if [ -z "$type" ]
 then
    echo "Defaulting to building all example images..";
-   parameterA="all"
+   type="all"
 fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")"

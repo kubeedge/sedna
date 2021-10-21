@@ -39,37 +39,23 @@ const (
 	resourceUpdateTries = 3
 )
 
-// GetNodeIPByName get node ip by label
-func GetNodeIPByLabel(kubeClient kubernetes.Interface, label map[string]string, namespace string) (string, error) {
-	// Gives back the list of nodes with the specified selector field
-	var nodes []v1.Node
+func ResourceAwarePodScheduling(kubeClient kubernetes.Interface, deployment *appsv1.Deployment) (string, error) {
+	n, err := kubeClient.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+		LabelSelector: "sedna-role=" + deployment.Spec.Template.Spec.NodeSelector["sedna-role"],
+	})
 
-	for _, selectr := range label {
-		klog.Infof(selectr)
-		n, err := kubeClient.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
-			LabelSelector: "services=" + selectr,
-		})
-
-		if err != nil {
-			return "", err
-		}
-
-		klog.Infof("Found nodes: %d", len(n.Items))
-
-		for _, elem := range n.Items {
-			nodes = append(nodes, elem)
-		}
-
+	if err != nil {
+		return "", err
 	}
 
 	// To load pods evenly on the retrieved nodes, we need to check their load (in terms of running pods)
 	running_pods := math.MaxInt32
 	var best_candidate v1.Node
 
-	if len(nodes) == 1 {
-		best_candidate = nodes[0]
+	if len(n.Items) == 1 {
+		best_candidate = n.Items[0]
 	} else {
-		for _, elem := range nodes {
+		for _, elem := range n.Items {
 			pods, err := kubeClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
 				FieldSelector: "spec.nodeName=" + elem.Name,
 			})
@@ -85,23 +71,74 @@ func GetNodeIPByLabel(kubeClient kubernetes.Interface, label map[string]string, 
 		}
 	}
 
-	typeToAddress := make(map[v1.NodeAddressType]string)
-	for _, addr := range best_candidate.Status.Addresses {
-		typeToAddress[addr.Type] = addr.Address
-	}
+	klog.Info(best_candidate)
 
-	address, found := typeToAddress[v1.NodeExternalIP]
-	if found {
-		return address, nil
-	}
-
-	address, found = typeToAddress[v1.NodeInternalIP]
-	if found {
-		return address, nil
-	}
-
-	return "", fmt.Errorf("can't find nodes with label %s", label)
+	return "", nil
 }
+
+// GetNodeIPByName get node ip by label
+// func GetNodeIPByLabel(kubeClient kubernetes.Interface, label map[string]string, namespace string) (string, error) {
+// 	// Gives back the list of nodes with the specified selector field
+// 	var nodes []v1.Node
+
+// 	for _, selectr := range label {
+// 		klog.Infof(selectr)
+// 		n, err := kubeClient.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+// 			LabelSelector: "services=" + selectr,
+// 		})
+
+// 		if err != nil {
+// 			return "", err
+// 		}
+
+// 		klog.Infof("Found nodes: %d", len(n.Items))
+
+// 		for _, elem := range n.Items {
+// 			nodes = append(nodes, elem)
+// 		}
+
+// 	}
+
+// 	// To load pods evenly on the retrieved nodes, we need to check their load (in terms of running pods)
+// 	running_pods := math.MaxInt32
+// 	var best_candidate v1.Node
+
+// 	if len(nodes) == 1 {
+// 		best_candidate = nodes[0]
+// 	} else {
+// 		for _, elem := range nodes {
+// 			pods, err := kubeClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+// 				FieldSelector: "spec.nodeName=" + elem.Name,
+// 			})
+
+// 			if err != nil {
+// 				return "", err
+// 			}
+
+// 			if len(pods.Items) < running_pods {
+// 				best_candidate = elem
+// 				running_pods = len(pods.Items)
+// 			}
+// 		}
+// 	}
+
+// 	typeToAddress := make(map[v1.NodeAddressType]string)
+// 	for _, addr := range best_candidate.Status.Addresses {
+// 		typeToAddress[addr.Type] = addr.Address
+// 	}
+
+// 	address, found := typeToAddress[v1.NodeExternalIP]
+// 	if found {
+// 		return address, nil
+// 	}
+
+// 	address, found = typeToAddress[v1.NodeInternalIP]
+// 	if found {
+// 		return address, nil
+// 	}
+
+// 	return "", fmt.Errorf("can't find nodes with label %s", label)
+// }
 
 // GetNodeIPByName get node ip by node name
 func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, error) {
