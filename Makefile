@@ -16,10 +16,17 @@ GOPATH ?= $(shell go env GOPATH)
 
 OUT_DIR ?= _output
 OUT_BINPATH := $(OUT_DIR)/bin
+OUT_IMAGESPATH := $(OUT_DIR)/images
 
 IMAGE_REPO ?= kubeedge
+
+# the env PLATFORMS defines to generate linux images for amd 64-bit, arm 64-bit and armv7 architectures
+# the full list of PLATFORMS is linux/amd64,linux/arm64,linux/arm/v7
+PLATFORMS ?= linux/amd64,linux/arm64
+COMPONENTS ?= gm lc kb
+
 IMAGE_TAG ?= v0.3.0
-GO_LDFLAGS ?=''
+GO_LDFLAGS ?= ""
 
 # set allowDangerousTypes for allowing float
 CRD_OPTIONS ?= "crd:crdVersions=v1,allowDangerousTypes=true"
@@ -50,7 +57,7 @@ define BUILD_HELP_INFO
 
 endef
 
-.PHONY: build all
+.PHONY: build docker-cross-build all
 ifeq ($(HELP),y)
 build all:
 	@echo "$${BUILD_HELP_INFO//TARGET/$@}"
@@ -59,6 +66,9 @@ else
 # default target
 build:
 	hack/make-rules/build.sh $(WHAT)
+# build multi-platform images and results will be saved in tar packages.
+docker-cross-build:
+	bash hack/make-rules/cross-build.sh
 
 all: verify build
 
@@ -126,23 +136,27 @@ clean:
 	hack/make-rules/clean.sh
 endif
 
-.PHONY: images gmimage lcimage
-images: gmimage lcimage
-gmimage lcimage:
+.PHONY: images gmimage lcimage kbimage
+images: gmimage lcimage kbimage
+gmimage lcimage kbimage:
 	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/sedna-${@:image=}:${IMAGE_TAG} -f build/${@:image=}/Dockerfile .
 
 
-.PHONY: push push-examples push-all
-push-all: push push-examples
+.PHONY: push push-examples push-all push-multi-platforms
+push-all: push-multi-platform-images push-examples
 
 # push target pushes sedna-built images
 push: images
-	docker push ${IMAGE_REPO}/sedna-gm:${IMAGE_TAG} 
-	docker push ${IMAGE_REPO}/sedna-lc:${IMAGE_TAG} 
+	for target in $(COMPONENTS); do \
+  		docker push ${IMAGE_REPO}/sedna-$$target:${IMAGE_TAG}
+	done
 	bash scripts/storage-initializer/push_image.sh
 
 push-examples:
 	bash examples/push_image.sh
+# push multi-platform images
+push-multi-platform-images:
+	bash hack/make-rules/push.sh
 
 .PHONY: e2e
 e2e:

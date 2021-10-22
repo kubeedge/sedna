@@ -14,14 +14,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Influential env vars:
+#
+# SEDNA_GM_NODE   | required | The node which Sedna gm will be deployed at
+# SEDNA_ACTION    | optional | 'create'/'clean', default is 'create'
+# SEDNA_VERSION   | optional | The Sedna version to be installed.
+#                              if not specified, it will get latest release version.
+# SEDNA_ROOT      | optional | The Sedna offline directory
+
 set -o errexit
 set -o nounset
 set -o pipefail
 
+<<<<<<< HEAD
 SEDNA_VERSION=v0.3.0
 KB_VERSION=v0.3.0
 SEDNA_GM_NODE=fraphisprk00033
 
+=======
+>>>>>>> sedna_github/main
 TMP_DIR=$(mktemp -d --suffix=.sedna)
 #SEDNA_ROOT=${SEDNA_ROOT:-$TMP_DIR}
 SEDNA_ROOT=/home/ansjin/sedna
@@ -30,7 +41,31 @@ GM_NODE_NAME=${SEDNA_GM_NODE:-}
 KB_NODE_NAME=${SEDNA_GM_NODE:-}
 SEDNA_ACTION=$1
 
+<<<<<<< HEAD
 trap "rm -rf '$TMP_DIR'" EXIT
+=======
+DEFAULT_SEDNA_VERSION=v0.4.0
+
+
+trap "rm -rf '$TMP_DIR'" EXIT 
+>>>>>>> sedna_github/main
+
+get_latest_version() {
+  # get Sedna latest release version
+  local repo=kubeedge/sedna
+  # output of this latest page:
+  # ...
+  # "tag_name": "v1.0.0",
+  # ...
+  {
+    curl -s https://api.github.com/repos/$repo/releases/latest |
+    awk '/"tag_name":/&&$0=$2' |
+    sed 's/[",]//g'
+  } || echo $DEFAULT_SEDNA_VERSION # fallback
+}
+
+: ${SEDNA_VERSION:=$(get_latest_version)}
+: ${KB_VERSION:=v0.3.0}
 
 _download_yamls() {
 
@@ -251,7 +286,7 @@ spec:
             memory: 32Mi
             cpu: 100m
           limits:
-            memory: 128Mi
+            memory: 256Mi
       volumes:
         - name: gm-config
           configMap:
@@ -341,6 +376,7 @@ delete_lc() {
 }
 
 wait_ok() {
+  echo "Waiting control components to be ready..."
   kubectl -n sedna wait --for=condition=available --timeout=600s deployment/gm
   kubectl -n sedna wait pod --for=condition=Ready --selector=sedna
   kubectl -n sedna get pod
@@ -405,6 +441,7 @@ do_check
 #prepare
 case "$action" in
   create)
+    echo "Installing Sedna $SEDNA_VERSION..."
     prepare_install
     create_crds
     create_kb

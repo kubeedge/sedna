@@ -16,10 +16,12 @@ rules:
     - lifelonglearningjobs
     - multiedgetrackingservices
     - dnnpartitioningservices
+    - objectsearchservices
     verbs:
     - get
     - list
     - watch
+    - patch
 
   # update crd status
   - apiGroups:
@@ -33,6 +35,7 @@ rules:
     - lifelonglearningjobs/status
     - multiedgetrackingservices/status
     - dnnpartitioningservices/status
+    - objectsearchservice/status
     verbs:
     - get
     - update

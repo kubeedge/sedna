@@ -15,6 +15,7 @@
 import os
 import six
 import logging
+from urllib.parse import urlparse
 
 import cv2
 import numpy as np
@@ -26,8 +27,21 @@ from validate_utils import validate
 from yolo3_multiscale import Yolo3
 from yolo3_multiscale import YoloConfig
 
+
 os.environ['BACKEND_TYPE'] = 'TENSORFLOW'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+s3_url = os.getenv("S3_ENDPOINT_URL", "http://s3.amazonaws.com")
+if not (s3_url.startswith("http://") or s3_url.startswith("https://")):
+    _url = f"https://{s3_url}"
+s3_url = urlparse(s3_url)
+s3_use_ssl = s3_url.scheme == 'https' if s3_url.scheme else True
+
+os.environ["AWS_ACCESS_KEY_ID"] = os.getenv("ACCESS_KEY_ID", "")
+os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("SECRET_ACCESS_KEY", "")
+os.environ["S3_ENDPOINT"] = s3_url.netloc
+os.environ["S3_USE_HTTPS"] = "1" if s3_use_ssl else "0"
 LOG = logging.getLogger(__name__)
+flags = tf.flags.FLAGS
 
 
 def preprocess(image, input_shape):
@@ -89,7 +103,7 @@ class Estimator:
 
         data_gen = DataGen(yolo_config, train_data.x)
 
-        max_epochs = int(kwargs.get("max_epochs", "1"))
+        max_epochs = int(kwargs.get("epochs", flags.max_epochs))
         config = tf.ConfigProto(allow_soft_placement=True)
         config.gpu_options.allow_growth = True
 

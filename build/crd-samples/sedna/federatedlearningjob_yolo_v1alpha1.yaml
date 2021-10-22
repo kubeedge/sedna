@@ -1,0 +1,89 @@
+apiVersion: sedna.io/v1alpha1
+kind: FederatedLearningJob
+metadata:
+  name: yolo-v5
+spec:
+  pretrainedModel: # option
+    name: "yolo-v5-pretrained-model"
+  transmitter: # option
+    ws: { } # option, by default
+    s3: # option, but at least one
+      aggDataPath: "s3://sedna/fl/aggregation_data"
+      credentialName: mysecret
+  aggregationWorker:
+    model:
+      name: "yolo-v5-model"
+    template:
+      spec:
+        nodeName: "sedna-control-plane"
+        containers:
+          - image: kubeedge/sedna-example-federated-learning-mistnet-yolo-aggregator:v0.4.0
+            name: agg-worker
+            imagePullPolicy: IfNotPresent
+            env: # user defined environments
+              - name: "cut_layer"
+                value: "4"
+              - name: "epsilon"
+                value: "100"
+              - name: "aggregation_algorithm"
+                value: "mistnet"
+              - name: "batch_size"
+                value: "32"
+              - name: "epochs"
+                value: "100"
+            resources: # user defined resources
+              limits:
+                memory: 8Gi
+  trainingWorkers:
+    - dataset:
+        name: "coco-dataset-1"
+      template:
+        spec:
+          nodeName: "edge-node"
+          containers:
+            - image: kubeedge/sedna-example-federated-learning-mistnet-yolo-client:v0.4.0
+              name: train-worker
+              imagePullPolicy: IfNotPresent
+              args: [ "-i", "1" ]
+              env: # user defined environments
+                - name: "cut_layer"
+                  value: "4"
+                - name: "epsilon"
+                  value: "100"
+                - name: "aggregation_algorithm"
+                  value: "mistnet"
+                - name: "batch_size"
+                  value: "32"
+                - name: "learning_rate"
+                  value: "0.001"
+                - name: "epochs"
+                  value: "1"
+              resources: # user defined resources
+                limits:
+                  memory: 2Gi
+    - dataset:
+        name: "coco-dataset-2"
+      template:
+        spec:
+          nodeName: "edge-node"
+          containers:
+            - image: kubeedge/sedna-example-federated-learning-mistnet-yolo-client:v0.4.0
+              name: train-worker
+              imagePullPolicy: IfNotPresent
+              args: [ "-i", "2" ]
+              env: # user defined environments
+                - name: "cut_layer"
+                  value: "4"
+                - name: "epsilon"
+                  value: "100"
+                - name: "aggregation_algorithm"
+                  value: "mistnet"
+                - name: "batch_size"
+                  value: "32"
+                - name: "learning_rate"
+                  value: "0.001"
+                - name: "epochs"
+                  value: "1"
+              resources: # user defined resources
+                limits:
+                  memory: 2Gi

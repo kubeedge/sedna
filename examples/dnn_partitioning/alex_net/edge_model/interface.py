@@ -12,20 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
-
 import sys
 import os
 import torch
-import torch.nn as nn
-import pickle
-import urllib
-import time
-import json
-from AlexNet import AlexNetConv4
 import torchvision.transforms as transforms
 
-import time
 from PIL import Image
 
 from sedna.common.config import Context
@@ -34,10 +25,7 @@ from sedna.common.benchmark import FTimer
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
-model_path = "/home/data/" +Context.get_parameters('model_path')
-model_classes_path = "/home/data/" +Context.get_parameters('model_classes_path')
-model_name = Context.get_parameters('model_name')
-image_path = "/home/data/" +Context.get_parameters('image_path')
+image_path = Context.get_parameters('image_path')
 
 class Estimator:
 
@@ -47,10 +35,7 @@ class Estimator:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def load(self, model_url="", mmodel_name=None, **kwargs):
-        # The model should be provided by a CRD
-        LOGGER.info(f"About to load model {model_name} with url {model_path}..")
-        self.model = torch.load(model_path)
-        self.model = self.model.to(self.device)
+        self.model = torch.load(model_url, map_location=torch.device(self.device))
 
     def evaluate(self, **kwargs):
         LOGGER.info(f"Evaluating model")

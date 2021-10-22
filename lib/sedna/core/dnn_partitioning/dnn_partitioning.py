@@ -43,10 +43,10 @@ class CloudInference(JobBase):
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
-        # if not os.path.exists(self.model_path):
-        #     raise FileExistsError(f"{self.model_path} miss")
-        # else:
-        self.estimator.load()
+        if not os.path.exists(self.model_path):
+            raise FileExistsError(f"{self.model_path} miss")
+        else:
+            self.estimator.load(self.model_path)
         app_server = InferenceServer(model=self, servername=self.job_name,
                                      host=self.local_ip, http_port=self.port)
         app_server.start()
@@ -107,22 +107,21 @@ class EdgeInference(JobBase):
 
         if callable(self.estimator):
             self.estimator = self.estimator()
-        # if not os.path.exists(self.model_path):
-        #     raise FileExistsError(f"{self.model_path} miss")
-        # else:
-        #     # We are using a PyTorch model which requires explicit weights loading.
-        #     self.log.info("Estimator -> Loading model and weights")
 
-        # We should pass the model path but, because it's in the container logic, we don't pass anything.
-        self.estimator.load()
-        self.log.info(f"cloud host local ip: {self.local_ip}")
-        self.log.info(f"cloud host: {self.remote_ip}")
-        self.log.info(f"cloud port: {self.port}")
+        self.log.info("Loading model")
+        if not os.path.exists(self.model_path):
+            raise FileExistsError(f"Cannot find model: {self.model_path}")
+        else:
+            self.estimator.load(self.model_path)
+
+        self.log.debug(f"cloud host local ip: {self.local_ip}")
+        self.log.debug(f"cloud host: {self.remote_ip}")
+        self.log.debug(f"cloud port: {self.port}")
 
         self.cloud = ModelClient(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
         
-        self.log.info(f"cloud obj: {self.cloud}")
+        self.log.debug(f"cloud obj: {self.cloud}")
         # self.hard_example_mining_algorithm = self.initial_hem
 
     def train(self, train_data,

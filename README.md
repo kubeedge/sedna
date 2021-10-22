@@ -71,14 +71,21 @@ Sedna consists of the following components：
 
 
 ## Guides
+
+### Documents
+
+Documentation is located on [readthedoc.io](https://sedna.readthedocs.io/). These documents can help you understand Sedna better.
+
+
 ### Installation
-Follow the [Sedna installation document](docs/setup/install.md) to install Sedna.
+Follow the [Sedna installation document](docs/setup/quick-start.md) to install Sedna.
 
 ### Examples
 Example1：[Using Joint Inference Service in Helmet Detection Scenario](/examples/joint_inference/helmet_detection_inference/README.md).  
 Example2：[Using Incremental Learning Job in Helmet Detection Scenario](/examples/incremental_learning/helmet_detection/README.md).  
 Example3：[Using Federated Learning Job in Surface Defect Detection Scenario](/examples/federated_learning/surface_defect_detection/README.md).  
-Example4：[Using Lifelong Learning Job in Thermal Comfort Prediction Scenario](/examples/lifelong_learning/atcii/README.md).
+Example4：[Using Federated Learning Job in YoLov5-based Object Detection](/examples/federated_learning/yolov5_coco128_mistnet/README.md). 
+Example5：[Using Lifelong Learning Job in Thermal Comfort Prediction Scenario](/examples/lifelong_learning/atcii/README.md).
 
 ## Roadmap
 
@@ -105,11 +112,9 @@ If you need support, start with the [troubleshooting guide](./docs/troubleshooti
 If you have questions, feel free to reach out to us in the following ways:
 - [slack channel](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
 
-<!--
 ## Contributing
 
 If you're interested in being a contributor and want to get involved in developing the Sedna code, please see [CONTRIBUTING](CONTRIBUTING.md) for details on submitting patches and the contribution workflow.
--->
 
 ## License
 

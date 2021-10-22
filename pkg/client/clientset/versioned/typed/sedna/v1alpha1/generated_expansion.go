@@ -33,3 +33,7 @@ type LifelongLearningJobExpansion interface{}
 type ModelExpansion interface{}
 
 type MultiEdgeTrackingServiceExpansion interface{}
+
+type ObjectSearchServiceExpansion interface{}
+
+type ObjectTrackingServiceExpansion interface{}

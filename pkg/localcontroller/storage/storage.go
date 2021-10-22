@@ -23,6 +23,7 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	"github.com/kubeedge/sedna/pkg/localcontroller/util"
 )
 
@@ -31,14 +32,6 @@ const (
 	S3Prefix = "s3"
 	// LocalPrefix defines that prefix of url is local host
 	LocalPrefix = ""
-	// S3EndPoint is s3 endpoint of the storage service
-	S3Endpoint = "s3-endpoint"
-	// S3UseHTTPS determines whether to use HTTPS protocol
-	S3UseHTTPS = "s3-usehttps"
-	// AccessKeyId is access key id of the storage service
-	AccessKeyID = "ACCESS_KEY_ID"
-	// SecretAccessKey is secret access key of the storage service
-	SecretAccessKey = "SECRET_ACCESS_KEY"
 )
 
 type Storage struct {
@@ -124,22 +117,22 @@ func (s *Storage) SetCredential(credential string) error {
 		return err
 	}
 
-	endpoint, err := checkMapKeyExists(m, S3Endpoint)
+	endpoint, err := checkMapKeyExists(m, runtime.S3EndpointKey)
 	if err != nil {
 		return err
 	}
 
-	useHTTPS, err := checkMapKeyExists(m, S3UseHTTPS)
+	useHTTPS, err := checkMapKeyExists(m, runtime.S3UseHTTPSKey)
 	if err != nil {
 		useHTTPS = "1"
 	}
 
-	ak, err := checkMapKeyExists(m, AccessKeyID)
+	ak, err := checkMapKeyExists(m, runtime.AccessKeyID)
 	if err != nil {
 		return err
 	}
 
-	sk, err := checkMapKeyExists(m, SecretAccessKey)
+	sk, err := checkMapKeyExists(m, runtime.SecretAccessKey)
 	if err != nil {
 		return err
 	}

@@ -269,10 +269,17 @@ class BaseConfig(ConfigSerializable):
     # the name of FederatedLearningJob and others Job
     job_name = os.getenv("JOB_NAME", "sedna")
 
+    pretrained_model_url = os.getenv("PRETRAINED_MODEL_URL", "./")
     model_url = os.getenv("MODEL_URL")
     model_name = os.getenv("MODEL_NAME")
     log_level = os.getenv("LOG_LEVEL", "INFO")
     fluentd_address = os.getenv("FLUENTD")
+
+    transmitter = os.getenv("TRANSMITTER", "ws")
+    agg_data_path = os.getenv("AGG_DATA_PATH", "./")
+    s3_endpoint_url = os.getenv("S3_ENDPOINT_URL", "")
+    access_key_id = os.getenv("ACCESS_KEY_ID", "")
+    secret_access_key = os.getenv("SECRET_ACCESS_KEY", "")
 
     # user parameter
     parameters = os.getenv("PARAMETERS")
@@ -293,3 +300,28 @@ class Context:
         value = cls.parameters.get(
             param) or cls.parameters.get(str(param).upper())
         return value if value else default
+
+    @classmethod
+    def get_algorithm_from_api(cls, algorithm, **param) -> dict:
+        """get the algorithm and parameter from api"""
+        hard_example_name = cls.get_parameters(f'{algorithm}_NAME')
+        hem_parameters = cls.get_parameters(f'{algorithm}_PARAMETERS')
+        if not hard_example_name:
+            return {}
+        try:
+            hem_parameters = json.loads(hem_parameters)
+            hem_parameters = {
+                p["key"]: p.get("value", "")
+                for p in hem_parameters if "key" in p
+            }
+        except Exception:
+            hem_parameters = {}
+
+        hem_parameters.update(**param)
+
+        hard_example_mining = {
+            "method": hard_example_name,
+            "param": hem_parameters
+        }
+
+        return hard_example_mining

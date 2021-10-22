@@ -47,16 +47,28 @@ type MultiEdgeTrackingServiceSpec struct {
 type MultiObjectTrackingDeploy struct {
 	Spec         appsv1.DeploymentSpec `json:"spec"`
 	KafkaSupport bool                  `json:"kafkaSupport,omitempty"`
+	Model        DetectionModel        `json:"model"`
 }
 
 type FEDeploy struct {
 	Spec         appsv1.DeploymentSpec `json:"spec"`
 	KafkaSupport bool                  `json:"kafkaSupport,omitempty"`
+	Model        FEModel               `json:"model"`
 }
 
 type ReIDDeploy struct {
 	Spec         appsv1.DeploymentSpec `json:"spec"`
 	KafkaSupport bool                  `json:"kafkaSupport,omitempty"`
+}
+
+// DetectionModel describes the detection model
+type DetectionModel struct {
+	Name string `json:"name"`
+}
+
+// CloudModel describes the feature extraction model
+type FEModel struct {
+	Name string `json:"name"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -13,9 +13,7 @@
 # limitations under the License.
 
 import os
-import json
 from copy import deepcopy
-import sys
 
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
@@ -23,24 +21,43 @@ from sedna.service.server import InferenceServer
 from sedna.service.client import ModelClient, LCReporter
 from sedna.common.constant import K8sResourceKind
 from sedna.core.base import JobBase
-from sedna.common.benchmark import FTimer
 
-__all__ = ("JointInference", "TSBigModelService")
+__all__ = ("JointInference", "BigModelService")
 
 
-class TSBigModelService(JobBase):
+class BigModelService(JobBase):
     """
     Large model services implemented
     Provides RESTful interfaces for large-model inference.
+
+    Parameters
+    ----------
+    estimator : Instance, big model
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your model.
+
+    Examples
+    --------
+    >>> Estimator = xgboost.XGBClassifier()
+    >>> BigModelService(estimator=Estimator).start()
     """
 
-    def __init__(self, estimator=None, config=None):
-        super(TSBigModelService, self).__init__(
-            estimator=estimator, config=config)
+    def __init__(self, estimator=None):
+        """
+        Initial a big model service for JointInference
+        :param estimator: Customize estimator
+        """
+
+        super(BigModelService, self).__init__(estimator=estimator)
         self.local_ip = self.get_parameters("BIG_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("BIG_MODEL_BIND_PORT", "5000"))
 
     def start(self):
+        """
+        Start inference rest server
+        """
+
         if callable(self.estimator):
             self.estimator = self.estimator()
         if not os.path.exists(self.model_path):
@@ -58,6 +75,25 @@ class TSBigModelService(JobBase):
         """todo: no support yet"""
 
     def inference(self, data=None, post_process=None, **kwargs):
+        """
+        Inference task for JointInference
+
+        Parameters
+        ----------
+        data: BaseDataSource
+            datasource use for inference, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` inference.
+        kwargs: Dict
+            parameters for `estimator` inference,
+            Like:  `ntree_limit` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        inference result
+        """
+
         callback_func = None
         if callable(post_process):
             callback_func = post_process
@@ -65,23 +101,49 @@ class TSBigModelService(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{self.worker_name}_cloud_inference"):
-            res = self.estimator.predict(data, **kwargs)
-
+        res = self.estimator.predict(data, **kwargs)
         if callback_func:
             res = callback_func(res)
-
         return res
 
 
 class JointInference(JobBase):
     """
-   Joint inference
-   """
+    Sedna provide a framework make sure under the condition of limited
+    resources on the edge, difficult inference tasks are offloaded to the
+    cloud to improve the overall performance, keeping the throughput.
 
-    def __init__(self, estimator=None, config=None):
-        super(JointInference, self).__init__(
-            estimator=estimator, config=config)
+    Parameters
+    ----------
+    estimator : Instance
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your model.
+    hard_example_mining : Dict
+        HEM algorithms with parameters which has registered to ClassFactory,
+        see `sedna.algorithms.hard_example_mining` for more detail.
+
+    Examples
+    --------
+    >>> Estimator = keras.models.Sequential()
+    >>> ji_service = JointInference(
+            estimator=Estimator,
+            hard_example_mining={
+                "method": "IBT",
+                "param": {
+                    "threshold_img": 0.9
+                }
+            }
+        )
+
+    Notes
+    -----
+    Sedna provide an interface call `get_hem_algorithm_from_config` to build
+    the `hard_example_mining` parameter from CRD definition.
+    """
+
+    def __init__(self, estimator=None, hard_example_mining: dict = None):
+        super(JointInference, self).__init__(estimator=estimator)
         self.job_kind = K8sResourceKind.JOINT_INFERENCE_SERVICE.value
         self.local_ip = get_host_ip()
         self.remote_ip = self.get_parameters(
@@ -111,36 +173,66 @@ class JointInference(JobBase):
             self.estimator.load(self.model_path)
         self.cloud = ModelClient(service_name=self.job_name,
                                  host=self.remote_ip, port=self.port)
-        self.hard_example_mining_algorithm = self.initial_hem
+        self.hard_example_mining_algorithm = None
+        if not hard_example_mining:
+            hard_example_mining = self.get_hem_algorithm_from_config()
+        if hard_example_mining:
+            hem = hard_example_mining.get("method", "IBT")
+            hem_parameters = hard_example_mining.get("param", {})
+            self.hard_example_mining_algorithm = ClassFactory.get_cls(
+                ClassType.HEM, hem
+            )(**hem_parameters)
 
-    @property
-    def initial_hem(self):
-        hem = self.get_parameters("HEM_NAME")
-        hem_parameters = self.get_parameters("HEM_PARAMETERS")
+    @classmethod
+    def get_hem_algorithm_from_config(cls, **param):
+        """
+        get the `algorithm` name and `param` of hard_example_mining from crd
 
-        try:
-            hem_parameters = json.loads(hem_parameters)
-            hem_parameters = {
-                p["key"]: p.get("value", "")
-                for p in hem_parameters if "key" in p
-            }
-        except Exception as err:
-            self.log.warn(f"Parse HEM_PARAMETERS failure, "
-                          f"fallback to empty: {err}")
-            hem_parameters = {}
+        Parameters
+        ----------
+        param : Dict
+            update value in parameters of hard_example_mining
 
-        if hem is None:
-            hem = self.config.get("hem_name") or "IBT"
+        Returns
+        -------
+        dict
+            e.g.: {"method": "IBT", "param": {"threshold_img": 0.5}}
 
-        return ClassFactory.get_cls(ClassType.HEM, hem)(**hem_parameters)
-
-    def train(self, train_data,
-              valid_data=None,
-              post_process=None,
-              **kwargs):
-        """todo: no support yet"""
+        Examples
+        --------
+        >>> JointInference.get_hem_algorithm_from_config(
+                threshold_img=0.9
+            )
+        {"method": "IBT", "param": {"threshold_img": 0.9}}
+        """
+        return cls.parameters.get_algorithm_from_api(
+            algorithm="HEM",
+            **param
+        )
 
     def inference(self, data=None, post_process=None, **kwargs):
+        """
+        Inference task with JointInference
+
+        Parameters
+        ----------
+        data: BaseDataSource
+            datasource use for inference, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` inference.
+        kwargs: Dict
+            parameters for `estimator` inference,
+            Like:  `ntree_limit` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        if is hard sample : bool
+        inference result : object
+        result from little-model : object
+        result from big-model: object
+        """
+
         callback_func = None
         if callable(post_process):
             callback_func = post_process
@@ -162,7 +254,13 @@ class JointInference(JobBase):
         if self.hard_example_mining_algorithm:
             is_hard_example = self.hard_example_mining_algorithm(res)
             if is_hard_example:
-                cloud_result = self.cloud.inference(
-                data.tolist(), post_process=post_process, **kwargs)
+                try:
+                    cloud_data = self.cloud.inference(
+                        data.tolist(), post_process=post_process, **kwargs)
+                    cloud_result = cloud_data["result"]
+                except Exception as err:
+                    self.log.error(f"get cloud result error: {err}")
+                else:
+                    res = cloud_result
                 self.lc_reporter.update_for_collaboration_inference()
         return [is_hard_example, res, edge_result, cloud_result]

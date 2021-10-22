@@ -37,7 +37,7 @@ done
 if [ -z "$type" ]
 then
    echo "Defaulting to building all example images..";
-   parameterA="all"
+   type="all"
 fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
@@ -61,6 +61,8 @@ dnn-partitioning-alex-net-cloud.Dockerfile
 )
 
 dockerfiles_federated_learning=(
+federated-learning-mistnet-yolo-aggregator.Dockerfile
+federated-learning-mistnet-yolo-client.Dockerfile
 federated-learning-surface-defect-detection-aggregation.Dockerfile
 federated-learning-surface-defect-detection-aggregation-train.Dockerfile
 )

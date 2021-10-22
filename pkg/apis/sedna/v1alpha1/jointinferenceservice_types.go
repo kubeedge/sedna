@@ -38,8 +38,8 @@ type JointInferenceService struct {
 
 // JointInferenceServiceSpec is a description of a jointinferenceservice
 type JointInferenceServiceSpec struct {
-	EdgeWorker  []EdgeWorker `json:"edgeWorker"`
-	CloudWorker CloudWorker  `json:"cloudWorker"`
+	EdgeWorker  EdgeWorker  `json:"edgeWorker"`
+	CloudWorker CloudWorker `json:"cloudWorker"`
 }
 
 // EdgeWorker describes the data a edge worker should have

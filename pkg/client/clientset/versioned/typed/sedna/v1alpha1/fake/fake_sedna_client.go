@@ -60,6 +60,14 @@ func (c *FakeSednaV1alpha1) MultiEdgeTrackingServices(namespace string) v1alpha1
 	return &FakeMultiEdgeTrackingServices{c, namespace}
 }
 
+func (c *FakeSednaV1alpha1) ObjectSearchServices(namespace string) v1alpha1.ObjectSearchServiceInterface {
+	return &FakeObjectSearchServices{c, namespace}
+}
+
+func (c *FakeSednaV1alpha1) ObjectTrackingServices(namespace string) v1alpha1.ObjectTrackingServiceInterface {
+	return &FakeObjectTrackingServices{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeSednaV1alpha1) RESTClient() rest.Interface {

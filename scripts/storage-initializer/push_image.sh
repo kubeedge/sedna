@@ -17,4 +17,9 @@
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 source build_image.sh
-docker push $IMAGE
+
+if [ -z "${PLATFORMS:-}" ]; then
+  docker push $IMAGE
+else
+  docker buildx build --push --platform $PLATFORMS -t $IMAGE --label sedna=scripts .
+fi

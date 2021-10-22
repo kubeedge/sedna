@@ -19,17 +19,11 @@ spec:
           nodeName: "fraphisprk00034"
           containers:
           - image:  registry-cbu.huawei.com/kubeedge/sedna-example-dnn-partitioning-alex-net-edge:v0.3.0
-            imagePullPolicy: IfNotPresent
+            imagePullPolicy: Always
             name:  edge-model
             env:  # user defined environments
-            - name: "model_name"
-              value: "model_1"
-            - name: "model_path"
-              value: "/data/edge_model/model_1.pt"
-            - name: "model_classes_path"
-              value: "/data/cloud_model/imagenet_classes.txt"
             - name: "image_path"
-              value: "/data/edge_model/images/dog.jpg"
+              value: "/home/data/data/edge_model/images/dog.jpg"
             resources:  # user defined resources
               requests:
                 memory: 64M
@@ -60,18 +54,14 @@ spec:
           labels:
             app: dnn-partition-alex-net-inference-cloud
         spec:
-          nodeName: "fraphisprk00033"
+          nodeName: "fraporion00001"
           containers:
             - image: registry-cbu.huawei.com/kubeedge/sedna-example-dnn-partitioning-alex-net-cloud:v0.3.0
               name:  cloud-model
-              imagePullPolicy: IfNotPresent
+              imagePullPolicy: Always
               env:  # user defined environments
-              - name: "model_name"
-                value: "model_2"
-              - name: "model_path"
-                value: "/data/cloud_model/model_2.pt"
               - name: "model_classes_path"
-                value: "/data/cloud_model/imagenet_classes.txt"
+                value: "/home/data/data/cloud_model/imagenet_classes.txt"
               resources:  # user defined resources
                 requests:
                   memory: 2Gi

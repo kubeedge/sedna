@@ -14,6 +14,7 @@
 
 import os
 
+import numpy as np
 import tensorflow as tf
 
 from sedna.backend.base import BackendBase
@@ -24,19 +25,23 @@ if hasattr(tf, "compat"):
     # version 2.0 tf
     ConfigProto = tf.compat.v1.ConfigProto
     Session = tf.compat.v1.Session
+    reset_default_graph = tf.compat.v1.reset_default_graph
 else:
     # version 1
     ConfigProto = tf.ConfigProto
     Session = tf.Session
+    reset_default_graph = tf.reset_default_graph
 
 class TFBackend(BackendBase):
+    """Tensorflow Framework Backend base Class"""
 
     def __init__(self, estimator, fine_tune=True, **kwargs):
         super(TFBackend, self).__init__(
             estimator=estimator, fine_tune=fine_tune, **kwargs)
         self.framework = "tensorflow"
-        sess_config = self._init_gpu_session_config(
-        ) if self.use_cuda else self._init_cpu_session_config()
+
+        sess_config = (self._init_gpu_session_config()
+                       if self.use_cuda else self._init_cpu_session_config())
         self.graph = tf.Graph()
 
         with self.graph.as_default():
@@ -62,24 +67,27 @@ class TFBackend(BackendBase):
             self.estimator = self.estimator()
         if self.fine_tune and FileOps.exists(self.model_save_path):
             self.finetune()
-
+        self.has_load = True
+        varkw = self.parse_kwargs(self.estimator.train, **kwargs)
         return self.estimator.train(
             train_data=train_data,
             valid_data=valid_data,
-            **kwargs
+            **varkw
         )
 
     def predict(self, data, **kwargs):
         if not self.has_load:
-            tf.reset_default_graph()
-            self.sess = self.load()
-        return self.estimator.predict(data=data, **kwargs)
+            reset_default_graph()
+            self.load()
+        varkw = self.parse_kwargs(self.estimator.predict, **kwargs)
+        return self.estimator.predict(data=data, **varkw)
 
     def evaluate(self, data, **kwargs):
         if not self.has_load:
-            tf.reset_default_graph()
-            self.sess = self.load()
-        return self.estimator.evaluate(data, **kwargs)
+            reset_default_graph()
+            self.load()
+        varkw = self.parse_kwargs(self.estimator.evaluate, **kwargs)
+        return self.estimator.evaluate(data, **varkw)
 
     def finetune(self):
         """todo: no support yet"""
@@ -97,27 +105,31 @@ class TFBackend(BackendBase):
 
     def model_info(self, model, relpath=None, result=None):
         ckpt = os.path.dirname(model)
+        _, _type = os.path.splitext(model)
         if relpath:
             _url = FileOps.remove_path_prefix(model, relpath)
             ckpt_url = FileOps.remove_path_prefix(ckpt, relpath)
         else:
             _url = model
             ckpt_url = ckpt
-        results = [
-            {
-                "format": "pb",
+        _type = _type.lstrip(".").lower()
+        results = [{
+                "format": _type,
                 "url": _url,
                 "metrics": result
-            }, {
+            }]
+        if _type == "pb":  # report ckpt path when model save as pb file
+            results.append({
                 "format": "ckpt",
                 "url": ckpt_url,
                 "metrics": result
-            }
-        ]
+            })
         return results
 
 
 class KerasBackend(TFBackend):
+    """Keras Framework Backend base Class"""
+
     def __init__(self, estimator, fine_tune=True, **kwargs):
         super(TFBackend, self).__init__(
             estimator=estimator, fine_tune=fine_tune, **kwargs)
@@ -134,4 +146,5 @@ class KerasBackend(TFBackend):
         return list(map(lambda x: x.tolist(), self.estimator.get_weights()))
 
     def set_weights(self, weights):
+        weights = [np.array(x) for x in weights]
         self.estimator.set_weights(weights)

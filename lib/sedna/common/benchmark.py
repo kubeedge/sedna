@@ -45,7 +45,8 @@ class FTimer(FluentdHelper):
             "method_name": self.name
         }
 
-        self.send_json_msg(result)
+        if FLUENTD_ADDRESS:
+            self.send_json_msg(result)
         self.log.debug(json.dumps(result))
 
 # Class to monitor resource utlization of a pod belonging to Sedna (acutally this collects stats of the node)

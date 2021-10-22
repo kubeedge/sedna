@@ -34,6 +34,8 @@ type SednaV1alpha1Interface interface {
 	LifelongLearningJobsGetter
 	ModelsGetter
 	MultiEdgeTrackingServicesGetter
+	ObjectSearchServicesGetter
+	ObjectTrackingServicesGetter
 }
 
 // SednaV1alpha1Client is used to interact with features provided by the sedna.io group.
@@ -71,6 +73,14 @@ func (c *SednaV1alpha1Client) Models(namespace string) ModelInterface {
 
 func (c *SednaV1alpha1Client) MultiEdgeTrackingServices(namespace string) MultiEdgeTrackingServiceInterface {
 	return newMultiEdgeTrackingServices(c, namespace)
+}
+
+func (c *SednaV1alpha1Client) ObjectSearchServices(namespace string) ObjectSearchServiceInterface {
+	return newObjectSearchServices(c, namespace)
+}
+
+func (c *SednaV1alpha1Client) ObjectTrackingServices(namespace string) ObjectTrackingServiceInterface {
+	return newObjectTrackingServices(c, namespace)
 }
 
 // NewForConfig creates a new SednaV1alpha1Client for the given config.

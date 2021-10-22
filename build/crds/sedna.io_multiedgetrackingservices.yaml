@@ -41,6 +41,14 @@ spec:
                 properties:
                   kafkaSupport:
                     type: boolean
+                  model:
+                    description: CloudModel describes the feature extraction model
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
                   spec:
                     description: DeploymentSpec is the specification of the desired
                       behavior of the Deployment.
@@ -7094,6 +7102,7 @@ spec:
                     - template
                     type: object
                 required:
+                - model
                 - spec
                 type: object
               motDeploy:
@@ -7101,6 +7110,14 @@ spec:
                 properties:
                   kafkaSupport:
                     type: boolean
+                  model:
+                    description: DetectionModel describes the detection model
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
                   spec:
                     description: DeploymentSpec is the specification of the desired
                       behavior of the Deployment.
@@ -14154,6 +14171,7 @@ spec:
                     - template
                     type: object
                 required:
+                - model
                 - spec
                 type: object
               reIDDeploy:

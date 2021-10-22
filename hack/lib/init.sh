@@ -22,8 +22,10 @@ set -o pipefail
 SEDNA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
 SEDNA_OUT_BINPATH="${SEDNA_ROOT}/${OUT_BINPATH:-_output/bin}"
+SEDNA_OUT_IMAGEPATH="${SEDNA_ROOT}/${OUT_IMAGESPATH:-_output/images}"
 
 readonly SEDNA_GO_PACKAGE="github.com/kubeedge/sedna"
 
 source "${SEDNA_ROOT}/hack/lib/golang.sh"
 source "${SEDNA_ROOT}/hack/lib/util.sh"
+source "${SEDNA_ROOT}/hack/lib/buildx.sh"

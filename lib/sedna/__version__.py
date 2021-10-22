@@ -13,5 +13,11 @@
 # limitations under the License.
 
 """sedna version information."""
+import os
 
-__version__ = '0.0.2'
+
+_VERSION = os.path.join(os.path.dirname(__file__), "VERSION")
+
+with open(_VERSION, "r", encoding="utf-8") as fin:
+    tmp = [line.strip() for line in fin if line.strip()]
+    __version__ = "-".join(tmp) if tmp else "dev"

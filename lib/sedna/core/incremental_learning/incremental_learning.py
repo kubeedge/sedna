@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 from copy import deepcopy
 
 from sedna.common.file_ops import FileOps
@@ -25,23 +24,113 @@ __all__ = ("IncrementalLearning",)
 
 class IncrementalLearning(JobBase):
     """
-    Incremental learning
+    Incremental learning  is a method of machine learning in which input data
+    is continuously used to extend the existing model's knowledge i.e. to
+    further train the model. It represents a dynamic technique of supervised
+    learning and unsupervised learning that can be applied when training data
+    becomes available gradually over time.
+
+    Sedna provide the related interfaces for application development.
+
+    Parameters
+    ----------
+    estimator : Instance
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your model.
+    hard_example_mining : Dict
+        HEM algorithms with parameters which has registered to ClassFactory,
+        see `sedna.algorithms.hard_example_mining` for more detail.
+
+    Examples
+    --------
+    >>> Estimator = keras.models.Sequential()
+    >>> il_model = IncrementalLearning(
+            estimator=Estimator,
+            hard_example_mining={
+                "method": "IBT",
+                "param": {
+                    "threshold_img": 0.9
+                }
+            }
+        )
+
+    Notes
+    -----
+    Sedna provide an interface call `get_hem_algorithm_from_config` to build
+    the `hard_example_mining` parameter from CRD definition.
     """
 
-    def __init__(self, estimator, config=None):
-        super(IncrementalLearning, self).__init__(
-            estimator=estimator, config=config)
+    def __init__(self, estimator, hard_example_mining: dict = None):
+        super(IncrementalLearning, self).__init__(estimator=estimator)
 
         self.model_urls = self.get_parameters(
             "MODEL_URLS")  # use in evaluation
         self.job_kind = K8sResourceKind.INCREMENTAL_JOB.value
         FileOps.clean_folder([self.config.model_url], clean=False)
-        self.hard_example_mining_algorithm = self.initial_hem
+        self.hard_example_mining_algorithm = None
+        if not hard_example_mining:
+            hard_example_mining = self.get_hem_algorithm_from_config()
+        if hard_example_mining:
+            hem = hard_example_mining.get("method", "IBT")
+            hem_parameters = hard_example_mining.get("param", {})
+            self.hard_example_mining_algorithm = ClassFactory.get_cls(
+                ClassType.HEM, hem
+            )(**hem_parameters)
+
+    @classmethod
+    def get_hem_algorithm_from_config(cls, **param):
+        """
+        get the `algorithm` name and `param` of hard_example_mining from crd
+
+        Parameters
+        ----------
+        param : Dict
+            update value in parameters of hard_example_mining
+
+        Returns
+        -------
+        dict
+            e.g.: {"method": "IBT", "param": {"threshold_img": 0.5}}
+
+        Examples
+        --------
+        >>> IncrementalLearning.get_hem_algorithm_from_config(
+                threshold_img=0.9
+            )
+        {"method": "IBT", "param": {"threshold_img": 0.9}}
+        """
+        return cls.parameters.get_algorithm_from_api(
+            algorithm="HEM",
+            **param
+        )
 
     def train(self, train_data,
               valid_data=None,
               post_process=None,
               **kwargs):
+        """
+        Training task for IncrementalLearning
+
+        Parameters
+        ----------
+        train_data: BaseDataSource
+            datasource use for train, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        valid_data:  BaseDataSource
+            datasource use for evaluation, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` training.
+        kwargs: Dict
+            parameters for `estimator` training,
+            Like:  `early_stopping_rounds` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        estimator
+        """
+
         callback_func = None
         if post_process is not None:
             callback_func = ClassFactory.get_cls(
@@ -58,6 +147,27 @@ class IncrementalLearning(JobBase):
             self.estimator) if callback_func else self.estimator
 
     def inference(self, data=None, post_process=None, **kwargs):
+        """
+        Inference task for IncrementalLearning
+
+        Parameters
+        ----------
+        data: BaseDataSource
+            datasource use for inference, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` inference.
+        kwargs: Dict
+            parameters for `estimator` inference,
+            Like:  `ntree_limit` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        inference result : object
+        result after post_process : object
+        if is hard sample : bool
+        """
+
         if not self.estimator.has_load:
             self.estimator.load(self.model_path)
 
@@ -81,6 +191,25 @@ class IncrementalLearning(JobBase):
         return infer_res, res, is_hard_example
 
     def evaluate(self, data, post_process=None, **kwargs):
+        """
+        Evaluate task for IncrementalLearning
+
+        Parameters
+        ----------
+        data: BaseDataSource
+            datasource use for evaluation, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` evaluation.
+        kwargs: Dict
+            parameters for `estimator` evaluate,
+            Like:  `metric_name` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        evaluate metrics : List
+        """
+
         callback_func = None
         if callable(post_process):
             callback_func = post_process

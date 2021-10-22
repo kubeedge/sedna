@@ -22,6 +22,7 @@ class Task:
         self.entry = entry
         self.samples = samples
         self.meta_attr = meta_attr
+        self.test_samples = None  # assign on task definition and use in TRD
         self.model = None  # assign on running
         self.result = None  # assign on running
 
