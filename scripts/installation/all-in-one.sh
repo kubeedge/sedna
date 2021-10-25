@@ -239,6 +239,11 @@ function setup_cloudcore() {
   KUBEEDGE_TOKEN=$(run_in_control_plane keadm gettoken)
 }
 
+
+function setup_edgemesh() {
+  # TODO: wait for edgemesh one line installer
+}
+
 function gen_cni_config() {
   cat <<EOF
 {
@@ -372,6 +377,8 @@ function setup_cloud() {
   setup_control_kubeconfig
 
   setup_cloudcore
+
+  setup_edgemesh
 }
 
 function clean_cloud() {
@@ -387,7 +394,6 @@ function clean_edge() {
 }
 
 function install_sedna() {
-  local gm_node=$CONTROL_PLANE_NAME
   if run_in_control_plane kubectl get ns sedna; then
     if [ "$FORCE_INSTALL_SEDNA" != true ]; then
       log_info '"sedna" namespace already exists, no install Sedna control components.'
@@ -396,16 +402,14 @@ function install_sedna() {
       return
     fi
     run_in_control_plane bash -ec "
-    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$gm_node SEDNA_ACTION=clean SEDNA_VERSION=$SEDNA_VERSION bash -
+    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_ACTION=clean SEDNA_VERSION=$SEDNA_VERSION bash -
   "
   fi
 
   log_info "Installing Sedna Control Components..."
 
-
   run_in_control_plane bash -ec "
-    kubectl taint node $gm_node node-role.kubernetes.io/master- || true
-    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$gm_node SEDNA_ACTION=create bash -
+    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_ACTION=create bash -
   "
 }
 
