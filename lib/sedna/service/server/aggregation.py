@@ -26,12 +26,11 @@ from starlette.routing import WebSocketRoute
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from sedna.algorithms.aggregation import AggClient
-from sedna.common.config import BaseConfig, Context
 from sedna.common.class_factory import ClassFactory, ClassType
-from sedna.common.log import LOGGER
 from sedna.common.config import Context
+from sedna.common.log import LOGGER
 from sedna.common.utils import get_host_ip
-from .base import BaseServer
+from sedna.service.server.base import BaseServer
 
 __all__ = ('AggregationServer', 'AggregationServerV2')
 

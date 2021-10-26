@@ -88,8 +88,10 @@ class BaseServer:
             timeout_keep_alive=self.timeout,
             log_level="info",
             **kwargs)
+        LOGGER.info(f"config={config}")
         server = Server(config=config)
         with server.run_in_thread() as current_thread:
+            LOGGER.info(f"current_thread={current_thread}")
             return self.wait_stop(current=current_thread)
 
     def wait_stop(self, current):

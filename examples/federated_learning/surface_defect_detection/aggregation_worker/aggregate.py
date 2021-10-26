@@ -28,7 +28,8 @@ def run_server():
     ))
 
     server = AggregationServer(
-        aggregation=aggregation_algorithm,
+        host=Context.get_parameters('AGG_IP'),
+        aggregation='FedAvg',
         exit_round=exit_round,
         ws_size=20 * 1024 * 1024,
         participants_count=participants_count
