@@ -61,23 +61,23 @@ IMAGE_TAG=${IMAGE_TAG:-v0.4.0}
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 
 dockerfiles_federated_learning=(
-federated-learning-mistnet-yolo-aggregator.Dockerfile
-federated-learning-mistnet-yolo-client.Dockerfile
+#federated-learning-mistnet-yolo-aggregator.Dockerfile
+#federated-learning-mistnet-yolo-client.Dockerfile
 federated-learning-surface-defect-detection-aggregation.Dockerfile
 federated-learning-surface-defect-detection-train.Dockerfile
 )
 
 dockerfiles_joint_inference=(
-joint-inference-helmet-detection-big.Dockerfile
-joint-inference-helmet-detection-little.Dockerfile
+#joint-inference-helmet-detection-big.Dockerfile
+#joint-inference-helmet-detection-little.Dockerfile
 )
 
 dockerfiles_lifelong_learning=(
-lifelong-learning-atcii-classifier.Dockerfile
+#lifelong-learning-atcii-classifier.Dockerfile
 )
 
 dockerfiles_incremental_learning=(
-incremental-learning-helmet-detection.Dockerfile
+#incremental-learning-helmet-detection.Dockerfile
 )
 
 # Iterate over the input folders and build them sequentially.
