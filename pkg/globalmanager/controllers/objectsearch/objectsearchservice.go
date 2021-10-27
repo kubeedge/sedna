@@ -508,10 +508,12 @@ func (c *Controller) createWorkers(service *sednav1.ObjectSearchService) (active
 	activeDeployments++
 
 	// create reid worker edgemesh service
-	reidServiceURL, err := runtime.CreateEdgeMeshService(c.kubeClient, service, objectSearchReidWorker, reidServicePort)
+	reidServiceHost, err := runtime.CreateEdgeMeshService(c.kubeClient, service, objectSearchReidWorker, reidServicePort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create reid worker edgemesh service: %w", err)
 	}
+
+	reidServiceURL := fmt.Sprintf("%s:%d", reidServiceHost, reidServicePort)
 
 	// create user worker deployment
 	userWorkerReplicas := int32(1)
@@ -534,10 +536,11 @@ func (c *Controller) createWorkers(service *sednav1.ObjectSearchService) (active
 	activeDeployments++
 
 	// create user worker service
-	userWorkerURL, err := runtime.CreateEdgeMeshService(c.kubeClient, service, objectSearchUserWorker, userWorkerPort)
+	userWorkerHost, err := runtime.CreateEdgeMeshService(c.kubeClient, service, objectSearchUserWorker, userWorkerPort)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}
+	userWorkerURL := fmt.Sprintf("%s:%d", userWorkerHost, userWorkerPort)
 
 	// create tracking worker pods
 	var trackingWorkerParam runtime.WorkerParam
