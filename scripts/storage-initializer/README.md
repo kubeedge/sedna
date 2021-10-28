@@ -12,8 +12,12 @@ python3 download.py s3://models/classification/model.tar.gz /tmp/models/
 export S3_ENDPOINT_URL=https://play.min.io
 export ACCESS_KEY_ID=Q3AM3UQ867SPQQA43P2F
 export SECRET_ACCESS_KEY=zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG
-python3 download.py s3://datasets/mnist /tmp/mnist
-# we then download the content of mnist directory into /tmp/mnist/
+
+python3 download.py s3://datasets/mnist/1.jpg /tmp
+# we then download the file 1.jpg into /tmp, and result is /tmp/1.jpg.
+
+python3 download.py s3://datasets/mnist /tmp
+# we then download the folder mnist into /tmp, and result is /tmp/mnist.
 
 ```
 3. http server:
