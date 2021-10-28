@@ -21,7 +21,6 @@ import torchvision.transforms as T
 from PIL import Image
 import numpy as np
 
-from sedna.backend.torch.nets.nn import Backbone
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
@@ -98,7 +97,7 @@ class Estimator(FluentdHelper):
             with FTimer(f"feature_extraction"):
                 with torch.no_grad():
                     query_feat = self.model(input)
-                    LOGGER.info(f"Extracted ReID features for container/s received from camera {camera_code}")
+                    LOGGER.info(f"Extracted ReID features for {len(data)} object/s received from camera {camera_code}")
                     LOGGER.debug(f"Extracted tensor with features: {query_feat}")
 
             LOGGER.debug(f"Input image size: {image_as_array.nbytes}")

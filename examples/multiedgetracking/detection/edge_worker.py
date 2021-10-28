@@ -141,6 +141,6 @@ class Estimator(FluentdHelper):
         # Send some data to fluentd for monitoring
         self.write_to_fluentd(bbs_list)
 
-        LOGGER.info(f"Found {len(bbs_list)} container/s in camera {self.camera_code}")
+        LOGGER.info(f"Found {len(bbs_list)} object/s in camera {self.camera_code}")
         
         return bbs_list

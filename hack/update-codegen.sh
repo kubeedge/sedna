@@ -28,14 +28,15 @@ ${SEDNA_GO_PACKAGE}/pkg/client ${SEDNA_GO_PACKAGE}/pkg/apis \
 --go-header-file ${SEDNA_ROOT}/hack/boilerplate/boilerplate.generatego.txt
 
 # Check if Sedna home is different from the standard directory where GO projects are located
-if [ "${GOPATH}/src/${SEDNA_GO_PACKAGE}/" != "$${SEDNA_ROOT}/" ]; then
+if ! [[ "${GOPATH}/src/${SEDNA_GO_PACKAGE}/" -ef "${SEDNA_ROOT}/" ]]; then
     # Copy generated code into SEDNA_ROOT
-    echo "Copying generated code from ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/ to ${SEDNA_ROOT}/ ..."
-    cp -Rf ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg ${SEDNA_ROOT}/
+    echo "Warning: ${SEDNA_ROOT} not included in $GOPATH which is required by code-gen"
+    echo "Moving generated code from ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/ to ${SEDNA_ROOT}/"
+    rsync -a ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg ${SEDNA_ROOT}/
     if [ $? -eq 0 ]; then
         echo "Copy successful!"
+        rm -rf ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/*
     else
         echo "Error during copy!"
     fi
 fi
-

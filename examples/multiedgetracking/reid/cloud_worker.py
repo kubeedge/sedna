@@ -82,6 +82,7 @@ class Estimator:
             # Uncomment this line if you have the bboxes images available (img_dir) to create the top-10 result collage.
             # self._save_result(indices, camid='mixed', top_k=10)
             result = {
+                "object_id": self._extract_id(self.img_path[indices[0][0]]),
                 "container_id": self._extract_id(self.img_path[indices[0][0]]),
                 "detection_area": camera_code,
                 "detection_time": det_time

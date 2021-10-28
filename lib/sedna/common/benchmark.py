@@ -3,6 +3,7 @@ import time, json
 # import psutil
 from sedna.common.config import Context
 from sedna.common.log import LOGGER
+from pydoc import locate
 
 # This belong to a ConfigMap
 FLUENTD_ADDRESS = Context.get_parameters("FLUENTD_IP", None)
@@ -12,6 +13,9 @@ SEDNA_INDEX = 'sedna'
 if FLUENTD_ADDRESS:
     from fluent import sender
     from fluent import event
+
+# def get_logging_interface():
+
 
 # Base class to send events to the Fluentd daemon in the cluster (if available)
 class FluentdHelper():
@@ -48,33 +52,3 @@ class FTimer(FluentdHelper):
         if FLUENTD_ADDRESS:
             self.send_json_msg(result)
         self.log.debug(json.dumps(result))
-
-# Class to monitor resource utlization of a pod belonging to Sedna (acutally this collects stats of the node)
-# class ResourceMonitor(FluentdHelper, Thread):
-#     def __init__(self, interval = 1, refresh_interval = 0.5) -> None:
-#         super().__init__()
-        
-#         self.interval = interval
-#         self.refresh_interval = refresh_interval
-#         self.daemon = True
-        
-#         self.start()
-
-#     def run(self):
-#         LOGGER.debug("Start ResourceMonitor thread")
-#         while True:
-#             self.collect()
-#             time.sleep(self.refresh_interval)
-
-#     def collect(self):
-#         data = {
-#             "cpu%": psutil.cpu_percent(),
-#             "mem%": psutil.virtual_memory().percent,
-#             "mem_available": psutil.virtual_memory().available,
-#             "mem_used": psutil.virtual_memory().used,
-#             "mem_total": psutil.virtual_memory().used,
-#             "net_bytes_sent": psutil.net_io_counters().bytes_sent,
-#             "net_bytes_recv": psutil.net_io_counters().bytes_recv,
-#         }
-        
-#         self.send_json_msg(data)

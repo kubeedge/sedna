@@ -1,0 +1,8 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: detection-pedestrians-yolov5s
+  namespace: default
+spec:
+  url: "/data/ai_models/object_detection/pedestrians/best_large.pt"
+  format: "pt"
