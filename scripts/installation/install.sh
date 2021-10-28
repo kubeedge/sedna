@@ -157,8 +157,13 @@ spec:
       labels:
         sedna: kb
     spec:
-      nodeSelector:
-        sedna: control-plane
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/edge
+                operator: DoesNotExist
       serviceAccountName: sedna
       containers:
       - name: kb
@@ -255,8 +260,13 @@ spec:
       labels:
         sedna: gm
     spec:
-      nodeSelector:
-        sedna: control-plane
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/edge
+                operator: DoesNotExist
       serviceAccountName: sedna
       containers:
       - name: gm
@@ -282,7 +292,6 @@ delete_gm() {
   cd ${SEDNA_ROOT}
 
   kubectl delete -f build/gm/rbac/
-
 
   # no need to clean gm deployment alone
 }
@@ -416,6 +425,8 @@ case "$action" in
     ;;
 
   delete)
+    # no errexit when fail to clean
+    set +o errexit
     delete_pods
     delete_gm
     delete_lc
