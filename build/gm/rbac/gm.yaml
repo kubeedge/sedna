@@ -14,6 +14,8 @@ rules:
     - federatedlearningjobs
     - incrementallearningjobs
     - lifelonglearningjobs
+    - objectsearchservices
+    - objecttrackingservices
     verbs:
     - get
     - list
@@ -30,15 +32,27 @@ rules:
     - federatedlearningjobs/status
     - incrementallearningjobs/status
     - lifelonglearningjobs/status
+    - objectsearchservices/status
+    - objecttrackingservices/status
     verbs:
     - get
     - update
 
-  # current we implement ai features by k8s pods, services
+  # current we implement ai features by k8s pods, services, deployments
   - apiGroups:
     - ""
     resources:
     - pods
+    verbs:
+    - create
+    - get
+    - list
+    - watch
+    - delete
+  - apiGroups:
+    - "apps"
+    resources:
+    - deployments
     verbs:
     - create
     - get
