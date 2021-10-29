@@ -89,9 +89,9 @@ class Estimator(FluentdHelper):
             camera_code = d[0][2]
             det_time = d[0][3]
             
-            data = Image.fromarray(image_as_array)
+            imdata = Image.fromarray(image_as_array)
             LOGGER.debug(f'Performing feature extraction for received image')
-            input = torch.unsqueeze(self.transform(data), 0)
+            input = torch.unsqueeze(self.transform(imdata), 0)
             input = input.to(self.device)
 
             with FTimer(f"feature_extraction"):
