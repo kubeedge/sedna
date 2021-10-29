@@ -54,7 +54,7 @@ def main():
         aggregation=fedavg,
         transmitter=s3_transmitter)
 
-    fl_model.run()
+    fl_model.train()
 
 if __name__ == '__main__':
     main()
