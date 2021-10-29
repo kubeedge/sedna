@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -82,48 +83,6 @@ func GenerateWorkerSelector(object CommonInterface, workerType string) (labels.S
 	return metav1.LabelSelectorAsSelector(ls)
 }
 
-// CreateKubernetesService creates a k8s service for an object given ip and port
-func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32, inputIP string) (int32, error) {
-	ctx := context.Background()
-	name := object.GetName()
-	namespace := object.GetNamespace()
-	kind := object.GroupVersionKind().Kind
-	targePort := intstr.IntOrString{
-		IntVal: inputPort,
-	}
-	serviceSpec := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:    object.GetNamespace(),
-			GenerateName: name + "-" + "service" + "-",
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(object, object.GroupVersionKind()),
-			},
-			Labels: generateLabels(object, workerType),
-		},
-		Spec: v1.ServiceSpec{
-			Selector: generateLabels(object, workerType),
-			ExternalIPs: []string{
-				inputIP,
-			},
-			Type: v1.ServiceTypeNodePort,
-			Ports: []v1.ServicePort{
-				{
-					Port:       inputPort,
-					TargetPort: targePort,
-				},
-			},
-		},
-	}
-	service, err := kubeClient.CoreV1().Services(namespace).Create(ctx, serviceSpec, metav1.CreateOptions{})
-	if err != nil {
-		klog.Warningf("failed to create service for %v %v/%v, err:%s", kind, namespace, name, err)
-		return 0, err
-	}
-
-	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
-	return service.Spec.Ports[0].NodePort, nil
-}
-
 // injectWorkerParam modifies pod in-place
 func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInterface) {
 	InjectStorageInitializer(pod, workerParam)
@@ -182,19 +141,18 @@ func CreatePodWithTemplate(client kubernetes.Interface, object CommonInterface, 
 
 // CreateEdgeMeshService creates a kubeedge edgemesh service for an object, and returns an edgemesh service URL.
 // Since edgemesh can realize Cross-Edge-Cloud communication, the service can be created both on the cloud or edge side.
-// TODO: Integrate this function with CreateKubernetesService function.
-func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32) (string, error) {
+func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, servicePort int32) (string, error) {
 	ctx := context.Background()
 	name := object.GetName()
 	namespace := object.GetNamespace()
 	kind := object.GroupVersionKind().Kind
-	targePort := intstr.IntOrString{
-		IntVal: inputPort,
+	targetPort := intstr.IntOrString{
+		IntVal: servicePort,
 	}
 	serviceSpec := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
-			Name:      name + "-" + workerType + "-" + "svc",
+			Name:      strings.ToLower(name + "-" + workerType),
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, object.GroupVersionKind()),
 			},
@@ -204,10 +162,13 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 			Selector: generateLabels(object, workerType),
 			Ports: []v1.ServicePort{
 				{
-					Name:       "http-0",
+					// TODO: be clean, Port.Name is currently required by edgemesh(v1.8.0).
+					// and should be <protocol>-<suffix>
+					Name: "tcp-0",
+
 					Protocol:   "TCP",
-					Port:       inputPort,
-					TargetPort: targePort,
+					Port:       servicePort,
+					TargetPort: targetPort,
 				},
 			},
 		},
@@ -219,8 +180,7 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 	}
 
 	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
-	edgeMeshURL := name + "-" + workerType + "-" + "svc" + "." + namespace + ":" + strconv.Itoa(int(inputPort))
-	return edgeMeshURL, nil
+	return fmt.Sprintf("%s.%s", service.Name, service.Namespace), nil
 }
 
 // CreateDeploymentWithTemplate creates and returns a deployment object given a crd object, deployment template

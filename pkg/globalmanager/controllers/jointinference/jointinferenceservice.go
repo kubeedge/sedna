@@ -58,7 +58,7 @@ const (
 const (
 	jointInferenceForEdge  = "Edge"
 	jointInferenceForCloud = "Cloud"
-	bigModelPort           = 5000
+	BigModelPort           = 5000
 )
 
 // Kind contains the schema.GroupVersionKind for this controller type.
@@ -398,24 +398,22 @@ func isServiceFinished(j *sednav1.JointInferenceService) bool {
 func (c *Controller) createWorkers(service *sednav1.JointInferenceService) (active int32, err error) {
 	active = 0
 
+	var bigModelPort int32 = BigModelPort
 	// create cloud worker
-	err = c.createCloudWorker(service)
+	err = c.createCloudWorker(service, bigModelPort)
 	if err != nil {
 		return active, err
 	}
 	active++
 
 	// create k8s service for cloudPod
-	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
-	// will support Spec.NodeSelector.
-	bigModelIP, err := runtime.GetNodeIPByName(c.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
-	bigServicePort, err := runtime.CreateKubernetesService(c.kubeClient, service, jointInferenceForCloud, bigModelPort, bigModelIP)
+	bigModelHost, err := runtime.CreateEdgeMeshService(c.kubeClient, service, jointInferenceForCloud, bigModelPort)
 	if err != nil {
 		return active, err
 	}
 
 	// create edge worker
-	err = c.createEdgeWorker(service, bigServicePort)
+	err = c.createEdgeWorker(service, bigModelHost, bigModelPort)
 	if err != nil {
 		return active, err
 	}
@@ -424,7 +422,7 @@ func (c *Controller) createWorkers(service *sednav1.JointInferenceService) (acti
 	return active, err
 }
 
-func (c *Controller) createCloudWorker(service *sednav1.JointInferenceService) error {
+func (c *Controller) createCloudWorker(service *sednav1.JointInferenceService, bigModelPort int32) error {
 	// deliver pod for cloudworker
 	cloudModelName := service.Spec.CloudWorker.Model.Name
 	cloudModel, err := c.client.Models(service.Namespace).Get(context.Background(), cloudModelName, metav1.GetOptions{})
@@ -468,7 +466,7 @@ func (c *Controller) createCloudWorker(service *sednav1.JointInferenceService) e
 	return err
 }
 
-func (c *Controller) createEdgeWorker(service *sednav1.JointInferenceService, bigServicePort int32) error {
+func (c *Controller) createEdgeWorker(service *sednav1.JointInferenceService, bigModelHost string, bigModelPort int32) error {
 	// deliver pod for edgeworker
 	ctx := context.Background()
 	edgeModelName := service.Spec.EdgeWorker.Model.Name
@@ -482,14 +480,6 @@ func (c *Controller) createEdgeWorker(service *sednav1.JointInferenceService, bi
 	var modelSecret *v1.Secret
 	if secretName != "" {
 		modelSecret, _ = c.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
-	}
-
-	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
-	// will support Spec.NodeSelector.
-	// get bigModelIP from nodeName in cloudWorker
-	bigModelIP, err := runtime.GetNodeIPByName(c.kubeClient, service.Spec.CloudWorker.Template.Spec.NodeName)
-	if err != nil {
-		return fmt.Errorf("failed to get node ip: %w", err)
 	}
 
 	edgeWorker := service.Spec.EdgeWorker
@@ -513,8 +503,8 @@ func (c *Controller) createEdgeWorker(service *sednav1.JointInferenceService, bi
 		"SERVICE_NAME": service.Name,
 		"WORKER_NAME":  "edgeworker-" + utilrand.String(5),
 
-		"BIG_MODEL_IP":   bigModelIP,
-		"BIG_MODEL_PORT": strconv.Itoa(int(bigServicePort)),
+		"BIG_MODEL_IP":   bigModelHost,
+		"BIG_MODEL_PORT": strconv.Itoa(int(bigModelPort)),
 
 		"HEM_NAME":       edgeWorker.HardExampleMining.Name,
 		"HEM_PARAMETERS": HEMParameterString,
