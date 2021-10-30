@@ -36,6 +36,7 @@
 # SEDNA_VERSION         | optional | The Sedna version to be installed.
 #                                    if not specified, it will get latest release or v0.4.1
 # CLUSTER_NAME          | optional | The all-in-one cluster name, default 'sedna-mini'
+# NO_INSTALL_SEDNA      | optional | If 'false', install Sedna, else no install, default false.
 # FORCE_INSTALL_SEDNA   | optional | If 'true', force reinstall Sedna, default false.
 # NODE_IMAGE            | optional | Custom node image
 # REUSE_EDGE_CONTAINER  | optional | Whether reuse edge node containers or not, default is true
@@ -85,6 +86,10 @@ function prepare_env() {
   # use existing edge node containers
   # default is true
   : ${REUSE_EDGE_CONTAINER:=true}
+
+  # whether install sedna control plane or not
+  # false means install, other values mean no install
+  : ${NO_INSTALL_SEDNA:=false}
 
   # force install sedna control plane
   # default is false
@@ -394,6 +399,10 @@ function clean_edge() {
 }
 
 function install_sedna() {
+  if [[ "$NO_INSTALL_SEDNA" != "false" ]]; then
+    return
+  fi
+
   if run_in_control_plane kubectl get ns sedna; then
     if [ "$FORCE_INSTALL_SEDNA" != true ]; then
       log_info '"sedna" namespace already exists, no install Sedna control components.'
