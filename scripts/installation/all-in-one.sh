@@ -247,6 +247,7 @@ function setup_cloudcore() {
 
 function setup_edgemesh() {
   # TODO: wait for edgemesh one line installer
+  : 
 }
 
 function gen_cni_config() {
