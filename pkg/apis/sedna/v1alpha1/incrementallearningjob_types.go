@@ -57,7 +57,8 @@ type TrainSpec struct {
 
 // EvalSpec describes the data an eval worker should have
 type EvalSpec struct {
-	Template v1.PodTemplateSpec `json:"template"`
+	InitialModel *InitialEvalModel  `json:"initialEvalModel,omitempty"`
+	Template     v1.PodTemplateSpec `json:"template"`
 }
 
 // DeploySpec describes the deploy model to be updated
@@ -91,6 +92,10 @@ type ILDataset struct {
 }
 
 type InitialModel struct {
+	Name string `json:"name"`
+}
+
+type InitialEvalModel struct {
 	Name string `json:"name"`
 }
 

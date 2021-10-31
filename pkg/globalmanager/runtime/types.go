@@ -55,8 +55,9 @@ const (
 )
 
 type Model struct {
-	Format  string                 `json:"format,omitempty"`
-	URL     string                 `json:"url,omitempty"`
+	Format  string                 `json:"format"`
+	URL     string                 `json:"url"`
+	Devices []string               `json:"devices,omitempty"`
 	Metrics map[string]interface{} `json:"metrics,omitempty"`
 }
 

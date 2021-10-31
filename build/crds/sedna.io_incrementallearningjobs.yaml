@@ -6704,6 +6704,13 @@ spec:
               evalSpec:
                 description: EvalSpec describes the data an eval worker should have
                 properties:
+                  initialEvalModel:
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
                   template:
                     description: PodTemplateSpec describes the data a pod should have
                       when created from a template

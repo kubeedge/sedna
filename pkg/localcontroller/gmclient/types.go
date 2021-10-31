@@ -16,7 +16,10 @@ limitations under the License.
 
 package gmclient
 
-import messagetypes "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/model"
+import (
+	messagetypes "github.com/kubeedge/sedna/pkg/globalmanager/messagelayer/model"
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
+)
 
 const (
 	// InsertOperation is the insert value
@@ -44,11 +47,7 @@ type UpstreamMessage struct {
 	Output *Output `json:"output"`
 }
 
-type Model struct {
-	Format  string                 `json:"format"`
-	URL     string                 `json:"url"`
-	Metrics map[string]interface{} `json:"metrics,omitempty"`
-}
+type Model = runtime.Model
 
 type Input struct {
 	Models       []Model `json:"models,omitempty"`

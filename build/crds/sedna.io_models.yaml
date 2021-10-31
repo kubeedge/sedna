@@ -38,6 +38,10 @@ spec:
             properties:
               credentialName:
                 type: string
+              devices:
+                items:
+                  type: string
+                type: array
               format:
                 type: string
               url:
