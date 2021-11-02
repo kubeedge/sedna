@@ -142,7 +142,7 @@ gmimage lcimage kbimage:
 	docker build --build-arg GO_LDFLAGS=${GO_LDFLAGS} -t ${IMAGE_REPO}/sedna-${@:image=}:${IMAGE_TAG} -f build/${@:image=}/Dockerfile .
 
 
-.PHONY: push push-examples push-all push-multi-platforms
+.PHONY: push push-examples push-all push-multi-platform-images
 push-all: push-multi-platform-images push-examples
 
 # push target pushes sedna-built images
@@ -154,6 +154,7 @@ push: images
 
 push-examples:
 	bash examples/push_image.sh
+
 # push multi-platform images
 push-multi-platform-images:
 	bash hack/make-rules/push.sh
