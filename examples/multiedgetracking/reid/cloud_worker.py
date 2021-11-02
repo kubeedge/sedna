@@ -66,28 +66,29 @@ class Estimator:
 
     def predict(self, data, **kwargs):
         for d in data:
-            temp = np.array(d[0][0])
-            camera_code = d[0][1]
-            det_time = d[0][2] 
+            for dd in d:
+                temp = np.array(dd[0])
+                camera_code = dd[1]
+                det_time = dd[2] 
 
-            query_feat = torch.from_numpy(temp)
-            query_feat = query_feat.float()
-            
-            LOGGER.debug(f"Running the cosine similarity function on input data")
-            LOGGER.debug(f"{query_feat.shape} - {self.gallery_feats.shape}")
-            with FTimer("cosine_similarity"):
-                dist_mat = cosine_similarity(query_feat, self.gallery_feats)
-                indices = np.argsort(dist_mat, axis=1)
-            
-            # Uncomment this line if you have the bboxes images available (img_dir) to create the top-10 result collage.
-            # self._save_result(indices, camid='mixed', top_k=10)
-            result = {
-                "object_id": self._extract_id(self.img_path[indices[0][0]]),
-                "detection_area": camera_code,
-                "detection_time": det_time
-            }
-            
-            LOGGER.info(json.dumps(result))
+                query_feat = torch.from_numpy(temp)
+                query_feat = query_feat.float()
+                
+                LOGGER.debug(f"Running the cosine similarity function on input data")
+                LOGGER.debug(f"{query_feat.shape} - {self.gallery_feats.shape}")
+                with FTimer("cosine_similarity"):
+                    dist_mat = cosine_similarity(query_feat, self.gallery_feats)
+                    indices = np.argsort(dist_mat, axis=1)
+                
+                # Uncomment this line if you have the bboxes images available (img_dir) to create the top-10 result collage.
+                # self._save_result(indices, camid='mixed', top_k=10)
+                result = {
+                    "object_id": self._extract_id(self.img_path[indices[0][0]]),
+                    "detection_area": camera_code,
+                    "detection_time": det_time
+                }
+                
+                LOGGER.info(json.dumps(result))
             
             # LOGGER.info(f"Container with ID {self._extract_id(self.img_path[indices[0][0]])} detected in area {camera_code} with timestamp {det_time}")
         

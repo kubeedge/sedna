@@ -131,8 +131,7 @@ class Estimator(FluentdHelper):
                     #cv2.imwrite("test00.jpeg", data)
                     crop = save_one_box(xyxy, imc, file='test.jpg', BGR=True, save=False)
                     # crop = crop.convert('P', palette=Image.ADAPTIVE)
-                    crop = save_one_box(xyxy, imc, file='test.jpg', BGR=True, save=False)
-                    
+
                     # Perform cropped image compression to reduce size
                     crop_encoded = np.array(cv2.imencode('.jpg', crop)[1])
                     

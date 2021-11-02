@@ -78,36 +78,40 @@ class Estimator(FluentdHelper):
 
     def predict(self, data, **kwargs):
         result = []
+        total_data = 0
 
         if len(data) == 0:
             return result
 
         for d in data:
-            # Perform image decoding and store in array
-            image_as_array = cv2.imdecode(np.array(d[0][0]).astype(np.uint8), cv2.IMREAD_COLOR)
-            conf_score = d[0][1]
-            camera_code = d[0][2]
-            det_time = d[0][3]
-            
-            imdata = Image.fromarray(image_as_array)
-            LOGGER.debug(f'Performing feature extraction for received image')
-            input = torch.unsqueeze(self.transform(imdata), 0)
-            input = input.to(self.device)
+            print(len(d))
+            for dd in d:
+                # Perform image decoding and store in array
+                image_as_array = cv2.imdecode(np.array(dd[0]).astype(np.uint8), cv2.IMREAD_COLOR)
+                conf_score = dd[1]
+                camera_code = dd[2]
+                det_time = dd[3]
+                
+                imdata = Image.fromarray(image_as_array)
+                LOGGER.debug(f'Performing feature extraction for received image')
+                input = torch.unsqueeze(self.transform(imdata), 0)
+                input = input.to(self.device)
 
-            with FTimer(f"feature_extraction"):
-                with torch.no_grad():
-                    query_feat = self.model(input)
-                    LOGGER.info(f"Extracted ReID features for {len(data)} object/s received from camera {camera_code}")
-                    LOGGER.debug(f"Extracted tensor with features: {query_feat}")
+                with FTimer(f"feature_extraction"):
+                    with torch.no_grad():
+                        query_feat = self.model(input)
+                        LOGGER.debug(f"Extracted tensor with features: {query_feat}")
 
-            LOGGER.debug(f"Input image size: {image_as_array.nbytes}")
-            LOGGER.debug(f"Output tensor size {sys.getsizeof(query_feat.storage())}")
-            
-            self.write_to_fluentd(sys.getsizeof(query_feat.storage()))
+                LOGGER.debug(f"Input image size: {image_as_array.nbytes}")
+                LOGGER.debug(f"Output tensor size {sys.getsizeof(query_feat.storage())}")
+                total_data+=sys.getsizeof(query_feat.storage())
 
-            # It returns a tensor, it should be transformed into a list before TX
-            result.append(self.convert_to_list(query_feat, camera_code, det_time))
+                # It returns a tensor, it should be transformed into a list before TX
+                result.append(self.convert_to_list(query_feat, camera_code, det_time))
 
+            LOGGER.info(f"Extracted ReID features for {len(d)} object/s received from camera {camera_code}")
+            self.write_to_fluentd(total_data)
+                
         return result 
 
 # Starting the FE module
