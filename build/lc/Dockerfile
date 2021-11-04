@@ -13,10 +13,8 @@
 # limitations under the License.
 
 # Add cross buildx improvement
-# Because LC has built sqlite3 which requires CGO with CGO_ENABLED=1,
-# and CGO can't support cross compilation,
-# NO speed support for LC.
-# TODO: add https://musl.cc/ cross compilation tool
+# LC has built sqlite3 which requires CGO with CGO_ENABLED=1
+# _speed_buildx_for_cgo_alpine_
 FROM golang:1.14-alpine3.11 AS builder
 LABEL stage=builder
 
