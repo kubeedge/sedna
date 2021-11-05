@@ -14,9 +14,7 @@ import torch.nn as nn
 from PIL import Image
 from torch.cuda import amp
 
-from utils.datasets import exif_transpose, letterbox
-from utils.general import non_max_suppression, make_divisible, scale_coords, increment_path, xyxy2xywh, save_one_box
-from utils.torch_utils import time_sync
+from utils.utils import time_sync, exif_transpose, letterbox, non_max_suppression, make_divisible, scale_coords, increment_path, xyxy2xywh, save_one_box
 
 LOGGER = logging.getLogger(__name__)
 

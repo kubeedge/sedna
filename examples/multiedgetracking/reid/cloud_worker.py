@@ -65,6 +65,10 @@ class Estimator:
         pass
 
     def predict(self, data, **kwargs):
+        # We use a dictionary to keep track of the ReID objects.
+        # For each object, we print at the end localization and tracking information.
+        reid_dict = {}
+
         for d in data:
             for dd in d:
                 temp = np.array(dd[0])
@@ -80,15 +84,22 @@ class Estimator:
                     dist_mat = cosine_similarity(query_feat, self.gallery_feats)
                     indices = np.argsort(dist_mat, axis=1)
                 
+                closest_match = self._extract_id(self.img_path[indices[0][0]])
+                
                 # Uncomment this line if you have the bboxes images available (img_dir) to create the top-10 result collage.
                 # self._save_result(indices, camid='mixed', top_k=10)
                 result = {
-                    "object_id": self._extract_id(self.img_path[indices[0][0]]),
+                    "object_id": closest_match,
                     "detection_area": camera_code,
                     "detection_time": det_time
                 }
+
+                # 0000 represents an unrecognized entity
+                if closest_match != "0000":
+                    reid_dict[self._extract_id(self.img_path[indices[0][0]])] = result
                 
-                LOGGER.info(json.dumps(result))
+        for key in reid_dict:
+            LOGGER.info(json.dumps(reid_dict[key]))
             
             # LOGGER.info(f"Container with ID {self._extract_id(self.img_path[indices[0][0]])} detected in area {camera_code} with timestamp {det_time}")
         

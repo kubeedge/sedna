@@ -24,7 +24,7 @@ from sedna.common.config import Context
 from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
 from utils.utils import *
-from utils.general import save_one_box
+# from utils.general import save_one_box
 
 
 os.environ['BACKEND_TYPE'] = 'TORCH'

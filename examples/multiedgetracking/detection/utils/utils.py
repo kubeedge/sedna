@@ -1,6 +1,8 @@
 # YOLOv5 general utils
 
 import math
+
+from PIL import Image
 import cv2, time
 import numpy as np
 import torch
@@ -284,6 +286,18 @@ def apply_classifier(x, model, img, im0):
 
     return x
 
+def save_one_box(xyxy, im, file='image.jpg', gain=1.02, pad=10, square=False, BGR=False, save=True):
+    # Save image crop as {file} with crop size multiple {gain} and {pad} pixels. Save and/or return crop
+    xyxy = torch.tensor(xyxy).view(-1, 4)
+    b = xyxy2xywh(xyxy)  # boxes
+    if square:
+        b[:, 2:] = b[:, 2:].max(1)[0].unsqueeze(1)  # attempt rectangle to square
+    b[:, 2:] = b[:, 2:] * gain + pad  # box wh * gain + pad
+    xyxy = xywh2xyxy(b).long()
+    clip_coords(xyxy, im.shape)
+    crop = im[int(xyxy[0, 1]):int(xyxy[0, 3]), int(xyxy[0, 0]):int(xyxy[0, 2]), ::(1 if BGR else -1)]
+    return crop
+
 
 def load_classifier(name='resnet101', n=2):
     # Loads a pretrained model reshaped to n-class output
@@ -316,6 +330,113 @@ class Ensemble(nn.ModuleList):
         # y = torch.stack(y).mean(0)  # mean ensemble
         y = torch.cat(y, 1)  # nms ensemble
         return y, None  # inference, train output
+
+def exif_transpose(image):
+    """
+    Transpose a PIL image accordingly if it has an EXIF Orientation tag.
+    From https://github.com/python-pillow/Pillow/blob/master/src/PIL/ImageOps.py
+
+    :param image: The image to transpose.
+    :return: An image.
+    """
+    exif = image.getexif()
+    orientation = exif.get(0x0112, 1)  # default 1
+    if orientation > 1:
+        method = {2: Image.FLIP_LEFT_RIGHT,
+                  3: Image.ROTATE_180,
+                  4: Image.FLIP_TOP_BOTTOM,
+                  5: Image.TRANSPOSE,
+                  6: Image.ROTATE_270,
+                  7: Image.TRANSVERSE,
+                  8: Image.ROTATE_90,
+                  }.get(orientation)
+        if method is not None:
+            image = image.transpose(method)
+            del exif[0x0112]
+            image.info["exif"] = exif.tobytes()
+    return image
+
+def check_anchor_order(m):
+    # Check anchor order against stride order for YOLOv5 Detect() module m, and correct if necessary
+    a = m.anchor_grid.prod(-1).view(-1)  # anchor area
+    da = a[-1] - a[0]  # delta a
+    ds = m.stride[-1] - m.stride[0]  # delta s
+    if da.sign() != ds.sign():  # same order
+        print('Reversing anchor order')
+        m.anchors[:] = m.anchors.flip(0)
+        m.anchor_grid[:] = m.anchor_grid.flip(0)
+
+def fuse_conv_and_bn(conv, bn):
+    # Fuse convolution and batchnorm layers https://tehnokv.com/posts/fusing-batchnorm-and-conv/
+    fusedconv = nn.Conv2d(conv.in_channels,
+                          conv.out_channels,
+                          kernel_size=conv.kernel_size,
+                          stride=conv.stride,
+                          padding=conv.padding,
+                          groups=conv.groups,
+                          bias=True).requires_grad_(False).to(conv.weight.device)
+
+    # prepare filters
+    w_conv = conv.weight.clone().view(conv.out_channels, -1)
+    w_bn = torch.diag(bn.weight.div(torch.sqrt(bn.eps + bn.running_var)))
+    fusedconv.weight.copy_(torch.mm(w_bn, w_conv).view(fusedconv.weight.shape))
+
+    # prepare spatial bias
+    b_conv = torch.zeros(conv.weight.size(0), device=conv.weight.device) if conv.bias is None else conv.bias
+    b_bn = bn.bias - bn.weight.mul(bn.running_mean).div(torch.sqrt(bn.running_var + bn.eps))
+    fusedconv.bias.copy_(torch.mm(w_bn, b_conv.reshape(-1, 1)).reshape(-1) + b_bn)
+
+    return fusedconv
+
+
+def model_info(model, verbose=False, img_size=640):
+    pass
+
+import torch.nn.functional as F
+def scale_img(img, ratio=1.0, same_shape=False, gs=32):  # img(16,3,256,416)
+    # scales img(bs,3,y,x) by ratio constrained to gs-multiple
+    if ratio == 1.0:
+        return img
+    else:
+        h, w = img.shape[2:]
+        s = (int(h * ratio), int(w * ratio))  # new size
+        img = F.interpolate(img, size=s, mode='bilinear', align_corners=False)  # resize
+        if not same_shape:  # pad/crop img
+            h, w = [math.ceil(x * ratio / gs) * gs for x in (h, w)]
+        return F.pad(img, [0, w - s[1], 0, h - s[0]], value=0.447)  # value = imagenet mean
+
+def initialize_weights(model):
+    for m in model.modules():
+        t = type(m)
+        if t is nn.Conv2d:
+            pass  # nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+        elif t is nn.BatchNorm2d:
+            m.eps = 1e-3
+            m.momentum = 0.03
+        elif t in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6]:
+            m.inplace = True
+
+def copy_attr(a, b, include=(), exclude=()):
+    # Copy attributes from b to a, options to only include [...] and to exclude [...]
+    for k, v in b.__dict__.items():
+        if (len(include) and k not in include) or k.startswith('_') or k in exclude:
+            continue
+        else:
+            setattr(a, k, v)
+
+def time_sync():
+    # pytorch-accurate time
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+    return time.time()
+
+def make_divisible(x, divisor):
+    # Returns x evenly divisible by divisor
+    return math.ceil(x / divisor) * divisor
+
+
+def increment_path(path, exist_ok=False, sep='', mkdir=False):
+    return path
 
 
 def attempt_load(weights, map_location=None, inplace=True):

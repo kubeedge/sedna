@@ -3,15 +3,13 @@
 Usage:
     $ python path/to/models/yolo.py --cfg yolov5s.yaml
 """
-
+    
 from copy import deepcopy
 from pathlib import Path
 
 from models.common import *
 from models.experimental import *
-from utils.autoanchor import check_anchor_order
-from utils.general import make_divisible
-from utils.torch_utils import time_sync, fuse_conv_and_bn, model_info, scale_img, initialize_weights, copy_attr
+from utils.utils import *
 
 thop = None
 
