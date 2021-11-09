@@ -40,14 +40,13 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
-# This is required to solve an internal hardcoded path lookup in PyTorch (great..)
-COPY ./lib/sedna/backend/torch/nets /home/work/nets
+# Add NN details required by Torch
+COPY examples/multiedgetracking/feature_extraction/nets /home/work/nets
 ENV PYTHONPATH "${PYTHONPATH}:/home/work"
 
-#COPY examples/multiedgetracking/mot/main.py  /home/work/edge.py
-COPY examples/multiedgetracking/feature_extraction/edge_worker.py  /home/work/edge_worker.py
+COPY examples/multiedgetracking/feature_extraction/worker.py  /home/work/worker.py
 
 ENV LOG_LEVEL="INFO"
 
 ENTRYPOINT ["python"]
-CMD ["edge_worker.py", "--config_file=efficientnetv2_market"]
+CMD ["worker.py", "--config_file=efficientnetv2_market"]

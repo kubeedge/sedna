@@ -30,10 +30,10 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
-COPY examples/multiedgetracking/reid/cloud_worker.py  /home/work/cloud.py
+COPY examples/multiedgetracking/reid/worker.py  /home/work/worker.py
 ENV PYTHONPATH "${PYTHONPATH}:/home/lib/sedna/backend/nets"
 
 ENV LOG_LEVEL="INFO"
 
 ENTRYPOINT ["python"]
-CMD ["cloud.py", "--config_file=efficientnetv2_market"]
+CMD ["worker.py", "--config_file=efficientnetv2_market"]
