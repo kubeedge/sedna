@@ -1,5 +1,4 @@
 import os
-import datetime
 from typing import List
 
 import torch
@@ -10,7 +9,6 @@ from sedna.common.config import Context
 from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
 from utils.utils import *
-# from utils.general import save_one_box
 
 confidence_thr = Context.get_parameters('confidence_thr', 0.25)
 nms_thr = Context.get_parameters('nms_thr', 0.45)

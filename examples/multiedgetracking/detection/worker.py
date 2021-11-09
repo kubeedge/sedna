@@ -1,33 +1,21 @@
-# Copyright 2021 The KubeEdge Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import time
 import numpy
 
 import requests
 import cv2
 import threading
+
 from sedna.algorithms.optical_flow import LukasKanade
+from sedna.core.multi_edge_tracking import ObjectDetector
 
 from sedna.common.config import Context
-from sedna.core.multi_edge_tracking import ObjectDetector
 from sedna.common.log import LOGGER
 
-from edge_worker import str_to_class
+from estimator import str_to_estimator_class
 
 camera_address = Context.get_parameters('video_url')
 stream_dispatcher = Context.get_parameters('stream_dispatcher_url')
+estimator_class = Context.get_parameters('estimator_class', "Yolov5")
 
 def retrieve_rtsp_stream() -> str:
     LOGGER.debug(f'Finding target RTSP stream ...')
@@ -49,8 +37,8 @@ def retrieve_rtsp_stream() -> str:
 def start_stream_acquisition(stream_address):
     optical_flow = LukasKanade()
     camera_code = stream_address.split("/")[-1] # WARNING: Only for demo purposes!
-    estimator_class = str_to_class()
-    edge_worker = ObjectDetector(estimator=estimator_class(camera_code=camera_code))
+    eclass = str_to_estimator_class(estimator_class=estimator_class)
+    edge_worker = ObjectDetector(estimator=eclass(camera_code=camera_code))
 
     camera = cv2.VideoCapture(stream_address)
     camera.set(cv2.CAP_PROP_BUFFERSIZE, 0)

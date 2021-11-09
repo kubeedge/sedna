@@ -9,13 +9,8 @@ from sedna.common.config import Context
 from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
 from utils.utils import *
-# from utils.general import save_one_box
-
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
-
-# model_weights = Context.get_parameters('model_weights')
-# classifier = Context.get_parameters('model_classifier')
 image_size = Context.get_parameters('input_shape') # in pixels!
 
 class Yolov5(FluentdHelper):

@@ -28,8 +28,7 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
 WORKDIR /home/work
 COPY ./lib /home/lib
 
-COPY examples/multiedgetracking/detection/edge_worker.py  /home/work/edge_worker.py
-COPY examples/multiedgetracking/detection/main.py  /home/work/detection.py
+COPY examples/multiedgetracking/detection/worker.py  /home/work/worker.py
 COPY examples/multiedgetracking/detection/models /home/work/models
 COPY examples/multiedgetracking/detection/utils /home/work/utils
 COPY examples/multiedgetracking/detection/estimator /home/work/estimator
@@ -37,4 +36,4 @@ COPY examples/multiedgetracking/detection/estimator /home/work/estimator
 ENV LOG_LEVEL="INFO"
 
 ENTRYPOINT ["python"]
-CMD ["detection.py"]
+CMD ["worker.py"]
