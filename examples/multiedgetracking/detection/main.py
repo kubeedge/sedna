@@ -19,12 +19,12 @@ import requests
 import cv2
 import threading
 from sedna.algorithms.optical_flow import LukasKanade
-from sedna.common.class_factory import ClassFactory, ClassType
 
 from sedna.common.config import Context
 from sedna.core.multi_edge_tracking import ObjectDetector
 from sedna.common.log import LOGGER
-from edge_worker import Estimator
+
+from edge_worker import str_to_class
 
 camera_address = Context.get_parameters('video_url')
 stream_dispatcher = Context.get_parameters('stream_dispatcher_url')
@@ -49,7 +49,8 @@ def retrieve_rtsp_stream() -> str:
 def start_stream_acquisition(stream_address):
     optical_flow = LukasKanade()
     camera_code = stream_address.split("/")[-1] # WARNING: Only for demo purposes!
-    edge_worker = ObjectDetector(estimator=Estimator(camera_code=camera_code))
+    estimator_class = str_to_class()
+    edge_worker = ObjectDetector(estimator=estimator_class(camera_code=camera_code))
 
     camera = cv2.VideoCapture(stream_address)
     camera.set(cv2.CAP_PROP_BUFFERSIZE, 0)

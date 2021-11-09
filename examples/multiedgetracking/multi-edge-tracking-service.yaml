@@ -27,6 +27,8 @@ spec:
                 value: "640"
               - name: "video_url"
                 value: "rtsp://172.17.0.1/video/0"
+              - name: "estimator_class"
+                value: "Yolov5"
               - name: "stream_dispatcher_url"
                 value: "http://7.182.9.110:8478/get_rtsp_stream" # we should have a k8s deploy+service+pod for this later
               resources:  # user defined resources

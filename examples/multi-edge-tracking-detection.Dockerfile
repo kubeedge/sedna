@@ -32,6 +32,7 @@ COPY examples/multiedgetracking/detection/edge_worker.py  /home/work/edge_worker
 COPY examples/multiedgetracking/detection/main.py  /home/work/detection.py
 COPY examples/multiedgetracking/detection/models /home/work/models
 COPY examples/multiedgetracking/detection/utils /home/work/utils
+COPY examples/multiedgetracking/detection/estimator /home/work/estimator
 
 ENV LOG_LEVEL="INFO"
 
