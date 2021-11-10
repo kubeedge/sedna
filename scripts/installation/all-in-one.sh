@@ -36,6 +36,7 @@
 # SEDNA_VERSION         | optional | The Sedna version to be installed.
 #                                    if not specified, it will get latest release or v0.4.1
 # CLUSTER_NAME          | optional | The all-in-one cluster name, default 'sedna-mini'
+# NO_INSTALL_SEDNA      | optional | If 'false', install Sedna, else no install, default false.
 # FORCE_INSTALL_SEDNA   | optional | If 'true', force reinstall Sedna, default false.
 # NODE_IMAGE            | optional | Custom node image
 # REUSE_EDGE_CONTAINER  | optional | Whether reuse edge node containers or not, default is true
@@ -85,6 +86,10 @@ function prepare_env() {
   # use existing edge node containers
   # default is true
   : ${REUSE_EDGE_CONTAINER:=true}
+
+  # whether install sedna control plane or not
+  # false means install, other values mean no install
+  : ${NO_INSTALL_SEDNA:=false}
 
   # force install sedna control plane
   # default is false
@@ -239,6 +244,12 @@ function setup_cloudcore() {
   KUBEEDGE_TOKEN=$(run_in_control_plane keadm gettoken)
 }
 
+
+function setup_edgemesh() {
+  # TODO: wait for edgemesh one line installer
+  : 
+}
+
 function gen_cni_config() {
   cat <<EOF
 {
@@ -372,6 +383,8 @@ function setup_cloud() {
   setup_control_kubeconfig
 
   setup_cloudcore
+
+  setup_edgemesh
 }
 
 function clean_cloud() {
@@ -387,7 +400,10 @@ function clean_edge() {
 }
 
 function install_sedna() {
-  local gm_node=$CONTROL_PLANE_NAME
+  if [[ "$NO_INSTALL_SEDNA" != "false" ]]; then
+    return
+  fi
+
   if run_in_control_plane kubectl get ns sedna; then
     if [ "$FORCE_INSTALL_SEDNA" != true ]; then
       log_info '"sedna" namespace already exists, no install Sedna control components.'
@@ -396,16 +412,14 @@ function install_sedna() {
       return
     fi
     run_in_control_plane bash -ec "
-    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$gm_node SEDNA_ACTION=clean SEDNA_VERSION=$SEDNA_VERSION bash -
+    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_ACTION=clean SEDNA_VERSION=$SEDNA_VERSION bash -
   "
   fi
 
   log_info "Installing Sedna Control Components..."
 
-
   run_in_control_plane bash -ec "
-    kubectl taint $gm_node node-role.kubernetes.io/master- 2>/dev/null || true
-    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_GM_NODE=$gm_node SEDNA_ACTION=create bash -
+    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_ACTION=create bash -
   "
 }
 

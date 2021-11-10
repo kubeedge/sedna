@@ -176,6 +176,20 @@ def download_s3_with_multi_files(download_files,
 
 
 def _download_s3(client, uri, out_dir):
+    """
+    The function downloads specified file or folder to local directory address.
+    this function supports:
+    1. when downloading the specified file, keep the name of the file itself.
+    2. when downloading the specified folder, keep the name of the folder itself.
+
+    Parameters:
+    client: s3 client
+    s3_url(string): url in s3, e.g. file url: s3://dev/data/data.txt, directory url: s3://dev/data
+    out_dir(string):  local directory address, e.g. /tmp/data/
+
+    Returns:
+    int: files of number in s3_url
+    """
     bucket_args = uri.replace(_S3_PREFIX, "", 1).split("/", 1)
     bucket_name = bucket_args[0]
     bucket_path = len(bucket_args) > 1 and bucket_args[1] or ""
@@ -186,9 +200,10 @@ def _download_s3(client, uri, out_dir):
                                   use_api_v1=True)
     count = 0
 
+    root_path = os.path.split(os.path.normpath(bucket_path))[0]
     for obj in objects:
         # Replace any prefix from the object key with out_dir
-        subdir_object_key = obj.object_name[len(bucket_path):].strip("/")
+        subdir_object_key = obj.object_name[len(root_path):].strip("/")
         # fget_object handles directory creation if does not exist
         if not obj.is_dir:
             local_file = os.path.join(

@@ -38,7 +38,7 @@ sedna::buildx::prepare_env() {
 
 sedna::buildx:generate-dockerfile() {
   dockerfile=${1}
-  sed "/AS builder/s/FROM/FROM --platform=\$BUILDPLATFORM/g" ${dockerfile}
+  sed "/AS builder/s/FROM/FROM --platform=\$TARGETPLATFORM/g" ${dockerfile}
 }
 
 sedna::buildx::push-multi-platform-images() {
