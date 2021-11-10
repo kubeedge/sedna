@@ -1,11 +1,13 @@
-# Notes about Kafka
+# OBSOLETE TUTORIAL
+
+## Notes about Kafka
 
 - Apache Kafka and Zookeeper are supposed to be deployed in the cloud node.
 - In the YAML files, replace the IP/nodename with the one of your cloud node.
 - This deployment is a single-pod zookeeper and broker combo.
 - Deploying Apache Kafka on the edge node has been tested without success.
 
-# Pre-requisites
+## Pre-requisites
 
 - Read carefully the YAML file associated with the computing model. In general, if you have the data in the right place, it should work by default.
 - Also, make sure to deploy the pods on the correct nodes (cloud, l2, l1).

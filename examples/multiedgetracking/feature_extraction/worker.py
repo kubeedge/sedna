@@ -84,7 +84,6 @@ class Estimator(FluentdHelper):
             return result
 
         for d in data:
-            print(len(d))
             for dd in d:
                 # Perform image decoding and store in array
                 image_as_array = cv2.imdecode(np.array(dd[0]).astype(np.uint8), cv2.IMREAD_COLOR)

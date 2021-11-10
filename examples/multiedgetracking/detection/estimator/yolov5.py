@@ -55,7 +55,7 @@ class Yolov5(FluentdHelper):
 
     def predict(self, data, **kwargs):
         # Padded resize
-        print(data.shape)
+        # print(data.shape)
         LOGGER.debug("Manipulating source image")
         img = letterbox(data, self.img_size, stride=self.stride)[0]
 

@@ -1,3 +1,4 @@
+import datetime
 import os
 from typing import List
 
@@ -8,36 +9,55 @@ import cv2
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
-from utils.utils import *
+
+# YOLOX imports
+from yolox.yolox.exp import get_exp
+from yolox.yolox.utils import pre_process, fuse_model, postprocess
+
+os.environ['BACKEND_TYPE'] = 'TORCH'
 
 confidence_thr = Context.get_parameters('confidence_thr', 0.25)
 nms_thr = Context.get_parameters('nms_thr', 0.45)
 num_classes = Context.get_parameters('num_classes', 1)
-image_size = Context.get_parameters('input_shape') # in pixels!
+image_size = Context.get_parameters('input_shape')
 
-class Yolox(FluentdHelper):
+class ExperimentPath():
+    @staticmethod
+    def get_experiment_dir() -> str:
+        return "exps/"
+
+    @staticmethod
+    def get_experiment_file_dict() -> dict:
+        return {
+        "bytetrack_s_mot17": "yolox_s_mix_det.py",
+        "bytetrack_m_mot17": "yolox_m_mix_det.py",
+        "bytetrack_l_mot17": "yolox_l_mix_det.py",
+        "bytetrack_x_mot17": "yolox_x_mix_det.py",
+        "bytetrack_x_mot20": "yolox_x_mix_mot20_ch.py"}
+
+class ByteTracker(FluentdHelper):
 
     def __init__(self, **kwargs) -> None:
         """
         Initializes the YOLOX pedestrian detection model with the default detection parameters (e.g., minimum detection
         confidence, NMS threshold) to be used during inference.
         """
-        super(Yolox, self).__init__()
+        super(ByteTracker, self).__init__()
 
         self.num_classes = num_classes
         self.confidence_thr = confidence_thr
         self.nms_thr = nms_thr
         self.set_to_eval = True
+        self.model = None
         self.camera_code = kwargs.get('camera_code', 0)
+        self.yolox_type = "bytetrack_s_mot17" # This should come from the model CRD
 
-        self.test_size = image_size
+        self.test_size = int(image_size)
         self.rgb_means = (0.485, 0.456, 0.406)
         self.std = (0.229, 0.224, 0.225)
+        self.swap = (2, 0, 1)
 
-        self.device = "cuda" if torch.cuda.is_available() else "cpu",
-
-        # Initialize YOLOX model
-        self.model = self.exp.get_model()
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def write_to_fluentd(self, data: List[np.ndarray]) -> None:
         try:
@@ -56,18 +76,29 @@ class Yolox(FluentdHelper):
         """
         Load the pre-trained weights.
         """
+        # Current experiment settings
+        self._exp_path = ExperimentPath()
+        self._exp_file = os.path.join(
+            self._exp_path.get_experiment_dir(),
+            self._exp_path.get_experiment_file_dict()[self.yolox_type]
+        )
+        self.exp = get_exp(self._exp_file, exp_name="")
+
+        # Initialize YOLOX model
+        self.model = self.exp.get_model()
+
         LOGGER.info(f"Loading checkpoint from {model_url}")
         checkpoint = torch.load(model_url, map_location=self.device)
+        
         self.model.load_state_dict(checkpoint["model"])
-
-        if self.set_to_eval:
-            self.model.eval()
-
+        
         self.model = fuse_model(self.model)
 
-    def predict(self,
-                img_path: str
-                ) -> List[np.ndarray]:
+    def evaluate(self, **kwargs):
+        LOGGER.debug(f"Evaluating model")
+        self.model.eval()
+
+    def predict(self, data, **kwargs):
         """
         Run the pedestrian detector on the input image available at img_path
         :param img_path: path to image.
@@ -76,10 +107,10 @@ class Yolox(FluentdHelper):
         """
 
         # Image information
-        img_info = {"id": 0, "file_name": os.path.basename(img_path)}
+        img_info = {"id": 0}
 
         LOGGER.debug("Loading image to device")
-        img = cv2.imread(img_path)
+        img = data.copy()
         height, width = img.shape[:2]
 
         # Store image information, will be used during post processing
@@ -88,7 +119,7 @@ class Yolox(FluentdHelper):
         img_info["raw_img"] = img
 
         # Resize and normalize image
-        img, ratio = preproc(img, self.test_size, self.rgb_means, self.std)
+        img, ratio = pre_process(img, [self.test_size, self.test_size], self.rgb_means, self.std, self.swap)
         img_info["ratio"] = ratio
 
         # Convert numpy image to tensor
@@ -114,34 +145,27 @@ class Yolox(FluentdHelper):
                 self.nms_thr)
 
         # Prepare image with boxes overlaid
-        bboxes = outputs[:, 0:4]
+        bboxes = outputs[0][:, 0:4]
         bboxes /= img_info["ratio"]
-
-        cls = outputs[:, 6]
-        scores = outputs[:, 4] * outputs[:, 5]
-
-        # Img with bboxes overlaid
-        # Used for visualization and check correctness
-        img_with_bbox = vis(
-            img_info["raw_img"].copy(),
-            bboxes,
-            scores,
-            cls,
-            conf=self.confidence_thr,
-            class_names=["person"])
 
         # Crop to person detections
         # person crops is a list of numpy arrays containing the image cropped to that person only
-        person_crops = []
+        object_crops = []
+        det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
+
         for i in range(len(bboxes)):
             box = bboxes[i]
             x0, y0, x1, y1 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
 
-            _img = img[y0: y1, x0: x1]
-            person_crops.append(_img)
+            _img = data[y0: y1, x0: x1]
 
-        self.write_to_fluentd(person_crops)
+            #TODO: Fix img type?
+            crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
 
-        LOGGER.info(f"Found {len(person_crops)} person/s in camera {self.camera_code}")
+            object_crops.append([crop_encoded.tolist(), 0, self.camera_code, det_time]) 
 
-        return person_crops
+        self.write_to_fluentd(object_crops)
+
+        LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
+
+        return object_crops

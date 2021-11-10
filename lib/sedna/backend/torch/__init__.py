@@ -1,4 +1,5 @@
 import os
+import traceback
 
 import torch
 from torch.backends import cudnn
@@ -38,6 +39,7 @@ class TorchBackend(BackendBase):
                 self.estimator.load(model_path, **kwargs)
             except Exception as e:
                 LOGGER.error(f"Failed to load the model - {e}")
+                LOGGER.error(traceback.format_exc())
                 self.has_load = False
         else:
             LOGGER.info("Path to model does not exists!")
