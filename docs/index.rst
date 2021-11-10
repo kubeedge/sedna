@@ -11,6 +11,16 @@ Sedna can simply enable edge-cloud synergy capabilities to existing training and
 
 .. toctree::
     :maxdepth: 1
+    :titlesonly:
+    :glob:
+    :caption: DEPLOY
+
+    Cluster Installation <setup/install> used for production.
+    AllinOne Installation <setup/all-in-one> used for development.
+    Standalone Installation <setup/local-up> used for hello world.
+
+.. toctree::
+    :maxdepth: 1
     :caption: QUICK START
 
     quickstart
@@ -33,21 +43,13 @@ Sedna can simply enable edge-cloud synergy capabilities to existing training and
 
 .. toctree::
     :maxdepth: 1
-    :titlesonly:
-    :glob:
-    :caption: DEPLOY
-
-    Installtion <setup/install>
-    Standalone <setup/local-up>
-
-.. toctree::
-    :maxdepth: 1
     :glob:
     :caption: EXAMPLES
 
-    examples/federated_learning/surface_defect_detection/README
-    examples/incremental_learning/helmet_detection/README
     examples/joint_inference/helmet_detection_inference/README
+    examples/incremental_learning/helmet_detection/README
+    examples/federated_learning/surface_defect_detection/README
+    examples/federated_learning/yolov5_coco128_mistnet/README
     examples/lifelong_learning/atcii/README
     examples/storage/s3/*
 
