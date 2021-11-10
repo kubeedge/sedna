@@ -36,9 +36,32 @@ spec:
           spec:
             description: ModelSpec is a description of a model
             properties:
+              classes:
+                items:
+                  type: string
+                type: array
               credentialName:
+                description: The following are optional fields for the model
                 type: string
+              description:
+                type: string
+              extra:
+                items:
+                  description: ExtraVar represents an extra variable associated with
+                    the model.
+                  properties:
+                    name:
+                      description: Name of the environment variable. Must be a C_IDENTIFIER.
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               format:
+                type: string
+              purpose:
                 type: string
               url:
                 type: string

@@ -6,3 +6,10 @@ metadata:
 spec:
   url: "/data/ai_models/object_detection/best_small.pt"
   format: "pt"
+  description: "Yolov5 model to detect containers."
+  purpose: "detection"
+  classes:
+    - "container"
+  extra:
+    - name: "model_size"
+      value: "small"
