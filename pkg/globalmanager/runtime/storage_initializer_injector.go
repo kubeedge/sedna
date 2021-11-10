@@ -170,7 +170,148 @@ func (m *MountURL) parseSecret() {
 	}
 }
 
-func injectHostPathMount(pod *v1.Pod, workerParam *WorkerParam) {
+/*
+ Storage Injection Hooks
+*/
+
+func injectHostPathMount(podSpec *v1.PodSpec, workerParam *WorkerParam) {
+	volumes, volumeMounts, initContainerVolumeMounts := prepareHostPath(workerParam)
+
+	injectVolume(podSpec, volumes, volumeMounts)
+
+	if len(volumeMounts) > 0 {
+		hostPathEnvs := []v1.EnvVar{
+			{
+				Name:  hostPathPrefixEnvKey,
+				Value: hostPathPrefix,
+			},
+		}
+		injectEnvs(podSpec, hostPathEnvs)
+	}
+
+	if len(initContainerVolumeMounts) > 0 {
+		initIdx := len(podSpec.InitContainers) - 1
+		podSpec.InitContainers[initIdx].VolumeMounts = append(
+			podSpec.InitContainers[initIdx].VolumeMounts,
+			initContainerVolumeMounts...,
+		)
+	}
+}
+
+func injectWorkerSecrets(podSpec *v1.PodSpec, workerParam *WorkerParam) {
+	secretEnvs := prepareSecret(workerParam)
+	injectEnvs(podSpec, secretEnvs)
+}
+
+func injectInitializerContainer(podSpec *v1.PodSpec, workerParam *WorkerParam) {
+	volumes, volumeMounts, initContainer := prepareInitContainer(workerParam)
+
+	if (len(volumes) > 0) && (len(volumeMounts) > 0) && initContainer != nil {
+		podSpec.InitContainers = append(podSpec.InitContainers, *initContainer)
+		injectVolume(podSpec, volumes, volumeMounts)
+	}
+}
+
+// InjectStorageInitializer injects these storage related volumes and envs into pod in-place
+func InjectStorageInitializer(podSpec *v1.PodSpec, workerParam *WorkerParam) {
+	prepareStorage(workerParam)
+
+	// need to call injectInitializerContainer before injectHostPathMount
+	// since injectHostPathMount could inject volumeMount to init container
+	injectInitializerContainer(podSpec, workerParam)
+	injectHostPathMount(podSpec, workerParam)
+	injectWorkerSecrets(podSpec, workerParam)
+}
+
+func injectVolume(podSpec *v1.PodSpec, volumes []v1.Volume, volumeMounts []v1.VolumeMount) {
+	if len(volumes) > 0 {
+		podSpec.Volumes = append(podSpec.Volumes, volumes...)
+	}
+
+	if len(volumeMounts) > 0 {
+		for idx := range podSpec.Containers {
+			// inject every containers
+			podSpec.Containers[idx].VolumeMounts = append(
+				podSpec.Containers[idx].VolumeMounts, volumeMounts...,
+			)
+		}
+	}
+}
+
+func injectEnvs(podSpec *v1.PodSpec, envs []v1.EnvVar) {
+	if len(envs) > 0 {
+		for idx := range podSpec.Containers {
+			// inject every containers
+			podSpec.Containers[idx].Env = append(
+				podSpec.Containers[idx].Env, envs...,
+			)
+		}
+	}
+}
+
+/*
+ Support Functions
+
+*/
+
+func prepareStorage(workerParam *WorkerParam) {
+	var mounts []WorkerMount
+	// parse the mounts and environment key
+	for _, mount := range workerParam.Mounts {
+		var envPaths []string
+
+		if mount.URL != nil {
+			mount.URLs = append(mount.URLs, *mount.URL)
+		}
+
+		var mountURLs []MountURL
+		for _, m := range mount.URLs {
+			m.Parse()
+			if m.Disable {
+				continue
+			}
+			mountURLs = append(mountURLs, m)
+
+			if m.ContainerPath != "" {
+				envPaths = append(envPaths, m.ContainerPath)
+			} else {
+				// keep the original URL if no container path
+				envPaths = append(envPaths, m.URL)
+			}
+		}
+
+		if len(mountURLs) > 0 {
+			mount.URLs = mountURLs
+			mounts = append(mounts, mount)
+		}
+
+		if mount.EnvName != "" {
+			workerParam.Env[mount.EnvName] = strings.Join(
+				envPaths, urlsFieldSep,
+			)
+		}
+	}
+
+	workerParam.Mounts = mounts
+}
+
+func prepareSecret(workerParam *WorkerParam) []v1.EnvVar {
+	var secretEnvs []v1.EnvVar
+	for _, mount := range workerParam.Mounts {
+		for _, m := range mount.URLs {
+			if m.Disable || m.DownloadByInitializer {
+				continue
+			}
+			if len(m.SecretEnvs) > 0 {
+				secretEnvs = MergeSecretEnvs(secretEnvs, m.SecretEnvs, false)
+			}
+		}
+	}
+
+	return secretEnvs
+}
+
+func prepareHostPath(workerParam *WorkerParam) ([]v1.Volume, []v1.VolumeMount, []v1.VolumeMount) {
 	var volumes []v1.Volume
 	var volumeMounts []v1.VolumeMount
 	var initContainerVolumeMounts []v1.VolumeMount
@@ -222,43 +363,10 @@ func injectHostPathMount(pod *v1.Pod, workerParam *WorkerParam) {
 		}
 	}
 
-	injectVolume(pod, volumes, volumeMounts)
-
-	if len(volumeMounts) > 0 {
-		hostPathEnvs := []v1.EnvVar{
-			{
-				Name:  hostPathPrefixEnvKey,
-				Value: hostPathPrefix,
-			},
-		}
-		injectEnvs(pod, hostPathEnvs)
-	}
-
-	if len(initContainerVolumeMounts) > 0 {
-		initIdx := len(pod.Spec.InitContainers) - 1
-		pod.Spec.InitContainers[initIdx].VolumeMounts = append(
-			pod.Spec.InitContainers[initIdx].VolumeMounts,
-			initContainerVolumeMounts...,
-		)
-	}
+	return volumes, volumeMounts, initContainerVolumeMounts
 }
 
-func injectWorkerSecrets(pod *v1.Pod, workerParam *WorkerParam) {
-	var secretEnvs []v1.EnvVar
-	for _, mount := range workerParam.Mounts {
-		for _, m := range mount.URLs {
-			if m.Disable || m.DownloadByInitializer {
-				continue
-			}
-			if len(m.SecretEnvs) > 0 {
-				secretEnvs = MergeSecretEnvs(secretEnvs, m.SecretEnvs, false)
-			}
-		}
-	}
-	injectEnvs(pod, secretEnvs)
-}
-
-func injectInitializerContainer(pod *v1.Pod, workerParam *WorkerParam) {
+func prepareInitContainer(workerParam *WorkerParam) ([]v1.Volume, []v1.VolumeMount, *v1.Container) {
 	var volumes []v1.Volume
 	var volumeMounts []v1.VolumeMount
 
@@ -289,7 +397,7 @@ func injectInitializerContainer(pod *v1.Pod, workerParam *WorkerParam) {
 
 	// no need to download
 	if len(downloadPairs) == 0 {
-		return
+		return nil, nil, nil
 	}
 
 	envs := secretEnvs
@@ -343,80 +451,5 @@ func injectInitializerContainer(pod *v1.Pod, workerParam *WorkerParam) {
 		Env:          envs,
 	}
 
-	pod.Spec.InitContainers = append(pod.Spec.InitContainers, initContainer)
-	injectVolume(pod, volumes, volumeMounts)
-}
-
-// InjectStorageInitializer injects these storage related volumes and envs into pod in-place
-func InjectStorageInitializer(pod *v1.Pod, workerParam *WorkerParam) {
-	var mounts []WorkerMount
-	// parse the mounts and environment key
-	for _, mount := range workerParam.Mounts {
-		var envPaths []string
-
-		if mount.URL != nil {
-			mount.URLs = append(mount.URLs, *mount.URL)
-		}
-
-		var mountURLs []MountURL
-		for _, m := range mount.URLs {
-			m.Parse()
-			if m.Disable {
-				continue
-			}
-			mountURLs = append(mountURLs, m)
-
-			if m.ContainerPath != "" {
-				envPaths = append(envPaths, m.ContainerPath)
-			} else {
-				// keep the original URL if no container path
-				envPaths = append(envPaths, m.URL)
-			}
-		}
-
-		if len(mountURLs) > 0 {
-			mount.URLs = mountURLs
-			mounts = append(mounts, mount)
-		}
-
-		if mount.EnvName != "" {
-			workerParam.Env[mount.EnvName] = strings.Join(
-				envPaths, urlsFieldSep,
-			)
-		}
-	}
-
-	workerParam.Mounts = mounts
-
-	// need to call injectInitializerContainer before injectHostPathMount
-	// since injectHostPathMount could inject volumeMount to init container
-	injectInitializerContainer(pod, workerParam)
-	injectHostPathMount(pod, workerParam)
-	injectWorkerSecrets(pod, workerParam)
-}
-
-func injectVolume(pod *v1.Pod, volumes []v1.Volume, volumeMounts []v1.VolumeMount) {
-	if len(volumes) > 0 {
-		pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
-	}
-
-	if len(volumeMounts) > 0 {
-		for idx := range pod.Spec.Containers {
-			// inject every containers
-			pod.Spec.Containers[idx].VolumeMounts = append(
-				pod.Spec.Containers[idx].VolumeMounts, volumeMounts...,
-			)
-		}
-	}
-}
-
-func injectEnvs(pod *v1.Pod, envs []v1.EnvVar) {
-	if len(envs) > 0 {
-		for idx := range pod.Spec.Containers {
-			// inject every containers
-			pod.Spec.Containers[idx].Env = append(
-				pod.Spec.Containers[idx].Env, envs...,
-			)
-		}
-	}
+	return volumes, volumeMounts, &initContainer
 }

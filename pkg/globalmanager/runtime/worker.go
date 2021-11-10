@@ -85,7 +85,7 @@ func GenerateWorkerSelector(object CommonInterface, workerType string) (labels.S
 
 // injectWorkerParam modifies pod in-place
 func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInterface) {
-	InjectStorageInitializer(pod, workerParam)
+	InjectStorageInitializer(&pod.Spec, workerParam)
 
 	if workerParam.WorkerType == InferencePodType && workerParam.ModelHotUpdate.Enable {
 		injectModelHotUpdateMount(pod, object)
@@ -221,7 +221,16 @@ func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerPa
 }
 
 // injectDeploymentParam modifies deployment in-place
-func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, port int32) {
+func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, _port int32) {
+	var appLabelKey = "app.sedna.io"
+	var appLabelValue = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
+
+	// Injection of the storage variables must be done before loading
+	// the environment variables!
+	if workerParam.Mounts != nil {
+		InjectStorageInitializer(&deployment.Spec.Template.Spec, workerParam)
+	}
+
 	// inject our labels
 	if deployment.Labels == nil {
 		deployment.Labels = make(map[string]string)
@@ -229,17 +238,29 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 	if deployment.Spec.Template.Labels == nil {
 		deployment.Spec.Template.Labels = make(map[string]string)
 	}
+	if deployment.Spec.Selector.MatchLabels == nil {
+		deployment.Spec.Selector.MatchLabels = make(map[string]string)
+	}
 
 	for k, v := range generateLabels(object, workerParam.WorkerType) {
 		deployment.Labels[k] = v
 		deployment.Spec.Template.Labels[k] = v
 		deployment.Spec.Selector.MatchLabels[k] = v
 	}
-	deployment.Spec.Template.Spec.Containers[0].Ports = []v1.ContainerPort{
-		{
-			ContainerPort: port,
-		},
+
+	// Edgemesh part, useful for service mapping
+	deployment.Labels[appLabelKey] = appLabelValue
+	deployment.Spec.Template.Labels[appLabelKey] = appLabelValue
+	deployment.Spec.Selector.MatchLabels[appLabelKey] = appLabelValue
+
+	// Env variables injection
+	envs := createEnvVars(workerParam.Env)
+	for idx := range deployment.Spec.Template.Spec.Containers {
+		deployment.Spec.Template.Spec.Containers[idx].Env = append(
+			deployment.Spec.Template.Spec.Containers[idx].Env, envs...,
+		)
 	}
+
 }
 
 // createEnvVars creates EnvMap for container
@@ -280,7 +301,7 @@ func injectModelHotUpdateMount(pod *v1.Pod, object CommonInterface) {
 		Name:      volumeName,
 	})
 
-	injectVolume(pod, volumes, volumeMounts)
+	injectVolume(&pod.Spec, volumes, volumeMounts)
 }
 
 func GetModelHotUpdateConfigFile(object CommonInterface, prefix string) string {
