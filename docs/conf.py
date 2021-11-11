@@ -58,7 +58,7 @@ with open(f'{_base_path}/lib/sedna/VERSION', "r", encoding="utf-8") as fh:
 # -- Project information -----------------------------------------------------
 
 project = 'Sedna'
-copyright = '2020, Kubeedge'
+copyright = '2021, Kubeedge'
 author = 'Kubeedge'
 
 version = __version__

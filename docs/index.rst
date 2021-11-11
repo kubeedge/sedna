@@ -9,21 +9,24 @@ Sedna is an edge-cloud synergy AI project incubated in KubeEdge SIG AI. Benefiti
 
 Sedna can simply enable edge-cloud synergy capabilities to existing training and inference scripts, bringing the benefits of reducing costs, improving model performance, and protecting data privacy.
 
+
+.. toctree::
+    :maxdepth: 1
+    :caption: GUIDE
+
+    index/guide
+    index/quickstart
+
+
 .. toctree::
     :maxdepth: 1
     :titlesonly:
     :glob:
     :caption: DEPLOY
 
-    Cluster Installation <setup/install> used for production.
-    AllinOne Installation <setup/all-in-one> used for development.
-    Standalone Installation <setup/local-up> used for hello world.
-
-.. toctree::
-    :maxdepth: 1
-    :caption: QUICK START
-
-    quickstart
+    Cluster Installation (for production) <setup/install>
+    AllinOne Installation (for development) <setup/all-in-one>
+    Standalone Installation (for hello world) <setup/local-up>
 
 
 .. toctree::
@@ -56,11 +59,13 @@ Sedna can simply enable edge-cloud synergy capabilities to existing training and
 
 .. toctree::
     :maxdepth: 1
-    :caption: API
+    :caption: API REFERENCE
     :titlesonly:
     :glob:
 
     api/lib/*
+    Python API <autoapi/lib/sedna/index>
+
 
 .. toctree::
     :maxdepth: 1
@@ -72,25 +77,16 @@ Sedna can simply enable edge-cloud synergy capabilities to existing training and
 
 
 .. toctree::
-    :maxdepth: 1
-    :caption: API REFERENCE
-    :titlesonly:
-    :glob:
-
-    autoapi/lib/sedna/index
-
-
-.. toctree::
     :caption: ROADMAP
     :hidden:
 
-    roadmap
+    index/roadmap
 
 
 RELATED LINKS
 =============
 
-.. mdinclude:: related_link.md
+.. mdinclude:: index/related_link.md
 
 Indices and tables
 ==================
