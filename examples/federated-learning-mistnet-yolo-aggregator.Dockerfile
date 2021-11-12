@@ -1,4 +1,9 @@
-FROM python:3.6-slim
+FROM ascendhub.huawei.com/public-ascendhub/ascend-pytorch-x86:21.0.1
+
+ENV http_proxy http://1.1.1.153:3128
+ENV https_proxy http://1.1.1.153:3128
+
+RUN sed -i 's/mirrors.aliyun.com/mirrors.tools.huawei.com/g' /etc/apt/sources.list && chmod 777 /tmp
 
 RUN apt update \
   && apt install -y gcc libgl1-mesa-glx git libglib2.0-0 libsm6 libxext6 libxrender-dev
@@ -9,16 +14,18 @@ RUN python -m pip install --upgrade pip
 
 RUN pip install -r /home/requirements.txt
 
-ENV PYTHONPATH "/home/lib:/home/plato:/home/plato/packages/yolov5"
+ENV PYTHONPATH "/home/lib:/home/plato:/home/plato/packages/yolov5:$PYTHONPATH"
 
 COPY ./lib /home/lib
-RUN git clone https://github.com/TL-System/plato.git /home/plato
-RUN rm -rf /home/plato/.git
+COPY plato /home/plato
 
-RUN pip install -r /home/plato/requirements.txt
-RUN pip install -r /home/plato/packages/yolov5/requirements.txt
+#RUN pip install -r /home/plato/requirements.txt
+#RUN pip install -r /home/plato/packages/yolov5/requirements.txt
 
 WORKDIR /home/work
 COPY examples/federated_learning/yolov5_coco128_mistnet  /home/work/
+
+RUN pip install -r /home/plato/requirements.txt
+RUN pip install -r /home/work/requirements.txt
 
 CMD ["/bin/sh", "-c", "ulimit -n 50000; python aggregate.py"]
