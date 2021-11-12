@@ -201,7 +201,8 @@ class FederatedLearningV2:
         if data is not None:
             if hasattr(data, "customized"):
                 if data.customized:
-                    self.datasource = base.DataSource()
+                    # self.datasource = base.DataSource()
+                    self.datasource = estimator.datasource
                     self.datasource.trainset = data.trainset
                     self.datasource.testset = data.testset
             else:
@@ -209,8 +210,21 @@ class FederatedLearningV2:
                 Config().data = Config.namedtuple_from_dict(datastore)
 
         self.model = None
+        self.trainer = None
+        self.algorithm = None
+        # self.datasource = None
         if estimator is not None:
             self.model = estimator.model
+            if estimator.trainer is not None:
+                self.trainer = estimator.trainer
+            if estimator.algorithm is not None:
+                self.algorithm = estimator.algorithm
+            # if estimator.datasource is not None:
+            #     self.datasource = estimator.datasource
+            #     if data is not None:
+            #         if hasattr(data, "customized")
+            #     self.datasource.trainset = data.trainset 
+            #     self.datasource.testset = data.testset
             train.update(estimator.hyperparameters)
             Config().trainer = Config.namedtuple_from_dict(train)
 
@@ -234,7 +248,9 @@ class FederatedLearningV2:
 
         from plato.clients import registry as client_registry
         self.client = client_registry.get(model=self.model,
-                                          datasource=self.datasource)
+                                          datasource=self.datasource,
+                                          trainer=self.trainer,
+                                          algorithm=self.algorithm)
         self.client.configure()
 
     @classmethod

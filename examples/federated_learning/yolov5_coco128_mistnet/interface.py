@@ -17,6 +17,10 @@ from sedna.algorithms.client_choose import SimpleClientChoose
 from sedna.common.config import Context
 from sedna.core.federated_learning import FederatedLearningV2
 
+from examples.nnrt.nnrt_trainer_yolo import Trainer
+from examples.nnrt.nnrt_algorithms.mistnet import Algorithm
+from examples.nnrt.nnrt_models.acl_inference import Inference
+from examples.nnrt.nnrt_datasource_yolo import DataSource
 simple_chooser = SimpleClientChoose(per_round=1)
 
 # It has been determined that mistnet is required here.
@@ -133,8 +137,12 @@ class Dataset:
 
 class Estimator:
     def __init__(self) -> None:
-        self.model = None
+        # initialize inference object with deviceID, om path, image height and width
+        self.model = Inference(0, "./yolov5x_cutlayer4.om", 640, 640)
         self.pretrained = None
+        self.trainer = Trainer(model=self.model)
+        self.algorithm = Algorithm(self.trainer)
+        self.datasource = DataSource()
         self.saved = None
         self.hyperparameters = {
             "type": "yolov5",
@@ -146,6 +154,6 @@ class Estimator:
             "linear_lr": False,
             # The machine learning model
             "model_name": "yolov5",
-            "model_config": "./yolov5s.yaml",
+            "model_config": "./yolov5x.yaml",
             "train_params": "./hyp.scratch.yaml"
         }
