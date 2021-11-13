@@ -26,6 +26,6 @@ WORKDIR /home/work
 COPY examples/federated_learning/yolov5_coco128_mistnet   /home/work/
 
 RUN pip3 install -r /home/plato/requirements.txt
-RUN pip3 install -r /home/work/requirements.txt
+RUN pip install -r /home/plato/packages/yolov5/requirements.txt
 
 #ENTRYPOINT ["python3", "train.py"]
