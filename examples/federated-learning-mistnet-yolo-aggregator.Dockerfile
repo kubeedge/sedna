@@ -26,6 +26,6 @@ WORKDIR /home/work
 COPY examples/federated_learning/yolov5_coco128_mistnet  /home/work/
 
 RUN pip install -r /home/plato/requirements.txt
-RUN pip install -r /home/work/requirements.txt
+RUN pip install -r /home/plato/packages/yolov5/requirements.txt
 
 CMD ["/bin/sh", "-c", "ulimit -n 50000; python aggregate.py"]
