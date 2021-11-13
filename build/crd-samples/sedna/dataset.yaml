@@ -1,0 +1,8 @@
+apiVersion: sedna.io/v1alpha1
+kind: Dataset
+metadata:
+  name: "coco-dataset-1"
+spec:
+  url: "/data/1/COCO/robot.txt"
+  format: "txt"
+  nodeName: a500-124

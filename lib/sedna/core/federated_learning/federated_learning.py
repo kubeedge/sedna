@@ -192,17 +192,23 @@ class FederatedLearningV2:
 
         from plato.config import Config
         from plato.datasources import base
+        from examples.nnrt.nnrt_datasource_yolo import DataSource
         # set parameters
         server = Config().server._asdict()
         clients = Config().clients._asdict()
         datastore = Config().data._asdict()
         train = Config().trainer._asdict()
+
+        # update datastore for configuration
+        datastore.update(data.parameters)
+        Config().data = Config.namedtuple_from_dict(datastore)
+
         self.datasource = None
         if data is not None:
             if hasattr(data, "customized"):
                 if data.customized:
                     # self.datasource = base.DataSource()
-                    self.datasource = estimator.datasource
+                    self.datasource = DataSource()
                     self.datasource.trainset = data.trainset
                     self.datasource.testset = data.testset
             else:

@@ -1,0 +1,7 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: "yolo-v5-model"
+spec:
+  url: "/model/yolov5.pth"
+  format: "pth"
