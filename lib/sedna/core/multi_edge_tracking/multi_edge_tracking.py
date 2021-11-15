@@ -112,8 +112,7 @@ class ReIDService(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{os.uname()[1]}_reid"):
-            res = self.estimator.predict(data, **kwargs)
+        res = self.estimator.predict(data, **kwargs)
 
         if callback_func:
             res = callback_func(res)
@@ -209,8 +208,7 @@ class FEService(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{os.uname()[1]}_feature_extraction"):
-            res = self.estimator.predict(data, **kwargs)
+        res = self.estimator.predict(data, **kwargs)
         fe_result = deepcopy(res)
 
         if callback_func:
@@ -293,8 +291,7 @@ class ObjectDetector(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        with FTimer(f"{os.uname()[1]}_object_detection"):
-            detection_result = self.estimator.predict(data, **kwargs)
+        detection_result = self.estimator.predict(data, **kwargs)
 
         if callback_func:
             detection_result = callback_func(detection_result)

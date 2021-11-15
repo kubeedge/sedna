@@ -36,4 +36,4 @@ ENV PYTHONPATH "${PYTHONPATH}:/home/lib/sedna/backend/nets"
 ENV LOG_LEVEL="INFO"
 
 ENTRYPOINT ["python"]
-CMD ["worker.py", "--config_file=efficientnetv2_market"]
+CMD ["worker.py"]

@@ -51,10 +51,8 @@ class FluentdReporter(FluentdHelper, AbstractMetricsReporter):
 
     def update(self):
         while True:
-            print(f"--- {len(self.metrics)}")
-            for m in self.metrics:
-                # print(m.metric_name.__str__() + " " + str(m.value()))
-                self.send_json_msg(self.to_json(m))
+            # for m in self.metrics:
+                # self.send_json_msg(self.to_json(m))
             time.sleep(self.interval)
 
     def to_json(self, metric):

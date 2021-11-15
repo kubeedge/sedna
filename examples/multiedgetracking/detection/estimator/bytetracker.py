@@ -45,8 +45,8 @@ class ByteTracker(FluentdHelper):
         super(ByteTracker, self).__init__()
 
         self.num_classes = num_classes
-        self.confidence_thr = confidence_thr
-        self.nms_thr = nms_thr
+        self.confidence_thr = float(confidence_thr)
+        self.nms_thr = float(nms_thr)
         self.set_to_eval = True
         self.model = None
         self.camera_code = kwargs.get('camera_code', 0)
@@ -59,16 +59,18 @@ class ByteTracker(FluentdHelper):
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    def write_to_fluentd(self, data: List[np.ndarray]) -> None:
+    def write_to_fluentd(self, data):
         try:
             for elem in data:
-                bts = np.asarray(elem).nbytes
+                bts = np.sum(list(map(lambda x: np.asarray(x).nbytes, elem[0])))
+                
                 msg = {
                     "worker": "l2-object-detector",
-                    "outbound_data": int(bts)
+                    "outbound_data": int(bts),
+                    "confidence": elem[1].item() # Transforms single-valued tensor into a number.
                 }
-                self.send_json_msg(msg)
 
+                self.send_json_msg(msg)
         except Exception as ex:
             LOGGER.error(f"Error while transmitting data to fluentd. Details: [{ex}]")
 
@@ -144,28 +146,33 @@ class ByteTracker(FluentdHelper):
                 self.confidence_thr,
                 self.nms_thr)
 
-        # Prepare image with boxes overlaid
-        bboxes = outputs[0][:, 0:4]
-        bboxes /= img_info["ratio"]
-
-        # Crop to person detections
-        # person crops is a list of numpy arrays containing the image cropped to that person only
         object_crops = []
-        det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
 
-        for i in range(len(bboxes)):
-            box = bboxes[i]
-            x0, y0, x1, y1 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+        # Prepare image with boxes overlaid
+        try:
+            bboxes = outputs[0][:, 0:4]
+            a0 = outputs[0][:, 4]
+            a1 = outputs[0][:, 5]
+            bboxes /= img_info["ratio"]
 
-            _img = data[y0: y1, x0: x1]
+            # Crop to person detections
+            # person crops is a list of numpy arrays containing the image cropped to that person only
+            det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
 
-            #TODO: Fix img type?
-            crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
+            for i in range(len(bboxes)):
+                box = bboxes[i]
+                x0, y0, x1, y1 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                score = a0[i]*a1[i]
+                _img = data[y0: y1, x0: x1]
 
-            object_crops.append([crop_encoded.tolist(), 0, self.camera_code, det_time]) 
+                crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
 
-        self.write_to_fluentd(object_crops)
+                object_crops.append([crop_encoded.tolist(), score, self.camera_code, det_time]) 
 
-        LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
+            self.write_to_fluentd(object_crops)
+
+            LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
+        except Exception as ex:
+            LOGGER.error(f"No objects identified [{ex}].")
 
         return object_crops

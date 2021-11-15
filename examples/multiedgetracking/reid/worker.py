@@ -21,7 +21,7 @@ from PIL import Image
 from sedna.core.multi_edge_tracking import ReIDService
 from sedna.common.config import Context
 from sedna.common.log import LOGGER
-from sedna.common.benchmark import FTimer
+from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.algorithms.reid.mAP import cosine_similarity
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
@@ -37,6 +37,7 @@ class Estimator:
 
     def __init__(self, **kwargs):
         LOGGER.info("Starting ReID module")
+
         self.log_dir = log_dir
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.gallery_feats = torch.load(os.path.join(self.log_dir, dataset, gfeats), map_location=self.device)
@@ -61,7 +62,7 @@ class Estimator:
         cv2.putText(img, text, (int(textX), int(textY) ), font, 1, (255, 255, 255), 2)
 
 
-    def load(self, **kwargs):
+    def load(self, model_name="", **kwargs):
         pass
 
     def predict(self, data, **kwargs):
@@ -80,9 +81,11 @@ class Estimator:
                 
                 LOGGER.debug(f"Running the cosine similarity function on input data")
                 LOGGER.debug(f"{query_feat.shape} - {self.gallery_feats.shape}")
+
                 with FTimer("cosine_similarity"):
                     dist_mat = cosine_similarity(query_feat, self.gallery_feats)
-                    indices = np.argsort(dist_mat, axis=1)
+                
+                indices = np.argsort(dist_mat, axis=1)
                 
                 closest_match = self._extract_id(self.img_path[indices[0][0]])
                 

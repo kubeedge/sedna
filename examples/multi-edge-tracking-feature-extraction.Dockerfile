@@ -49,4 +49,4 @@ COPY examples/multiedgetracking/feature_extraction/worker.py  /home/work/worker.
 ENV LOG_LEVEL="INFO"
 
 ENTRYPOINT ["python"]
-CMD ["worker.py", "--config_file=efficientnetv2_market"]
+CMD ["worker.py"]
