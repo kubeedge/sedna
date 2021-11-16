@@ -234,7 +234,7 @@ func (im *Manager) evalTask(job *Job) error {
 			return fmt.Errorf("failed to sync deploy model, and waiting it: %w", err)
 		}
 
-		if jobConfig.TrainTriggerStatus == TriggerReadyStatus {
+		if jobConfig.EvalTriggerStatus == TriggerReadyStatus {
 			payload, err := im.triggerEvalTask(job)
 			if err != nil {
 				klog.Errorf("job(%s) completed the %sing phase triggering task failed: %v",
@@ -250,7 +250,7 @@ func (im *Manager) evalTask(job *Job) error {
 
 			forwardSamples(jobConfig, jobStage)
 
-			jobConfig.TrainTriggerStatus = TriggerCompletedStatus
+			jobConfig.EvalTriggerStatus = TriggerCompletedStatus
 			klog.Infof("job(%s) completed the %sing phase triggering task successfully",
 				jobConfig.UniqueIdentifier, jobStage)
 		}
