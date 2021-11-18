@@ -1,0 +1,117 @@
+apiVersion: sedna.io/v1alpha1
+kind: MultiEdgeTrackingService
+metadata:
+  name: container-tracking
+spec:
+  motDeploy: 
+    model:
+      name: "detection-yolov5s"
+    kafkaSupport: false
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: object-detection
+      template:
+        metadata:
+          labels:
+            app: object-detection
+        spec:
+          nodeName: "fraprigel00001"
+          containers:
+            - image: registry/sedna-example-multi-edge-tracking-detection:v0.3.0
+              imagePullPolicy: Always
+              name:  detection
+              env:  # user defined environments
+              - name: input_shape
+                value: "640"
+              - name: "video_url"
+                value: "rtsp://x.x.x.x/video/0"
+              - name: "estimator_class"
+                value: "Yolov5"
+              - name: "stream_dispatcher_url"
+                value: "http://x.x.x.x:yyyy/get_rtsp_stream"
+              resources:  # user defined resources
+                requests:
+                  memory: 64M
+                  cpu: 500m
+                limits:
+                  memory: 2Gi
+
+  feDeploy:
+    model:
+      name: "feature-extraction-efficientnet"
+    kafkaSupport: false
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: feature-extraction
+      template:
+        metadata:
+          labels:
+            app: feature-extraction
+        spec:
+          nodeName: "frapedge00001"
+          containers:
+          - image: registry/sedna-example-multi-edge-tracking-feature-extraction:v0.3.0
+            imagePullPolicy: Always
+            ports:
+              - containerPort: 6000
+            name:  feature-extraction
+            env:  # user defined environments
+            - name: input_shape
+              value: "256,128"
+            resources:  # user defined resources
+              requests:
+                memory: 128M
+                cpu: 500m
+              limits:
+                memory: 2Gi
+
+  reIDDeploy:
+    kafkaSupport: false
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: reid
+      template:
+        metadata:
+          labels:
+            app: reid
+        spec:
+          nodeName: "fraporion00001"
+          containers:
+            - image: registry/sedna-example-multi-edge-tracking-reid:v0.3.0
+              name:  reid
+              imagePullPolicy: Always
+              ports:
+                - containerPort: 5000
+                  hostPort: 5000
+              env:  # user defined environments
+              - name: "log_dir"
+                value: "/data/ai_models/deep_eff_reid/loggers/runs/"
+              - name: "img_dir"
+                value: "/data/ai_models/deep_eff_reid/"
+              - name: "gfeats"
+                value: "gfeats.pth"
+              - name: "qfeats"
+                value: "qfeats.pth"
+              - name: "imgpath"
+                value: "imgpath.npy"
+              - name: "dataset"
+                value: "efficientnetv2_containers2021_3"
+              resources:  # user defined resources
+                requests:
+                  memory: 2Gi
+                  cpu: 500m
+              volumeMounts:
+              - name: outputdir
+                mountPath: /data/
+          volumes:   # user defined volumes
+            - name: outputdir
+              hostPath:
+                # user must create the directory in host
+                path: /data/
+                type: Directory
