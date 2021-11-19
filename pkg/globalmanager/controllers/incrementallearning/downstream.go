@@ -122,25 +122,25 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 
 	runtime.InjectSecretAnnotations(c.kubeClient, job, job.Spec.CredentialName)
 
+	// isJobResidentNode is func that checks whether nodeName is a job resident node
+	isJobResidentNode := func(nodeName string) bool {
+		// the node where LC monitors dataset and the node where inference worker is running are job resident node
+		if nodeName == dsNodeName || nodeName == deployNodeName {
+			return true
+		}
+		return false
+	}
+
 	doJobStageEvent := func(modelName string, nodeName string) {
 		if currentType == sednav1.ILJobStageCondWaiting {
-			if jobStage != sednav1.ILJobDeploy {
-				syncJobWithNodeName(dsNodeName)
+			syncJobWithNodeName(dsNodeName)
+			if modelName != "" {
 				syncModelWithName(modelName)
 			}
 		} else if currentType == sednav1.ILJobStageCondRunning {
-			if nodeName != "" {
-				syncJobWithNodeName(nodeName)
-			}
-
-			if jobStage == sednav1.ILJobDeploy {
-				if evalNodeName != dsNodeName {
-					// delete LC's job from eval node that's different from dataset node when deploy worker's status is ready.
-					c.sendToEdgeFunc(evalNodeName, watch.Deleted, job)
-				}
-			}
+			syncJobWithNodeName(nodeName)
 		} else if currentType == sednav1.ILJobStageCondCompleted || currentType == sednav1.ILJobStageCondFailed {
-			if nodeName != dsNodeName {
+			if !isJobResidentNode(nodeName) {
 				// delete LC's job from nodeName that's different from dataset node when worker's status is completed or failed.
 				c.sendToEdgeFunc(nodeName, watch.Deleted, job)
 			}
