@@ -234,7 +234,7 @@ func (im *Manager) evalTask(job *Job) error {
 			return fmt.Errorf("failed to sync deploy model, and waiting it: %w", err)
 		}
 
-		if jobConfig.TrainTriggerStatus == TriggerReadyStatus {
+		if jobConfig.EvalTriggerStatus == TriggerReadyStatus {
 			payload, err := im.triggerEvalTask(job)
 			if err != nil {
 				klog.Errorf("job(%s) completed the %sing phase triggering task failed: %v",
@@ -250,7 +250,7 @@ func (im *Manager) evalTask(job *Job) error {
 
 			forwardSamples(jobConfig, jobStage)
 
-			jobConfig.TrainTriggerStatus = TriggerCompletedStatus
+			jobConfig.EvalTriggerStatus = TriggerCompletedStatus
 			klog.Infof("job(%s) completed the %sing phase triggering task successfully",
 				jobConfig.UniqueIdentifier, jobStage)
 		}
@@ -1030,18 +1030,17 @@ func (im *Manager) handleData(job *Job) {
 
 			jobConfig.Lock.Lock()
 			jobConfig.DataSamples.TrainSamples = append(jobConfig.DataSamples.TrainSamples,
-				samples[(previousNumberOfSamples+1):(previousNumberOfSamples+trainNum+1)]...)
+				samples[previousNumberOfSamples:previousNumberOfSamples+trainNum]...)
 			klog.Infof("job(%s)'s current train samples nums is %d", jobConfig.UniqueIdentifier, trainNum)
 
 			jobConfig.DataSamples.EvalVersionSamples = append(jobConfig.DataSamples.EvalVersionSamples,
-				samples[(previousNumberOfSamples+trainNum+1):])
+				samples[previousNumberOfSamples+trainNum:])
 			jobConfig.Lock.Unlock()
 
 			for _, v := range jobConfig.DataSamples.EvalVersionSamples {
 				jobConfig.DataSamples.EvalSamples = append(jobConfig.DataSamples.EvalSamples, v...)
 			}
-			evalNum := newNumberOfSamples - trainNum
-			klog.Infof("job(%s)'s current eval samples nums is %d", jobConfig.UniqueIdentifier, evalNum)
+			klog.Infof("job(%s)'s current eval samples nums is %d", jobConfig.UniqueIdentifier, len(jobConfig.DataSamples.EvalSamples))
 
 			jobConfig.DataSamples.PreviousNumbers = currentNumberOfSamples
 		}

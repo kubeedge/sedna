@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -190,19 +191,18 @@ func CreatePodWithTemplate(client kubernetes.Interface, object CommonInterface, 
 
 // CreateEdgeMeshService creates a kubeedge edgemesh service for an object, and returns an edgemesh service URL.
 // Since edgemesh can realize Cross-Edge-Cloud communication, the service can be created both on the cloud or edge side.
-// TODO: Integrate this function with CreateKubernetesService function.
-func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32) (string, error) {
+func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, servicePort int32) (string, error) {
 	ctx := context.Background()
 	name := object.GetName()
 	namespace := object.GetNamespace()
 	kind := object.GroupVersionKind().Kind
-	targePort := intstr.IntOrString{
-		IntVal: inputPort,
+	targetPort := intstr.IntOrString{
+		IntVal: servicePort,
 	}
 	serviceSpec := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
-			Name:      name + "-" + workerType + "-" + "svc",
+			Name:      strings.ToLower(name + "-" + workerType),
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, object.GroupVersionKind()),
 			},
@@ -212,10 +212,13 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 			Selector: generateLabels(object, workerType),
 			Ports: []v1.ServicePort{
 				{
-					Name:       "http-0",
+					// TODO: be clean, Port.Name is currently required by edgemesh(v1.8.0).
+					// and should be <protocol>-<suffix>
+					Name: "tcp-0",
+
 					Protocol:   "TCP",
-					Port:       inputPort,
-					TargetPort: targePort,
+					Port:       servicePort,
+					TargetPort: targetPort,
 				},
 			},
 		},
@@ -227,8 +230,7 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 	}
 
 	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
-	edgeMeshURL := name + "-" + workerType + "-" + "svc" + "." + namespace + ":" + strconv.Itoa(int(inputPort))
-	return edgeMeshURL, nil
+	return fmt.Sprintf("%s.%s", service.Name, service.Namespace), nil
 }
 
 // CreateDeploymentWithTemplate creates and returns a deployment object given a crd object, deployment template

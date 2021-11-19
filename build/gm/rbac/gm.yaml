@@ -17,6 +17,7 @@ rules:
     - multiedgetrackingservices
     - dnnpartitioningservices
     - objectsearchservices
+    - objecttrackingservices
     verbs:
     - get
     - list
@@ -36,11 +37,12 @@ rules:
     - multiedgetrackingservices/status
     - dnnpartitioningservices/status
     - objectsearchservice/status
+    - objecttrackingservices/status
     verbs:
     - get
     - update
 
-  # current we implement ai features by k8s pods, services
+  # current we implement ai features by k8s pods, services, deployments
   - apiGroups:
     - ""
     - "apps"
@@ -53,6 +55,16 @@ rules:
     - list
     - watch
     - update
+    - delete
+  - apiGroups:
+    - "apps"
+    resources:
+    - deployments
+    verbs:
+    - create
+    - get
+    - list
+    - watch
     - delete
 
   - apiGroups:

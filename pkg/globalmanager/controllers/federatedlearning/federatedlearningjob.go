@@ -555,17 +555,7 @@ func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32,
 	}
 	active++
 
-	var appIP string
-	var aggServicePort int32
-
-	// FIXME(llhuii): only the case that Spec.NodeName specified is support,
-	// will support Spec.NodeSelector.
-	appIP, err = runtime.GetNodeIPByName(c.kubeClient, job.Spec.AggregationWorker.Template.Spec.NodeName)
-	if err != nil {
-		return active, err
-	}
-
-	aggServicePort, err = runtime.CreateKubernetesService(c.kubeClient, job, jobStageAgg, aggPort, appIP)
+	aggServiceHost, err := runtime.CreateEdgeMeshService(c.kubeClient, job, jobStageAgg, aggPort)
 	if err != nil {
 		return active, err
 	}
@@ -592,8 +582,8 @@ func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32,
 			datasetSecret, true)
 
 		workerParam.Env = map[string]string{
-			"AGG_PORT": strconv.Itoa(int(aggServicePort)),
-			"AGG_IP":   appIP,
+			"AGG_PORT": strconv.Itoa(int(aggPort)),
+			"AGG_IP":   aggServiceHost,
 
 			"WORKER_NAME":        "trainworker-" + utilrand.String(5),
 			"JOB_NAME":           job.Name,

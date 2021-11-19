@@ -32,11 +32,11 @@ if ! [[ "${GOPATH}/src/${SEDNA_GO_PACKAGE}/" -ef "${SEDNA_ROOT}/" ]]; then
     # Copy generated code into SEDNA_ROOT
     echo "Warning: ${SEDNA_ROOT} not included in $GOPATH which is required by code-gen"
     echo "Moving generated code from ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/ to ${SEDNA_ROOT}/"
-    rsync -a ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg ${SEDNA_ROOT}/
+    rsync -a ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/{client,apis} ${SEDNA_ROOT}/pkg
     if [ $? -eq 0 ]; then
         echo "Copy successful!"
-        rm -rf ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/*
+        rm -rf ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/{client,apis}
     else
-        echo "Error during copy!"
+        echo "Error during copy of the generated code!" >&2
     fi
 fi

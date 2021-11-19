@@ -14,57 +14,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Can help when behind corporate network
-export GOINSECURE="dmitri.shuralyov.com"
-export GOPRIVATE=*
 
-helpFunction()
+# Reset in case getopts has been used previously in the shell
+OPTIND=1
+
+usage()
 {
    echo ""
-   echo "Usage: $0 -t type"
-   echo -e "\t-t The type parameters allows to select which Sedna example to build (joint_inference, federated_learning, etc..)"
+   echo "Usage: $0 -r repository dir_1 ... dir_n"
+   echo -e "\t-r The repository parameters allows to select a private Docker repository to upload the images to."
+   echo -e "\tThe script expects a list of Sedna example to build (joint_inference, federated_learning, etc..).
+   \tMultiple example can be built at the same time by passing a list of directories such as: dir_1 dir_2 ...
+   \tIf no directory is specified, the script will automatically build all available examples."
    exit 1 # Exit script after printing help
 }
 
-while getopts "t:" opt
+while getopts "r:" opt
 do
    case "$opt" in
-      t ) type="$OPTARG" ;;
-      ? ) helpFunction ;; # Print helpFunction in case parameter is non-existent
+      r ) IMAGE_REPO="$OPTARG" ;;
+      ? ) usage ;; # Print usage in case parameter is non-existent
    esac
 done
 
+shift $((OPTIND-1))
+
+[ "${1:-}" = "--" ] && shift
+
+type=$@
+
 if [ -z "$type" ]
 then
-   echo "Defaulting to building all example images..";
+   echo "No example directory/s specified, building all example images.."
    type="all"
+fi
+
+if [ -z "$IMAGE_REPO" ]
+then
+   echo "Using default Docker hub"
+   IMAGE_REPO="kubeedge"
 fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-IMAGE_REPO=${IMAGE_REPO:-kubeedge}
-IMAGE_TAG=${IMAGE_TAG:-v0.3.0}
+IMAGE_TAG=${IMAGE_TAG:-v0.4.0}
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
-
-# Uncomment this line if you want to push your images to a private repository
-PRIVATE_DOCKER_REPOSITORY="registry-cbu.huawei.com"
-
-dockerfiles_multiedgetracking=(
-multi-edge-tracking-feature-extraction.Dockerfile
-multi-edge-tracking-detection.Dockerfile
-multi-edge-tracking-reid.Dockerfile
-)
-
-dockerfiles_dnn_partitioning=(
-dnn-partitioning-alex-net-edge.Dockerfile
-dnn-partitioning-alex-net-cloud.Dockerfile
-)
 
 dockerfiles_federated_learning=(
 federated-learning-mistnet-yolo-aggregator.Dockerfile
 federated-learning-mistnet-yolo-client.Dockerfile
 federated-learning-surface-defect-detection-aggregation.Dockerfile
-federated-learning-surface-defect-detection-aggregation-train.Dockerfile
+federated-learning-surface-defect-detection-train.Dockerfile
 )
 
 dockerfiles_joint_inference=(
@@ -80,48 +80,25 @@ dockerfiles_incremental_learning=(
 incremental-learning-helmet-detection.Dockerfile
 )
 
-case $type in
+# Iterate over the input folders and build them sequentially.
+for tp in ${type[@]}; do
+   if [[ "$tp" == "all" ]]; then
+      dockerfiles+=( 
+         "${dockerfiles_federated_learning[@]}"
+         "${dockerfiles_joint_inference[@]}"
+         "${dockerfiles_lifelong_learning[@]}"
+         "${dockerfiles_incremental_learning[@]}")
+   else
+      dfiles=dockerfiles_$tp[@]
+      dockerfiles+=("${!dfiles}")
+   fi
+done
 
-  multiedgetracking | cm5)
-    dockerfiles=${dockerfiles_multiedgetracking[@]}
-    ;;
-
-  dnn_partitioning | cm6)
-    dockerfiles=${dockerfiles_dnn_partitioning[@]}
-    ;;
-
-  federated_learning)
-    dockerfiles=${dockerfiles_federated_learning[@]}
-    ;;
-
-  joint_inference)
-    dockerfiles=${dockerfiles_joint_inference[@]}
-    ;;
-
-  lifelong_learning)
-    dockerfiles=${dockerfiles_lifelong_learning[@]}
-    ;;
-
-  incremental_learning)
-    dockerfiles=${dockerfiles_incremental_learning[@]}
-    ;;
-
-  all | *)
-    dockerfiles+=( "${dockerfiles_multiedgetracking[@]}"
-      "${dockerfiles_dnn_partitioning[@]}"
-      "${dockerfiles_federated_learning[@]}"
-      "${dockerfiles_joint_inference[@]}"
-      "${dockerfiles_lifelong_learning[@]}"
-      "${dockerfiles_incremental_learning[@]}")
-    ;;
-esac
-
-# If no private Docker repo is set, fallback to the default one.
-if [ -z ${PRIVATE_DOCKER_REPOSITORY+x} ]; then TARGET_REPO=${EXAMPLE_REPO_PREFIX}; else TARGET_REPO=${PRIVATE_DOCKER_REPOSITORY}/${EXAMPLE_REPO_PREFIX}; fi
+# Removing duplicate entries (if any)
+dockerfiles=($(echo "${dockerfiles[@]}" | tr ' ' '\n' | sort -u))
 
 for dockerfile in ${dockerfiles[@]}; do
-  echo "Building $dockerfile" 
-  example_name=${dockerfile/.Dockerfile}
-  docker build -f $dockerfile -t ${TARGET_REPO}${example_name}:${IMAGE_TAG} --label sedna=examples ..
-  docker push ${TARGET_REPO}${example_name}:${IMAGE_TAG}
+   echo "Building $dockerfile" 
+   example_name=${dockerfile/.Dockerfile}
+   docker build -f $dockerfile -t ${IMAGE_REPO}/${example_name}:${IMAGE_TAG} --label sedna=examples ..
 done

@@ -16,7 +16,6 @@
 
 # Influential env vars:
 #
-# SEDNA_GM_NODE   | required | The node which Sedna gm will be deployed at
 # SEDNA_ACTION    | optional | 'create'/'clean', default is 'create'
 # SEDNA_VERSION   | optional | The Sedna version to be installed.
 #                              if not specified, it will get latest release version.
@@ -26,29 +25,13 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-<<<<<<< HEAD
-SEDNA_VERSION=v0.3.0
-KB_VERSION=v0.3.0
-SEDNA_GM_NODE=fraphisprk00033
-
-=======
->>>>>>> sedna_github/main
 TMP_DIR=$(mktemp -d --suffix=.sedna)
-#SEDNA_ROOT=${SEDNA_ROOT:-$TMP_DIR}
-SEDNA_ROOT=/home/ansjin/sedna
+SEDNA_ROOT=${SEDNA_ROOT:-$TMP_DIR}
 
-GM_NODE_NAME=${SEDNA_GM_NODE:-}
-KB_NODE_NAME=${SEDNA_GM_NODE:-}
-SEDNA_ACTION=$1
-
-<<<<<<< HEAD
-trap "rm -rf '$TMP_DIR'" EXIT
-=======
 DEFAULT_SEDNA_VERSION=v0.4.0
 
 
 trap "rm -rf '$TMP_DIR'" EXIT 
->>>>>>> sedna_github/main
 
 get_latest_version() {
   # get Sedna latest release version
@@ -65,7 +48,6 @@ get_latest_version() {
 }
 
 : ${SEDNA_VERSION:=$(get_latest_version)}
-: ${KB_VERSION:=v0.3.0}
 
 _download_yamls() {
 
@@ -105,10 +87,8 @@ download_yamls() {
 }
 
 prepare_install(){
-  # need to create a namespace
+  # need to create the namespace first
   kubectl create ns sedna
-
-  kubectl label node/$GM_NODE_NAME sedna=control-plane --overwrite
 }
 
 prepare() {
@@ -120,7 +100,6 @@ prepare() {
 }
 
 cleanup(){
-  kubectl label node/$SEDNA_GM_NODE sedna- | sed 's/labeled$/un&/' || true
   kubectl delete ns sedna
 }
 
@@ -132,6 +111,14 @@ create_crds() {
 delete_crds() {
   cd ${SEDNA_ROOT}
   kubectl delete -f build/crds --timeout=90s
+}
+
+get_service_address() {
+  local service=$1
+  local port=$(kubectl -n sedna get svc $service -ojsonpath='{.spec.ports[0].port}')
+
+  # <service-name>.<namespace>:<port>
+  echo $service.sedna:$port
 }
 
 create_kb(){
@@ -146,11 +133,12 @@ metadata:
 spec:
   selector:
     sedna: kb
-  type: NodePort
+  type: ClusterIP
   ports:
     - protocol: TCP
       port: 9020
       targetPort: 9020
+      name: "tcp-0"  # required by edgemesh, to clean
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -169,13 +157,18 @@ spec:
       labels:
         sedna: kb
     spec:
-      nodeSelector:
-        sedna: control-plane
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/edge
+                operator: DoesNotExist
       serviceAccountName: sedna
       containers:
       - name: kb
         imagePullPolicy: IfNotPresent
-        image: kubeedge/sedna-kb:$KB_VERSION
+        image: kubeedge/sedna-kb:$SEDNA_VERSION
         env:
           - name: KB_URL
             value: "sqlite:///db/kb.sqlite3"
@@ -197,13 +190,8 @@ EOF
 }
 
 prepare_gm_config_map() {
-  kb_node_port=$(kubectl -n sedna get svc kb -ojsonpath='{.spec.ports[0].nodePort}')
 
-  # here try to get node ip by kubectl
-  kb_node_ip=$(kubectl get node $KB_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="ExternalIP")].address }')
-  kb_node_internal_ip=$(kubectl get node $KB_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="InternalIP")].address }')
-
-  KB_ADDRESS=${kb_node_ip:-$kb_node_internal_ip}:$kb_node_port
+  KB_ADDRESS=$(get_service_address kb)
 
   cm_name=${1:-gm-config}
   config_file=${TMP_DIR}/${2:-gm.yaml}
@@ -248,11 +236,12 @@ metadata:
 spec:
   selector:
     sedna: gm
-  type: NodePort
+  type: ClusterIP
   ports:
     - protocol: TCP
       port: 9000
       targetPort: 9000
+      name: "tcp-0"  # required by edgemesh, to clean
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -271,8 +260,13 @@ spec:
       labels:
         sedna: gm
     spec:
-      nodeSelector:
-        sedna: control-plane
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/edge
+                operator: DoesNotExist
       serviceAccountName: sedna
       containers:
       - name: gm
@@ -299,18 +293,12 @@ delete_gm() {
 
   kubectl delete -f build/gm/rbac/
 
-
   # no need to clean gm deployment alone
 }
 
 create_lc() {
-  gm_node_port=$(kubectl -n sedna get svc gm -ojsonpath='{.spec.ports[0].nodePort}')
 
-  # here try to get node ip by kubectl
-  gm_node_ip=$(kubectl get node $GM_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="ExternalIP")].address }')
-  gm_node_internal_ip=$(kubectl get node $GM_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="InternalIP")].address }')
-
-  GM_ADDRESS=${gm_node_ip:-$gm_node_internal_ip}:$gm_node_port
+  GM_ADDRESS=$(get_service_address gm)
 
   kubectl $action -f- <<EOF
 apiVersion: apps/v1
@@ -366,6 +354,7 @@ spec:
             path: /
       restartPolicy: Always
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
 EOF
 }
 
@@ -402,6 +391,7 @@ check_action() {
 
 }
 
+<<<<<<< HEAD
 check_node() {
   if [ -z "$GM_NODE_NAME" ] || ! kubectl get node $GM_NODE_NAME; then
     echo "ERROR: $(red_text GM node name \`$GM_NODE_NAME\` does not exist in k8s cluster)!" >&2
@@ -410,10 +400,11 @@ check_node() {
   fi
 }
 
+=======
+>>>>>>> sedna_github/main
 do_check() {
   check_kubectl
   check_action
-  check_node
 }
 
 show_debug_infos() {
@@ -452,6 +443,8 @@ case "$action" in
     ;;
 
   delete)
+    # no errexit when fail to clean
+    set +o errexit
     delete_pods
     delete_gm
     delete_lc

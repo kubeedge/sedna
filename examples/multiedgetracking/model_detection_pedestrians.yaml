@@ -10,7 +10,6 @@ spec:
   purpose: "detection"
   classes:
     - "pedestrian"
-    - "huawei-pedestrian"
   extra:
     - name: "model_size"
       value: "large"

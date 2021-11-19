@@ -9,7 +9,6 @@ spec:
   description: "Yolov5 model to detect toy containers."
   purpose: "detection"
   classes:
-    - "toy_container"
     - "container"
   extra:
     - name: "model_size"
