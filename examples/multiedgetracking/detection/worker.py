@@ -23,7 +23,7 @@ def retrieve_rtsp_stream() -> str:
         try:
             rtsp_stream = requests.get(stream_dispatcher)
             LOGGER.debug(f'Retrieved RTSP stream with address {rtsp_stream}')
-            # This is crazy, but we have to do it otherwise cv2 will silenty fail and never open the RTSP stream
+            # We have to do this sanity check otherwise cv2 will silenty fail and never open the RTSP stream
             cv2_cleaned_string = rtsp_stream.text.strip().replace('"', '')
             return cv2_cleaned_string
         except Exception as ex:
@@ -87,7 +87,6 @@ def start_stream_acquisition(stream_address):
                 # The first time we are going to process the frame anyway
                 LOGGER.info("Processing first frame in the RTSP stream")
                 threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
-                #edge_worker.inference(img_rgb)
             
             nframe += 1
             prev_frame = img_rgb

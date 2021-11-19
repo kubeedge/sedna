@@ -3,7 +3,7 @@ from kafka.metrics.metrics_reporter import AbstractMetricsReporter
 from sedna.common.benchmark import FluentdHelper
 
 class FluentdReporter(FluentdHelper, AbstractMetricsReporter):
-    def init(self, metrics):
+    def init(self):
         """
         This is called when the reporter is first registered
         to initially register all existing metrics
@@ -16,6 +16,7 @@ class FluentdReporter(FluentdHelper, AbstractMetricsReporter):
 
         metrics_scheduler = threading.Thread(target=self.update)
         # Creating a daemon thread to not block shutdown
+        
         metrics_scheduler.daemon = True
         metrics_scheduler.start()
 
@@ -27,9 +28,9 @@ class FluentdReporter(FluentdHelper, AbstractMetricsReporter):
         """
         if not metric in self.metrics:
             self.metrics.append(metric)
-            # print(metric.metric_name.__str__() + " " + str(metric.value()))
 
-    def metric_removal(self, metric):
+
+    def metric_removal(self):
         """
         This is called whenever a metric is removed
         Arguments:
@@ -37,7 +38,7 @@ class FluentdReporter(FluentdHelper, AbstractMetricsReporter):
         """
         pass
 
-    def configure(self, configs):
+    def configure(self):
         """
         Configure this class with the given key-value pairs
         Arguments:
@@ -51,8 +52,8 @@ class FluentdReporter(FluentdHelper, AbstractMetricsReporter):
 
     def update(self):
         while True:
-            # for m in self.metrics:
-                # self.send_json_msg(self.to_json(m))
+            for m in self.metrics:
+                self.send_json_msg(self.to_json(m))
             time.sleep(self.interval)
 
     def to_json(self, metric):

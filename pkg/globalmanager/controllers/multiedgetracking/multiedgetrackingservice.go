@@ -80,7 +80,7 @@ type Controller struct {
 	// A store of pods
 	podStore corelisters.PodLister
 
-	// serviceStoreSynced returns true if the jointinferenceservice store has been synced at least once.
+	// serviceStoreSynced returns true if the MultiEdgeTrackingService store has been synced at least once.
 	serviceStoreSynced cache.InformerSynced
 	// A store of service
 	serviceLister sednav1listers.MultiEdgeTrackingServiceLister
@@ -211,7 +211,7 @@ func (mc *Controller) enqueueController(obj interface{}, immediate bool) {
 	mc.queue.AddAfter(key, backoff)
 }
 
-// enqueueByPod enqueues the jointInferenceService object of the specified pod.
+// enqueueByPod enqueues the MultiEdgeTrackingService object of the specified pod.
 func (mc *Controller) enqueueByPod(pod *v1.Pod, immediate bool) {
 	controllerRef := metav1.GetControllerOf(pod)
 
@@ -264,7 +264,7 @@ func (mc *Controller) updatePod(old, cur interface{}) {
 	mc.addPod(curPod)
 }
 
-// deletePod enqueues the jointinferenceservice obj When a pod is deleted
+// deletePod enqueues the MultiEdgeTrackingService obj When a pod is deleted
 func (mc *Controller) deletePod(obj interface{}) {
 	pod, ok := obj.(*v1.Pod)
 
@@ -273,7 +273,7 @@ func (mc *Controller) deletePod(obj interface{}) {
 	// When a delete is dropped, the relist will notice a pod in the store not
 	// in the list, leading to the insertion of a tombstone object which contains
 	// the deleted key/value. Note that this value might be stale. If the pod
-	// changed labels the new jointinferenceservice will not be woken up till the periodic resync.
+	// changed labels the new MultiEdgeTrackingService will not be woken up till the periodic resync.
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
@@ -447,7 +447,7 @@ func (mc *Controller) sync(key string) (bool, error) {
 	return forget, manageServiceErr
 }
 
-// NewJointInferenceServiceCondition creates a new joint condition
+// NewMultiEdgeTrackingServiceCondition creates a new joint condition
 func NewMultiEdgeTrackingServiceCondition(conditionType sednav1.MultiEdgeTrackingServiceConditionType, reason, message string) sednav1.MultiEdgeTrackingServiceCondition {
 	return sednav1.MultiEdgeTrackingServiceCondition{
 		Type:               conditionType,
@@ -607,8 +607,6 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
 	}
 
-	//refreshDeploymentAndService(mc.kubeClient, service, deploy, feService)
-
 	/*
 
 		OD DEPLOYMENT
@@ -684,8 +682,8 @@ func (mc *Controller) GetName() string {
 	return "MultiEdgeController"
 }
 
-// NewJointController creates a new JointInferenceService controller that keeps the relevant pods
-// in sync with their corresponding JointInferenceService objects.
+// NewJointController creates a new MultiEdgeTrackingService controller that keeps the relevant pods
+// in sync with their corresponding MultiEdgeTrackingService objects.
 func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	cfg := cc.Config
 

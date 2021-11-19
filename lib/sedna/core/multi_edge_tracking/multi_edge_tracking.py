@@ -33,16 +33,6 @@ import distutils.core
 
 __all__ = ("FEService", "ReIDService", "ObjectDetector")
 
-# There is excessive code duplication, we need to refactor at some point.
-# Idea: create base SednaKafkaService and let the specific implementations override the infernece/predict function
-
-class ODResult:
-    def __init__(self, data, confidence, camera_code, timestamp) -> None:
-        self.data  = data
-        self.confidence = confidence
-        self.camera_code = camera_code
-        self.timestamp = timestamp
-
 class ReIDService(JobBase):
     """
     Re-Identification model services
@@ -78,16 +68,10 @@ class ReIDService(JobBase):
         if callable(self.estimator):
             self.estimator = self.estimator()
         # The cloud instance only runs a distance function to do the ReID
-        # We don't load any model at this stage
-        # if not os.path.exists(self.model_path):
-        #     raise FileExistsError(f"{self.model_path} miss")
-        # else:
-        #     # self.estimator.load(self.model_path)
-
+        # We don't load any model here.
         if self.kafka_enabled:
             self.log.debug("Creating sync_inference thread")
             self.fetch_data()
-            # threading.Thread(target=self.sync_inference, daemon=True).start()
         else:
             self.log.debug("Starting default REST webservice")
             app_server = ReIDServer(model=self, servername=self.job_name, host=self.local_ip, http_port=self.port)
@@ -172,7 +156,6 @@ class FEService(JobBase):
         if self.kafka_enabled:
             self.log.debug("Creating Apache Kafka thread to fetch data")
             self.fetch_data()
-            # threading.Thread(target=self.sync_inference, daemon=True).start()
         else:
             self.log.debug("Starting default REST webservice/s")
 
@@ -213,10 +196,6 @@ class FEService(JobBase):
 
         if callback_func:
             res = callback_func(res)
-
-        #self.lc_reporter.update_for_edge_inference()
-        # Send detection+tracking results to cloud
-        # edge_result
 
         if fe_result != None:
             with FTimer(f"upload_fe_results"):
@@ -278,7 +257,6 @@ class ObjectDetector(JobBase):
         self.log.debug("Starting default REST webservice/s")
 
         if not self.kafka_enabled:
-            # The edge node in the next layer taking care of the feature extraction
             self.edge = FE(service_name=self.job_name,host=self.remote_ip, port=self.port)
 
     def inference(self, data=None, post_process=None, **kwargs):
@@ -295,8 +273,6 @@ class ObjectDetector(JobBase):
 
         if callback_func:
             detection_result = callback_func(detection_result)
-
-        #self.lc_reporter.update_for_edge_inference()
 
         if detection_result != None and len(detection_result) > 0:
             with FTimer(f"upload_bboxes"):

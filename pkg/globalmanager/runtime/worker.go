@@ -83,14 +83,6 @@ func GenerateWorkerSelector(object CommonInterface, workerType string) (labels.S
 	return metav1.LabelSelectorAsSelector(ls)
 }
 
-// Obsolete
-// func GenerateEdgeMeshSelector(workerName string) map[string]string {
-// 	selector := make(map[string]string)
-// 	selector["app"] = workerName
-
-// 	return selector
-// }
-
 // CreateKubernetesService creates a k8s service for an object given ip and port
 func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32, inputIP string) (int32, error) {
 	ctx := context.Background()
@@ -271,31 +263,6 @@ func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerPa
 		},
 	}
 }
-
-// func InjectAffinityParam(deployment *appsv1.Deployment) {
-// 	var location string
-// 	if deployment.Spec.Selector.MatchLabels != nil {
-// 		location = deployment.Spec.Template.Spec.NodeName
-// 		klog.Info(location)
-// 	}
-
-// 	if location == "" {
-// 		klog.Info("Append affinity")
-// 		deployment.Spec.Template.Spec.Affinity = &v1.Affinity{
-// 			NodeAffinity: &v1.NodeAffinity{
-// 				RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-// 					NodeSelectorTerms: []v1.NodeSelectorTerm{{
-// 						MatchExpressions: []v1.NodeSelectorRequirement{{
-// 							Key:      "node-role.kubernetes.io/agent",
-// 							Operator: v1.NodeSelectorOpExists,
-// 						}},
-// 					}},
-// 				},
-// 			},
-// 		}
-// 	}
-
-// }
 
 // injectDeploymentParam modifies deployment in-place
 func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, _port int32) {

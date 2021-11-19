@@ -19,6 +19,7 @@ import numpy
 import cv2
 from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.common.benchmark import FTimer
+from sedna.common.log import LOGGER
 
 __all__ = ('LukasKanade')
 
@@ -26,12 +27,12 @@ __all__ = ('LukasKanade')
 class BaseFilter(metaclass=abc.ABCMeta):
     """The base class to define unified interface."""
 
-    def __call__(self, old_img=None, current_img=None):
+    def __call__(self, old_frame=None, current_frame=None):
         """predict function, and it must be implemented by
         different methods class.
 
-        :param old_img: prev_image to compare against
-        :param current_img: next_image to check for motion
+        :param old_frame: prev_image to compare against
+        :param current_frame: next_image to check for motion
         :return: `True` means that there is movement in two subsequent frames, `False` means that there is no movement.
         """
         raise NotImplementedError
@@ -56,23 +57,28 @@ class LukasKanade(BaseFilter, abc.ABC):
         :return: `True` means that there is movement in two subsequent frames, `False` means that there is no movement.
         """
         with FTimer(f"LukasKanadeOF"):
-            old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
-            p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **self.feature_params)
+            movement = False
+            try:
+                old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
+                p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **self.feature_params)
 
-            current_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
+                current_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
 
-            # Calculate Optical Flow
-            p1, st, err = cv2.calcOpticalFlowPyrLK(
-                old_gray, current_gray, p0, None, **self.lk_params
-            )
+                # Calculate Optical Flow
+                p1, st, err = cv2.calcOpticalFlowPyrLK(
+                    old_gray, current_gray, p0, None, **self.lk_params
+                )
 
-            # Select good points
-            good_new = p1[st == 1]
-            good_old = p0[st == 1]
+                # Select good points
+                good_new = p1[st == 1]
+                good_old = p0[st == 1]
 
-            # We perform rounding because there might ba a minimal difference 
-            # even between two images of the same subject (image compared against itself)
-            # Allclose is used instead of array_equal to support array of floats (if we remove rounding).
-            movement = not numpy.allclose(numpy.rint(good_new), numpy.rint(good_old))
+                # We perform rounding because there might ba a minimal difference 
+                # even between two images of the same subject (image compared against itself)
+                # Allclose is used instead of array_equal to support array of floats (if we remove rounding).
+                movement = not numpy.allclose(numpy.rint(good_new), numpy.rint(good_old))
+            except Exception as ex:
+                LOGGER.error(f"Error during the execution of the optical flow estimation! [{ex}]")
+
             return movement
         
