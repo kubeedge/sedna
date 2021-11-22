@@ -90,7 +90,7 @@ class Estimator:
                 closest_match = self._extract_id(self.img_path[indices[0][0]])
                 
                 # Uncomment this line if you have the bboxes images available (img_dir) to create the top-10 result collage.
-                # self._save_result(indices, camid='mixed', top_k=10)
+                # self.topK(indices, camid='mixed', top_k=10)
                 result = {
                     "object_id": closest_match,
                     "detection_area": camera_code,
@@ -104,11 +104,19 @@ class Estimator:
         for key in reid_dict:
             LOGGER.info(json.dumps(reid_dict[key]))
             
+        self.save_result(reid_dict)
             # LOGGER.info(f"Container with ID {self._extract_id(self.img_path[indices[0][0]])} detected in area {camera_code} with timestamp {det_time}")
         
         return indices[0][:]
 
-    def _save_result(self, indices, camid, top_k=10, img_size=[128, 128]):
+    def save_result(self, data):
+        # Not implemented. Options are:
+        # 1. Save on disk (bad)
+        # 2. Save in-memory (bad)
+        # 3. Write to Kafka/DB (good)
+        pass
+
+    def topK(self, indices, camid, top_k=10, img_size=[128, 128]):
         LOGGER.debug("Saving top-10 results")
         figure = None
         for k in range(top_k):
