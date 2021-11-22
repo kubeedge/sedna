@@ -21,7 +21,7 @@ from PIL import Image
 from sedna.core.multi_edge_tracking import ReIDService
 from sedna.common.config import Context
 from sedna.common.log import LOGGER
-from sedna.common.benchmark import FTimer, FluentdHelper
+from sedna.common.benchmark import FTimer
 from sedna.algorithms.reid.mAP import cosine_similarity
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
@@ -107,6 +107,8 @@ class Estimator:
         self.save_result(reid_dict)
             # LOGGER.info(f"Container with ID {self._extract_id(self.img_path[indices[0][0]])} detected in area {camera_code} with timestamp {det_time}")
         
+        self.save_result(reid_dict)
+
         return indices[0][:]
 
     def save_result(self, data):

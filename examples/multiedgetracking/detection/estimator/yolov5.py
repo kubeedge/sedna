@@ -20,8 +20,6 @@ class Yolov5(FluentdHelper):
         LOGGER.info("Starting object detection module")
         self.device = self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = None
-        # self.weights = model_weights
-        # self.classify = False
         self.stride, self.names = 64, [f'class{i}' for i in range(1000)]  # assign defaults
         self.img_size = int(image_size)
         self.camera_code = kwargs.get('camera_code', 0)
@@ -30,10 +28,7 @@ class Yolov5(FluentdHelper):
         self.model = attempt_load(model_url, map_location=self.device)  # load FP32 model
         self.stride = int(self.model.stride.max())  # model stride
         self.names = self.model.module.names if hasattr(self.model, 'module') else self.model.names  # get class names
-
-        #LOGGER.debug("Loading classifier")
-        #self.modelc.load_state_dict(torch.load(classifier, map_location=self.device)['model']).to(self.device).eval()
-
+        
     def evaluate(self, **kwargs):
         LOGGER.debug(f"Evaluating model")
         self.model.eval()
@@ -54,8 +49,6 @@ class Yolov5(FluentdHelper):
             LOGGER.error(f"Error while transmitting data to fluentd. Details: [{ex}]")
 
     def predict(self, data, **kwargs):
-        # Padded resize
-        # print(data.shape)
         LOGGER.debug("Manipulating source image")
         img = letterbox(data, self.img_size, stride=self.stride)[0]
 
@@ -80,19 +73,12 @@ class Yolov5(FluentdHelper):
         with FTimer("nms"):
             pred = non_max_suppression(pred, 0.25, 0.45, None, False, max_det=1000)
 
-
-        # Second-stage classifier (optional)
-        # if self.classify:
-        #     with FTimer("classify"):
-        #         pred = apply_classifier(pred, self.modelc, img, data)
-
         # # Process predictions
         s = ""
         bbs_list = []
         det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
 
         for _, det in enumerate(pred):  # detections per image
-            #LOGGER.info(len(pred))
             imc = data.copy()
             if len(det):
                 # Rescale boxes from img_size to im0 size
@@ -105,13 +91,7 @@ class Yolov5(FluentdHelper):
                 
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
-                    #c = int(cls)  # integer class
-                    #label = f'{self.names[c]} {conf:.2f}'
-                    #plot_one_box(xyxy, data, label=label, color=colors(c, True))
-                    #cv2.imwrite("test00.jpeg", data)
                     crop = save_one_box(xyxy, imc, file='test.jpg', BGR=True, save=False)
-                    # crop = crop.convert('P', palette=Image.ADAPTIVE)
-
                     # Perform cropped image compression to reduce size
                     crop_encoded = np.array(cv2.imencode('.jpg', crop)[1])
                     
