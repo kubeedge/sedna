@@ -100,5 +100,5 @@ dockerfiles=($(echo "${dockerfiles[@]}" | tr ' ' '\n' | sort -u))
 for dockerfile in ${dockerfiles[@]}; do
    echo "Building $dockerfile" 
    example_name=${dockerfile/.Dockerfile}
-   docker build -f $dockerfile -t ${IMAGE_REPO}/${example_name}:${IMAGE_TAG} --label sedna=examples ..
+   docker build -f $dockerfile -t ${EXAMPLE_REPO_PREFIX}${example_name}:${IMAGE_TAG} --label sedna=examples ..
 done
