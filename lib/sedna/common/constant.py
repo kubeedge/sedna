@@ -23,7 +23,6 @@ class K8sResourceKind(Enum):
     DEFAULT = "default"
     MULTI_EDGE_TRACKING_SERVICE = "multiedgetrackingservice"
     JOINT_INFERENCE_SERVICE = "jointinferenceservice"
-    DNN_PARTITIONING_SERVICE = "dnnpartitioningservice"
     FEDERATED_LEARNING_JOB = "federatedlearningjob"
     INCREMENTAL_JOB = "incrementallearningjob"
     LIFELONG_JOB = "lifelonglearningjob"

@@ -15,7 +15,6 @@ rules:
     - incrementallearningjobs
     - lifelonglearningjobs
     - multiedgetrackingservices
-    - dnnpartitioningservices
     - objectsearchservices
     - objecttrackingservices
     verbs:
@@ -35,7 +34,6 @@ rules:
     - incrementallearningjobs/status
     - lifelonglearningjobs/status
     - multiedgetrackingservices/status
-    - dnnpartitioningservices/status
     - objectsearchservice/status
     - objecttrackingservices/status
     verbs:

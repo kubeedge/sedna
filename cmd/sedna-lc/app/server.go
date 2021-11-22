@@ -31,7 +31,6 @@ import (
 	"github.com/kubeedge/sedna/pkg/localcontroller/gmclient"
 	"github.com/kubeedge/sedna/pkg/localcontroller/managers"
 	"github.com/kubeedge/sedna/pkg/localcontroller/managers/dataset"
-	"github.com/kubeedge/sedna/pkg/localcontroller/managers/dnnpartitioning"
 	"github.com/kubeedge/sedna/pkg/localcontroller/managers/federatedlearning"
 	"github.com/kubeedge/sedna/pkg/localcontroller/managers/incrementallearning"
 	"github.com/kubeedge/sedna/pkg/localcontroller/managers/jointinference"
@@ -100,8 +99,6 @@ func runServer() {
 
 	jm := jointinference.New(c)
 
-	dp := dnnpartitioning.New(c)
-
 	me := multiedgetracking.New(c)
 
 	fm := federatedlearning.New(c)
@@ -113,7 +110,7 @@ func runServer() {
 	s := server.New(Options)
 
 	for _, m := range []managers.FeatureManager{
-		dm, me, mm, jm, fm, im, lm, dp,
+		dm, me, mm, jm, fm, im, lm,
 	} {
 		s.AddFeatureManager(m)
 		c.Subscribe(m)

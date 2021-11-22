@@ -1,8 +1,0 @@
-apiVersion: sedna.io/v1alpha1
-kind: Model
-metadata:
-  name: alex-net-inference-edge-model
-  namespace: default
-spec:
-  url: "/data/edge_model/model_1.pt"
-  format: "pt"

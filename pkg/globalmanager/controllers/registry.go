@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"github.com/kubeedge/sedna/pkg/globalmanager/controllers/dataset"
-	dnn "github.com/kubeedge/sedna/pkg/globalmanager/controllers/dnnpartitioning"
 	fl "github.com/kubeedge/sedna/pkg/globalmanager/controllers/federatedlearning"
 	il "github.com/kubeedge/sedna/pkg/globalmanager/controllers/incrementallearning"
 	ji "github.com/kubeedge/sedna/pkg/globalmanager/controllers/jointinference"
@@ -39,7 +38,6 @@ func NewRegistry() Registry {
 		il.Name:      il.New,
 		ll.Name:      ll.New,
 		me.Name:      me.New,
-		dnn.Name:     dnn.New,
 		dataset.Name: dataset.New,
 		objs.Name:    objs.New,
 	}
