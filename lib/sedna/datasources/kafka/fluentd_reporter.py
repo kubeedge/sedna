@@ -3,7 +3,7 @@ from kafka.metrics.metrics_reporter import AbstractMetricsReporter
 from sedna.common.benchmark import FluentdHelper
 
 class FluentdReporter(FluentdHelper, AbstractMetricsReporter):
-    def init(self):
+    def init(self, metrics):
         """
         This is called when the reporter is first registered
         to initially register all existing metrics
