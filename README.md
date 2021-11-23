@@ -1,4 +1,5 @@
 English | [简体中文](./README_zh.md)
+
 # Sedna
 [![CI](https://github.com/kubeedge/sedna/workflows/CI/badge.svg?branch=main)](https://github.com/kubeedge/sedna/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/kubeedge/sedna)](https://goreportcard.com/report/github.com/kubeedge/sedna)
