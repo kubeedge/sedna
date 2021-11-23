@@ -18,8 +18,6 @@ limitations under the License.
 
 package v1alpha1
 
-type DNNPartitioningServiceExpansion interface{}
-
 type DatasetExpansion interface{}
 
 type FederatedLearningJobExpansion interface{}
