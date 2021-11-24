@@ -3,6 +3,6 @@ kind: Dataset
 metadata:
   name: "coco-dataset-1"
 spec:
-  url: "/data/1/COCO/robot.txt"
+  url: "/mnt/data/tt/data/1/COCO/robot.txt"
   format: "txt"
   nodeName: a500-124
