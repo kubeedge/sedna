@@ -315,8 +315,6 @@ class AggregationServerV2():
 
         LOGGER.info("address %s, port %s", server["address"], server["port"])
 
-		# set  do_test as true
-        clients["do_test"] = True
         Config().server = Config.namedtuple_from_dict(server)
         Config().clients = Config.namedtuple_from_dict(clients)
 

@@ -203,7 +203,7 @@ class FederatedLearningV2:
         datastore.update(data.parameters)
         Config().data = Config.namedtuple_from_dict(datastore)
 
-        self.datasource = None
+        self.datasource = DataSource()
         if data is not None:
             if hasattr(data, "customized"):
                 if data.customized:
