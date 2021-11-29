@@ -51,7 +51,7 @@ class FluentdReporter(FluentdHelper, AbstractMetricsReporter):
         pass
 
     def update(self):
-        while True:
+        while False:
             for m in self.metrics:
                 self.send_json_msg(self.to_json(m))
             time.sleep(self.interval)

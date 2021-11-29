@@ -12,9 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import base64
+import io, json
 import os, queue
 from copy import deepcopy
 import threading
+import time
+from PIL import Image
+
+import numpy as np
+import requests
+from sedna.common.log import LOGGER
 
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
@@ -62,11 +70,18 @@ class ReIDService(JobBase):
 
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic=["reid"])
             self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic=["feature_extraction"], sync_queue=self.sync_queue)
-            
 
+        # Operating Mode
+        self.op_mode = "detection"
+        self.target = None
+
+        
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
+
+        StatusSyncThread(self.update_operational_mode)
+
         # The cloud instance only runs a distance function to do the ReID
         # We don't load any model here.
         if self.kafka_enabled:
@@ -102,6 +117,14 @@ class ReIDService(JobBase):
             res = callback_func(res)
 
         return res
+
+    def update_operational_mode(self, status):
+        self.log.debug("Configuration update triggered")
+
+        if status == None:
+            return
+
+        self.op_mode = status['op_mode']
 
 
 class FEService(JobBase):
@@ -140,6 +163,10 @@ class FEService(JobBase):
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
 
+        # Operating Mode
+        self.op_mode = "detection"
+        self.target = None
+
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
@@ -152,6 +179,8 @@ class FEService(JobBase):
 
         self.log.info("Evaluating model")
         self.estimator.evaluate()
+
+        StatusSyncThread(self.update_operational_mode)
 
         if self.kafka_enabled:
             self.log.debug("Creating Apache Kafka thread to fetch data")
@@ -197,7 +226,7 @@ class FEService(JobBase):
         if callback_func:
             res = callback_func(res)
 
-        if fe_result != None:
+        if fe_result != []:
             with FTimer(f"upload_fe_results"):
                 if self.kafka_enabled:
                     cres = self.producer.write_result(fe_result)
@@ -205,6 +234,37 @@ class FEService(JobBase):
                     cres = self.cloud.reid([fe_result], post_process=post_process, **kwargs)
 
         return [None, cres, fe_result, None]
+
+
+    def update_operational_mode(self, status):
+        self.log.debug("Configuration update triggered")
+
+        if status == None:
+            return
+        
+        if self.op_mode != status['op_mode']:
+            self.log.info(f"{status['op_mode']} mode activated!")
+            self.op_mode = status['op_mode']
+
+            if self.op_mode == "detection":
+                self.target = None
+                return
+
+            if self.target != status['target'] and self.op_mode != "detection":
+                self.target = status['target']
+                json_data = json.dumps(self.target)
+                img_bytes = base64.b64decode(json_data.encode('utf-8'))
+
+                # convert bytes data to PIL Image object
+                img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+
+                # PIL image object to numpy array
+                img_arr = np.asarray(img)      
+
+                data = [ img_arr, 1.0, 0, 0, 1 ]
+                self.inference(data, post_process=None, new_target=True)
+            else:
+                self.log.debug("Target unchanged")
 
 
 class ObjectDetector(JobBase):
@@ -239,6 +299,10 @@ class ObjectDetector(JobBase):
 
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic=["object_detection"])
         
+        # Operating Mode
+        self.op_mode = "detection"
+        self.target = None
+
         self.start()
 
     def start(self):
@@ -254,9 +318,10 @@ class ObjectDetector(JobBase):
         self.log.info("Evaluating model")
         self.estimator.evaluate()
 
-        self.log.debug("Starting default REST webservice/s")
+        StatusSyncThread(self.update_operational_mode)
 
         if not self.kafka_enabled:
+            self.log.debug("Starting default REST webservice/s")
             self.edge = FE(service_name=self.job_name,host=self.remote_ip, port=self.port)
 
     def inference(self, data=None, post_process=None, **kwargs):
@@ -283,3 +348,44 @@ class ObjectDetector(JobBase):
 
         return [cres, detection_result]
 
+    def update_operational_mode(self, status):
+        self.log.debug("Configuration update triggered")
+
+        if status == None:
+            return
+
+        self.op_mode = status['op_mode']
+
+class StatusSyncThread(threading.Thread):
+
+    def __init__(self, callback, controller_address="http://7.182.9.110:27345/sedna/get_app_details", update_interval=10):
+        super().__init__()
+        LOGGER.info("Creating StatusSyncThread")
+
+        self.callback = callback
+        self.controller_address = controller_address
+        self.update_interval = update_interval
+        self.daemon = True
+
+        self.start()
+
+    def sync_configuration(self):
+        LOGGER.debug(f'Attempting to synchronize the pod configuration')
+        try:
+            status = requests.get(self.controller_address)
+            LOGGER.debug(f'Current status retrieved')
+            return json.loads(status.content)
+
+        except Exception as ex:
+            LOGGER.error(f'Unable to retrieve sync status, using fallback value. [{ex}]')
+
+        return None
+
+
+    def run(self):
+        LOGGER.info("Start status synchronization thread")
+        while 1:
+            with FTimer("status_update"):
+                status = self.sync_configuration()
+            self.callback(status) #pass a callback function to the thread, it's better
+            time.sleep(self.update_interval)

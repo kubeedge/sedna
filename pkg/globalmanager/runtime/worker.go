@@ -181,6 +181,12 @@ func CreatePodWithTemplate(client kubernetes.Interface, object CommonInterface, 
 	return createdPod, nil
 }
 
+func GenerateEdgeMeshSelector(workerName string) map[string]string {
+	selector := make(map[string]string)
+	selector["app"] = workerName
+	return selector
+}
+
 // CreateEdgeMeshService creates a kubeedge edgemesh service for an object, and returns an edgemesh service URL.
 // Since edgemesh can realize Cross-Edge-Cloud communication, the service can be created both on the cloud or edge side.
 func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, servicePort int32) (string, error) {
@@ -201,12 +207,13 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 			Labels: generateLabels(object, workerType),
 		},
 		Spec: v1.ServiceSpec{
+			// Selector: GenerateEdgeMeshSelector(name + "-" + workerType + "-" + "svc"),
 			Selector: generateLabels(object, workerType),
 			Ports: []v1.ServicePort{
 				{
 					// TODO: be clean, Port.Name is currently required by edgemesh(v1.8.0).
 					// and should be <protocol>-<suffix>
-					Name: "tcp-0",
+					Name: "http-0",
 
 					Protocol:   "TCP",
 					Port:       servicePort,

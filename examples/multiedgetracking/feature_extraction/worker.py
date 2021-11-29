@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import sys
 import os
 import cv2
@@ -47,7 +48,6 @@ class Estimator(FluentdHelper):
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
-
     
     def load(self, model_url="", mmodel_name=None, **kwargs):
         self.model = torch.load(model_url, map_location=torch.device(self.device))
@@ -76,16 +76,14 @@ class Estimator(FluentdHelper):
         except Exception as ex:
             LOGGER.error(f"Error while transmitting data to fluentd. Details: [{ex}]")
 
-    def predict(self, data, **kwargs):
+    def extract_features(self, data):
         result = []
         total_data = 0
-
-        if len(data) == 0:
-            return result
 
         for d in data:
             for dd in d:
                 # Perform image decoding and store in array
+                # The two approaches should be unified
                 image_as_array = cv2.imdecode(np.array(dd[0]).astype(np.uint8), cv2.IMREAD_COLOR)
                 conf_score = dd[1]
                 camera_code = dd[2]
@@ -107,11 +105,63 @@ class Estimator(FluentdHelper):
 
                 # It returns a tensor, it should be transformed into a list before TX
                 result.append(self.convert_to_list(query_feat, camera_code, det_time))
+  
 
             LOGGER.info(f"Extracted ReID features for {len(d)} object/s received from camera {camera_code}")
             self.write_to_fluentd(total_data)
                 
         return result 
+
+    def extract_target_features(self, dd):
+        result = []
+        total_data = 0
+
+        try:
+            image_as_array = dd[0].astype(np.uint8)
+            conf_score = dd[1]
+            camera_code = dd[2]
+            det_time = dd[3]
+                
+            imdata = Image.fromarray(image_as_array)
+            LOGGER.info(f'Performing feature extraction for target image')
+            input = torch.unsqueeze(self.transform(imdata), 0)
+            input = input.to(self.device)
+
+            with FTimer(f"feature_extraction"):
+                with torch.no_grad():
+                    query_feat = self.model(input)
+                    LOGGER.debug(f"Extracted tensor with features: {query_feat}")
+
+            LOGGER.debug(f"Input image size: {image_as_array.nbytes}")
+            LOGGER.debug(f"Output tensor size {sys.getsizeof(query_feat.storage())}")
+            total_data+=sys.getsizeof(query_feat.storage())
+
+            # It returns a tensor, it should be transformed into a list before TX
+            LOGGER.info("Sending to the ReID module the target's features.")
+
+            result.append([query_feat.numpy().tolist(), camera_code, det_time, 1])
+            self.write_to_fluentd(total_data)
+
+        except Exception as ex:
+            LOGGER.error(f"Target's feature extraction failed {ex}")
+            self.reset_op_mode()
+            
+        return result 
+
+
+    def reset_op_mode(self):
+        LOGGER.info("Performing operational mode emergency reset!")
+        self.op_mode = "detection"
+        self.target = None
+
+    def predict(self, data, **kwargs):
+        if len(data) == 0:
+            return []
+
+        if kwargs.get("new_target", False):
+            return self.extract_target_features(data)
+        else:
+            return self.extract_features(data)
 
 # Starting the FE module
 inference_instance = FEService(estimator=Estimator)

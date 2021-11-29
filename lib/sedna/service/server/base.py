@@ -86,7 +86,7 @@ class BaseServer:
             ssl_certfile=self.certfile,
             workers=self.workers,
             timeout_keep_alive=self.timeout,
-            log_level="info",
+            log_level="critical",
             **kwargs)
         server = Server(config=config)
         with server.run_in_thread() as current_thread:

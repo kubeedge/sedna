@@ -527,6 +527,8 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	reIDIP, err := runtime.GetNodeIPByName(mc.kubeClient, service.Spec.ReIDDeploy.Spec.Template.Spec.NodeName)
 	// service.Spec.ReIDDeploy.Spec.Template.Spec.Containers[0].Ports[0].HostPort
 	// Create standard K8s service
+
+	// reIDURL, err := runtime.CreateEdgeMeshService(mc.kubeClient, service, ReIDWoker, reIDPort)
 	reIDPortService, err := runtime.CreateKubernetesService(mc.kubeClient, service, ReIDWoker, reIDPort, reIDIP)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
@@ -646,12 +648,13 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	})
 
 	workerParam.Env = map[string]string{
-		"NAMESPACE":         service.Namespace,
-		"SERVICE_NAME":      service.Name,
-		"WORKER_NAME":       "motworker-" + utilrand.String(5),
-		"FE_MODEL_BIND_URL": FEServiceURL,
-		"LC_SERVER":         mc.cfg.LC.Server,
-		"FLUENTD_IP":        fluentdIP,
+		"NAMESPACE":          service.Namespace,
+		"SERVICE_NAME":       service.Name,
+		"WORKER_NAME":        "motworker-" + utilrand.String(5),
+		"FE_MODEL_BIND_URL":  FEServiceURL,
+		"FE_MODEL_BIND_PORT": strconv.Itoa(int(FEPort)),
+		"LC_SERVER":          mc.cfg.LC.Server,
+		"FLUENTD_IP":         fluentdIP,
 	}
 
 	if service.Spec.MultiObjectTrackingDeploy.KafkaSupport {

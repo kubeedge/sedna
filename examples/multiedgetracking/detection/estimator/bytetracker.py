@@ -1,6 +1,5 @@
 import datetime
 import os
-from typing import List
 
 import torch
 import numpy as np
@@ -59,6 +58,9 @@ class ByteTracker(FluentdHelper):
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
+        self.op_mode = "detection"
+        self.target = None
+
     def write_to_fluentd(self, data):
         try:
             for elem in data:
@@ -67,7 +69,7 @@ class ByteTracker(FluentdHelper):
                 msg = {
                     "worker": "l2-object-detector",
                     "outbound_data": int(bts),
-                    "confidence": elem[1].item() # Transforms single-valued tensor into a number.
+                    "confidence": elem[1]
                 }
 
                 self.send_json_msg(msg)
@@ -100,14 +102,7 @@ class ByteTracker(FluentdHelper):
         LOGGER.debug(f"Evaluating model")
         self.model.eval()
 
-    def predict(self, data, **kwargs):
-        """
-        Run the pedestrian detector on the input image available at img_path
-        :param img_path: path to image.
-        :return:
-            img_with_bbox List[np.ndarray]
-        """
-
+    def detect(self, data):
         # Image information
         img_info = {"id": 0}
 
@@ -146,6 +141,9 @@ class ByteTracker(FluentdHelper):
                 self.confidence_thr,
                 self.nms_thr)
 
+        if self.op_mode != "detection":
+            LOGGER.info(f"Running in {self.op_mode} mode")
+
         object_crops = []
 
         # Prepare image with boxes overlaid
@@ -167,7 +165,7 @@ class ByteTracker(FluentdHelper):
 
                 crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
 
-                object_crops.append([crop_encoded.tolist(), score, self.camera_code, det_time]) 
+                object_crops.append([crop_encoded.tolist(), score.item(), self.camera_code, det_time]) 
 
             self.write_to_fluentd(object_crops)
 
@@ -176,3 +174,19 @@ class ByteTracker(FluentdHelper):
             LOGGER.error(f"No objects identified [{ex}].")
 
         return object_crops
+
+    def track(self):
+        return self.detect()
+
+    def predict(self, data, **kwargs):
+        """
+        Run the pedestrian detector/tracker on the input image available at img_path
+        :param img_path: path to image.
+        :return:
+            img_with_bbox List[np.ndarray]
+        """
+
+        if self.op_mode == "detection":
+            return self.detect(data)
+        else:
+            return self.track(data)

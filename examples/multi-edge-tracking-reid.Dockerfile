@@ -31,6 +31,7 @@ WORKDIR /home/work
 COPY ./lib /home/lib
 
 COPY examples/multiedgetracking/reid/worker.py  /home/work/worker.py
+
 ENV PYTHONPATH "${PYTHONPATH}:/home/lib/sedna/backend/nets"
 
 ENV LOG_LEVEL="INFO"

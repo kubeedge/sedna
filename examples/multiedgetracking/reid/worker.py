@@ -33,7 +33,7 @@ qfeats = Context.get_parameters('qfeats')
 imgpath = Context.get_parameters('imgpath')
 dataset = Context.get_parameters('dataset')
 
-class Estimator:
+class Estimator():
 
     def __init__(self, **kwargs):
         LOGGER.info("Starting ReID module")
@@ -43,6 +43,9 @@ class Estimator:
         self.gallery_feats = torch.load(os.path.join(self.log_dir, dataset, gfeats), map_location=self.device)
         self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
         LOGGER.debug(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
+
+        self.op_mode = "detection"
+        self.target = None
 
     def _extract_id(self, text):
         return text.split("/")[-1].split(".")[0].split("_")[0]
@@ -65,6 +68,34 @@ class Estimator:
     def load(self, model_name="", **kwargs):
         pass
 
+    def reid(self, query_feat, camera_code, det_time):
+        LOGGER.debug(f"Running the cosine similarity function on input data")
+        LOGGER.debug(f"{query_feat.shape} - {self.gallery_feats.shape}")
+
+        with FTimer("cosine_similarity"):
+            dist_mat = cosine_similarity(query_feat, self.gallery_feats)
+        
+        indices = np.argsort(dist_mat, axis=1)
+        
+        closest_match = self._extract_id(self.img_path[indices[0][0]])
+        
+        # Uncomment this line if you have the bboxes images available (img_dir) to create the top-10 result collage.
+        # self.topK(indices, camid='mixed', top_k=10)
+        result = {
+            "object_id": closest_match,
+            "detection_area": camera_code,
+            "detection_time": det_time
+        }
+
+        # 0000 represents an unrecognized entity
+        if closest_match != "0000":
+            return result
+        
+        return None
+
+    def reid_with_target(self, query_feat, camera_code, det_time):
+        pass
+
     def predict(self, data, **kwargs):
         # We use a dictionary to keep track of the ReID objects.
         # For each object, we print at the end localization and tracking information.
@@ -74,33 +105,23 @@ class Estimator:
             for dd in d:
                 temp = np.array(dd[0])
                 camera_code = dd[1]
-                det_time = dd[2] 
+                det_time = dd[2]
 
                 query_feat = torch.from_numpy(temp)
                 query_feat = query_feat.float()
-                
-                LOGGER.debug(f"Running the cosine similarity function on input data")
-                LOGGER.debug(f"{query_feat.shape} - {self.gallery_feats.shape}")
 
-                with FTimer("cosine_similarity"):
-                    dist_mat = cosine_similarity(query_feat, self.gallery_feats)
-                
-                indices = np.argsort(dist_mat, axis=1)
-                
-                closest_match = self._extract_id(self.img_path[indices[0][0]])
-                
-                # Uncomment this line if you have the bboxes images available (img_dir) to create the top-10 result collage.
-                # self.topK(indices, camid='mixed', top_k=10)
-                result = {
-                    "object_id": closest_match,
-                    "detection_area": camera_code,
-                    "detection_time": det_time
-                }
+                try:
+                    if len(dd) > 3 and dd[3] == 1:
+                        LOGGER.info("Target features have been provided")
+                        self.target = query_feat
+                except Exception as ex:
+                    LOGGER.error(f"Error while acquiring target features [{ex}]")
 
-                # 0000 represents an unrecognized entity
-                if closest_match != "0000":
-                    reid_dict[self._extract_id(self.img_path[indices[0][0]])] = result
-                
+                result = self.reid(query_feat, camera_code, det_time)
+
+                if result != None:
+                    reid_dict[result.get('object_id')] = result
+
         for key in reid_dict:
             LOGGER.info(json.dumps(reid_dict[key]))
             
@@ -109,7 +130,7 @@ class Estimator:
         
         self.save_result(reid_dict)
 
-        return indices[0][:]
+        return 200
 
     def save_result(self, data):
         # Not implemented. Options are:

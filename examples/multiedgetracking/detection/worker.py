@@ -1,3 +1,4 @@
+import json
 import time
 import numpy
 
@@ -18,7 +19,7 @@ stream_dispatcher = Context.get_parameters('stream_dispatcher_url')
 estimator_class = Context.get_parameters('estimator_class', "Yolov5")
 
 def retrieve_rtsp_stream() -> str:
-    LOGGER.debug(f'Finding target RTSP stream ...')
+    LOGGER.debug(f'Finding target RTSP stream')
     if stream_dispatcher != None:
         try:
             rtsp_stream = requests.get(stream_dispatcher)
@@ -38,7 +39,8 @@ def start_stream_acquisition(stream_address):
     optical_flow = LukasKanade()
     camera_code = stream_address.split("/")[-1] # WARNING: Only for demo purposes!
     eclass = str_to_estimator_class(estimator_class=estimator_class)
-    edge_worker = ObjectDetector(estimator=eclass(camera_code=camera_code))
+    selected_estimator=eclass(camera_code=camera_code)
+    edge_worker = ObjectDetector(selected_estimator)
 
     camera = cv2.VideoCapture(stream_address)
     camera.set(cv2.CAP_PROP_BUFFERSIZE, 0)

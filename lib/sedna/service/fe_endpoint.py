@@ -7,7 +7,7 @@ class FE:
     def __init__(self, service_name, version="",
                  host="127.0.0.1", port="8080", protocol="http"):
         self.server_name = f"{service_name}{version}"
-        self.endpoint = f"{protocol}://{host}/{service_name}"
+        self.endpoint = f"{protocol}://{host}:{port}/{service_name}"
 
     def check_server_status(self):
         return http_request(url=self.endpoint, method="GET")
