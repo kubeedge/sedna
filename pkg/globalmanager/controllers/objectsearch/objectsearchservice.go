@@ -356,7 +356,7 @@ func (c *Controller) sync(key string) (bool, error) {
 	// neededPodCounts indicates the num of tracking worker pods should be created successfully in a objectsearch service currently.
 	// neededDeploymentCounts indicates the num of deployments should be created successfully in a objectsearch service currently,
 	// and one deployment is for userWorker and the other deployment is for reidWorkers.
-	var neededPodCounts int32 = int32(len(service.Spec.TrackingWorkers))
+	var neededPodCounts = int32(len(service.Spec.TrackingWorkers))
 	var neededDeploymentCounts int32 = 2
 
 	activePods := runtime.CalcActivePodCount(pods)
