@@ -18,6 +18,10 @@ RUN pip install kafka-python
 ## Add Fluentd Python library
 RUN pip install fluent-logger
 
+## Add tracking dependencies
+RUN pip install lap scipy Cython
+RUN pip install cython_bbox
+
 ## SEDNA SECTION ##
   
 COPY ./lib/requirements.txt /home

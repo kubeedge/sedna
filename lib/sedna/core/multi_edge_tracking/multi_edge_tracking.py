@@ -15,6 +15,7 @@
 import base64
 import io, json
 import os, queue
+import pickle
 from copy import deepcopy
 import threading
 import time
@@ -26,6 +27,7 @@ from sedna.common.log import LOGGER
 
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
+from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 
 from sedna.service.fe_endpoint import FE
 from sedna.service.kafka_manager import KafkaConsumerThread, KafkaProducer
@@ -71,11 +73,8 @@ class ReIDService(JobBase):
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic=["reid"])
             self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic=["feature_extraction"], sync_queue=self.sync_queue)
 
-        # Operating Mode
         self.op_mode = "detection"
-        self.target = None
-
-        
+      
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
@@ -111,7 +110,7 @@ class ReIDService(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        res = self.estimator.predict(data, **kwargs)
+        res = self.estimator.predict(data, op_mode=self.op_mode)
 
         if callback_func:
             res = callback_func(res)
@@ -123,8 +122,10 @@ class ReIDService(JobBase):
 
         if status == None:
             return
-
-        self.op_mode = status['op_mode']
+        
+        if self.op_mode != status['op_mode']:
+            self.log.info(f"{status['op_mode']} mode activated!")
+            self.op_mode = status['op_mode']
 
 
 class FEService(JobBase):
@@ -261,7 +262,9 @@ class FEService(JobBase):
                 # PIL image object to numpy array
                 img_arr = np.asarray(img)      
 
-                data = [ img_arr, 1.0, 0, 0, 1 ]
+                data = DetTrackResult([img_arr], None, [], 0, 0, is_target=True)
+                data = pickle.dumps(data)
+                # data = [ img_arr, 1.0, 0, 0, 1 ]
                 self.inference(data, post_process=None, new_target=True)
             else:
                 self.log.debug("Target unchanged")
@@ -299,12 +302,10 @@ class ObjectDetector(JobBase):
 
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic=["object_detection"])
         
-        # Operating Mode
         self.op_mode = "detection"
-        self.target = None
 
         self.start()
-
+ 
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
@@ -334,7 +335,7 @@ class ObjectDetector(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        detection_result = self.estimator.predict(data, **kwargs)
+        detection_result = self.estimator.predict(data, op_mode=self.op_mode)
 
         if callback_func:
             detection_result = callback_func(detection_result)
@@ -353,8 +354,10 @@ class ObjectDetector(JobBase):
 
         if status == None:
             return
-
-        self.op_mode = status['op_mode']
+        
+        if self.op_mode != status['op_mode']:
+            self.log.info(f"{status['op_mode']} mode activated!")
+            self.op_mode = status['op_mode']
 
 class StatusSyncThread(threading.Thread):
 

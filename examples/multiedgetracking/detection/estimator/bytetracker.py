@@ -1,9 +1,11 @@
 import datetime
 import os
+from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 
 import torch
 import numpy as np
 import cv2
+import pickle 
 
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer, FluentdHelper
@@ -13,12 +15,27 @@ from sedna.common.log import LOGGER
 from yolox.yolox.exp import get_exp
 from yolox.yolox.utils import pre_process, fuse_model, postprocess
 
+# Tracking imports
+from yolox.yolox.tracker.byte_tracker import BYTETracker
+
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
+# Tracking parameters
+frame_rate = Context.get_parameters('frame_rate', 30)
+track_thresh = Context.get_parameters('track_thresh', 0.5)
+track_buffer = Context.get_parameters('track_buffer', 600)
+match_thresh = Context.get_parameters('match_thresh', 0.8)
+min_box_area = Context.get_parameters('min_box_area', 500)
+
+# Detection parameters
 confidence_thr = Context.get_parameters('confidence_thr', 0.25)
 nms_thr = Context.get_parameters('nms_thr', 0.45)
 num_classes = Context.get_parameters('num_classes', 1)
 image_size = Context.get_parameters('input_shape')
+
+class Namespace:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
 class ExperimentPath():
     @staticmethod
@@ -58,8 +75,18 @@ class ByteTracker(FluentdHelper):
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.op_mode = "detection"
-        self.target = None
+        self.original_size = None
+
+        # Tracking parameters
+        self.tracker_args = Namespace(
+            track_thresh=track_thresh,
+            mot20=False,
+            track_buffer=track_buffer,
+            match_thresh=match_thresh,
+            min_box_area=min_box_area,
+            frame_rate=frame_rate
+        )
+        self.tracker = BYTETracker(args=self.tracker_args, frame_rate=frame_rate)
 
     def write_to_fluentd(self, data):
         try:
@@ -102,7 +129,7 @@ class ByteTracker(FluentdHelper):
         LOGGER.debug(f"Evaluating model")
         self.model.eval()
 
-    def detect(self, data):
+    def forward(self, data):
         # Image information
         img_info = {"id": 0}
 
@@ -141,10 +168,11 @@ class ByteTracker(FluentdHelper):
                 self.confidence_thr,
                 self.nms_thr)
 
-        if self.op_mode != "detection":
-            LOGGER.info(f"Running in {self.op_mode} mode")
+        return outputs, img_info
 
+    def detect_only(self, data, outputs, img_info):
         object_crops = []
+        result = None
 
         # Prepare image with boxes overlaid
         try:
@@ -166,17 +194,102 @@ class ByteTracker(FluentdHelper):
                 crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
 
                 object_crops.append([crop_encoded.tolist(), score.item(), self.camera_code, det_time]) 
+            
+            if len(object_crops) > 0:
+                scene = np.array(cv2.imencode('.jpg', data)[1])
+                result = DetTrackResult([item[0] for item in object_crops], scene, [item[1] for item in object_crops], [item[3] for item in object_crops], [item[2] for item in object_crops])
+            else:
+                return None
 
             self.write_to_fluentd(object_crops)
 
             LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
         except Exception as ex:
             LOGGER.error(f"No objects identified [{ex}].")
+            return None
 
-        return object_crops
+        return pickle.dumps(result)
 
-    def track(self):
-        return self.detect()
+
+    def track(self, data, outputs, img_info):
+        # initialize placeholders for the tracking data
+        online_tlwhs = []
+        online_ids = []
+        online_scores = []
+
+        # update tracker
+        with FTimer("tracking"):
+            online_targets = self.tracker.update(outputs[0], self.original_size, (image_size, image_size))
+
+        # if no detections after tracker update
+        # if online_targets is None or (online_targets[0] is None):
+        #     return None
+
+        for t in online_targets:
+            # bounding box and tracking id
+            # tlwh - top left width height
+            tlwh = t.tlwh
+            tid = t.track_id
+
+            # prior about human aspect ratio
+            f_vertical = tlwh[2] / tlwh[3] > 1.6
+
+            if tlwh[2] * tlwh[3] > self.tracker_args.min_box_area and not f_vertical:
+                online_tlwhs.append(tuple(map(int, tlwh)))
+                online_ids.append(int(tid))
+                online_scores.append(t.score)
+
+        online_bboxes = [None] * len(online_tlwhs)
+        for i, t in enumerate(online_tlwhs):
+            x1, y1, w, h = t
+            x2 = x1 + w
+            y2 = y1 + h
+            online_bboxes[i] = [x1, y1, x2, y2]
+
+        # prepare data for transmission
+        object_crops = []
+        result = None
+
+        det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
+
+        for i in range(len(online_bboxes)):
+            # generate the object crop
+            box = online_bboxes[i]
+            x0, y0, x1, y1 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+            _img = data[y0: y1, x0: x1]
+
+            # encode the object crop
+            crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
+
+            # append
+            object_crops.append([
+                crop_encoded.tolist(),
+                box,
+                online_scores[i],
+                online_ids[i],
+                self.camera_code,
+                det_time
+            ])
+        
+        if len(object_crops) > 0:
+            scene = np.array(cv2.imencode('.jpg', data)[1])
+            result = DetTrackResult(
+                bbox=[item[0] for item in object_crops],
+                scene=scene,
+                confidence=[item[2] for item in object_crops],
+                detection_time=[item[5] for item in object_crops],
+                camera=[item[4] for item in object_crops],
+                bbox_coord=[item[1] for item in object_crops],
+                tracking_ids=[item[3] for item in object_crops]
+            )
+        else:
+            return None
+
+        self.write_to_fluentd(object_crops)
+        LOGGER.info(f"Tracked {len(object_crops)} objects/s in camera {self.camera_code} with IDs {result.tracklets}")
+
+        return pickle.dumps(result)
+
 
     def predict(self, data, **kwargs):
         """
@@ -185,8 +298,17 @@ class ByteTracker(FluentdHelper):
         :return:
             img_with_bbox List[np.ndarray]
         """
+        
+        self.original_size = (data.shape[0], data.shape[1])
 
-        if self.op_mode == "detection":
-            return self.detect(data)
+        # get detections from the image forward pass
+        outputs, img_info = self.forward(data)
+
+        if outputs is None or (outputs[0] is None):
+            return None
+
+        if kwargs['op_mode'] == "detection":
+            return self.detect_only(data, outputs, img_info)
         else:
-            return self.track(data)
+            return self.track(data, outputs, img_info)
+     

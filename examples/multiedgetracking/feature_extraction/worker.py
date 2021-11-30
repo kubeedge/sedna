@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+import pickle
 import sys
 import os
 import cv2
@@ -77,17 +78,15 @@ class Estimator(FluentdHelper):
             LOGGER.error(f"Error while transmitting data to fluentd. Details: [{ex}]")
 
     def extract_features(self, data):
-        result = []
         total_data = 0
 
         for d in data:
-            for dd in d:
+            det_track = pickle.loads(d)
+            for elem in det_track.bbox:
                 # Perform image decoding and store in array
                 # The two approaches should be unified
-                image_as_array = cv2.imdecode(np.array(dd[0]).astype(np.uint8), cv2.IMREAD_COLOR)
-                conf_score = dd[1]
-                camera_code = dd[2]
-                det_time = dd[3]
+                image_as_array = cv2.imdecode(np.array(elem).astype(np.uint8), cv2.IMREAD_COLOR)
+
                 
                 imdata = Image.fromarray(image_as_array)
                 LOGGER.debug(f'Performing feature extraction for received image')
@@ -104,23 +103,23 @@ class Estimator(FluentdHelper):
                 total_data+=sys.getsizeof(query_feat.storage())
 
                 # It returns a tensor, it should be transformed into a list before TX
-                result.append(self.convert_to_list(query_feat, camera_code, det_time))
+                # result.append(self.convert_to_list(query_feat, camera_code, det_time))
+                det_track.features.append(query_feat)
   
 
-            LOGGER.info(f"Extracted ReID features for {len(d)} object/s received from camera {camera_code}")
+            LOGGER.info(f"Extracted ReID features for {len(det_track.bbox)} object/s received from camera {det_track.camera[0]}")
             self.write_to_fluentd(total_data)
-                
-        return result 
+
+        return pickle.dumps(det_track)        
+
 
     def extract_target_features(self, dd):
-        result = []
         total_data = 0
 
+        dd = pickle.loads(dd)
+
         try:
-            image_as_array = dd[0].astype(np.uint8)
-            conf_score = dd[1]
-            camera_code = dd[2]
-            det_time = dd[3]
+            image_as_array = dd.bbox[0].astype(np.uint8)
                 
             imdata = Image.fromarray(image_as_array)
             LOGGER.info(f'Performing feature extraction for target image')
@@ -139,14 +138,16 @@ class Estimator(FluentdHelper):
             # It returns a tensor, it should be transformed into a list before TX
             LOGGER.info("Sending to the ReID module the target's features.")
 
-            result.append([query_feat.numpy().tolist(), camera_code, det_time, 1])
+            dd.features.append(query_feat)
+            
+            # result.append([query_feat.numpy().tolist(), dd.camera[0], dd.detection_time[0], dd.is_target])
             self.write_to_fluentd(total_data)
 
         except Exception as ex:
             LOGGER.error(f"Target's feature extraction failed {ex}")
             self.reset_op_mode()
-            
-        return result 
+        
+        return pickle.dumps(dd)   
 
 
     def reset_op_mode(self):

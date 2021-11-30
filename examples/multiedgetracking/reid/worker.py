@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pickle
 import cv2
 import numpy as np
 import os
+from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 import torch, json
 from PIL import Image
 
@@ -44,16 +46,15 @@ class Estimator():
         self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
         LOGGER.debug(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
 
-        self.op_mode = "detection"
         self.target = None
+        self.target_ID = "0000"
 
     def _extract_id(self, text):
         return text.split("/")[-1].split(".")[0].split("_")[0]
 
     def _write_id_on_image(self, img, text):
-        # setup text
         font = cv2.FONT_HERSHEY_SIMPLEX
-        #print(text)
+
         # get boundary of this text
         textsize = cv2.getTextSize(text, font, 1, 2)[0]
 
@@ -93,8 +94,17 @@ class Estimator():
         
         return None
 
-    def reid_with_target(self, query_feat, camera_code, det_time):
-        pass
+    def load_target(self, det_track : DetTrackResult):
+        LOGGER.info("Target features have been provided")
+        
+        query_feat = torch.from_numpy(np.array(det_track.features[0]))
+        query_feat = query_feat.float()
+
+        result = self.reid(query_feat, 0, 0)
+
+        self.target = query_feat
+        self.target_ID = result.get('object_id')
+
 
     def predict(self, data, **kwargs):
         # We use a dictionary to keep track of the ReID objects.
@@ -102,32 +112,35 @@ class Estimator():
         reid_dict = {}
 
         for d in data:
-            for dd in d:
-                temp = np.array(dd[0])
-                camera_code = dd[1]
-                det_time = dd[2]
+            det_track = pickle.loads(d)
+
+            if det_track.is_target:
+                self.load_target(det_track)
+                return 200
+
+            for idx, elem in enumerate(det_track.bbox):
+                temp = np.array(det_track.features[idx])
 
                 query_feat = torch.from_numpy(temp)
                 query_feat = query_feat.float()
 
-                try:
-                    if len(dd) > 3 and dd[3] == 1:
-                        LOGGER.info("Target features have been provided")
-                        self.target = query_feat
-                except Exception as ex:
-                    LOGGER.error(f"Error while acquiring target features [{ex}]")
-
-                result = self.reid(query_feat, camera_code, det_time)
+                result = self.reid(query_feat, det_track.camera[idx], det_track.detection_time[idx]) 
 
                 if result != None:
-                    reid_dict[result.get('object_id')] = result
+                    if kwargs['op_mode'] == "tracking":
+                        if self.target_ID == result.get('object_id'):
+                            LOGGER.info(f"Target found!")
+                            reid_dict[result.get('object_id')] = result
+                            det_track.ID[idx] = result.get('object_id')
+                        else:
+                            LOGGER.debug(f"Target {self.target_ID} not found!")
+                            det_track.ID[idx] = -1
+                    else:
+                        reid_dict[result.get('object_id')] = result
 
         for key in reid_dict:
             LOGGER.info(json.dumps(reid_dict[key]))
             
-        self.save_result(reid_dict)
-            # LOGGER.info(f"Container with ID {self._extract_id(self.img_path[indices[0][0]])} detected in area {camera_code} with timestamp {det_time}")
-        
         self.save_result(reid_dict)
 
         return 200
