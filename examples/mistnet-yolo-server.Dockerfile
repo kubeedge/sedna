@@ -1,5 +1,7 @@
 FROM baseagg:v0.4.0
 
+ENV PYTHONPATH "/usr/local/Ascend/nnae/5.0.2/pyACL/python/site-packages/acl:$PYTHONPATH"
+
 COPY plato  /home/plato
 
 WORKDIR /home/work
