@@ -20,7 +20,7 @@ kubectl $action -f - <<EOF
 apiVersion: sedna.io/v1alpha1
 kind: Dataset
 metadata:
-  name: "coco-dataset-1"
+  name: "dataset-1"
 spec:
   url: "/mnt/data/tt/data/1/COCO/robot.txt"
   format: "txt"
@@ -48,14 +48,14 @@ spec:
 EOF
 }
 
-create_iljob(){
+create_ctjob(){
 action=${1:-create}
 
 kubectl $action -f - <<EOF
 apiVersion: sedna.io/v1alpha1
 kind: FederatedLearningJob
 metadata:
-  name: yolo-v5
+  name: ct-yolo-v5
 spec:
   pretrainedModel: # option
     name: "yolo-v5-pretrained-model"
@@ -71,7 +71,7 @@ spec:
       spec:
         nodeName: "a800-01"
         containers:
-          - image: kubeedge/sedna-example-federated-learning-mistnet-yolo-aggregator:v0.4.0
+          - image: kubeedge/mistnet-yolo-server:v0.4.0
             name: agg-worker
             imagePullPolicy: IfNotPresent
             env: # user defined environments
@@ -105,12 +105,12 @@ spec:
                path: /usr/local/Ascend/add-ons
   trainingWorkers:
     - dataset:
-        name: "coco-dataset-1"
+        name: "dataset-1"
       template:
         spec:
           nodeName: "euler19"
           containers:
-            - image: kubeedge/sedna-example-federated-learning-mistnet-yolo-client:v0.4.0
+            - image: kubeedge/mistnet-yolo-client:v0.4.0
               name: train-worker
               imagePullPolicy: IfNotPresent
               args: [ "-i", "1" ]
@@ -141,4 +141,8 @@ spec:
             hostPath:
                 path: /home/data/miniD/driver
 EOF
+}
+
+del_ctjob(){
+kubectl delete federatedlearningjob ct-yolo-v5
 }
