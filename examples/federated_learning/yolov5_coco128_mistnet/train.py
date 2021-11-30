@@ -16,6 +16,7 @@ from interface import mistnet, s3_transmitter
 from interface import Dataset, Estimator
 from sedna.common.config import BaseConfig
 from sedna.core.federated_learning import FederatedLearningV2
+from examples.nnrt.nnrt_models.acl_inference import Inference
 
 def main():
     data = Dataset()
@@ -23,6 +24,8 @@ def main():
     data.parameters["data_path"] = BaseConfig.train_dataset_url.replace("robot.txt", "")
     data.parameters["train_path"] = os.path.join(data.parameters["data_path"], "./coco128/images/train2017/")
     data.parameters["test_path"] = data.parameters["train_path"]
+    estimator.model = Inference(0, "./yolov5x_cutlayer4.om", 640, 640)
+
     fl_model = FederatedLearningV2(
         data=data,
         estimator=estimator,

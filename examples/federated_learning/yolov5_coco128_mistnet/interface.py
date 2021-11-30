@@ -19,7 +19,6 @@ from sedna.core.federated_learning import FederatedLearningV2
 
 from examples.nnrt.nnrt_trainer_yolo import Trainer
 from examples.nnrt.nnrt_algorithms.mistnet import Algorithm
-from examples.nnrt.nnrt_models.acl_inference import Inference
 
 simple_chooser = SimpleClientChoose(per_round=1)
 
@@ -138,7 +137,7 @@ class Dataset:
 class Estimator:
     def __init__(self) -> None:
         # initialize inference object with deviceID, om path, image height and width
-        self.model = Inference(0, "./yolov5x_cutlayer4.om", 640, 640)
+        self.model = None
         self.pretrained = None
         self.trainer = Trainer(model=self.model)
         self.algorithm = Algorithm(self.trainer)
