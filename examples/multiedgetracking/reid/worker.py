@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import pickle
+import threading
+
+import requests
 import cv2
 import numpy as np
 import os
@@ -105,52 +108,56 @@ class Estimator():
         self.target = query_feat
         self.target_ID = result.get('object_id')
 
+    def create_result(self, idx, dt: DetTrackResult, id):
+        return DetTrackResult(
+            bbox=[dt.bbox[idx]],
+            scene=dt.scene,
+            confidence=[dt.confidence[idx]],
+            detection_time=[dt.detection_time[idx]],
+            camera=[dt.camera[idx]],
+            bbox_coord=[dt.bbox_coord[idx]],
+            ID=[id]
+        )
 
     def predict(self, data, **kwargs):
         # We use a dictionary to keep track of the ReID objects.
         # For each object, we print at the end localization and tracking information.
         reid_dict = {}
+        tresult = None
+        det_track = data[0]
 
-        for d in data:
-            det_track = pickle.loads(d)
+        if det_track.is_target:
+            self.load_target(det_track)
+            return 200
 
-            if det_track.is_target:
-                self.load_target(det_track)
-                return 200
+        for idx, elem in enumerate(det_track.bbox):
+            temp = np.array(det_track.features[idx])
 
-            for idx, elem in enumerate(det_track.bbox):
-                temp = np.array(det_track.features[idx])
+            query_feat = torch.from_numpy(temp)
+            query_feat = query_feat.float()
 
-                query_feat = torch.from_numpy(temp)
-                query_feat = query_feat.float()
+            result = self.reid(query_feat, det_track.camera[idx], det_track.detection_time[idx]) 
 
-                result = self.reid(query_feat, det_track.camera[idx], det_track.detection_time[idx]) 
-
-                if result != None:
-                    if kwargs['op_mode'] == "tracking":
-                        if self.target_ID == result.get('object_id'):
-                            LOGGER.info(f"Target found!")
-                            reid_dict[result.get('object_id')] = result
-                            det_track.ID[idx] = result.get('object_id')
-                        else:
-                            LOGGER.debug(f"Target {self.target_ID} not found!")
-                            det_track.ID[idx] = -1
-                    else:
+            # Create new dettrack object and exit when the target is found (return only new instance)
+            if result != None:
+                if kwargs['op_mode'] == "tracking":
+                    if self.target_ID == result.get('object_id'):
+                        LOGGER.info(f"Target found!")
                         reid_dict[result.get('object_id')] = result
+                        # det_track.ID.append(result.get('object_id'))
+                        tresult = self.create_result(idx, det_track, result.get('object_id'))
+                    else:
+                        LOGGER.debug(f"Target {self.target_ID} not found!")
+                        # det_track.ID.append(-1)
+                else:
+                    reid_dict[result.get('object_id')] = result
+                    tresult = det_track
 
         for key in reid_dict:
             LOGGER.info(json.dumps(reid_dict[key]))
-            
-        self.save_result(reid_dict)
 
-        return 200
 
-    def save_result(self, data):
-        # Not implemented. Options are:
-        # 1. Save on disk (bad)
-        # 2. Save in-memory (bad)
-        # 3. Write to Kafka/DB (good)
-        pass
+        return tresult
 
     def topK(self, indices, camid, top_k=10, img_size=[128, 128]):
         LOGGER.debug("Saving top-10 results")

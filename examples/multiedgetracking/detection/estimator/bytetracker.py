@@ -21,11 +21,11 @@ from yolox.yolox.tracker.byte_tracker import BYTETracker
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
 # Tracking parameters
-frame_rate = Context.get_parameters('frame_rate', 30)
-track_thresh = Context.get_parameters('track_thresh', 0.5)
-track_buffer = Context.get_parameters('track_buffer', 600)
-match_thresh = Context.get_parameters('match_thresh', 0.8)
-min_box_area = Context.get_parameters('min_box_area', 500)
+frame_rate = int(Context.get_parameters('frame_rate', 30))
+track_thresh = float(Context.get_parameters('track_thresh', 0.5))
+track_buffer = int(Context.get_parameters('track_buffer', 600))
+match_thresh = float(Context.get_parameters('match_thresh', 0.8))
+min_box_area = int(Context.get_parameters('min_box_area', 500))
 
 # Detection parameters
 confidence_thr = Context.get_parameters('confidence_thr', 0.25)
@@ -198,17 +198,16 @@ class ByteTracker(FluentdHelper):
             if len(object_crops) > 0:
                 scene = np.array(cv2.imencode('.jpg', data)[1])
                 result = DetTrackResult([item[0] for item in object_crops], scene, [item[1] for item in object_crops], [item[3] for item in object_crops], [item[2] for item in object_crops])
+                self.write_to_fluentd(object_crops)
+                LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
             else:
                 return None
 
-            self.write_to_fluentd(object_crops)
-
-            LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
         except Exception as ex:
             LOGGER.error(f"No objects identified [{ex}].")
             return None
 
-        return pickle.dumps(result)
+        return result
 
 
     def track(self, data, outputs, img_info):
@@ -282,13 +281,12 @@ class ByteTracker(FluentdHelper):
                 bbox_coord=[item[1] for item in object_crops],
                 tracking_ids=[item[3] for item in object_crops]
             )
+            self.write_to_fluentd(object_crops)
+            LOGGER.info(f"Tracked {len(object_crops)} objects/s in camera {self.camera_code} with IDs {result.tracklets}")
         else:
             return None
 
-        self.write_to_fluentd(object_crops)
-        LOGGER.info(f"Tracked {len(object_crops)} objects/s in camera {self.camera_code} with IDs {result.tracklets}")
-
-        return pickle.dumps(result)
+        return result
 
 
     def predict(self, data, **kwargs):

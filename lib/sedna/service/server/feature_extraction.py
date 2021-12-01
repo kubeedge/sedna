@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pickle
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -96,7 +97,7 @@ class FEServer(BaseServer):  # pylint: disable=too-many-arguments
         return ServeModelInfoResult(infos=self.get_all_urls())
 
     def feature_extraction(self, data: InferenceItem, request: Request):
-        self.model.put_data(data.data)
+        self.model.put_data(pickle.loads(data.data[0].from_json()))
         # inference_res = self.model.inference(data.data, post_process=data.callback)
         
         return ServePredictResult(result=[])

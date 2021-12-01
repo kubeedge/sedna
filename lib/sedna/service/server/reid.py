@@ -97,7 +97,7 @@ class ReIDServer(BaseServer):  # pylint: disable=too-many-arguments
 
     def reid(self, data: InferenceItem, request: Request):
         inference_res = self.model.inference(
-            data.data, post_process=data.callback)
+            data.data.from_json(), post_process=data.callback)
 
         
         return ServePredictResult(result=[])

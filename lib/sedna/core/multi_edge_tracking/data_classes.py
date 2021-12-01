@@ -1,3 +1,5 @@
+from datetime import datetime
+import json
 from typing import List
 
 
@@ -13,23 +15,18 @@ class DetTrackResult:
         self.features = features
         self.is_target = is_target
         self.ID = ID
+        try:
+            self.image_key = f'{datetime.strptime(self.detection_time[0], "%a, %d %B %Y %H:%M:%S").timestamp()}_{self.camera[0]}' 
+        except:
+            self.image_key = 0
 
+    def to_json(self):
+        return json.dumps(self.__dict__)
 
-    def find_target(self, target_id):
-        for idx, elem in enumerate(self.ID):
-            if int(elem) == int(target_id):
-                return DetTrackResult(
-                    self.bbox[idx],
-                    self.scene,
-                    self.confidence[idx],
-                    self.detection_time[idx],
-                    self.camera[idx],
-                    self.features[idx],
-                    self.is_target,
-                    elem
-                )
-
-        return None
+    @classmethod
+    def from_json(cls, json_str):
+        json_dict = json.loads(json_str)
+        return cls(**json_dict)
 
     # def build_copy(self, obj):
     #     return DetTrackResult(

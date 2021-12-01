@@ -80,8 +80,9 @@ class Estimator(FluentdHelper):
     def extract_features(self, data):
         total_data = 0
 
-        for d in data:
-            det_track = pickle.loads(d)
+        det_track = data[0]
+        # det_track = pickle.loads(d)
+        try:
             for elem in det_track.bbox:
                 # Perform image decoding and store in array
                 # The two approaches should be unified
@@ -105,18 +106,19 @@ class Estimator(FluentdHelper):
                 # It returns a tensor, it should be transformed into a list before TX
                 # result.append(self.convert_to_list(query_feat, camera_code, det_time))
                 det_track.features.append(query_feat)
-  
+
 
             LOGGER.info(f"Extracted ReID features for {len(det_track.bbox)} object/s received from camera {det_track.camera[0]}")
             self.write_to_fluentd(total_data)
+        except Exception as ex:
+            LOGGER.error(f"Unable to extract features [{ex}]")
+            return None
 
-        return pickle.dumps(det_track)        
+        return det_track      
 
 
     def extract_target_features(self, dd):
         total_data = 0
-
-        dd = pickle.loads(dd)
 
         try:
             image_as_array = dd.bbox[0].astype(np.uint8)
@@ -146,8 +148,9 @@ class Estimator(FluentdHelper):
         except Exception as ex:
             LOGGER.error(f"Target's feature extraction failed {ex}")
             self.reset_op_mode()
+            return None
         
-        return pickle.dumps(dd)   
+        return dd   
 
 
     def reset_op_mode(self):
@@ -156,8 +159,8 @@ class Estimator(FluentdHelper):
         self.target = None
 
     def predict(self, data, **kwargs):
-        if len(data) == 0:
-            return []
+        if data == None:
+            return None
 
         if kwargs.get("new_target", False):
             return self.extract_target_features(data)

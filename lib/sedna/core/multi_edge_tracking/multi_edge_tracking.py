@@ -110,12 +110,19 @@ class ReIDService(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        res = self.estimator.predict(data, op_mode=self.op_mode)
+        reid = self.estimator.predict(data, op_mode=self.op_mode)
 
         if callback_func:
-            res = callback_func(res)
+            reid = callback_func(reid)
 
-        return res
+        if reid != None:
+            with FTimer(f"upload_reid"):
+                if self.kafka_enabled:
+                    cres = self.producer.write_result(reid)
+                else:
+                    pass
+
+        return cres
 
     def update_operational_mode(self, status):
         self.log.debug("Configuration update triggered")
@@ -227,7 +234,7 @@ class FEService(JobBase):
         if callback_func:
             res = callback_func(res)
 
-        if fe_result != []:
+        if fe_result != None:
             with FTimer(f"upload_fe_results"):
                 if self.kafka_enabled:
                     cres = self.producer.write_result(fe_result)
@@ -263,7 +270,7 @@ class FEService(JobBase):
                 img_arr = np.asarray(img)      
 
                 data = DetTrackResult([img_arr], None, [], 0, 0, is_target=True)
-                data = pickle.dumps(data)
+                # data = pickle.dumps(data)
                 # data = [ img_arr, 1.0, 0, 0, 1 ]
                 self.inference(data, post_process=None, new_target=True)
             else:
@@ -340,12 +347,12 @@ class ObjectDetector(JobBase):
         if callback_func:
             detection_result = callback_func(detection_result)
 
-        if detection_result != None and len(detection_result) > 0:
+        if detection_result != None:
             with FTimer(f"upload_bboxes"):
                 if self.kafka_enabled:
                     cres = self.producer.write_result(detection_result)
                 else:
-                    cres = self.edge.feature_extraction([detection_result], post_process=post_process, **kwargs)
+                    cres = self.edge.feature_extraction(detection_result, post_process=post_process, **kwargs)
 
         return [cres, detection_result]
 

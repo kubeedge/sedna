@@ -1,3 +1,5 @@
+import pickle
+from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 from sedna.service.client import http_request
 from copy import deepcopy
 
@@ -12,9 +14,9 @@ class FE:
     def check_server_status(self):
         return http_request(url=self.endpoint, method="GET")
 
-    def feature_extraction(self, x, **kwargs):
+    def feature_extraction(self, x : DetTrackResult, **kwargs):
         """Transfer feature vector to FE worker"""
         json_data = deepcopy(kwargs)
-        json_data.update({"data": x})
+        json_data.update({"data": [x.to_json()]})
         _url = f"{self.endpoint}/feature_extraction"
         return http_request(url=_url, method="POST", json=json_data)
