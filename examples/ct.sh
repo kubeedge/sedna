@@ -2,10 +2,6 @@
 
 prepare(){
 action=${1:-create}
-}
-
-ctjob(){
-action=${1:-create}
 
 kubectl $action -f - <<EOF
 apiVersion: v1
@@ -50,6 +46,10 @@ spec:
   url: "/pretrained/yolov5.pth"
   format: "pth"
 EOF
+}
+
+ctjob(){
+action=${1:-create}
 
 kubectl $action -f - <<EOF
 apiVersion: sedna.io/v1alpha1
