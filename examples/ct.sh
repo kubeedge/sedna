@@ -129,7 +129,7 @@ spec:
                   value: "1"
               resources: # user defined resources
                 limits:
-                  memory: 2Gi
+                  memory: 2.5Gi
                   huawei.com/Ascend310: 1
               securityContext:
                 privileged: true
