@@ -63,7 +63,7 @@ spec:
     #ws: { } # option, by default
     s3: # option, but at least one
       aggDataPath: "s3://sedna/fl/aggregation_data"
-      credentialName: mysecret
+      credentialName: ctsecret
   aggregationWorker:
     model:
       name: "yolo-v5-model"
