@@ -31,7 +31,7 @@ spec:
   nodeName: euler19
 EOF
 
-kubectl create -f - <<EOF
+kubectl $action -f - <<EOF
 apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
@@ -41,7 +41,7 @@ spec:
   format: "pth"
 EOF
 
-kubectl create -f - <<EOF
+kubectl $action -f - <<EOF
 apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
