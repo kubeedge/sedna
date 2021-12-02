@@ -48,6 +48,7 @@ get_latest_version() {
 }
 
 : ${SEDNA_VERSION:=$(get_latest_version)}
+SEDNA_VERSION=v${SEDNA_VERSION#v}
 
 _download_yamls() {
 
