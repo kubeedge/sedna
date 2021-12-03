@@ -17,6 +17,8 @@ from interface import Dataset, Estimator
 from sedna.common.config import BaseConfig
 from sedna.core.federated_learning import FederatedLearningV2
 from examples.nnrt.nnrt_models.acl_inference import Inference
+from examples.nnrt.nnrt_trainer_yolo import Trainer
+from examples.nnrt.nnrt_algorithms.mistnet import Algorithm
 
 def main():
     data = Dataset()
@@ -25,6 +27,8 @@ def main():
     data.parameters["train_path"] = os.path.join(data.parameters["data_path"], "./coco128/images/train2017/")
     data.parameters["test_path"] = data.parameters["train_path"]
     estimator.model = Inference(0, "./yolov5x_cutlayer4.om", 640, 640)
+    estimator.trainer = Trainer(model=estimator.model)
+    estimator.algorithm = Algorithm(estimator.trainer)
 
     fl_model = FederatedLearningV2(
         data=data,

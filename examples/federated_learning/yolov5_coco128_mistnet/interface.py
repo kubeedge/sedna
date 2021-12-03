@@ -17,8 +17,7 @@ from sedna.algorithms.client_choose import SimpleClientChoose
 from sedna.common.config import Context
 from sedna.core.federated_learning import FederatedLearningV2
 
-from examples.nnrt.nnrt_trainer_yolo import Trainer
-from examples.nnrt.nnrt_algorithms.mistnet import Algorithm
+
 
 simple_chooser = SimpleClientChoose(per_round=1)
 
@@ -138,9 +137,9 @@ class Estimator:
     def __init__(self) -> None:
         # initialize inference object with deviceID, om path, image height and width
         self.model = None
+        self.trainer = None
+        self.algorithm = None
         self.pretrained = None
-        self.trainer = Trainer(model=self.model)
-        self.algorithm = Algorithm(self.trainer)
         self.saved = None
         self.hyperparameters = {
             "type": "yolov5",
