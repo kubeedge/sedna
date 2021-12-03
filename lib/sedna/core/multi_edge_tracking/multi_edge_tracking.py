@@ -118,11 +118,11 @@ class ReIDService(JobBase):
         if reid != None:
             with FTimer(f"upload_reid"):
                 if self.kafka_enabled:
-                    cres = self.producer.write_result(reid)
+                    self.producer.write_result(reid)
                 else:
                     pass
 
-        return cres
+        return None
 
     def update_operational_mode(self, status):
         self.log.debug("Configuration update triggered")
@@ -368,12 +368,12 @@ class ObjectDetector(JobBase):
 
 class StatusSyncThread(threading.Thread):
 
-    def __init__(self, callback, controller_address="http://7.182.9.110:27345/sedna/get_app_details", update_interval=10):
+    def __init__(self, callback, update_endpoint="http://7.182.9.110:27345/sedna/get_app_details", update_interval=10):
         super().__init__()
         LOGGER.info("Creating StatusSyncThread")
 
         self.callback = callback
-        self.controller_address = controller_address
+        self.update_endpoint = update_endpoint
         self.update_interval = update_interval
         self.daemon = True
 
@@ -382,7 +382,7 @@ class StatusSyncThread(threading.Thread):
     def sync_configuration(self):
         LOGGER.debug(f'Attempting to synchronize the pod configuration')
         try:
-            status = requests.get(self.controller_address)
+            status = requests.get(self.update_endpoint)
             LOGGER.debug(f'Current status retrieved')
             return json.loads(status.content)
 

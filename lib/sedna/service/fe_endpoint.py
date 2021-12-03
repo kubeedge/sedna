@@ -1,4 +1,5 @@
 import pickle
+from sedna.common.log import LOGGER
 from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 from sedna.service.client import http_request
 from copy import deepcopy
@@ -19,4 +20,4 @@ class FE:
         json_data = deepcopy(kwargs)
         json_data.update({"data": [x.to_json()]})
         _url = f"{self.endpoint}/feature_extraction"
-        return http_request(url=_url, method="POST", json=json_data)
+        return http_request(url=_url, method="POST", data=pickle.dumps(x))

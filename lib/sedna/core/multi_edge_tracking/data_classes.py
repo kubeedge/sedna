@@ -1,5 +1,5 @@
 from datetime import datetime
-import json
+import json, numpy
 from typing import List
 
 
@@ -21,12 +21,28 @@ class DetTrackResult:
             self.image_key = 0
 
     def to_json(self):
-        return json.dumps(self.__dict__)
+        t = self
+
+        t.scene = t.scene.tolist()
+        t.confidence = [elem.tolist() if isinstance(elem, (numpy.generic) ) else elem for elem in t.confidence]
+        t.features = [elem.tolist() if isinstance(elem, (numpy.ndarray, numpy.generic) ) else elem for elem in t.features]
+
+        # t.features = [elem.tolist() if isinstance(elem, (numpy.ndarray, numpy.generic) ) else elem for elem in t.features]
+        # t.features = [elem.tolist() if isinstance(elem, (numpy.ndarray, numpy.generic) ) else elem for elem in t.features]
+        # t.features = [elem.tolist() if isinstance(elem, (numpy.ndarray, numpy.generic) ) else elem for elem in t.features]
+         
+        return json.dumps(t.__dict__)
 
     @classmethod
     def from_json(cls, json_str):
         json_dict = json.loads(json_str)
-        return cls(**json_dict)
+
+        t = cls(**json_dict)
+        t.scene = numpy.asarray(t.scene)
+        t.features = [numpy.asarray(elem) for elem in t.confidence]
+        t.features = [numpy.asarray(elem) for elem in t.features]
+
+        return t
 
     # def build_copy(self, obj):
     #     return DetTrackResult(

@@ -1,3 +1,4 @@
+import pickle
 from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 from sedna.service.client import http_request
 from copy import deepcopy
@@ -15,7 +16,8 @@ class ReID:
 
     def reid(self, x : DetTrackResult, **kwargs):
         """Transfer feature vector to ReID worker"""
-        json_data = deepcopy(kwargs)
-        json_data.update({"data": x.to_json()})
+        # json_data = deepcopy(kwargs)
+        # json_data.update({"data": [x.to_json()]})
         _url = f"{self.endpoint}/reid"
-        return http_request(url=_url, method="POST", json=json_data)
+        return http_request(url=_url, method="POST", data=pickle.dumps(x))
+        # return http_request(url=_url, method="POST", json=json_data)

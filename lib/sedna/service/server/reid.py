@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pickle
 from typing import List, Optional
 
 from pydantic import BaseModel
 from fastapi import FastAPI, Request
 from fastapi.routing import APIRoute
+from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 from starlette.responses import JSONResponse
 
 from .base import BaseServer
@@ -95,9 +97,16 @@ class ReIDServer(BaseServer):  # pylint: disable=too-many-arguments
     def model_info(self):
         return ServeModelInfoResult(infos=self.get_all_urls())
 
-    def reid(self, data: InferenceItem, request: Request):
-        inference_res = self.model.inference(
-            data.data.from_json(), post_process=data.callback)
-
+    async def reid(self, request: Request):
+        s = await request.body()
+        inference_res = self.model.inference(pickle.loads(s), post_process=None)
+        # self.model.put_data(data.data[0].from_json())
+        # inference_res = self.model.inference(data.data, post_process=data.callback)
         
         return ServePredictResult(result=[])
+
+    # def reid(self, data: InferenceItem, request: Request):
+    #     data = DetTrackResult.from_json(data.data[0])
+    #     inference_res = self.model.inference(data, post_process=data.callback)
+        
+    #     return ServePredictResult(result=[])

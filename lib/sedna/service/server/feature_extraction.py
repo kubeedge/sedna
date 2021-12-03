@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import pickle
 from typing import List, Optional
 
 from pydantic import BaseModel
 from fastapi import FastAPI, Request
 from fastapi.routing import APIRoute
+from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 from starlette.responses import JSONResponse
 
 from .base import BaseServer
@@ -43,7 +45,7 @@ class ServePredictResult(BaseModel):  # pylint: disable=too-few-public-methods
 
 
 class InferenceItem(BaseModel):  # pylint: disable=too-few-public-methods
-    data: List
+    data: bytes
     callback: Optional[str] = None
 
 
@@ -58,7 +60,7 @@ class FEServer(BaseServer):  # pylint: disable=too-many-arguments
             servername,
             host: str = '127.0.0.1',
             http_port: int = 8080,
-            max_buffer_size: int = 104857600,
+            max_buffer_size: int = 1004857600,
             workers: int = 1):
         super(
             FEServer,
@@ -96,8 +98,10 @@ class FEServer(BaseServer):  # pylint: disable=too-many-arguments
     def model_info(self):
         return ServeModelInfoResult(infos=self.get_all_urls())
 
-    def feature_extraction(self, data: InferenceItem, request: Request):
-        self.model.put_data(pickle.loads(data.data[0].from_json()))
+    async def feature_extraction(self, request: Request):
+        s = await request.body()
+        self.model.put_data([pickle.loads(s)])
+        # self.model.put_data(data.data[0].from_json())
         # inference_res = self.model.inference(data.data, post_process=data.callback)
         
         return ServePredictResult(result=[])
