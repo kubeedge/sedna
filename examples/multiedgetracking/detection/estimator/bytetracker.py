@@ -3,6 +3,7 @@ import os
 import torch
 import numpy as np
 import cv2
+import pickle
 
 from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 from sedna.common.config import Context
@@ -86,18 +87,15 @@ class ByteTracker(FluentdHelper):
         )
         self.tracker = BYTETracker(args=self.tracker_args, frame_rate=frame_rate)
 
-    def write_to_fluentd(self, data):
+    def write_to_fluentd(self, result : DetTrackResult):
         try:
-            for elem in data:
-                bts = np.sum(list(map(lambda x: np.asarray(x).nbytes, elem[0])))
-                
-                msg = {
+            msg = {
                     "worker": "l2-object-detector",
-                    "outbound_data": int(bts),
-                    "confidence": elem[1]
-                }
+                    "outbound_data": len(pickle.dumps(result)),
+                    "confidence": np.median(result.confidence).item()
+            }
 
-                self.send_json_msg(msg)
+            self.send_json_msg(msg)
         except Exception as ex:
             LOGGER.error(f"Error while transmitting data to fluentd. Details: [{ex}]")
 
@@ -279,7 +277,9 @@ class ByteTracker(FluentdHelper):
                 bbox_coord=[item[1] for item in object_crops],
                 tracking_ids=[item[3] for item in object_crops]
             )
-            self.write_to_fluentd(object_crops)
+            
+            self.write_to_fluentd(result)
+            
             LOGGER.info(f"Tracked {len(object_crops)} objects/s in camera {self.camera_code} with IDs {result.tracklets}")
         else:
             return None

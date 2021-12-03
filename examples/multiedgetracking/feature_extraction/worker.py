@@ -70,7 +70,7 @@ class Estimator(FluentdHelper):
         try:
             msg = {
                 "worker": "l1-feature-extractor",
-                "outbound_data": data
+                "outbound_data": len(pickle.dumps(data))
             }
             
             self.send_json_msg(msg)
@@ -98,18 +98,12 @@ class Estimator(FluentdHelper):
                     with torch.no_grad():
                         query_feat = self.model(input)
                         LOGGER.debug(f"Extracted tensor with features: {query_feat}")
-
-                LOGGER.debug(f"Input image size: {image_as_array.nbytes}")
-                LOGGER.debug(f"Output tensor size {sys.getsizeof(query_feat.storage())}")
-                total_data+=sys.getsizeof(query_feat.storage())
-
-                # It returns a tensor, it should be transformed into a list before TX
-                # result.append(self.convert_to_list(query_feat, camera_code, det_time))
+                        
                 det_track.features.append(query_feat)
 
 
             LOGGER.info(f"Extracted ReID features for {len(det_track.bbox)} object/s received from camera {det_track.camera[0]}")
-            self.write_to_fluentd(total_data)
+            self.write_to_fluentd(det_track)
         except Exception as ex:
             LOGGER.error(f"Unable to extract features [{ex}]")
             return None
@@ -141,7 +135,7 @@ class Estimator(FluentdHelper):
             dd.features.append(query_feat)
             
             # result.append([query_feat.numpy().tolist(), dd.camera[0], dd.detection_time[0], dd.is_target])
-            self.write_to_fluentd(total_data)
+            self.write_to_fluentd(dd)
 
         except Exception as ex:
             LOGGER.error(f"Target's feature extraction failed {ex}")

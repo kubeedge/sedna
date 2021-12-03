@@ -37,7 +37,7 @@ class Yolov5(FluentdHelper):
     def write_to_fluentd(self, data):
         try:
             for elem in data:
-                bts = np.sum(list(map(lambda x: np.asarray(x).nbytes, elem[0])))
+                bts = np.sum(list(map(lambda x: x.nbytes, elem[0])))
                 
                 msg = {
                     "worker": "l2-object-detector",
