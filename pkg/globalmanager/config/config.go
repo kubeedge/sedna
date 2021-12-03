@@ -123,7 +123,7 @@ func NewDefaultControllerConfig() *ControllerConfig {
 	}
 }
 
-// Config singleton for GM
+// Config singlton for GM
 var Config ControllerConfig
 
 // InitConfigure inits config

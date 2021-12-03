@@ -1,0 +1,11 @@
+# Load balancer for the Feature Extraction layer/function
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: container-tracking-l2-edge-svc
+  namespace: default
+spec:
+  host: container-tracking-l2-edge-svc
+  trafficPolicy:
+    loadBalancer:
+      simple: RANDOM

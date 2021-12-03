@@ -42,3 +42,12 @@ type TrackingWorker struct {
 type ReidWorkers struct {
 	appsv1.DeploymentSpec `json:",inline"`
 }
+
+// LocationDeployment allows to specify the extra 'location' parameter
+// which allows Sedna to deploy on nodes tagged with an according value.
+// For example, location=edge will deploy on all the agents and NOT
+// on the master.
+type LocationDeployment struct {
+	*appsv1.Deployment
+	Location string `json:"location,omitempty"`
+}

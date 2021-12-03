@@ -39,7 +39,16 @@ type ModelSpec struct {
 	URL    string `json:"url"`
 	Format string `json:"format"`
 
+	// The following are optional fields for the model
 	CredentialName string `json:"credentialName,omitempty"`
+	// +optional
+	Description string `json:"description,omitmepty"`
+	// +optional
+	Purpose string `json:"purpose,omitmepty"`
+	// +optional
+	Classes []string `json:"classes,omitmepty"`
+	// +optional
+	Extra []ExtraVar `json:"extra,omitempty"`
 }
 
 // ModelStatus represents information about the status of a model
@@ -57,4 +66,11 @@ type ModelList struct {
 	metav1.ListMeta `json:"metadata"`
 
 	Items []Model `json:"items"`
+}
+
+// ExtraVar represents an extra variable associated with the model.
+type ExtraVar struct {
+	// Name of the environment variable. Must be a C_IDENTIFIER.
+	Name  string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 }

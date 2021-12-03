@@ -1,0 +1,15 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: detection-yolov5s
+  namespace: default
+spec:
+  url: "/data/ai_models/object_detection/best_small.pt"
+  format: "pt"
+  description: "Yolov5 model to detect containers."
+  purpose: "detection"
+  classes:
+    - "container"
+  extra:
+    - name: "model_size"
+      value: "small"

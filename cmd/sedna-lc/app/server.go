@@ -36,6 +36,7 @@ import (
 	"github.com/kubeedge/sedna/pkg/localcontroller/managers/jointinference"
 	"github.com/kubeedge/sedna/pkg/localcontroller/managers/lifelonglearning"
 	"github.com/kubeedge/sedna/pkg/localcontroller/managers/model"
+	"github.com/kubeedge/sedna/pkg/localcontroller/managers/multiedgetracking"
 	"github.com/kubeedge/sedna/pkg/localcontroller/server"
 	"github.com/kubeedge/sedna/pkg/version/verflag"
 )
@@ -98,6 +99,8 @@ func runServer() {
 
 	jm := jointinference.New(c)
 
+	me := multiedgetracking.New(c)
+
 	fm := federatedlearning.New(c)
 
 	im := incrementallearning.New(c, dm, mm, Options)
@@ -107,7 +110,7 @@ func runServer() {
 	s := server.New(Options)
 
 	for _, m := range []managers.FeatureManager{
-		dm, mm, jm, fm, im, lm,
+		dm, me, mm, jm, fm, im, lm,
 	} {
 		s.AddFeatureManager(m)
 		c.Subscribe(m)

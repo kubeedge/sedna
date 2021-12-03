@@ -32,7 +32,6 @@ else:
     Session = tf.Session
     reset_default_graph = tf.reset_default_graph
 
-
 class TFBackend(BackendBase):
     """Tensorflow Framework Backend base Class"""
 

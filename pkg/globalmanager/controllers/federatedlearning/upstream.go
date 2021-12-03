@@ -36,7 +36,7 @@ func (c *Controller) updateModelMetrics(jobName, namespace string, metrics []sed
 	modelName := job.Spec.AggregationWorker.Model.Name
 	client := c.client.Models(namespace)
 
-	return runtime.RetryUpdateStatus(modelName, namespace, func() error {
+	return runtime.RetryUpdateStatus(modelName, namespace, (func() error {
 		model, err := client.Get(context.TODO(), modelName, metav1.GetOptions{})
 		if err != nil {
 			return err
@@ -47,7 +47,7 @@ func (c *Controller) updateModelMetrics(jobName, namespace string, metrics []sed
 		model.Status.Metrics = metrics
 		_, err = client.UpdateStatus(context.TODO(), model, metav1.UpdateOptions{})
 		return err
-	})
+	}))
 }
 
 func (c *Controller) appendStatusCondition(name, namespace string, cond sednav1.FLJobCondition) error {

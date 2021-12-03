@@ -31,7 +31,7 @@ import (
 
 type Model = runtime.Model
 
-// ConditionData the data of this condition including the input/output to do the next step
+// the data of this condition including the input/output to do the next step
 type ConditionData struct {
 	Input *struct {
 		// Only one model cases
@@ -154,7 +154,7 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 
 	err = c.appendStatusCondition(name, namespace, cond)
 	if err != nil {
-		return fmt.Errorf("failed to append condition, err:%w", err)
+		return fmt.Errorf("failed to append condition, err:%+w", err)
 	}
 	return nil
 }

@@ -52,6 +52,10 @@ func (c *FakeSednaV1alpha1) Models(namespace string) v1alpha1.ModelInterface {
 	return &FakeModels{c, namespace}
 }
 
+func (c *FakeSednaV1alpha1) MultiEdgeTrackingServices(namespace string) v1alpha1.MultiEdgeTrackingServiceInterface {
+	return &FakeMultiEdgeTrackingServices{c, namespace}
+}
+
 func (c *FakeSednaV1alpha1) ObjectSearchServices(namespace string) v1alpha1.ObjectSearchServiceInterface {
 	return &FakeObjectSearchServices{c, namespace}
 }

@@ -275,7 +275,7 @@ func (c *Controller) sync(key string) (bool, error) {
 	// transit this job's state machine
 	needUpdated, err = c.transitJobState(&job)
 	if err != nil {
-		klog.V(2).Infof("lifelonglearning job %v/%v failed to be updated, err:%s", job.Namespace, job.Name, err)
+		klog.V(2).Infof("lifelonglearning job %v/%v faied to be updated, err:%s", job.Namespace, job.Name, err)
 	}
 
 	if needUpdated {
@@ -297,7 +297,7 @@ func (c *Controller) sync(key string) (bool, error) {
 // transitJobState transit job to next state
 func (c *Controller) transitJobState(job *sednav1.LifelongLearningJob) (bool, error) {
 	var initialType sednav1.LLJobStageConditionType
-	var latestCondition = sednav1.LLJobCondition{
+	var latestCondition sednav1.LLJobCondition = sednav1.LLJobCondition{
 		Stage: sednav1.LLJobTrain,
 		Type:  initialType,
 	}
@@ -305,7 +305,7 @@ func (c *Controller) transitJobState(job *sednav1.LifelongLearningJob) (bool, er
 	var newConditionType sednav1.LLJobStageConditionType
 	var needUpdated = false
 
-	var podStatus = v1.PodUnknown
+	var podStatus v1.PodPhase = v1.PodUnknown
 	jobConditions := job.Status.Conditions
 	if len(jobConditions) > 0 {
 		// get latest pod and pod status
@@ -541,7 +541,7 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 		originalDataURLOrIndex = dataset.Spec.URL
 	}
 
-	var workerParam = new(runtime.WorkerParam)
+	var workerParam *runtime.WorkerParam = new(runtime.WorkerParam)
 	if podtype == sednav1.LLJobTrain {
 		workerParam.WorkerType = "Train"
 
@@ -672,7 +672,7 @@ func (c *Controller) createInferPod(job *sednav1.LifelongLearningJob) error {
 		return err
 	}
 
-	var workerParam = new(runtime.WorkerParam)
+	var workerParam *runtime.WorkerParam = new(runtime.WorkerParam)
 	workerParam.Mounts = append(workerParam.Mounts,
 		runtime.WorkerMount{
 			URL: &runtime.MountURL{

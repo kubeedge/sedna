@@ -16,7 +16,7 @@ import os.path
 from inspect import getfullargspec
 
 from sedna.common.file_ops import FileOps
-
+from sedna.common.log import LOGGER
 
 class BackendBase:
     """ML Framework Backend base Class"""
@@ -34,8 +34,8 @@ class BackendBase:
     def model_name(self):
         if self.default_name:
             return self.default_name
-        model_postfix = {"pytorch": ".pth",
-                         "keras": ".pb", "tensorflow": ".pb"}
+        model_postfix = {"pytorch": [".pth", ".pt"],
+                         "keras": [".h5"], "tensorflow": [".pb"]}
         continue_flag = "_finetune_" if self.fine_tune else ""
         post_fix = model_postfix.get(self.framework, ".pkl")
         return f"model{continue_flag}{self.framework}{post_fix}"

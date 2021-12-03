@@ -22,6 +22,7 @@ import (
 	il "github.com/kubeedge/sedna/pkg/globalmanager/controllers/incrementallearning"
 	ji "github.com/kubeedge/sedna/pkg/globalmanager/controllers/jointinference"
 	ll "github.com/kubeedge/sedna/pkg/globalmanager/controllers/lifelonglearning"
+	me "github.com/kubeedge/sedna/pkg/globalmanager/controllers/multiedgetracking"
 	objs "github.com/kubeedge/sedna/pkg/globalmanager/controllers/objectsearch"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
@@ -36,6 +37,7 @@ func NewRegistry() Registry {
 		fl.Name:      fl.New,
 		il.Name:      il.New,
 		ll.Name:      ll.New,
+		me.Name:      me.New,
 		dataset.Name: dataset.New,
 		objs.Name:    objs.New,
 	}

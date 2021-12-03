@@ -43,10 +43,8 @@ def http_request(url, method=None, timeout=None, binary=True, **kwargs):
                     response.content.decode("utf-8"))
         elif 200 < response.status_code < 400:
             LOGGER.info(f"Redirect_URL: {response.url}")
-        LOGGER.warning(
-            'Get invalid status code %s while request %s',
-            response.status_code,
-            url)
+        LOGGER.warning(f'Get invalid status code {response.status_code} while request {url}')
+        
     except (ConnectionRefusedError, requests.exceptions.ConnectionError):
         LOGGER.warning(f'Connection refused while request {url}')
     except requests.exceptions.HTTPError as err:
@@ -55,7 +53,6 @@ def http_request(url, method=None, timeout=None, binary=True, **kwargs):
         LOGGER.warning(f"Timeout Error while request {url} : f{err}")
     except requests.exceptions.RequestException as err:
         LOGGER.warning(f"Error occurred while request {url} : f{err}")
-
 
 class LCReporter(threading.Thread):
     """Inherited thread, which is an entity that periodically report to

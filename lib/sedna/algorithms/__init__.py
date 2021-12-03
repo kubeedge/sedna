@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from . import optical_flow # multi_edge_tracking
 from . import aggregation  # federated_learning
 from . import hard_example_mining  # joint_inference incremental_learning
 from . import multi_task_learning  # lifelong_learning

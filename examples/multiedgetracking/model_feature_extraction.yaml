@@ -1,0 +1,10 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: feature-extraction-efficientnet
+  namespace: default
+spec:
+  url: "/data/ai_models/deep_eff_reid/weights/efficientnet_v2_model_25.pth"
+  format: "pth"
+  description: "EfficientNetv2 to extract ReID features."
+  purpose: "feature_extraction"

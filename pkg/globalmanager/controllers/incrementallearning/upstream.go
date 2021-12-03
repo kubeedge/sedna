@@ -30,7 +30,7 @@ import (
 
 type Model = runtime.Model
 
-// IncrementalCondData the data of this condition including the input/output to do the next step
+// the data of this condition including the input/output to do the next step
 type IncrementalCondData struct {
 	Input *struct {
 		// Only one model cases
@@ -86,7 +86,7 @@ func (cd IncrementalCondData) Marshal() ([]byte, error) {
 
 func (c *Controller) appendStatusCondition(name, namespace string, cond sednav1.ILJobCondition) error {
 	client := c.client.IncrementalLearningJobs(namespace)
-	return runtime.RetryUpdateStatus(name, namespace, func() error {
+	return runtime.RetryUpdateStatus(name, namespace, (func() error {
 		job, err := client.Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return err
@@ -94,7 +94,7 @@ func (c *Controller) appendStatusCondition(name, namespace string, cond sednav1.
 		job.Status.Conditions = append(job.Status.Conditions, cond)
 		_, err = client.UpdateStatus(context.TODO(), job, metav1.UpdateOptions{})
 		return err
-	})
+	}))
 }
 
 // updateFromEdge syncs the edge updates to k8s
@@ -152,7 +152,7 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 
 	err = c.appendStatusCondition(name, namespace, cond)
 	if err != nil {
-		return fmt.Errorf("failed to append condition, err:%w", err)
+		return fmt.Errorf("failed to append condition, err:%+w", err)
 	}
 	return nil
 }

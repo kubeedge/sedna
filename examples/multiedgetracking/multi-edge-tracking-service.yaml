@@ -19,18 +19,18 @@ spec:
         spec:
           nodeName: "fraprigel00001"
           containers:
-            - image: registry/sedna-example-multi-edge-tracking-detection:v0.3.0
+            - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-detection:v0.3.0
               imagePullPolicy: Always
               name:  detection
               env:  # user defined environments
               - name: input_shape
                 value: "640"
               - name: "video_url"
-                value: "rtsp://x.x.x.x/video/0"
+                value: "rtsp://172.17.0.1/video/0"
               - name: "estimator_class"
                 value: "Yolov5"
               - name: "stream_dispatcher_url"
-                value: "http://x.x.x.x:yyyy/get_rtsp_stream"
+                value: "http://7.182.9.110:8478/get_rtsp_stream" # we should have a k8s deploy+service+pod for this later
               resources:  # user defined resources
                 requests:
                   memory: 64M
@@ -54,7 +54,7 @@ spec:
         spec:
           nodeName: "frapedge00001"
           containers:
-          - image: registry/sedna-example-multi-edge-tracking-feature-extraction:v0.3.0
+          - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-feature-extraction:v0.3.0
             imagePullPolicy: Always
             ports:
               - containerPort: 6000
@@ -83,7 +83,7 @@ spec:
         spec:
           nodeName: "fraporion00001"
           containers:
-            - image: registry/sedna-example-multi-edge-tracking-reid:v0.3.0
+            - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-reid:v0.3.0
               name:  reid
               imagePullPolicy: Always
               ports:

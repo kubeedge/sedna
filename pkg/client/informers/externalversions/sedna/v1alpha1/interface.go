@@ -36,6 +36,8 @@ type Interface interface {
 	LifelongLearningJobs() LifelongLearningJobInformer
 	// Models returns a ModelInformer.
 	Models() ModelInformer
+	// MultiEdgeTrackingServices returns a MultiEdgeTrackingServiceInformer.
+	MultiEdgeTrackingServices() MultiEdgeTrackingServiceInformer
 	// ObjectSearchServices returns a ObjectSearchServiceInformer.
 	ObjectSearchServices() ObjectSearchServiceInformer
 	// ObjectTrackingServices returns a ObjectTrackingServiceInformer.
@@ -81,6 +83,11 @@ func (v *version) LifelongLearningJobs() LifelongLearningJobInformer {
 // Models returns a ModelInformer.
 func (v *version) Models() ModelInformer {
 	return &modelInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// MultiEdgeTrackingServices returns a MultiEdgeTrackingServiceInformer.
+func (v *version) MultiEdgeTrackingServices() MultiEdgeTrackingServiceInformer {
+	return &multiEdgeTrackingServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ObjectSearchServices returns a ObjectSearchServiceInformer.

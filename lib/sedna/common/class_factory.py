@@ -31,6 +31,7 @@ class ClassType:
     FL_AGG = 'aggregation'
     MTL = 'multi_task_learening'
     UTD = 'unseen_task_detect'
+    OF = 'optical_flow'
 
     ALGORITHM = 'algorithm'
     DATASET = 'data_process'

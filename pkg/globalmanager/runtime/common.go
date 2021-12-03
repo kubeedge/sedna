@@ -39,6 +39,43 @@ const (
 	resourceUpdateTries = 3
 )
 
+func ResourceAwarePodScheduling(kubeClient kubernetes.Interface, deployment *appsv1.Deployment) (string, error) {
+	n, err := kubeClient.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+		LabelSelector: "sedna-role=" + deployment.Spec.Template.Spec.NodeSelector["sedna-role"],
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	// To load pods evenly on the retrieved nodes, we need to check their load (in terms of running pods)
+	running_pods := math.MaxInt32
+	var best_candidate v1.Node
+
+	if len(n.Items) == 1 {
+		best_candidate = n.Items[0]
+	} else {
+		for _, elem := range n.Items {
+			pods, err := kubeClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+				FieldSelector: "spec.nodeName=" + elem.Name,
+			})
+
+			if err != nil {
+				return "", err
+			}
+
+			if len(pods.Items) < running_pods {
+				best_candidate = elem
+				running_pods = len(pods.Items)
+			}
+		}
+	}
+
+	klog.Info(best_candidate)
+
+	return "", nil
+}
+
 // GetNodeIPByName get node ip by node name
 func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, error) {
 	n, err := kubeClient.CoreV1().Nodes().Get(context.Background(), name, metav1.GetOptions{})
@@ -50,6 +87,7 @@ func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, erro
 	for _, addr := range n.Status.Addresses {
 		typeToAddress[addr.Type] = addr.Address
 	}
+
 	address, found := typeToAddress[v1.NodeExternalIP]
 	if found {
 		return address, nil
@@ -59,10 +97,101 @@ func GetNodeIPByName(kubeClient kubernetes.Interface, name string) (string, erro
 	if found {
 		return address, nil
 	}
+
 	return "", fmt.Errorf("can't found node ip for node %s", name)
 }
 
-// GetBackoff calc the next wait time for the key
+// This function returns the "sector" in which the node is deployed (edge or cloud)
+func IdentifyNodeSector(kubeClient kubernetes.Interface, name string) (string, error) {
+	n, err := kubeClient.CoreV1().Nodes().Get(context.Background(), name, metav1.GetOptions{})
+
+	if err != nil {
+		return "", err
+	}
+
+	// The label sedna-role=edge is assigned by default to all edge node in the Sedna cluster
+	// The master node (or the cloud) usually doesn't have this flag set, so we just return "cloud"
+	v, found := n.GetLabels()["sedna-role"]
+	if found {
+		return v, err
+	} else {
+		return "cloud", err
+	}
+
+}
+
+func FindColocatedFluentdPod(kubeClient kubernetes.Interface, name string) (string, error) {
+	pods, err := kubeClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+		FieldSelector: "spec.nodeName=" + name,
+		LabelSelector: "app=" + "fluentd",
+	})
+
+	if len(pods.Items) > 0 {
+		klog.Info("Found local Fluentd service with IP: " + pods.Items[0].Status.PodIP)
+		return pods.Items[0].Status.PodIP, nil
+	}
+
+	return "", err
+}
+
+func FindDaemonSetByLabel(kubeClient kubernetes.Interface, namespace string, label string) ([]string, error) {
+	labelSelector := fmt.Sprintf(label)
+	s, err := kubeClient.AppsV1().DaemonSets(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelector})
+
+	if len(s.Items) == 0 {
+		return nil, fmt.Errorf("Unable to find any DaemonSet with label %s in namespace %s", label, namespace)
+	} else {
+		for _, ds := range s.Items {
+			ds.Spec.Template.Spec.Overhead.Pods()
+		}
+	}
+
+	return nil, err
+}
+
+func FindAvailableKafkaServices(kubeClient kubernetes.Interface, name string, sector string) ([]string, []string, error) {
+	s, err := kubeClient.CoreV1().Services("default").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	kafkaAddresses := []string{}
+	kafkaPorts := []string{}
+
+	// For this to work, the kafka-service has to contain an annotation field
+	// containing the advertised_IP of the Kafka broker (the same as in the deployment).
+	// Additionally, another label field called `sector` has to be set in the Kafka service
+	// to indicate where the broker is deployed Kafka broker is at the edge.
+	// Ideally, it should match the KAFKA_ADVERTISED_HOST_NAME in the deployment configuration.
+	// Using the service name doesn't work using the defualt Kafka YAML file.
+
+	if sector == "edge" {
+		for _, svc := range s.Items {
+			if strings.Contains(svc.GetName(), name) && svc.GetLabels()["sector"] == sector {
+				klog.Info("Found Apache Kafka edge service: " + svc.GetName() + "" + svc.GetClusterName())
+				kafkaAddresses = append(kafkaAddresses, svc.GetName()+"."+svc.GetNamespace())
+				kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].Port))
+			}
+		}
+	} else {
+		for _, svc := range s.Items {
+			val, found := svc.GetLabels()["sector"] // If we don't find it, it's a cloud service
+			if strings.Contains(svc.GetName(), name) && (!found || val == sector) {
+				klog.Info("Found Apache Kafka cloud service: " + svc.GetName() + "" + svc.GetClusterName())
+				kafkaAddresses = append(kafkaAddresses, svc.Annotations["advertised_ip"])
+				kafkaPorts = append(kafkaPorts, fmt.Sprint(svc.Spec.Ports[0].NodePort))
+			}
+		}
+	}
+
+	if len(kafkaAddresses) > 0 && len(kafkaPorts) > 0 {
+		return kafkaAddresses, kafkaPorts, err
+	}
+
+	return nil, nil, fmt.Errorf("can't find node ip for node %s", name)
+}
+
+// getBackoff calc the next wait time for the key
 func GetBackoff(queue workqueue.RateLimitingInterface, key interface{}) time.Duration {
 	exp := queue.NumRequeues(key)
 
@@ -92,6 +221,7 @@ func CalcActivePodCount(pods []*v1.Pod) int32 {
 			result++
 		}
 	}
+	klog.Infof("Active pods: %d", result)
 	return result
 }
 

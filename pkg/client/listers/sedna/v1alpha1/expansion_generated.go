@@ -66,6 +66,14 @@ type ModelListerExpansion interface{}
 // ModelNamespaceLister.
 type ModelNamespaceListerExpansion interface{}
 
+// MultiEdgeTrackingServiceListerExpansion allows custom methods to be added to
+// MultiEdgeTrackingServiceLister.
+type MultiEdgeTrackingServiceListerExpansion interface{}
+
+// MultiEdgeTrackingServiceNamespaceListerExpansion allows custom methods to be added to
+// MultiEdgeTrackingServiceNamespaceLister.
+type MultiEdgeTrackingServiceNamespaceListerExpansion interface{}
+
 // ObjectSearchServiceListerExpansion allows custom methods to be added to
 // ObjectSearchServiceLister.
 type ObjectSearchServiceListerExpansion interface{}

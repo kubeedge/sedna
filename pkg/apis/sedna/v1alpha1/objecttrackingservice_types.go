@@ -83,7 +83,7 @@ const (
 	ObjectTrackingServiceCondPending ObjectTrackingServiceConditionType = "Pending"
 	// ObjectTrackingServiceCondFailed means the service has failed its execution.
 	ObjectTrackingServiceCondFailed ObjectTrackingServiceConditionType = "Failed"
-	// ObjectTrackingServiceCondRunning means the service is running.
+	// ObjectTrackingServiceReady means the service has been ready.
 	ObjectTrackingServiceCondRunning ObjectTrackingServiceConditionType = "Running"
 )
 

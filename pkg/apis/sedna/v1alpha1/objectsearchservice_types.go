@@ -89,7 +89,7 @@ const (
 	ObjectSearchServiceCondPending ObjectSearchServiceConditionType = "Pending"
 	// ObjectSearchServiceCondFailed means the service has failed its execution.
 	ObjectSearchServiceCondFailed ObjectSearchServiceConditionType = "Failed"
-	// ObjectSearchServiceCondRunning means the service is running.
+	// ObjectSearchServiceReady means the service has been ready.
 	ObjectSearchServiceCondRunning ObjectSearchServiceConditionType = "Running"
 )
 

@@ -39,7 +39,7 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 	// Here only propagate to the nodes with non empty name
 
 	// FIXME(llhuii): only the case that all workers having the same nodeName are support,
-	// will support Spec.NodeSelector and different nodeName.
+	// will support Spec.NodeSelector and differenect nodeName.
 	nodeName := job.Spec.TrainSpec.Template.Spec.NodeName
 	if len(nodeName) == 0 {
 		return fmt.Errorf("empty node name")
