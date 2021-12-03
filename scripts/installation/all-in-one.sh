@@ -58,10 +58,14 @@ function prepare_env() {
   if [ -z "${KUBEEDGE_VERSION:-}" ]; then
     KUBEEDGE_VERSION=$(get_latest_version kubeedge/kubeedge $DEFAULT_KUBEEDGE_VERSION)
   fi
+  # 1.8.0 => v1.8.0
+  # v1.8.0 => v1.8.0
+  KUBEEDGE_VERSION=v${KUBEEDGE_VERSION#v}
 
   if [ -z "${SEDNA_VERSION:-}" ]; then
     SEDNA_VERSION=$(get_latest_version kubeedge/sedna $DEFAULT_SEDNA_VERSION)
   fi
+  SEDNA_VERSION=v${SEDNA_VERSION#v}
 
   : ${NUM_CLOUD_WORKER_NODES:=0}
   : ${NUM_EDGE_NODES:=1}
@@ -419,7 +423,7 @@ function install_sedna() {
   log_info "Installing Sedna Control Components..."
 
   run_in_control_plane bash -ec "
-    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_ACTION=create bash -
+    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_ACTION=create SEDNA_VERSION=$SEDNA_VERSION bash -
   "
 }
 

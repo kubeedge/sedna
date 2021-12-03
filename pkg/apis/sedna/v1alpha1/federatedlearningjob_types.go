@@ -134,9 +134,9 @@ type FLJobConditionType string
 
 // These are valid conditions of a job.
 const (
-	// FLJobComplete means the job has completed its execution.
+	// FLJobCondComplete means the job has completed its execution.
 	FLJobCondComplete FLJobConditionType = "Complete"
-	// FLJobFailed means the job has failed its execution.
+	// FLJobCondFailed means the job has failed its execution.
 	FLJobCondFailed FLJobConditionType = "Failed"
 	// FLJobCondTraining means the job has been training.
 	FLJobCondTraining FLJobConditionType = "Training"
