@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	sedna "github.com/kubeedge/sedna/pkg/apis/sedna"
+	"github.com/kubeedge/sedna/pkg/apis/sedna"
 )
 
 // SchemeGroupVersion is group version used to register these objects
