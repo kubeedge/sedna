@@ -356,7 +356,7 @@ func (c *Controller) addJobAnnotations(job *sednav1.IncrementalLearningJob, key 
 // transitJobState transit job to next state
 func (c *Controller) transitJobState(job *sednav1.IncrementalLearningJob) (bool, error) {
 	var initialType sednav1.ILJobStageConditionType
-	var latestCondition sednav1.ILJobCondition = sednav1.ILJobCondition{
+	var latestCondition = sednav1.ILJobCondition{
 		Stage: sednav1.ILJobTrain,
 		Type:  initialType,
 	}
@@ -364,7 +364,7 @@ func (c *Controller) transitJobState(job *sednav1.IncrementalLearningJob) (bool,
 	var newConditionType sednav1.ILJobStageConditionType
 	var needUpdated = false
 
-	var podStatus v1.PodPhase = v1.PodUnknown
+	var podStatus = v1.PodUnknown
 	var pod *v1.Pod
 
 	jobConditions := job.Status.Conditions
