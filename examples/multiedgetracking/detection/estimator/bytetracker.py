@@ -1,12 +1,10 @@
 import datetime
 import os
-from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
-
 import torch
 import numpy as np
 import cv2
-import pickle 
 
+from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
@@ -262,7 +260,7 @@ class ByteTracker(FluentdHelper):
 
             # append
             object_crops.append([
-                crop_encoded.tolist(),
+                crop_encoded,
                 box,
                 online_scores[i],
                 online_ids[i],

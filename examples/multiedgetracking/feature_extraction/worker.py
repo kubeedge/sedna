@@ -121,9 +121,7 @@ class Estimator(FluentdHelper):
         total_data = 0
 
         try:
-            image_as_array = dd.bbox[0].astype(np.uint8)
-                
-            imdata = Image.fromarray(image_as_array)
+            imdata = Image.fromarray(dd.bbox[0])
             LOGGER.info(f'Performing feature extraction for target image')
             input = torch.unsqueeze(self.transform(imdata), 0)
             input = input.to(self.device)
@@ -133,7 +131,7 @@ class Estimator(FluentdHelper):
                     query_feat = self.model(input)
                     LOGGER.debug(f"Extracted tensor with features: {query_feat}")
 
-            LOGGER.debug(f"Input image size: {image_as_array.nbytes}")
+            LOGGER.debug(f"Input image size: {dd.bbox[0].nbytes}")
             LOGGER.debug(f"Output tensor size {sys.getsizeof(query_feat.storage())}")
             total_data+=sys.getsizeof(query_feat.storage())
 

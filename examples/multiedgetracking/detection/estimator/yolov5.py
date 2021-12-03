@@ -5,6 +5,7 @@ import torch
 import numpy as np
 import cv2
 
+from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 from sedna.common.config import Context
 from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
@@ -76,6 +77,7 @@ class Yolov5(FluentdHelper):
         # # Process predictions
         s = ""
         bbs_list = []
+        result = None
         det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
 
         for _, det in enumerate(pred):  # detections per image
@@ -95,11 +97,22 @@ class Yolov5(FluentdHelper):
                     # Perform cropped image compression to reduce size
                     crop_encoded = np.array(cv2.imencode('.jpg', crop)[1])
                     
-                    bbs_list.append([crop_encoded.tolist(), conf.numpy().tolist(), self.camera_code, det_time])                   
+                    bbs_list.append([crop_encoded, conf.numpy(), self.camera_code, det_time])
 
-        # Send some data to fluentd for monitoring
-        self.write_to_fluentd(bbs_list)
+        # TODO: Add the bbox coordinates
+        if len(bbs_list) > 0:
+            scene = np.array(cv2.imencode('.jpg', data)[1])
+            result = DetTrackResult(
+                bbox=[item[0] for item in bbs_list],
+                scene=scene,
+                confidence=[item[1] for item in bbs_list],
+                detection_time=[item[3] for item in bbs_list],
+                camera=[item[2] for item in bbs_list]
+            )                   
 
-        LOGGER.info(f"Found {len(bbs_list)} object/s in camera {self.camera_code}")
+            # Send some data to fluentd for monitoring
+            self.write_to_fluentd(bbs_list)
+
+            LOGGER.info(f"Found {len(bbs_list)} object/s in camera {self.camera_code}")
         
-        return bbs_list
+        return result

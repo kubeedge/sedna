@@ -17,7 +17,7 @@ class FE:
 
     def feature_extraction(self, x : DetTrackResult, **kwargs):
         """Transfer feature vector to FE worker"""
-        json_data = deepcopy(kwargs)
-        json_data.update({"data": [x.to_json()]})
+        # json_data = deepcopy(kwargs)
+        # json_data.update({"data": [x.to_json()]})
         _url = f"{self.endpoint}/feature_extraction"
         return http_request(url=_url, method="POST", data=pickle.dumps(x))
