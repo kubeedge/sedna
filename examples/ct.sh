@@ -62,7 +62,7 @@ spec:
   transmitter: # option
     #ws: { } # option, by default
     s3: # option, but at least one
-      aggDataPath: "s3://cotraining/feature_data"
+      aggDataPath: "s3://cotraining"
       credentialName: ctsecret
   aggregationWorker:
     model:
