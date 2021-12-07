@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pickle
+import threading
+
+import requests
 import cv2
 import numpy as np
 import os
@@ -45,7 +49,6 @@ class Estimator():
         self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
         LOGGER.debug(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
 
-        self.target = None
         self.target_ID = "0000"
 
     def _extract_id(self, text):
@@ -93,16 +96,16 @@ class Estimator():
         
         return None
 
-    def load_target(self, det_track : DetTrackResult):
-        LOGGER.info("Target features have been provided")
-        
-        query_feat = torch.from_numpy(np.array(det_track.features[0]))
+    def load_target(self, det_track : DetTrackResult):        
+        query_feat = det_track.features[0]
         query_feat = query_feat.float()
+        LOGGER.debug(query_feat)
 
         result = self.reid(query_feat, 0, 0)
 
-        self.target = query_feat
         self.target_ID = result.get('object_id')
+
+        LOGGER.info(f"Target with ID {self.target_ID} acquired!")
 
     def create_result(self, idx, dt: DetTrackResult, id):
         return DetTrackResult(
@@ -124,12 +127,10 @@ class Estimator():
 
         if det_track.is_target:
             self.load_target(det_track)
-            return 200
+            return tresult
 
         for idx, elem in enumerate(det_track.bbox):
-            temp = np.array(det_track.features[idx])
-
-            query_feat = torch.from_numpy(temp)
+            query_feat = det_track.features[idx]
             query_feat = query_feat.float()
 
             result = self.reid(query_feat, det_track.camera[idx], det_track.detection_time[idx]) 

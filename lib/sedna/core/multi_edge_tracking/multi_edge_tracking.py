@@ -15,6 +15,7 @@
 import base64
 import io, json
 import os, queue
+import pickle
 from copy import deepcopy
 import threading
 import time
@@ -40,7 +41,7 @@ from sedna.service.server import ReIDServer
 
 import distutils.core
 
-__all__ = ("FEService", "ReIDService", "ObjectDetector")
+__all__ = ("FEService", "ReIDService", "ObjectDetector", "FE_ReIDService")
 
 class ReIDService(JobBase):
     """
@@ -133,6 +134,154 @@ class ReIDService(JobBase):
             self.log.info(f"{status['op_mode']} mode activated!")
             self.op_mode = status['op_mode']
 
+class FE_ReIDService(JobBase):
+    """
+    Fused Feature Extraction+ReID service.
+    """
+
+    def __init__(self, estimator=None, config=None):
+        super(FE_ReIDService, self).__init__(
+            estimator=estimator, config=config)
+        self.log.info("Loading Feature Extraction+ReID module")
+
+        # Port and IP of the service this pod will host (local)
+        self.local_ip = self.get_parameters("REID_MODEL_BIND_IP", get_host_ip())
+        self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
+
+        self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
+        self.sync_queue = queue.Queue()
+
+        if self.kafka_enabled:
+            self.log.debug("Kafka support enabled in YAML file")
+            self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
+            self.kafka_port = self.get_parameters("KAFKA_BIND_PORTS", [32669])
+            
+            if isinstance(self.kafka_address, str):
+                self.log.debug(f"Parsing string received from K8s controller {self.kafka_address},{self.kafka_port}")
+                self.kafka_address = self.kafka_address.split("|")
+                self.kafka_port = self.kafka_port.split("|")
+
+            self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic=["reid"])
+            self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic=["object_detection"], sync_queue=self.sync_queue)
+
+        if estimator is None:
+            self.log.error("ERROR! Estimator is not set!")
+
+        # Operating Mode
+        self.op_mode = "detection"
+        self.target = None
+
+    def start(self):
+        if callable(self.estimator):
+            self.estimator = self.estimator()
+
+        self.log.info(f"Loading model")
+        if not os.path.exists(self.model_path):
+            raise FileExistsError(f"{self.model_path} miss")
+        else:
+            self.estimator.load(self.model_path)
+
+        self.log.info("Evaluating model")
+        self.estimator.evaluate()
+
+        StatusSyncThread(self.update_operational_mode)
+
+        if self.kafka_enabled:
+            self.log.debug("Creating Apache Kafka thread to fetch data")
+            self.fetch_data()
+        else:
+            self.log.debug("Starting default REST webservice/s")
+
+            app_server = FEServer(model=self, servername=self.job_name,host=self.local_ip, http_port=self.port)
+
+            self.queue = queue.Queue()
+            threading.Thread(target=self.fetch_data, daemon=True).start()
+
+            app_server.start()
+
+    def fetch_data(self):
+        while True:
+            token = self.sync_queue.get()
+            self.log.debug(f'Data consumed')
+            try:
+                self.inference(token)
+            except Exception as e:
+                msg = f"Error processing token {token}: {e}" 
+                self.log.error((msg[:60] + '..' + msg[len(msg)-40:-1]) if len(msg) > 60 else msg)
+
+            self.sync_queue.task_done()
+
+    def put_data(self, data):
+        self.sync_queue.put(data)
+        self.log.debug("Data deposited")
+
+    def inference(self, data=None, post_process=None, **kwargs):
+        callback_func = None
+        cres = None
+
+        if callable(post_process):
+            callback_func = post_process
+        elif post_process is not None:
+            callback_func = ClassFactory.get_cls(
+                ClassType.CALLBACK, post_process)
+
+        res = self.estimator.predict(data, op_mode=self.op_mode, **kwargs)
+        fe_result = deepcopy(res)
+
+        if callback_func:
+            res = callback_func(res)
+
+        if fe_result != None:
+            if self.kafka_enabled:
+                with FTimer(f"upload_fe_reid_results"):
+                    cres = self.producer.write_result(fe_result)
+            else:
+                threading.Thread(target=self.transfer_reid_result, args=(fe_result,), daemon=False).start()
+
+        return [None, cres, fe_result, None]
+
+    def transfer_reid_result(self, result, endpoint="http://7.182.9.110:27345/sedna/push_data"):
+        try:
+            LOGGER.debug("Posting results")
+            with FTimer(f"upload_fe_reid_results"):
+                status = requests.post(endpoint, pickle.dumps(result))
+            LOGGER.debug(status.status_code)
+        except Exception as ex:
+            LOGGER.error(f'Unable to upload reid results to WebApp. [{ex}]')
+
+    def update_operational_mode(self, status):
+        self.log.debug("Configuration update triggered")
+
+        if status == None:
+            return
+        
+        if self.op_mode != status['op_mode']:
+            self.log.info(f"{status['op_mode']} mode activated!")
+            self.op_mode = status['op_mode']
+
+            if self.op_mode == "detection":
+                self.target = None
+                return
+
+        if self.target != status['target'] and self.op_mode != "detection":
+            self.log.info("Target has been updated!")
+            self.target = status['target']
+            json_data = json.dumps(status['target'])
+            img_bytes = base64.b64decode(json_data.encode('utf-8'))
+
+            self.log.info(img_bytes[0:10])
+            # convert bytes data to PIL Image object
+            img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+
+            # PIL image object to numpy array
+            img_arr = np.asarray(img)      
+
+            data = DetTrackResult([img_arr], None, [], 0, 0, is_target=True)
+            # data = pickle.dumps(data)
+            # data = [ img_arr, 1.0, 0, 0, 1 ]
+            self.inference(data, post_process=None, new_target=True)
+        else:
+            self.log.debug("Target unchanged")
 
 class FEService(JobBase):
     """
@@ -257,23 +406,24 @@ class FEService(JobBase):
                 self.target = None
                 return
 
-            if self.target != status['target'] and self.op_mode != "detection":
-                self.target = status['target']
-                json_data = json.dumps(self.target)
-                img_bytes = base64.b64decode(json_data.encode('utf-8'))
+        if self.target != status['target'] and self.op_mode != "detection":
+            self.log.info("Target has been updated!")
+            self.target = status['target']
+            json_data = json.dumps(status['target'])
+            img_bytes = base64.b64decode(json_data.encode('utf-8'))
 
-                # convert bytes data to PIL Image object
-                img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+            # convert bytes data to PIL Image object
+            img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
 
-                # PIL image object to numpy array
-                img_arr = np.asarray(img)      
+            # PIL image object to numpy array
+            img_arr = np.asarray(img)      
 
-                data = DetTrackResult([img_arr], None, [], 0, 0, is_target=True)
-                # data = pickle.dumps(data)
-                # data = [ img_arr, 1.0, 0, 0, 1 ]
-                self.inference(data, post_process=None, new_target=True)
-            else:
-                self.log.debug("Target unchanged")
+            data = DetTrackResult([img_arr], None, [], 0, 0, is_target=True)
+            # data = pickle.dumps(data)
+            # data = [ img_arr, 1.0, 0, 0, 1 ]
+            self.inference(data, post_process=None, new_target=True)
+        else:
+            self.log.debug("Target unchanged")
 
 
 class ObjectDetector(JobBase):
@@ -366,7 +516,9 @@ class ObjectDetector(JobBase):
             self.op_mode = status['op_mode']
 
 class StatusSyncThread(threading.Thread):
-
+    """
+    Status Syncronization thread to change at runtime operation mode.
+    """
     def __init__(self, callback, update_endpoint="http://7.182.9.110:27345/sedna/get_app_details", update_interval=10):
         super().__init__()
         LOGGER.info("Creating StatusSyncThread")
@@ -376,12 +528,14 @@ class StatusSyncThread(threading.Thread):
         self.update_interval = update_interval
         self.daemon = True
 
+        self.last_update = None
+
         self.start()
 
     def sync_configuration(self):
         LOGGER.debug(f'Attempting to synchronize the pod configuration')
         try:
-            status = requests.get(self.update_endpoint)
+            status = requests.post(self.update_endpoint, data=self.last_update)
             LOGGER.debug(f'Current status retrieved')
             return json.loads(status.content)
 
@@ -396,5 +550,11 @@ class StatusSyncThread(threading.Thread):
         while 1:
             with FTimer("status_update"):
                 status = self.sync_configuration()
-            self.callback(status) #pass a callback function to the thread, it's better
+            
+            # We only update the pods if there are new information
+            if status:
+                if self.last_update == None or self.last_update != status.get("last_update", ""):
+                    self.last_update = status.get("last_update", "")
+                    self.callback(status)
+            
             time.sleep(self.update_interval)

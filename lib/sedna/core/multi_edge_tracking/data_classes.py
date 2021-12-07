@@ -15,6 +15,6 @@ class DetTrackResult:
         self.is_target = is_target
         self.ID : List = ID
         try:
-            self.image_key = f'{datetime.strptime(self.detection_time[0], "%a, %d %B %Y %H:%M:%S").timestamp()}_{self.camera[0]}' 
+            self.image_key = f'{datetime.strptime(self.detection_time[0], "%a, %d %B %Y %H:%M:%S.%f").timestamp()}_{self.camera[0]}' 
         except:
             self.image_key = "0"

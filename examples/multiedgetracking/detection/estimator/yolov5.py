@@ -1,20 +1,6 @@
-# Copyright 2021 The KubeEdge Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import os
 import datetime
-import pickle
+
 import torch
 import numpy as np
 import cv2
@@ -48,18 +34,20 @@ class Yolov5(FluentdHelper):
         LOGGER.debug(f"Evaluating model")
         self.model.eval()
 
-    def write_to_fluentd(self, result : DetTrackResult):
+    def write_to_fluentd(self, data):
         try:
-            msg = {
+            for elem in data:
+                bts = np.sum(list(map(lambda x: x.nbytes, elem[0])))
+                
+                msg = {
                     "worker": "l2-object-detector",
-                    "outbound_data": len(pickle.dumps(result)),
-                    "confidence": np.median(result.confidence).item()
-            }
-
-            self.send_json_msg(msg)
+                    "outbound_data": int(bts),
+                    "confidence": elem[1]
+                }
+                
+                self.send_json_msg(msg)
         except Exception as ex:
             LOGGER.error(f"Error while transmitting data to fluentd. Details: [{ex}]")
-
 
     def predict(self, data, **kwargs):
         LOGGER.debug("Manipulating source image")
@@ -123,7 +111,7 @@ class Yolov5(FluentdHelper):
             )                   
 
             # Send some data to fluentd for monitoring
-            self.write_to_fluentd(result)
+            self.write_to_fluentd(bbs_list)
 
             LOGGER.info(f"Found {len(bbs_list)} object/s in camera {self.camera_code}")
         

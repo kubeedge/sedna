@@ -47,7 +47,6 @@ class R1_mAP(Metric):
     def compute(self):
         feats = torch.cat(self.feats, dim=0)
         if self.feat_norm == 'yes':
-            print("The test feature is normalized")
             feats = torch.nn.functional.normalize(feats, dim=1, p=2)
         # query
         qf = feats[:self.num_query]

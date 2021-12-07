@@ -484,6 +484,10 @@ func isMultiEdgeTrackingServiceFinished(j *sednav1.MultiEdgeTrackingService) boo
 func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (activePods int32, activeDeployments int32, err error) {
 	activePods = 0
 	activeDeployments = 0
+	var fused_layers bool
+
+	var secretName string
+	var modelSecret *v1.Secret
 
 	// Sector represent the location in the network where the node is deployed (edge or cloud)
 	sector, err := runtime.IdentifyNodeSector(mc.kubeClient, service.Spec.ReIDDeploy.Spec.Template.Spec.NodeName)
@@ -495,6 +499,31 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 
 	var workerParam runtime.WorkerParam
 	workerParam.WorkerType = ReIDWoker
+
+	if *service.Spec.FEDeploy.Spec.Replicas == 0 {
+		klog.Info("Fused layers configuration detected, loading model into FE+ReID deployment")
+		// Load model used by the pods in this deployment
+		feModelName := service.Spec.ReIDDeploy.Model.Name
+		feModel, err := mc.client.Models(service.Namespace).Get(context.Background(), feModelName, metav1.GetOptions{})
+		if err != nil {
+			return activePods, activeDeployments, fmt.Errorf("Failed to get model %s: %w", feModelName, err)
+		}
+
+		secretName = feModel.Spec.CredentialName
+		if secretName != "" {
+			modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+		}
+
+		workerParam.Mounts = append(make([]runtime.WorkerMount, 1), runtime.WorkerMount{
+			URL: &runtime.MountURL{
+				URL:                   feModel.Spec.URL,
+				Secret:                modelSecret,
+				DownloadByInitializer: true,
+			},
+			Name:    "model",
+			EnvName: "MODEL_URL",
+		})
+	}
 
 	workerParam.HostNetwork = true
 	workerParam.Env = map[string]string{
@@ -546,67 +575,74 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 
 	// Disabled until the edge kafka broker is working
 	// sector, err = IdentifyNodeSector(mc.kubeClient, service.Spec.FEDeploy.Spec.Template.Spec.NodeName)
+	var FEServiceURL string
 
-	// Find Fluentd service IP
-	fluentdIP, err = runtime.FindColocatedFluentdPod(mc.kubeClient, service.Spec.FEDeploy.Spec.Template.Spec.NodeName)
+	if *service.Spec.FEDeploy.Spec.Replicas > 0 {
+		// Find Fluentd service IP
+		fluentdIP, err = runtime.FindColocatedFluentdPod(mc.kubeClient, service.Spec.FEDeploy.Spec.Template.Spec.NodeName)
 
-	// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
-	kfk_addresses, kfk_ports, err = runtime.FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
+		// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
+		kfk_addresses, kfk_ports, err = runtime.FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
 
-	workerParam.WorkerType = FEWorker
+		workerParam.WorkerType = FEWorker
 
-	// Load model used by the pods in this deployment
-	feModelName := service.Spec.FEDeploy.Model.Name
-	feModel, err := mc.client.Models(service.Namespace).Get(context.Background(), feModelName, metav1.GetOptions{})
-	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("Failed to get model %s: %w", feModelName, err)
-	}
+		// Load model used by the pods in this deployment
+		feModelName := service.Spec.FEDeploy.Model.Name
+		feModel, err := mc.client.Models(service.Namespace).Get(context.Background(), feModelName, metav1.GetOptions{})
+		if err != nil {
+			return activePods, activeDeployments, fmt.Errorf("Failed to get model %s: %w", feModelName, err)
+		}
 
-	secretName := feModel.Spec.CredentialName
-	var modelSecret *v1.Secret
-	if secretName != "" {
-		modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.Background(), secretName, metav1.GetOptions{})
-	}
+		secretName = feModel.Spec.CredentialName
+		if secretName != "" {
+			modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+		}
 
-	workerParam.Mounts = append(make([]runtime.WorkerMount, 1), runtime.WorkerMount{
-		URL: &runtime.MountURL{
-			URL:                   feModel.Spec.URL,
-			Secret:                modelSecret,
-			DownloadByInitializer: true,
-		},
-		Name:    "model",
-		EnvName: "MODEL_URL",
-	})
+		workerParam.Mounts = append(make([]runtime.WorkerMount, 1), runtime.WorkerMount{
+			URL: &runtime.MountURL{
+				URL:                   feModel.Spec.URL,
+				Secret:                modelSecret,
+				DownloadByInitializer: true,
+			},
+			Name:    "model",
+			EnvName: "MODEL_URL",
+		})
 
-	workerParam.Env = map[string]string{
-		"NAMESPACE":            service.Namespace,
-		"SERVICE_NAME":         service.Name,
-		"WORKER_NAME":          "feworker-" + utilrand.String(5),
-		"REID_MODEL_BIND_URL":  reIDIP,
-		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPortService)),
-		"LC_SERVER":            mc.cfg.LC.Server,
-		"FLUENTD_IP":           fluentdIP,
-	}
+		workerParam.Env = map[string]string{
+			"NAMESPACE":            service.Namespace,
+			"SERVICE_NAME":         service.Name,
+			"WORKER_NAME":          "feworker-" + utilrand.String(5),
+			"REID_MODEL_BIND_URL":  reIDIP,
+			"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPortService)),
+			"LC_SERVER":            mc.cfg.LC.Server,
+			"FLUENTD_IP":           fluentdIP,
+		}
 
-	if service.Spec.FEDeploy.KafkaSupport {
-		workerParam.Env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.FEDeploy.KafkaSupport)
-		workerParam.Env["KAFKA_BIND_IPS"] = strings.Join(kfk_addresses, "|")
-		workerParam.Env["KAFKA_BIND_PORTS"] = strings.Join(kfk_ports, "|")
-	}
+		if service.Spec.FEDeploy.KafkaSupport {
+			workerParam.Env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.FEDeploy.KafkaSupport)
+			workerParam.Env["KAFKA_BIND_IPS"] = strings.Join(kfk_addresses, "|")
+			workerParam.Env["KAFKA_BIND_PORTS"] = strings.Join(kfk_ports, "|")
+		}
 
-	// Create FE deployment AND related pods (as part of the deployment creation)
-	_, err = runtime.CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
-	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("failed to create feature extraction workers deployment: %w", err)
-	}
-	activeDeployments++
+		// Create FE deployment AND related pods (as part of the deployment creation)
+		_, err = runtime.CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
+		if err != nil {
+			return activePods, activeDeployments, fmt.Errorf("failed to create feature extraction workers deployment: %w", err)
+		}
+		activeDeployments++
 
-	activePods++
+		activePods++
 
-	// Create edgemesh service for FE
-	FEServiceURL, err := runtime.CreateEdgeMeshService(mc.kubeClient, service, FEWorker, FEPort)
-	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
+		// Create edgemesh service for FE
+		FEServiceURL, err = runtime.CreateEdgeMeshService(mc.kubeClient, service, FEWorker, FEPort)
+		if err != nil {
+			return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
+		}
+
+	} else {
+		// If we reach this condition, it means that we are using the fused version of FE+ReID
+		klog.Info("Fused layers configuration detected, skipping creation of FE deployment")
+		fused_layers = true
 	}
 
 	/*
@@ -647,12 +683,23 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 		EnvName: "MODEL_URL",
 	})
 
+	var bindIP string
+	var bindPort int
+
+	if fused_layers == true {
+		bindIP = reIDIP
+		bindPort = reIDPort
+	} else {
+		bindIP = FEServiceURL
+		bindPort = FEPort
+	}
+
 	workerParam.Env = map[string]string{
 		"NAMESPACE":          service.Namespace,
 		"SERVICE_NAME":       service.Name,
 		"WORKER_NAME":        "motworker-" + utilrand.String(5),
-		"FE_MODEL_BIND_URL":  FEServiceURL,
-		"FE_MODEL_BIND_PORT": strconv.Itoa(int(FEPort)),
+		"FE_MODEL_BIND_URL":  bindIP,
+		"FE_MODEL_BIND_PORT": strconv.Itoa(int(bindPort)),
 		"LC_SERVER":          mc.cfg.LC.Server,
 		"FLUENTD_IP":         fluentdIP,
 	}

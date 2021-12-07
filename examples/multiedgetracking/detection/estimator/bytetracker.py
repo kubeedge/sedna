@@ -1,18 +1,3 @@
-
-# Copyright 2021 The KubeEdge Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import datetime
 import os
 import torch
@@ -42,8 +27,6 @@ match_thresh = float(Context.get_parameters('match_thresh', 0.8))
 min_box_area = int(Context.get_parameters('min_box_area', 500))
 
 # Detection parameters
-os.environ['BACKEND_TYPE'] = 'TORCH'
-
 confidence_thr = Context.get_parameters('confidence_thr', 0.25)
 nms_thr = Context.get_parameters('nms_thr', 0.45)
 num_classes = Context.get_parameters('num_classes', 1)
@@ -183,7 +166,7 @@ class ByteTracker(FluentdHelper):
 
         return outputs, img_info
 
-    def detect_only(self, data, outputs, img_info):
+    def detect_only(self, data, outputs, img_info, det_time):
         object_crops = []
         result = None
 
@@ -196,7 +179,6 @@ class ByteTracker(FluentdHelper):
 
             # Crop to person detections
             # person crops is a list of numpy arrays containing the image cropped to that person only
-            det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
 
             for i in range(len(bboxes)):
                 box = bboxes[i]
@@ -223,7 +205,7 @@ class ByteTracker(FluentdHelper):
         return result
 
 
-    def track(self, data, outputs, img_info):
+    def track(self, data, outputs, img_info, det_time):
         # initialize placeholders for the tracking data
         online_tlwhs = []
         online_ids = []
@@ -261,8 +243,6 @@ class ByteTracker(FluentdHelper):
         # prepare data for transmission
         object_crops = []
         result = None
-
-        det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
 
         for i in range(len(online_bboxes)):
             # generate the object crop
@@ -313,6 +293,7 @@ class ByteTracker(FluentdHelper):
         """
         
         self.original_size = (data.shape[0], data.shape[1])
+        det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
 
         # get detections from the image forward pass
         outputs, img_info = self.forward(data)
@@ -321,7 +302,7 @@ class ByteTracker(FluentdHelper):
             return None
 
         if kwargs['op_mode'] == "detection":
-            return self.detect_only(data, outputs, img_info)
+            return self.detect_only(data, outputs, img_info, det_time)
         else:
-            return self.track(data, outputs, img_info)
+            return self.track(data, outputs, img_info, det_time)
      

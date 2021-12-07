@@ -59,6 +59,8 @@ type FEDeploy struct {
 type ReIDDeploy struct {
 	Spec         appsv1.DeploymentSpec `json:"spec"`
 	KafkaSupport bool                  `json:"kafkaSupport,omitempty"`
+	// +optional
+	Model FEModel `json:"model,omitempty"`
 }
 
 // DetectionModel describes the detection model

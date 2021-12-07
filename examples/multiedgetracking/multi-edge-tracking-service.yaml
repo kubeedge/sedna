@@ -1,11 +1,11 @@
 apiVersion: sedna.io/v1alpha1
 kind: MultiEdgeTrackingService
 metadata:
-  name: container-tracking
+  name: pedestrian-tracking
 spec:
   motDeploy: 
     model:
-      name: "detection-yolov5s"
+      name: detection-pedestrians-yolox
     kafkaSupport: false
     spec:
       replicas: 3
@@ -19,18 +19,20 @@ spec:
         spec:
           nodeName: "fraprigel00001"
           containers:
-            - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-detection:v0.3.0
+            - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-detection:v0.4.0
               imagePullPolicy: Always
               name:  detection
               env:  # user defined environments
               - name: input_shape
                 value: "640"
+              - name: confidence_thr
+                value: "0.25"
+              - name: "estimator_class"
+                value: "ByteTracker"
               - name: "video_url"
                 value: "rtsp://172.17.0.1/video/0"
-              - name: "estimator_class"
-                value: "Yolov5"
               - name: "stream_dispatcher_url"
-                value: "http://7.182.9.110:8478/get_rtsp_stream" # we should have a k8s deploy+service+pod for this later
+                value: "http://7.182.9.110:27345/sedna/get_rtsp_stream" # we should have a k8s deploy+service+pod for this later
               resources:  # user defined resources
                 requests:
                   memory: 64M
@@ -54,7 +56,7 @@ spec:
         spec:
           nodeName: "frapedge00001"
           containers:
-          - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-feature-extraction:v0.3.0
+          - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-feature-extraction:v0.4.0
             imagePullPolicy: Always
             ports:
               - containerPort: 6000
@@ -83,7 +85,7 @@ spec:
         spec:
           nodeName: "fraporion00001"
           containers:
-            - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-reid:v0.3.0
+            - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-reid:v0.4.0
               name:  reid
               imagePullPolicy: Always
               ports:
@@ -101,7 +103,7 @@ spec:
               - name: "imgpath"
                 value: "imgpath.npy"
               - name: "dataset"
-                value: "efficientnetv2_containers2021_3"
+                value: "efficientnetv2_huawei2021"
               resources:  # user defined resources
                 requests:
                   memory: 2Gi
