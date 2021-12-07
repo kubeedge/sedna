@@ -9,7 +9,7 @@ kind: Secret
 metadata:
   name: ctsecret
   annotations:
-    s3-endpoint: 10.44.115.96:9000
+    s3-endpoint: 151.0.128.21:9000
     s3-usehttps: "0"
 stringData: 
   ACCESS_KEY_ID: minio123
@@ -25,6 +25,17 @@ spec:
   url: "/mnt/data/tt/data/1/robot.txt"
   format: "txt"
   nodeName: euler19
+EOF
+
+kubectl $action -f - <<EOF
+apiVersion: sedna.io/v1alpha1
+kind: Dataset
+metadata:
+  name: "dataset-2"
+spec:
+  url: "/home/huawei/tt/data/1/robot.txt"
+  format: "txt"
+  nodeName: infer-4
 EOF
 
 kubectl $action -f - <<EOF
@@ -140,5 +151,42 @@ spec:
           - name: ascend-dirver
             hostPath:
                 path: /home/data/miniD/driver
+  trainingWorkers:
+    - dataset:
+        name: "dataset-2"
+      template:
+        spec:
+          nodeName: "infer-4"
+          containers:
+            - image: decshub.org/mistnet-yolo-client:v0.4.0
+              name: train-worker
+              imagePullPolicy: IfNotPresent
+              args: [ "-i", "1" ]
+              env: # user defined environments
+                - name: "cut_layer"
+                  value: "4"
+                - name: "epsilon"
+                  value: "100"
+                - name: "aggregation_algorithm"
+                  value: "mistnet"
+                - name: "batch_size"
+                  value: "32"
+                - name: "learning_rate"
+                  value: "0.001"
+                - name: "epochs"
+                  value: "1"
+              resources: # user defined resources
+                limits:
+                  memory: 8Gi
+                  huawei.com/Ascend310: 1
+              securityContext:
+                privileged: true
+              volumeMounts:
+                  - name: ascend-dirver
+                    mountPath: /usr/local/Ascend/driver
+          volumes:
+          - name: ascend-dirver
+            hostPath:
+                path: /usr/local/Ascend/driver
 EOF
 }
