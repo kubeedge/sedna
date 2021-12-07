@@ -593,7 +593,7 @@ func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32,
 			"DATASET_NAME":       datasetName,
 			"LC_SERVER":          c.cfg.LC.Server,
 		}
-		workerParam.WorkerType = runtime.TrainPodType
+		workerParam.WorkerType = "client"
 		workerParam.HostNetwork = true
 		workerParam.RestartPolicy = v1.RestartPolicyOnFailure
 
