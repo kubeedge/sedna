@@ -27,11 +27,11 @@ def main():
     data.parameters["train_path"] = os.path.join(data.parameters["data_path"], "./coco128/images/train2017/")
     data.parameters["test_path"] = data.parameters["train_path"]
 
-    from plato.utils import s3
-
-    s3_client = s3.S3(s3_transmitter.parameters["s3_endpoint_url"], s3_transmitter.parameters["access_key"],
+    if "s3_endpoint_url" in s3_transmitter.parameters:
+        from plato.utils import s3
+        s3_client = s3.S3(s3_transmitter.parameters["s3_endpoint_url"], s3_transmitter.parameters["access_key"],
                       s3_transmitter.parameters["secret_key"], s3_transmitter.parameters["s3_bucket"])
-    s3_client.download_from_s3("model/client_model/yolov5x_cutlayer4.om", "./yolov5x_cutlayer4.om")
+        s3_client.download_from_s3("model/client_model/yolov5x_cutlayer4.om", "./yolov5x_cutlayer4.om")
 
     estimator.model = Inference(0, "./yolov5x_cutlayer4.om", 640, 640)
     estimator.trainer = Trainer(model=estimator.model)
