@@ -28,6 +28,7 @@ from sedna.common.log import LOGGER
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
+from sedna.core.multi_edge_tracking.utils import transfer_reid_result
 
 from sedna.service.fe_endpoint import FE
 from sedna.service.kafka_manager import KafkaConsumerThread, KafkaProducer
@@ -43,6 +44,9 @@ import distutils.core
 
 __all__ = ("FEService", "ReIDService", "ObjectDetector", "FE_ReIDService")
 
+# TODO: Create a parent class to inherit from to reduce code duplication.
+# Maybe make use of abstact classes too.
+
 class ReIDService(JobBase):
     """
     Re-Identification model services
@@ -57,6 +61,10 @@ class ReIDService(JobBase):
         self.local_ip = self.get_parameters("REID_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
+
+        self.upload_endpoint = self.get_parameters("upload_endpoint", "http://localhost:8080/upload_data")
+        self.status_update_endpoint = self.get_parameters("status_update_endpoint", "http://7.182.9.110:27345/sedna/get_app_details")
+        self.post_process_result = bool(distutils.util.strtobool(self.get_parameters("post_process_result", "False")))
 
         if self.kafka_enabled:
             self.log.debug("Kafka support enabled in YAML file")
@@ -79,7 +87,7 @@ class ReIDService(JobBase):
         if callable(self.estimator):
             self.estimator = self.estimator()
 
-        StatusSyncThread(self.update_operational_mode)
+        StatusSyncThread(self.update_operational_mode, self.status_update_endpoint)
 
         # The cloud instance only runs a distance function to do the ReID
         # We don't load any model here.
@@ -116,13 +124,14 @@ class ReIDService(JobBase):
             reid = callback_func(reid)
 
         if reid != None:
-            with FTimer(f"upload_reid"):
-                if self.kafka_enabled:
+            if self.kafka_enabled:
+                with FTimer(f"upload_reid"):
                     self.producer.write_result(reid)
-                else:
-                    pass
+            else:
+                threading.Thread(target=transfer_reid_result, args=(reid, self.upload_endpoint, self.post_process_result), daemon=False).start()
 
         return None
+
 
     def update_operational_mode(self, status):
         self.log.debug("Configuration update triggered")
@@ -142,11 +151,15 @@ class FE_ReIDService(JobBase):
     def __init__(self, estimator=None, config=None):
         super(FE_ReIDService, self).__init__(
             estimator=estimator, config=config)
-        self.log.info("Loading Feature Extraction+ReID module")
+        self.log.info("Start Feature Extraction+ReID module")
 
         # Port and IP of the service this pod will host (local)
         self.local_ip = self.get_parameters("REID_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
+
+        self.upload_endpoint = self.get_parameters("upload_endpoint", "http://localhost:8080/upload_data")
+        self.status_update_endpoint = self.get_parameters("status_update_endpoint", "http://7.182.9.110:27345/sedna/get_app_details")
+        self.post_process_result = bool(distutils.util.strtobool(self.get_parameters("post_process_result", "False")))
 
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
         self.sync_queue = queue.Queue()
@@ -184,7 +197,7 @@ class FE_ReIDService(JobBase):
         self.log.info("Evaluating model")
         self.estimator.evaluate()
 
-        StatusSyncThread(self.update_operational_mode)
+        StatusSyncThread(self.update_operational_mode, self.status_update_endpoint)
 
         if self.kafka_enabled:
             self.log.debug("Creating Apache Kafka thread to fetch data")
@@ -236,18 +249,9 @@ class FE_ReIDService(JobBase):
                 with FTimer(f"upload_fe_reid_results"):
                     cres = self.producer.write_result(fe_result)
             else:
-                threading.Thread(target=self.transfer_reid_result, args=(fe_result,), daemon=False).start()
+                threading.Thread(target=transfer_reid_result, args=(fe_result, self.upload_endpoint, self.post_process_result), daemon=False).start()
 
         return [None, cres, fe_result, None]
-
-    def transfer_reid_result(self, result, endpoint="http://7.182.9.110:27345/sedna/push_data"):
-        try:
-            LOGGER.debug("Posting results")
-            with FTimer(f"upload_fe_reid_results"):
-                status = requests.post(endpoint, pickle.dumps(result))
-            LOGGER.debug(status.status_code)
-        except Exception as ex:
-            LOGGER.error(f'Unable to upload reid results to WebApp. [{ex}]')
 
     def update_operational_mode(self, status):
         self.log.debug("Configuration update triggered")
@@ -303,6 +307,8 @@ class FEService(JobBase):
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
         self.sync_queue = queue.Queue()
 
+        self.status_update_endpoint = self.get_parameters("status_update_endpoint", "http://7.182.9.110:27345/sedna/get_app_details")
+
         if self.kafka_enabled:
             self.log.debug("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
@@ -336,7 +342,7 @@ class FEService(JobBase):
         self.log.info("Evaluating model")
         self.estimator.evaluate()
 
-        StatusSyncThread(self.update_operational_mode)
+        StatusSyncThread(self.update_operational_mode, self.status_update_endpoint)
 
         if self.kafka_enabled:
             self.log.debug("Creating Apache Kafka thread to fetch data")
@@ -443,6 +449,8 @@ class ObjectDetector(JobBase):
 
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
 
+        self.status_update_endpoint = self.get_parameters("status_update_endpoint", "http://7.182.9.110:27345/sedna/get_app_details")
+
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
 
@@ -475,7 +483,7 @@ class ObjectDetector(JobBase):
         self.log.info("Evaluating model")
         self.estimator.evaluate()
 
-        StatusSyncThread(self.update_operational_mode)
+        StatusSyncThread(self.update_operational_mode, self.status_update_endpoint)
 
         if not self.kafka_enabled:
             self.log.debug("Starting default REST webservice/s")

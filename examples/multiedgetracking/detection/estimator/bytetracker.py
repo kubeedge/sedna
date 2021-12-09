@@ -188,19 +188,23 @@ class ByteTracker(FluentdHelper):
 
                 crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
 
-                object_crops.append([crop_encoded.tolist(), score.item(), self.camera_code, det_time]) 
+                object_crops.append([crop_encoded, score.item(), bboxes[i], self.camera_code, det_time]) 
             
             if len(object_crops) > 0:
                 scene = np.array(cv2.imencode('.jpg', data)[1])
-                result = DetTrackResult([item[0] for item in object_crops], scene, [item[1] for item in object_crops], [item[3] for item in object_crops], [item[2] for item in object_crops])
+                result = DetTrackResult(
+                    bbox=[item[0] for item in object_crops],
+                    scene=scene,
+                    bbox_coord=[item[2] for item in object_crops],
+                    confidence=[item[1] for item in object_crops],
+                    camera=[item[4] for item in object_crops],
+                    detection_time=[item[3] for item in object_crops]
+                )
                 self.write_to_fluentd(object_crops)
                 LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
-            else:
-                return None
 
         except Exception as ex:
             LOGGER.error(f"No objects identified [{ex}].")
-            return None
 
         return result
 
@@ -210,76 +214,73 @@ class ByteTracker(FluentdHelper):
         online_tlwhs = []
         online_ids = []
         online_scores = []
-
-        # update tracker
-        with FTimer("tracking"):
-            online_targets = self.tracker.update(outputs[0], self.original_size, (image_size, image_size))
-
-        # if no detections after tracker update
-        # if online_targets is None or (online_targets[0] is None):
-        #     return None
-
-        for t in online_targets:
-            # bounding box and tracking id
-            # tlwh - top left width height
-            tlwh = t.tlwh
-            tid = t.track_id
-
-            # prior about human aspect ratio
-            f_vertical = tlwh[2] / tlwh[3] > 1.6
-
-            if tlwh[2] * tlwh[3] > self.tracker_args.min_box_area and not f_vertical:
-                online_tlwhs.append(tuple(map(int, tlwh)))
-                online_ids.append(int(tid))
-                online_scores.append(t.score)
-
-        online_bboxes = [None] * len(online_tlwhs)
-        for i, t in enumerate(online_tlwhs):
-            x1, y1, w, h = t
-            x2 = x1 + w
-            y2 = y1 + h
-            online_bboxes[i] = [x1, y1, x2, y2]
-
-        # prepare data for transmission
-        object_crops = []
         result = None
 
-        for i in range(len(online_bboxes)):
-            # generate the object crop
-            box = online_bboxes[i]
-            x0, y0, x1, y1 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
-            _img = data[y0: y1, x0: x1]
+        try:
+            # update tracker
+            with FTimer("tracking"):
+                online_targets = self.tracker.update(outputs[0], self.original_size, (image_size, image_size))
 
-            # encode the object crop
-            crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
+            for t in online_targets:
+                # bounding box and tracking id
+                # tlwh - top left width height
+                tlwh = t.tlwh
+                tid = t.track_id
 
-            # append
-            object_crops.append([
-                crop_encoded,
-                box,
-                online_scores[i],
-                online_ids[i],
-                self.camera_code,
-                det_time
-            ])
-        
-        if len(object_crops) > 0:
-            scene = np.array(cv2.imencode('.jpg', data)[1])
-            result = DetTrackResult(
-                bbox=[item[0] for item in object_crops],
-                scene=scene,
-                confidence=[item[2] for item in object_crops],
-                detection_time=[item[5] for item in object_crops],
-                camera=[item[4] for item in object_crops],
-                bbox_coord=[item[1] for item in object_crops],
-                tracking_ids=[item[3] for item in object_crops]
-            )
+                # prior about human aspect ratio
+                f_vertical = tlwh[2] / tlwh[3] > 1.6
+
+                if tlwh[2] * tlwh[3] > self.tracker_args.min_box_area and not f_vertical:
+                    online_tlwhs.append(tuple(map(int, tlwh)))
+                    online_ids.append(int(tid))
+                    online_scores.append(t.score)
+
+            online_bboxes = [None] * len(online_tlwhs)
+            for i, t in enumerate(online_tlwhs):
+                x1, y1, w, h = t
+                x2 = x1 + w
+                y2 = y1 + h
+                online_bboxes[i] = [x1, y1, x2, y2]
+
+            # prepare data for transmission
+            object_crops = []
+
+            for i in range(len(online_bboxes)):
+                # generate the object crop
+                box = online_bboxes[i]
+                x0, y0, x1, y1 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                _img = data[y0: y1, x0: x1]
+
+                # encode the object crop
+                crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
+
+                # append
+                object_crops.append([
+                    crop_encoded,
+                    box,
+                    online_scores[i],
+                    online_ids[i],
+                    self.camera_code,
+                    det_time
+                ])
             
-            self.write_to_fluentd(result)
-            
-            LOGGER.info(f"Tracked {len(object_crops)} objects/s in camera {self.camera_code} with IDs {result.tracklets}")
-        else:
-            return None
+            if len(object_crops) > 0:
+                scene = np.array(cv2.imencode('.jpg', data)[1])
+                result = DetTrackResult(
+                    bbox=[item[0] for item in object_crops],
+                    scene=scene,
+                    confidence=[item[2] for item in object_crops],
+                    detection_time=[item[5] for item in object_crops],
+                    camera=[item[4] for item in object_crops],
+                    bbox_coord=[item[1] for item in object_crops],
+                    tracking_ids=[item[3] for item in object_crops]
+                )
+                
+                self.write_to_fluentd(result)
+                LOGGER.info(f"Tracked {len(object_crops)} objects/s in camera {self.camera_code} with IDs {result.tracklets}")
+
+        except Exception as ex:
+            LOGGER.error(f"No objects tracked! [{ex}].")
 
         return result
 
