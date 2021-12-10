@@ -537,7 +537,7 @@ func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32,
 		return active, err
 	}
 
-	aggWorkerParam.WorkerType = jobStageAgg
+	aggWorkerParam.WorkerType = "server"
 	aggWorkerParam.RestartPolicy = v1.RestartPolicyOnFailure
 
 	c.addWorkerMount(&aggWorkerParam, model.Spec.URL, "MODEL_URL",

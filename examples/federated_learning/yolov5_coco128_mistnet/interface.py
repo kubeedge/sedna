@@ -43,9 +43,9 @@ class Dataset:
             # number of testing examples
             "num_test_examples": 128,
             # number of classes
-            "num_classes": 80,
+            "num_classes": 6,
             # image size
-            "image_size": 640,
+            "image_size": 1472,
             "download_urls": ["https://github.com/ultralytics/yolov5/releases/download/v1.0/coco128.zip",],
             "classes":
                 [

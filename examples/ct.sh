@@ -93,7 +93,7 @@ spec:
               - name: "aggregation_algorithm"
                 value: "mistnet"
               - name: "BATCH_SIZE"
-                value: "16"
+                value: "1"
               - name: "EPOCHS"
                 value: "100"
             volumeMounts:
