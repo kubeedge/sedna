@@ -5,7 +5,7 @@ metadata:
 spec:
   motDeploy:
     model:
-      name: "detection-yolov5s"
+      name: "detection-toys-yolov5s"
     kafkaSupport: true
     spec:
       replicas: 3
@@ -99,7 +99,7 @@ spec:
               - name: "imgpath"
                 value: "imgpath.npy"
               - name: "dataset"
-                value: "efficientnetv2_containers2021_3"
+                value: "efficientnetv2_containers2021_toy"
               resources:  # user defined resources
                 requests:
                   memory: 2Gi

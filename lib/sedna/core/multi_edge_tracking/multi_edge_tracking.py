@@ -23,6 +23,7 @@ from PIL import Image
 
 import numpy as np
 import requests
+from sedna.common.config import BaseConfig, Context
 from sedna.common.log import LOGGER
 
 from sedna.common.utils import get_host_ip
@@ -39,13 +40,42 @@ from sedna.common.benchmark import FTimer
 
 from sedna.service.server import FEServer
 from sedna.service.server import ReIDServer
+from sedna.service.server import ReIDManagerServer
 
 import distutils.core
 
-__all__ = ("FEService", "ReIDService", "ObjectDetector", "FE_ReIDService")
+__all__ = ("FEService", "ReIDService", "ObjectDetector", "FE_ReIDService", "ReIDManagerService")
 
 # TODO: Create a parent class to inherit from to reduce code duplication.
 # Maybe make use of abstact classes too.
+
+class ReIDManagerService():
+    """
+    Re-Identification model services
+    Provides RESTful interfaces to execute the object ReIdentification.
+    """
+    def __init__(self, interface=None, config=None):
+        self.config = BaseConfig()
+        self.interface = interface
+        if config:
+            self.config.from_json(config)
+        self.log = LOGGER
+        self.log.info("Starting external API service")
+
+        self.local_ip = self.get_parameters("API_BIND_IP", get_host_ip())
+        self.port = int(self.get_parameters("API_BIND_PORT", "9907"))
+
+    def start(self):
+        if callable(self.interface):
+            self.interface = self.interface()
+
+        self.log.debug("Starting default REST webservice")
+        app_server = ReIDManagerServer(interface=self.interface, servername="sedna", host=self.local_ip, http_port=self.port)
+        app_server.start()
+
+    def get_parameters(self, param, default=None):
+        return Context.get_parameters(param=param, default=default)
+
 
 class ReIDService(JobBase):
     """
@@ -62,8 +92,12 @@ class ReIDService(JobBase):
         self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
 
-        self.upload_endpoint = self.get_parameters("upload_endpoint", "http://localhost:8080/upload_data")
-        self.status_update_endpoint = self.get_parameters("status_update_endpoint", "http://7.182.9.110:27345/sedna/get_app_details")
+        self.api_ip = self.get_parameters("MANAGER_API_BIND_IP", "7.182.9.110")
+        self.api_port = int(self.get_parameters("MANAGER_API_BIND_PORT", "27345"))
+
+        # If we explicity define the endpoints in the YAML file, we do not use the API manager pod
+        self.upload_endpoint = self.get_parameters("upload_endpoint", f"http://{self.api_ip}:{self.api_port}/sedna/upload_data")
+        self.status_update_endpoint = self.get_parameters("status_update_endpoint", f"http://{self.api_ip}:{self.api_port}/sedna/get_app_details")
         self.post_process_result = bool(distutils.util.strtobool(self.get_parameters("post_process_result", "False")))
 
         if self.kafka_enabled:
@@ -157,8 +191,12 @@ class FE_ReIDService(JobBase):
         self.local_ip = self.get_parameters("REID_MODEL_BIND_IP", get_host_ip())
         self.port = int(self.get_parameters("REID_MODEL_BIND_PORT", "5000"))
 
-        self.upload_endpoint = self.get_parameters("upload_endpoint", "http://localhost:8080/upload_data")
-        self.status_update_endpoint = self.get_parameters("status_update_endpoint", "http://7.182.9.110:27345/sedna/get_app_details")
+        self.api_ip = self.get_parameters("MANAGER_API_BIND_IP", "7.182.9.110")
+        self.api_port = int(self.get_parameters("MANAGER_API_BIND_PORT", "27345"))
+
+        # This needs rework to not use explicit endpoints
+        self.upload_endpoint = self.get_parameters("upload_endpoint", f"http://{self.api_ip}:{self.api_port}/sedna/upload_data")
+        self.status_update_endpoint = self.get_parameters("status_update_endpoint", f"http://{self.api_ip}:{self.api_port}/sedna/get_app_details")
         self.post_process_result = bool(distutils.util.strtobool(self.get_parameters("post_process_result", "False")))
 
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
@@ -273,7 +311,6 @@ class FE_ReIDService(JobBase):
             json_data = json.dumps(status['target'])
             img_bytes = base64.b64decode(json_data.encode('utf-8'))
 
-            self.log.info(img_bytes[0:10])
             # convert bytes data to PIL Image object
             img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
 
@@ -307,7 +344,10 @@ class FEService(JobBase):
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
         self.sync_queue = queue.Queue()
 
-        self.status_update_endpoint = self.get_parameters("status_update_endpoint", "http://7.182.9.110:27345/sedna/get_app_details")
+        self.api_ip = self.get_parameters("MANAGER_API_BIND_IP", "7.182.9.110")
+        self.api_port = int(self.get_parameters("MANAGER_API_BIND_PORT", "27345"))
+
+        self.status_update_endpoint = self.get_parameters("status_update_endpoint", f"http://{self.api_ip}:{self.api_port}/sedna/get_app_details")
 
         if self.kafka_enabled:
             self.log.debug("Kafka support enabled in YAML file")
@@ -449,7 +489,10 @@ class ObjectDetector(JobBase):
 
         self.kafka_enabled = bool(distutils.util.strtobool(self.get_parameters("KAFKA_ENABLED", "False")))
 
-        self.status_update_endpoint = self.get_parameters("status_update_endpoint", "http://7.182.9.110:27345/sedna/get_app_details")
+        self.api_ip = self.get_parameters("MANAGER_API_BIND_IP", "7.182.9.110")
+        self.api_port = int(self.get_parameters("MANAGER_API_BIND_PORT", "27345"))
+        
+        self.status_update_endpoint = self.get_parameters("status_update_endpoint", f"http://{self.api_ip}:{self.api_port}/sedna/get_app_details")
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
@@ -537,14 +580,15 @@ class StatusSyncThread(threading.Thread):
         self.daemon = True
 
         self.last_update = None
+        self.timeout = 5
 
         self.start()
 
     def sync_configuration(self):
         LOGGER.debug(f'Attempting to synchronize the pod configuration')
         try:
-            status = requests.post(self.update_endpoint, data=self.last_update)
-            LOGGER.debug(f'Current status retrieved')
+            status = requests.post(self.update_endpoint, data=self.last_update, timeout=self.timeout)
+            LOGGER.debug(f'Current status retrieved {status.content}')
             return json.loads(status.content)
 
         except Exception as ex:

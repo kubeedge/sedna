@@ -51,11 +51,13 @@ import (
 )
 
 const (
-	MultiObjectTrackingWorker = "l1-edge"
-	FEWorker                  = "l2-edge"
-	ReIDWoker                 = "cloud"
+	MultiObjectTrackingWorker = "dettrack"
+	FEWorker                  = "fe"
+	ReIDWoker                 = "reid"
+	ReIDManagerWorker         = "manager-api"
 	reIDPort                  = 5000
 	FEPort                    = 6000
+	ReIDManagerPort           = 9907
 )
 
 const (
@@ -366,7 +368,8 @@ func (mc *Controller) sync(key string) (bool, error) {
 
 	var failedPods, failedDeployment int32 = 0, 0
 
-	var neededPodCounts int32 = *sharedMultiEdgeTrackingService.Spec.MultiObjectTrackingDeploy.Spec.Replicas +
+	var neededPodCounts int32 = *sharedMultiEdgeTrackingService.Spec.ReIDManagerDeploy.Spec.Replicas +
+		*sharedMultiEdgeTrackingService.Spec.MultiObjectTrackingDeploy.Spec.Replicas +
 		*sharedMultiEdgeTrackingService.Spec.FEDeploy.Spec.Replicas +
 		*sharedMultiEdgeTrackingService.Spec.ReIDDeploy.Spec.Replicas
 
@@ -481,13 +484,59 @@ func isMultiEdgeTrackingServiceFinished(j *sednav1.MultiEdgeTrackingService) boo
 	return false
 }
 
-func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (activePods int32, activeDeployments int32, err error) {
-	activePods = 0
-	activeDeployments = 0
-	var fused_layers bool
+func (mc *Controller) createAPIManagerWorker(service *sednav1.MultiEdgeTrackingService, activePods *int32, activeDeployments *int32) (port int32, ip string, err error) {
+	var workerParam runtime.WorkerParam
 
+	/*
+
+		REID MANAGER DEPLOYMENT
+
+	*/
+
+	workerParam.WorkerType = ReIDManagerWorker
+	workerParam.HostNetwork = true
+
+	workerParam.Env = map[string]string{
+		"NAMESPACE":     service.Namespace,
+		"SERVICE_NAME":  service.Name,
+		"WORKER_NAME":   "reid-manager-worker-" + utilrand.String(5),
+		"API_BIND_PORT": strconv.Itoa(int(ReIDManagerPort)),
+	}
+
+	// Create ReID manager deployment AND related pods (as part of the deployment creation)
+	_, err = runtime.CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.ReIDManagerDeploy.Spec, &workerParam, reIDPort)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to create reid manager worker deployment: %w", err)
+	}
+
+	*activeDeployments++
+
+	reIDManagerIP, err := runtime.GetNodeIPByName(mc.kubeClient, service.Spec.ReIDManagerDeploy.Spec.Template.Spec.NodeName)
+	// service.Spec.ReIDDeploy.Spec.Template.Spec.Containers[0].Ports[0].HostPort
+	// Create standard K8s service
+
+	// reIDURL, err := runtime.CreateEdgeMeshService(mc.kubeClient, service, ReIDWoker, reIDPort)
+	reIDManagerPortService, err := runtime.CreateKubernetesService(mc.kubeClient, service, ReIDManagerWorker, ReIDManagerPort, reIDManagerIP)
+
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to create reid manager workers deployment: %w", err)
+	}
+
+	*activePods++
+
+	return reIDManagerPortService, reIDManagerIP, nil
+}
+
+func (mc *Controller) createReIDWorker(service *sednav1.MultiEdgeTrackingService, activePods *int32, activeDeployments *int32, fused_layers bool, prev_IP string, prev_port int32) (port int32, ip string, err error) {
+	var workerParam runtime.WorkerParam
 	var secretName string
 	var modelSecret *v1.Secret
+
+	/*
+
+		REID DEPLOYMENT
+
+	*/
 
 	// Sector represent the location in the network where the node is deployed (edge or cloud)
 	sector, err := runtime.IdentifyNodeSector(mc.kubeClient, service.Spec.ReIDDeploy.Spec.Template.Spec.NodeName)
@@ -497,16 +546,15 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	kfk_addresses, kfk_ports, err := runtime.FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
 	klog.Info("Available Kafka endpoints: %v", kfk_addresses, kfk_ports)
 
-	var workerParam runtime.WorkerParam
 	workerParam.WorkerType = ReIDWoker
 
-	if *service.Spec.FEDeploy.Spec.Replicas == 0 {
+	if fused_layers {
 		klog.Info("Fused layers configuration detected, loading model into FE+ReID deployment")
 		// Load model used by the pods in this deployment
 		feModelName := service.Spec.ReIDDeploy.Model.Name
 		feModel, err := mc.client.Models(service.Namespace).Get(context.Background(), feModelName, metav1.GetOptions{})
 		if err != nil {
-			return activePods, activeDeployments, fmt.Errorf("Failed to get model %s: %w", feModelName, err)
+			return 0, "", fmt.Errorf("Failed to get model %s: %w", feModelName, err)
 		}
 
 		secretName = feModel.Spec.CredentialName
@@ -527,31 +575,27 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 
 	workerParam.HostNetwork = true
 	workerParam.Env = map[string]string{
-		"NAMESPACE":            service.Namespace,
-		"SERVICE_NAME":         service.Name,
-		"WORKER_NAME":          "reidworker-" + utilrand.String(5),
-		"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPort)),
-		"FLUENTD_IP":           fluentdIP,
+		"NAMESPACE":             service.Namespace,
+		"SERVICE_NAME":          service.Name,
+		"WORKER_NAME":           "reidworker-" + utilrand.String(5),
+		"REID_MODEL_BIND_PORT":  strconv.Itoa(int(reIDPort)),
+		"FLUENTD_IP":            fluentdIP,
+		"MANAGER_API_BIND_IP":   prev_IP,
+		"MANAGER_API_BIND_PORT": strconv.Itoa(int(prev_port)),
 	}
 
-	if service.Spec.ReIDDeploy.KafkaSupport {
-		workerParam.Env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.ReIDDeploy.KafkaSupport)
+	if service.Spec.KafkaSupport {
+		workerParam.Env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.KafkaSupport)
 		workerParam.Env["KAFKA_BIND_IPS"] = strings.Join(kfk_addresses, "|")
 		workerParam.Env["KAFKA_BIND_PORTS"] = strings.Join(kfk_ports, "|")
 	}
 
-	/*
-
-		REID DEPLOYMENT
-
-	*/
-
 	// Create ReID deployment AND related pods (as part of the deployment creation)
 	_, err = runtime.CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.ReIDDeploy.Spec, &workerParam, reIDPort)
 	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
+		return 0, "", fmt.Errorf("failed to create reid workers deployment: %w", err)
 	}
-	activeDeployments++
+	*activeDeployments++
 
 	reIDIP, err := runtime.GetNodeIPByName(mc.kubeClient, service.Spec.ReIDDeploy.Spec.Template.Spec.NodeName)
 	// service.Spec.ReIDDeploy.Spec.Template.Spec.Containers[0].Ports[0].HostPort
@@ -560,10 +604,18 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	// reIDURL, err := runtime.CreateEdgeMeshService(mc.kubeClient, service, ReIDWoker, reIDPort)
 	reIDPortService, err := runtime.CreateKubernetesService(mc.kubeClient, service, ReIDWoker, reIDPort, reIDIP)
 	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("failed to create reid workers deployment: %w", err)
+		return 0, "", fmt.Errorf("failed to create reid workers deployment: %w", err)
 	}
 
-	activePods++
+	*activePods++
+
+	return reIDPortService, reIDIP, nil
+}
+
+func (mc *Controller) createFeatureExtractionWorker(service *sednav1.MultiEdgeTrackingService, activePods *int32, activeDeployments *int32, prev_IP string, prev_port int32, api_port int32, api_IP string) (port int32, ip string, err error) {
+	var workerParam runtime.WorkerParam
+	var secretName string
+	var modelSecret *v1.Secret
 
 	/*
 
@@ -577,73 +629,77 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	// sector, err = IdentifyNodeSector(mc.kubeClient, service.Spec.FEDeploy.Spec.Template.Spec.NodeName)
 	var FEServiceURL string
 
-	if *service.Spec.FEDeploy.Spec.Replicas > 0 {
-		// Find Fluentd service IP
-		fluentdIP, err = runtime.FindColocatedFluentdPod(mc.kubeClient, service.Spec.FEDeploy.Spec.Template.Spec.NodeName)
+	// Find Fluentd service IP
+	fluentdIP, err := runtime.FindColocatedFluentdPod(mc.kubeClient, service.Spec.FEDeploy.Spec.Template.Spec.NodeName)
 
-		// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
-		kfk_addresses, kfk_ports, err = runtime.FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
+	// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
+	kfk_addresses, kfk_ports, err := runtime.FindAvailableKafkaServices(mc.kubeClient, "kafka", "cloud")
 
-		workerParam.WorkerType = FEWorker
+	workerParam.WorkerType = FEWorker
 
-		// Load model used by the pods in this deployment
-		feModelName := service.Spec.FEDeploy.Model.Name
-		feModel, err := mc.client.Models(service.Namespace).Get(context.Background(), feModelName, metav1.GetOptions{})
-		if err != nil {
-			return activePods, activeDeployments, fmt.Errorf("Failed to get model %s: %w", feModelName, err)
-		}
-
-		secretName = feModel.Spec.CredentialName
-		if secretName != "" {
-			modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.Background(), secretName, metav1.GetOptions{})
-		}
-
-		workerParam.Mounts = append(make([]runtime.WorkerMount, 1), runtime.WorkerMount{
-			URL: &runtime.MountURL{
-				URL:                   feModel.Spec.URL,
-				Secret:                modelSecret,
-				DownloadByInitializer: true,
-			},
-			Name:    "model",
-			EnvName: "MODEL_URL",
-		})
-
-		workerParam.Env = map[string]string{
-			"NAMESPACE":            service.Namespace,
-			"SERVICE_NAME":         service.Name,
-			"WORKER_NAME":          "feworker-" + utilrand.String(5),
-			"REID_MODEL_BIND_URL":  reIDIP,
-			"REID_MODEL_BIND_PORT": strconv.Itoa(int(reIDPortService)),
-			"LC_SERVER":            mc.cfg.LC.Server,
-			"FLUENTD_IP":           fluentdIP,
-		}
-
-		if service.Spec.FEDeploy.KafkaSupport {
-			workerParam.Env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.FEDeploy.KafkaSupport)
-			workerParam.Env["KAFKA_BIND_IPS"] = strings.Join(kfk_addresses, "|")
-			workerParam.Env["KAFKA_BIND_PORTS"] = strings.Join(kfk_ports, "|")
-		}
-
-		// Create FE deployment AND related pods (as part of the deployment creation)
-		_, err = runtime.CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
-		if err != nil {
-			return activePods, activeDeployments, fmt.Errorf("failed to create feature extraction workers deployment: %w", err)
-		}
-		activeDeployments++
-
-		activePods++
-
-		// Create edgemesh service for FE
-		FEServiceURL, err = runtime.CreateEdgeMeshService(mc.kubeClient, service, FEWorker, FEPort)
-		if err != nil {
-			return activePods, activeDeployments, fmt.Errorf("failed to create edgemesh service: %w", err)
-		}
-
-	} else {
-		// If we reach this condition, it means that we are using the fused version of FE+ReID
-		klog.Info("Fused layers configuration detected, skipping creation of FE deployment")
-		fused_layers = true
+	// Load model used by the pods in this deployment
+	feModelName := service.Spec.FEDeploy.Model.Name
+	feModel, err := mc.client.Models(service.Namespace).Get(context.Background(), feModelName, metav1.GetOptions{})
+	if err != nil {
+		return 0, "", fmt.Errorf("Failed to get model %s: %w", feModelName, err)
 	}
+
+	secretName = feModel.Spec.CredentialName
+	if secretName != "" {
+		modelSecret, _ = mc.kubeClient.CoreV1().Secrets(service.Namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+	}
+
+	workerParam.Mounts = append(make([]runtime.WorkerMount, 1), runtime.WorkerMount{
+		URL: &runtime.MountURL{
+			URL:                   feModel.Spec.URL,
+			Secret:                modelSecret,
+			DownloadByInitializer: true,
+		},
+		Name:    "model",
+		EnvName: "MODEL_URL",
+	})
+
+	workerParam.Env = map[string]string{
+		"NAMESPACE":             service.Namespace,
+		"SERVICE_NAME":          service.Name,
+		"WORKER_NAME":           "feworker-" + utilrand.String(5),
+		"REID_MODEL_BIND_URL":   prev_IP,
+		"REID_MODEL_BIND_PORT":  strconv.Itoa(int(prev_port)),
+		"LC_SERVER":             mc.cfg.LC.Server,
+		"FLUENTD_IP":            fluentdIP,
+		"MANAGER_API_BIND_IP":   api_IP,
+		"MANAGER_API_BIND_PORT": strconv.Itoa(int(api_port)),
+	}
+
+	if service.Spec.KafkaSupport {
+		workerParam.Env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.KafkaSupport)
+		workerParam.Env["KAFKA_BIND_IPS"] = strings.Join(kfk_addresses, "|")
+		workerParam.Env["KAFKA_BIND_PORTS"] = strings.Join(kfk_ports, "|")
+	}
+
+	// Create FE deployment AND related pods (as part of the deployment creation)
+	_, err = runtime.CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.FEDeploy.Spec, &workerParam, FEPort)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to create feature extraction workers deployment: %w", err)
+	}
+
+	*activeDeployments++
+
+	*activePods++
+
+	// Create edgemesh service for FE
+	FEServiceURL, err = runtime.CreateEdgeMeshService(mc.kubeClient, service, FEWorker, FEPort)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to create edgemesh service: %w", err)
+	}
+
+	return FEPort, FEServiceURL, nil
+}
+
+func (mc *Controller) createTrackingWorker(service *sednav1.MultiEdgeTrackingService, activePods *int32, activeDeployments *int32, prev_IP string, prev_port int32, api_port int32, api_IP string) (err error) {
+	var workerParam runtime.WorkerParam
+	var secretName string
+	var modelSecret *v1.Secret
 
 	/*
 
@@ -653,10 +709,10 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	// Disabled until the edge kafka broker is working
 	// sector, err = IdentifyNodeSector(mc.kubeClient, service.Spec.MultiObjectTrackingDeploy.Spec.Template.Spec.NodeName)
 
-	fluentdIP, err = runtime.FindColocatedFluentdPod(mc.kubeClient, service.Spec.MultiObjectTrackingDeploy.Spec.Template.Spec.NodeName)
+	fluentdIP, err := runtime.FindColocatedFluentdPod(mc.kubeClient, service.Spec.MultiObjectTrackingDeploy.Spec.Template.Spec.NodeName)
 
 	// With Kafka set to true, we pass the list of identified service addresses to each pod/deployment
-	kfk_addresses, kfk_ports, err = runtime.FindAvailableKafkaServices(mc.kubeClient, "kafka", sector)
+	kfk_addresses, kfk_ports, err := runtime.FindAvailableKafkaServices(mc.kubeClient, "kafka", "cloud")
 
 	// Create parameters that will be used by the deployment
 	workerParam.WorkerType = MultiObjectTrackingWorker
@@ -665,7 +721,7 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	detectionModelName := service.Spec.MultiObjectTrackingDeploy.Model.Name
 	detectionModel, err := mc.client.Models(service.Namespace).Get(context.Background(), detectionModelName, metav1.GetOptions{})
 	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("Failed to get model %s: %w", detectionModelName, err)
+		return fmt.Errorf("Failed to get model %s: %w", detectionModelName, err)
 	}
 
 	secretName = detectionModel.Spec.CredentialName
@@ -683,29 +739,20 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 		EnvName: "MODEL_URL",
 	})
 
-	var bindIP string
-	var bindPort int
-
-	if fused_layers == true {
-		bindIP = reIDIP
-		bindPort = reIDPort
-	} else {
-		bindIP = FEServiceURL
-		bindPort = FEPort
-	}
-
 	workerParam.Env = map[string]string{
-		"NAMESPACE":          service.Namespace,
-		"SERVICE_NAME":       service.Name,
-		"WORKER_NAME":        "motworker-" + utilrand.String(5),
-		"FE_MODEL_BIND_URL":  bindIP,
-		"FE_MODEL_BIND_PORT": strconv.Itoa(int(bindPort)),
-		"LC_SERVER":          mc.cfg.LC.Server,
-		"FLUENTD_IP":         fluentdIP,
+		"NAMESPACE":             service.Namespace,
+		"SERVICE_NAME":          service.Name,
+		"WORKER_NAME":           "motworker-" + utilrand.String(5),
+		"FE_MODEL_BIND_URL":     prev_IP,
+		"FE_MODEL_BIND_PORT":    strconv.Itoa(int(prev_port)),
+		"LC_SERVER":             mc.cfg.LC.Server,
+		"FLUENTD_IP":            fluentdIP,
+		"MANAGER_API_BIND_IP":   api_IP,
+		"MANAGER_API_BIND_PORT": strconv.Itoa(int(api_port)),
 	}
 
-	if service.Spec.MultiObjectTrackingDeploy.KafkaSupport {
-		workerParam.Env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.MultiObjectTrackingDeploy.KafkaSupport)
+	if service.Spec.KafkaSupport {
+		workerParam.Env["KAFKA_ENABLED"] = strconv.FormatBool(service.Spec.KafkaSupport)
 		workerParam.Env["KAFKA_BIND_IPS"] = strings.Join(kfk_addresses, "|")
 		workerParam.Env["KAFKA_BIND_PORTS"] = strings.Join(kfk_ports, "|")
 	}
@@ -713,18 +760,50 @@ func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (
 	// Create OD deployment AND related pods (as part of the deployment creation)
 	_, err = runtime.CreateDeploymentWithTemplate(mc.kubeClient, service, &service.Spec.MultiObjectTrackingDeploy.Spec, &workerParam, 7000)
 	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("Failed to create detection workers deployment: %w", err)
+		return fmt.Errorf("Failed to create detection workers deployment: %w", err)
 	}
-	activeDeployments++
+	*activeDeployments++
 
 	// Create edgemesh service for OD
 	_, err = runtime.CreateEdgeMeshService(mc.kubeClient, service, MultiObjectTrackingWorker, 7000)
 	if err != nil {
-		return activePods, activeDeployments, fmt.Errorf("Failed to create edgemesh service: %w", err)
+		return fmt.Errorf("Failed to create edgemesh service: %w", err)
 	}
-	activePods++
 
-	return activePods, activeDeployments, err
+	*activePods++
+
+	return nil
+}
+
+func (mc *Controller) createWorkers(service *sednav1.MultiEdgeTrackingService) (activePods int32, activeDeployments int32, err error) {
+	activePods = 0
+	activeDeployments = 0
+	var fused_layers bool
+
+	// TODO: Find a better way to perform this check. With a pointer it would be easier
+	if *service.Spec.FEDeploy.Spec.Replicas == 0 {
+		klog.Info("Deploying with fused layers configuration.")
+		fused_layers = true
+	} else {
+		klog.Info("Deploying with non-fused layers configuration.")
+		fused_layers = false
+	}
+
+	APIManagerServicePort, APIManagerIP, _ := mc.createAPIManagerWorker(service, &activePods, &activeDeployments)
+	reIDPortService, reIDIP, _ := mc.createReIDWorker(service, &activePods, &activeDeployments, fused_layers, APIManagerIP, APIManagerServicePort)
+
+	var bindIP string
+	var bindPort int32
+
+	if !fused_layers {
+		bindPort, bindIP, _ = mc.createFeatureExtractionWorker(service, &activePods, &activeDeployments, reIDIP, reIDPortService, APIManagerServicePort, APIManagerIP)
+	} else {
+		bindPort, bindIP = reIDPortService, reIDIP
+	}
+
+	mc.createTrackingWorker(service, &activePods, &activeDeployments, bindIP, bindPort, APIManagerServicePort, APIManagerIP)
+
+	return activePods, activeDeployments, nil
 
 }
 

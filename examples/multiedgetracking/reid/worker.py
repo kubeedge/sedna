@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pickle
-import threading
+import distutils
 
-import requests
 import cv2
 import numpy as np
 import os
@@ -31,25 +29,40 @@ from sedna.algorithms.reid.mAP import cosine_similarity
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
+# GALLERY PARAMS
 log_dir = Context.get_parameters('log_dir')
-img_dir =  Context.get_parameters('img_dir')
+img_dir = Context.get_parameters('img_dir')
 gfeats = Context.get_parameters('gfeats')
 qfeats = Context.get_parameters('qfeats')
 imgpath = Context.get_parameters('imgpath')
 dataset = Context.get_parameters('dataset')
+
+# NO-GALLERY PARAMS
+use_gallery = bool(distutils.util.strtobool(Context.get_parameters('use_gallery', "True")))
+match_thresh = Context.get_parameters('match_thresh', 1.2)
+
 
 class Estimator():
 
     def __init__(self, **kwargs):
         LOGGER.info("Starting ReID module")
 
-        self.log_dir = log_dir
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.gallery_feats = torch.load(os.path.join(self.log_dir, dataset, gfeats), map_location=self.device)
-        self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
-        LOGGER.debug(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
 
-        self.target_ID = "0000"
+        # Initialize query features
+        self.query_feat = None
+        self.match_thresh = match_thresh
+
+        self.use_gallery = use_gallery
+
+        # ReID parameters
+        if self.use_gallery:
+            self.log_dir = log_dir
+            self.gallery_feats = torch.load(os.path.join(self.log_dir, dataset, gfeats), map_location=self.device)
+            self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
+            LOGGER.debug(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
+            self.target = None
+            self.target_ID = "0000"
 
     def _extract_id(self, text):
         return text.split("/")[-1].split(".")[0].split("_")[0]
@@ -70,6 +83,33 @@ class Estimator():
 
     def load(self, model_name="", **kwargs):
         pass
+
+    def reid_per_frame(self, candidate_feats: torch.Tensor) -> int:
+        """
+        For each frame, this function receives the ReID features for all the detected boxes. The similarity is computed
+        between the query features and the candidate features (from the boxes). If matching score for all detected boxes
+        is less than match_thresh, the function returns None signifying that no match has been found. Else, the function
+        returns the index of the candidate feature with the highest matching score.
+        @param candidate_feats: ...
+        @return: match_id [int] which points to the index of the matched detection.
+        """
+
+        candidate_feats = torch.stack(candidate_feats, 1)[0, :, :] 
+
+        # Compute distance between
+        sim_measure = cosine_similarity(self.query_feat, candidate_feats)[0]
+
+        match_score = np.sort(sim_measure.flatten(), axis=0)[0]
+        if isinstance(match_score, list):
+            match_score = np.array(match_score, dtype=np.float)
+
+        if not np.any(match_score < self.match_thresh):
+            return -1
+
+        # Return id corresponding to the highest match
+        match_id = np.argsort(sim_measure.flatten(), axis=0)[-1]
+
+        return match_id
 
     def reid(self, query_feat, camera_code, det_time):
         LOGGER.debug(f"Running the cosine similarity function on input data")
@@ -119,40 +159,69 @@ class Estimator():
         )
 
     def predict(self, data, **kwargs):
-        # We use a dictionary to keep track of the ReID objects.
-        # For each object, we print at the end localization and tracking information.
-        reid_dict = {}
+        det_track = data
         tresult = None
-        det_track = data[0]
 
-        if det_track.is_target:
-            self.load_target(det_track)
-            return tresult
+        if self.use_gallery:
+            reid_dict = {}
 
-        for idx, elem in enumerate(det_track.bbox):
-            query_feat = det_track.features[idx]
-            query_feat = query_feat.float()
+            # if prediction is called for the query feature
+            if det_track.is_target:
+                self.load_target(det_track)
+                return None
 
-            result = self.reid(query_feat, det_track.camera[idx], det_track.detection_time[idx]) 
+            for idx, elem in enumerate(det_track.bbox):
+                query_feat = det_track.features[idx]
+                query_feat = query_feat.float()
 
-            # Create new dettrack object and exit when the target is found (return only new instance)
-            if result != None:
-                if kwargs['op_mode'] == "tracking":
-                    if self.target_ID == result.get('object_id'):
-                        LOGGER.info(f"Target found!")
-                        reid_dict[result.get('object_id')] = result
-                        # det_track.ID.append(result.get('object_id'))
-                        tresult = self.create_result(idx, det_track, result.get('object_id'))
+                result = self.reid(query_feat, det_track.camera[idx], det_track.detection_time[idx]) 
+
+                # Create new dettrack object and exit when the target is found (return only new instance)
+                if result != None:
+                    if kwargs['op_mode'] == "tracking":
+                        if self.target_ID == result.get('object_id'):
+                            LOGGER.info(f"Target found!")
+                            reid_dict[result.get('object_id')] = result
+                            # det_track.ID.append(result.get('object_id'))
+                            tresult = self.create_result(idx, det_track, result.get('object_id'))
+                        else:
+                            LOGGER.debug(f"Target {self.target_ID} not found!")
+                            # det_track.ID.append(-1)
                     else:
-                        LOGGER.debug(f"Target {self.target_ID} not found!")
-                        # det_track.ID.append(-1)
-                else:
-                    reid_dict[result.get('object_id')] = result
-                    tresult = det_track
+                        reid_dict[result.get('object_id')] = result
+                        tresult = det_track
 
-        for key in reid_dict:
-            LOGGER.info(json.dumps(reid_dict[key]))
+            for key in reid_dict:
+                LOGGER.info(json.dumps(reid_dict[key]))
+        
+        else:
+            # Keep record of the ReID objects
+            if det_track.is_target:
+                return tresult
 
+            # Pool features from all candidate boxes
+            candidate_feats = [None] * len(det_track.bbox)
+            for idx, elem in enumerate(det_track.bbox):
+                candidate_feats[idx] = det_track.bbox[idx]
+
+            # get id of highest match
+            match_id = self.reid_per_frame(candidate_feats)
+
+            if match_id < 0:
+                return tresult
+
+            result = {
+                "match_id": match_id,
+                "detection_area": det_track.camera[match_id],
+                "detection_time": det_track.detection_time[match_id]
+            }
+
+            if kwargs["op_mode"] == "tracking":
+                tresult = self.create_result(match_id, det_track, f"{match_id}")
+            else:
+                tresult = det_track
+
+            LOGGER.info(result)
 
         return tresult
 

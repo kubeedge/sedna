@@ -5,8 +5,8 @@ metadata:
 spec:
   motDeploy:
     model:
-      name: "detection-yolov5s"
-    kafkaSupport: true
+      name: "detection-toys-yolov5s"
+    kafkaSupport: false
     spec:
       replicas: 3
       selector:
@@ -35,13 +35,12 @@ spec:
                   cpu: 500m
                 limits:
                   memory: 2Gi
-
   feDeploy:
     model:
       name: "feature-extraction-efficientnet"
-    kafkaSupport: true
+    kafkaSupport: false
     spec:
-      replicas: 3
+      replicas: 1
       selector:
         matchLabels:
           app: feature-extraction
@@ -68,7 +67,7 @@ spec:
                 memory: 2Gi
 
   reIDDeploy:
-    kafkaSupport: true
+    kafkaSupport: false
     spec:
       replicas: 1
       selector:
@@ -99,7 +98,7 @@ spec:
               - name: "imgpath"
                 value: "imgpath.npy"
               - name: "dataset"
-                value: "efficientnetv2_containers2021_3"
+                value: "efficientnetv2_containers2021_toy"
               resources:  # user defined resources
                 requests:
                   memory: 2Gi

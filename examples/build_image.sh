@@ -60,6 +60,14 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 IMAGE_TAG=${IMAGE_TAG:-v0.4.0}
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 
+dockerfiles_multiedgetracking=(
+multi-edge-tracking-external_api.Dockerfile
+multi-edge-tracking-feature-extraction-reid.Dockerfile
+multi-edge-tracking-feature-extraction.Dockerfile
+multi-edge-tracking-detection.Dockerfile
+multi-edge-tracking-reid.Dockerfile
+)
+
 dockerfiles_federated_learning=(
 federated-learning-mistnet-yolo-aggregator.Dockerfile
 federated-learning-mistnet-yolo-client.Dockerfile

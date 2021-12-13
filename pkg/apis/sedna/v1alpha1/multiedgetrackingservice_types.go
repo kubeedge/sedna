@@ -38,27 +38,30 @@ type MultiEdgeTrackingService struct {
 
 // MultiEdgeTrackingSpec is a description of a MultiEdgeTracking
 type MultiEdgeTrackingServiceSpec struct {
+	KafkaSupport              bool                      `json:"kafkaSupport,omitempty"`
 	MultiObjectTrackingDeploy MultiObjectTrackingDeploy `json:"motDeploy"`
 	FEDeploy                  FEDeploy                  `json:"feDeploy"`
 	ReIDDeploy                ReIDDeploy                `json:"reIDDeploy"`
+	// +optional
+	ReIDManagerDeploy ReIDManagerDeploy `json:"reidManagerDeploy,omitempty"`
 }
 
-// EdgeWorker describes the data a edge worker should have
+type ReIDManagerDeploy struct {
+	Spec appsv1.DeploymentSpec `json:"spec"`
+}
+
 type MultiObjectTrackingDeploy struct {
-	Spec         appsv1.DeploymentSpec `json:"spec"`
-	KafkaSupport bool                  `json:"kafkaSupport,omitempty"`
-	Model        DetectionModel        `json:"model"`
+	Spec  appsv1.DeploymentSpec `json:"spec"`
+	Model DetectionModel        `json:"model"`
 }
 
 type FEDeploy struct {
-	Spec         appsv1.DeploymentSpec `json:"spec"`
-	KafkaSupport bool                  `json:"kafkaSupport,omitempty"`
-	Model        FEModel               `json:"model"`
+	Spec  appsv1.DeploymentSpec `json:"spec"`
+	Model FEModel               `json:"model"`
 }
 
 type ReIDDeploy struct {
-	Spec         appsv1.DeploymentSpec `json:"spec"`
-	KafkaSupport bool                  `json:"kafkaSupport,omitempty"`
+	Spec appsv1.DeploymentSpec `json:"spec"`
 	// +optional
 	Model FEModel `json:"model,omitempty"`
 }

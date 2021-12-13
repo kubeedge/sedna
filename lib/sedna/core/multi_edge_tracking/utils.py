@@ -32,8 +32,10 @@ def transfer_reid_result(result, endpoint, post_process=False):
         LOGGER.debug("Transferring final result to backend")
         with FTimer(f"upload_fe_reid_results"):
             if not post_process:
+                # Output: Pickled DetTrackResult Object
                 status = requests.post(endpoint, pickle.dumps(result))
             else:
+                # Output: JPG encoded image
                 status = requests.post(endpoint, prepare_output(result))
         LOGGER.debug(status.status_code)
     except Exception as ex:

@@ -197,8 +197,8 @@ class ByteTracker(FluentdHelper):
                     scene=scene,
                     bbox_coord=[item[2] for item in object_crops],
                     confidence=[item[1] for item in object_crops],
-                    camera=[item[4] for item in object_crops],
-                    detection_time=[item[3] for item in object_crops]
+                    camera=[item[3] for item in object_crops],
+                    detection_time=[item[4] for item in object_crops]
                 )
                 self.write_to_fluentd(object_crops)
                 LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
