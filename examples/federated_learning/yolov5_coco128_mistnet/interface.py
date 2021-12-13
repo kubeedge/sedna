@@ -147,10 +147,11 @@ class Estimator:
             "target_accuracy": 0.99,
             "epochs": int(Context.get_parameters("EPOCHS", 500)),
             "batch_size": int(Context.get_parameters("BATCH_SIZE", 16)),
-            "optimizer": "SGD",
+            "optimizer": "Adam",
             "linear_lr": False,
             # The machine learning model
             "model_name": "yolov5",
             "model_config": "./yolov5x.yaml",
-            "train_params": "./hyp.scratch.yaml"
+            "train_params": "./hyp.scratch.yaml",
+            "learning_rate": 0.002
         }
