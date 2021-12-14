@@ -14,5 +14,6 @@
 
 from .inference import *
 from .aggregation import *
+from .reid_manager import *
 from .reid import *
 from .feature_extraction import *
