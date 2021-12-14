@@ -274,25 +274,20 @@ class Estimator(FluentdHelper):
             if det_track.is_target:
                 return tresult
 
-            # Pool features from all candidate boxes
-            candidate_feats = [None] * len(det_track.bbox)
-            for idx, elem in enumerate(det_track.bbox):
-                candidate_feats[idx] = det_track.bbox[idx]
-
             # get id of highest match
-            match_id = self.reid_per_frame(candidate_feats)
+            match_id = self.reid_per_frame(det_track.features)
 
             if match_id < 0:
                 return tresult
 
             result = {
-                "match_id": match_id,
+                "match_id": det_track.tracklets[match_id],
                 "detection_area": det_track.camera[match_id],
                 "detection_time": det_track.detection_time[match_id]
             }
 
             if kwargs["op_mode"] == "tracking":
-                tresult = self.create_result(match_id, det_track, f"{match_id}")
+                tresult = self.create_result(match_id, det_track, f"{det_track.tracklets[match_id]}")
             else:
                 tresult = det_track
 
