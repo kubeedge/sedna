@@ -555,7 +555,7 @@ func (c *Controller) createPod(job *sednav1.FederatedLearningJob) (active int32,
 	}
 	active++
 
-	aggServiceHost, err := runtime.CreateEdgeMeshService(c.kubeClient, job, jobStageAgg, aggPort)
+	aggServiceHost, err := runtime.CreateEdgeMeshService(c.kubeClient, job, "server", aggPort)
 	if err != nil {
 		return active, err
 	}

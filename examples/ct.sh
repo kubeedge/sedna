@@ -22,7 +22,7 @@ kind: Dataset
 metadata:
   name: "dataset-1"
 spec:
-  url: "/mnt/data/tt/data/1/robot.txt"
+  url: "/mnt/data/tt/data/1/COCO/robot.txt"
   format: "txt"
   nodeName: euler19
 EOF
@@ -33,7 +33,7 @@ kind: Dataset
 metadata:
   name: "dataset-2"
 spec:
-  url: "/home/huawei/tt/data/1/robot.txt"
+  url: "/home/huawei/tt/data/1/COCO/robot.txt"
   format: "txt"
   nodeName: infer-4
 EOF
@@ -89,7 +89,7 @@ spec:
               - name: "cut_layer"
                 value: "4"
               - name: "epsilon"
-                value: "100"
+                value: "10000"
               - name: "aggregation_algorithm"
                 value: "mistnet"
               - name: "BATCH_SIZE"
@@ -120,7 +120,7 @@ spec:
       template:
         spec:
           nodeName: "euler19"
-		  dnsPolicy: "ClusterFirstWithHostNet"
+		      dnsPolicy: "ClusterFirstWithHostNet"
           containers:
             - image: decshub.org/mistnet-yolo-client:v0.4.0
               name: train-worker
@@ -132,7 +132,7 @@ spec:
                 - name: "cut_layer"
                   value: "4"
                 - name: "epsilon"
-                  value: "100"
+                  value: "10000"
                 - name: "aggregation_algorithm"
                   value: "mistnet"
                 - name: "batch_size"
@@ -154,12 +154,12 @@ spec:
           - name: ascend-dirver
             hostPath:
                 path: /home/data/miniD/driver
-  trainingWorkers:
     - dataset:
         name: "dataset-2"
       template:
         spec:
           nodeName: "infer-4"
+          dnsPolicy: "ClusterFirstWithHostNet"
           containers:
             - image: decshub.org/mistnet-yolo-client:v0.4.0
               name: train-worker
@@ -169,7 +169,7 @@ spec:
                 - name: "cut_layer"
                   value: "4"
                 - name: "epsilon"
-                  value: "100"
+                  value: "10000"
                 - name: "aggregation_algorithm"
                   value: "mistnet"
                 - name: "batch_size"
@@ -180,7 +180,7 @@ spec:
                   value: "1"
               resources: # user defined resources
                 limits:
-                  memory: 8Gi
+                  memory: 32Gi
                   huawei.com/Ascend310: 1
               securityContext:
                 privileged: true
