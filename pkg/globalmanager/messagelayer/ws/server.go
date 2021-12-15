@@ -17,8 +17,11 @@ limitations under the License.
 package ws
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog/v2"
 
 	"github.com/gorilla/websocket"
@@ -56,8 +59,27 @@ func (srv *Server) upgrade(w http.ResponseWriter, r *http.Request) *websocket.Co
 	return conn
 }
 
+func validateNodeName(rawNodeName string) (nodeName string, err error) {
+	// Node name follows DNS Subdomain constraint
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
+	errs := validation.IsDNS1123Subdomain(rawNodeName)
+	nodeName = strings.ReplaceAll(rawNodeName, "\n", "")
+	nodeName = strings.ReplaceAll(nodeName, "\r", "")
+	if len(errs) > 0 {
+		err = fmt.Errorf("invalid node name %s: %s", nodeName, strings.Join(errs, ","))
+		nodeName = ""
+	}
+	return
+}
+
 func (srv *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	nodeName := req.Header.Get("Node-Name")
+	rawNodeName := req.Header.Get("Node-Name")
+
+	nodeName, err := validateNodeName(rawNodeName)
+	if err != nil {
+		klog.Warningf("closing the connection, due to: %v", err)
+		return
+	}
 	wsConn := srv.upgrade(w, req)
 	if wsConn == nil {
 		klog.Errorf("failed to upgrade to websocket for node %s", nodeName)
@@ -65,7 +87,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// serve connection
-	nodeClient := &nodeClient{conn: wsConn, req: req}
+	nodeClient := &nodeClient{conn: wsConn, req: req, nodeName: nodeName}
 	go nodeClient.Serve()
 }
 
@@ -104,10 +126,8 @@ func (nc *nodeClient) writeOneMsg(msg model.Message) error {
 }
 
 func (nc *nodeClient) Serve() {
-	nodeName := nc.req.Header.Get("Node-Name")
-	nc.nodeName = nodeName
+	nodeName := nc.nodeName
 	klog.Infof("established connection for node %s", nodeName)
-	// nc.conn.SetCloseHandler
 	closeCh := make(chan struct{}, 2)
 	AddNode(nodeName, nc.readOneMsg, nc.writeOneMsg, closeCh)
 	<-closeCh
