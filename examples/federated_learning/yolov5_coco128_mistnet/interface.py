@@ -45,7 +45,7 @@ class Dataset:
             # number of classes
             "num_classes": 6,
             # image size
-            "image_size": 1472,
+            "image_size": 640,
             "download_urls": ["https://github.com/ultralytics/yolov5/releases/download/v1.0/coco128.zip",],
             "classes":
                 [
@@ -147,7 +147,7 @@ class Estimator:
             "target_accuracy": 0.99,
             "epochs": int(Context.get_parameters("EPOCHS", 500)),
             "batch_size": int(Context.get_parameters("BATCH_SIZE", 16)),
-            "optimizer": "Adam",
+            "optimizer": "SGD",
             "linear_lr": False,
             # The machine learning model
             "model_name": "yolov5",

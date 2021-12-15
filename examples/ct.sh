@@ -120,12 +120,12 @@ spec:
       template:
         spec:
           nodeName: "euler19"
-		      dnsPolicy: "ClusterFirstWithHostNet"
+          dnsPolicy: "ClusterFirstWithHostNet"
           containers:
             - image: decshub.org/mistnet-yolo-client:v0.4.0
               name: train-worker
               imagePullPolicy: IfNotPresent
-			  #command: ["/bin/bash"]
+              #command: ["/bin/bash"]
               #args: ["-c", "while true; do echo hello; sleep 300000; done"]
               args: [ "-i", "1" ]
               env: # user defined environments
