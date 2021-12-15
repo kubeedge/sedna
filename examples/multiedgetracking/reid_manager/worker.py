@@ -31,7 +31,7 @@ class Interface():
         LOGGER.info("Starting API interface module")
 
         # Service settings
-        self.target_image = None
+        self.target_image = []
         self.target_image_format = "JPEG"
         self.last_update = datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
         self.op_mode = "detection"
@@ -78,21 +78,24 @@ class Interface():
             LOGGER.error(f"Error while retrieving RTSP stream address. [{ex}]")
             return None
 
-    def set_app_details(self, op_mode, target=None):
+    def set_app_details(self, op_mode, target=[]):
         LOGGER.info("Updating service configuration")
         try:
             self.op_mode = op_mode
 
-            if target:
+            LOGGER.info(f"Received {len(target)} images for the target.")
+            k = []
+            for image in target:
 
-                img_bytes = target
-                self.target_image = Image.open(io.BytesIO(img_bytes))
+                img_bytes = image
+                k.append(Image.open(io.BytesIO(img_bytes)))
 
                 # the image format has to be obtained from here because the open() is lazy
                 with Image.open(io.BytesIO(img_bytes)) as im:
                     self.target_image_format = im.format
             
             self.last_update = datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
+            self.target_image = k
 
             return 100
 
@@ -101,7 +104,7 @@ class Interface():
             return None
 
     def get_app_details(self, body):
-        LOGGER.info("Retrieving service configuration")
+        LOGGER.debug("Retrieving service configuration")
         try:
             response = {}
 
@@ -114,10 +117,15 @@ class Interface():
             if self.last_update != last_update:
                 LOGGER.info("Pods configuration is obsolete! Sending update now!")
 
+                
+                target_images = []
+                for image in self.target_image:
+                    target_images.append(base64.b64encode(self._image_to_byte_array(image)).decode("utf-8"))
+
                 response = {
                     "op_mode" : self.op_mode,
                     "last_update": self.last_update,
-                    "target" :  base64.b64encode(self._image_to_byte_array(self.target_image)).decode("utf-8") if self.target_image else ""
+                    "target" :  target_images if len(target_images) > 0 else ""
                 }
 
         except Exception as ex:
@@ -131,6 +139,10 @@ class Interface():
             return self.frame_buffer.get(block=False)
         except queue.Empty as ex:
             return None
+
+    def clean_frame_buffer(self):
+        LOGGER.info("Clean frame buffer")
+        self.frame_buffer = queue.Queue()
 
     def _image_to_byte_array(self, image : Image):
         imgByteArr = io.BytesIO()
@@ -172,7 +184,6 @@ class Interface():
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             image = cv2.resize(image, (0,0), fx = self.scaling_factor, fy = self.scaling_factor)
 
-            # encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
             output = cv2.imencode("."+ self.encoding, image)[1]
             return output
 

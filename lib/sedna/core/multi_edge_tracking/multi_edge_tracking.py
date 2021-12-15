@@ -100,6 +100,8 @@ class ReIDService(JobBase):
         self.status_update_endpoint = self.get_parameters("status_update_endpoint", f"http://{self.api_ip}:{self.api_port}/sedna/get_app_details")
         self.post_process_result = bool(distutils.util.strtobool(self.get_parameters("post_process_result", "False")))
 
+        app_server = ReIDManagerServer(model=self, servername=self.job_name,host=self.local_ip, http_port=self.local_port)
+
         if self.kafka_enabled:
             self.log.debug("Kafka support enabled in YAML file")
             self.kafka_address = self.get_parameters("KAFKA_BIND_IPS", ["7.182.9.110"])
@@ -308,18 +310,21 @@ class FE_ReIDService(JobBase):
         if self.target != status['target'] and self.op_mode != "detection":
             self.log.info("Target has been updated!")
             self.target = status['target']
-            json_data = json.dumps(status['target'])
-            img_bytes = base64.b64decode(json_data.encode('utf-8'))
 
-            # convert bytes data to PIL Image object
-            img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+            img_arr = []
 
-            # PIL image object to numpy array
-            img_arr = np.asarray(img)      
+            for images in self.target:
+                json_data = json.dumps(images)
+                img_bytes = base64.b64decode(json_data.encode('utf-8'))
 
-            data = DetTrackResult([img_arr], None, [], 0, 0, is_target=True)
-            # data = pickle.dumps(data)
-            # data = [ img_arr, 1.0, 0, 0, 1 ]
+                # convert bytes data to PIL Image object
+                img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+
+                # PIL image object to numpy array
+                img_arr.append(np.asarray(img))  
+
+            data = DetTrackResult(img_arr, None, [], 0, 0, is_target=True)
+
             self.inference(data, post_process=None, new_target=True)
         else:
             self.log.debug("Target unchanged")
@@ -455,6 +460,10 @@ class FEService(JobBase):
         if self.target != status['target'] and self.op_mode != "detection":
             self.log.info("Target has been updated!")
             self.target = status['target']
+
+            # for images in self.target:
+            # add to DetTrackResult and send
+
             json_data = json.dumps(status['target'])
             img_bytes = base64.b64decode(json_data.encode('utf-8'))
 

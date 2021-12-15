@@ -3,10 +3,32 @@ kind: MultiEdgeTrackingService
 metadata:
   name: pedestrian-tracking
 spec:
+  kafkaSupport: false
+  reidManagerDeploy:
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: reid-manager
+      template:
+        metadata:
+          labels:
+            app: reid-manager
+        spec:
+          nodeName: "fraporion00001"
+          containers:
+            - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-external_api:v0.4.0
+              imagePullPolicy: Always
+              name:  detection
+              resources:  # user defined resources
+                requests:
+                  memory: 64M
+                  cpu: 500m
+                limits:
+                  memory: 2Gi
   motDeploy:
     model:
       name: detection-pedestrians-yolox
-    kafkaSupport: true
     spec:
       replicas: 3
       selector:
@@ -28,15 +50,17 @@ spec:
               - name: confidence_thr
                 value: "0.5"
               - name: track_buffer
-                value: "30"
+                value: "100"
               - name: min_box_area
                 value: "100"
               - name: input_shape
                 value: "640"
               - name: "video_url"
                 value: "rtsp://172.17.0.1/video/0"
-              - name: "stream_dispatcher_url"
-                value: "http://7.182.9.110:27345/sedna/get_rtsp_stream" # we should have a k8s deploy+service+pod for this later
+              # - name: "stream_dispatcher_url"
+              #   value: "http://7.182.9.110:9907/sedna/get_video_address"
+              # - name: "status_update_endpoint"
+              #   value: "http://7.182.9.110:27345/sedna/get_app_details"
               resources:  # user defined resources
                 requests:
                   memory: 64M
@@ -47,7 +71,6 @@ spec:
   feDeploy:
     model:
       name: "feature-extraction-efficientnet"
-    kafkaSupport: true
     spec:
       replicas: 0
       selector:
@@ -78,7 +101,6 @@ spec:
   reIDDeploy:
     model:
       name: "feature-extraction-efficientnet"
-    kafkaSupport: true
     spec:
       replicas: 1
       selector:
@@ -95,6 +117,10 @@ spec:
               name:  reid
               imagePullPolicy: Always
               env:  # user defined environments
+              - name: use_gallery
+                value: "False"
+              - name: match_thresh
+                value: "800"
               - name: input_shape
                 value: "256,128"
               - name: "log_dir"
@@ -109,6 +135,12 @@ spec:
                 value: "imgpath.npy"
               - name: "dataset"
                 value: "efficientnetv2_huawei2021"
+              # - name: "upload_endpoint"
+              #   value: "http://7.182.9.110:27345/sedna/push_data"
+              # - name: "status_update_endpoint"
+              #   value: "http://7.182.9.110:27345/sedna/get_app_details"
+              # - name: "post_process_result"
+              #   value: "False"
               resources:  # user defined resources
                 requests:
                   memory: 2Gi

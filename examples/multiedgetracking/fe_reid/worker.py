@@ -31,6 +31,7 @@ from sedna.common.log import LOGGER
 from sedna.core.multi_edge_tracking.multi_edge_tracking import FE_ReIDService
 from sedna.algorithms.reid.mAP import cosine_similarity
 from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
+from multi_img_matching import match_query_to_targets
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
 
@@ -46,7 +47,7 @@ dataset = Context.get_parameters('dataset')
 
 # NO-GALLERY PARAMS
 use_gallery = bool(distutils.util.strtobool(Context.get_parameters('use_gallery', "True")))
-match_thresh = Context.get_parameters('match_thresh', 1.2)
+match_thresh = float(Context.get_parameters('match_thresh', 800))
 
 
 class Estimator(FluentdHelper):
@@ -108,7 +109,7 @@ class Estimator(FluentdHelper):
             for elem in det_track.bbox:
                 # Perform image decoding and store in array
                 # The two approaches should be unified
-                image_as_array = cv2.imdecode(np.array(elem).astype(np.uint8), cv2.IMREAD_COLOR)
+                image_as_array = cv2.imdecode(elem, cv2.IMREAD_COLOR)
 
                 
                 imdata = Image.fromarray(image_as_array)
@@ -135,37 +136,39 @@ class Estimator(FluentdHelper):
 
     def extract_target_features(self, new_query_info) -> Any:
         """Extract the features for the query image. This function is invoked when a new query image is provided."""
+        self.query_feat = None
 
-        # new_query_info contains the query image.
-        try:
-            query_img = Image.fromarray(new_query_info.bbox[0])
-        except Exception as ex:
-            LOGGER.error(f"Query image not found. Error [{ex}]")
-            self.reset_op_mode()
-            return None
+        LOGGER.info(f"Received {len(new_query_info.bbox)} sample images for the target.")
+        new_query_info.features = []
+        
+        for image in new_query_info.bbox:
+            # new_query_info contains the query image.
+            try:
+                query_img = Image.fromarray(image)
+            except Exception as ex:
+                LOGGER.error(f"Query image not found. Error [{ex}]")
+                self.reset_op_mode()
+                return None
 
-        # Attempt forward pass
-        try:
-            input = torch.unsqueeze(self.transform(query_img), 0).to(self.device)
-            with FTimer(f"feature_extraction"):
-                with torch.no_grad():
-                    query_feat = self.model(input)
-                    LOGGER.debug(f"Extracted tensor with features: {query_feat}")
+            # Attempt forward pass
+            try:
+                input = torch.unsqueeze(self.transform(query_img), 0).to(self.device)
+                with FTimer(f"feature_extraction"):
+                    with torch.no_grad():
+                        query_feat = self.model(input)
+                        LOGGER.debug(f"Extracted tensor with features: {query_feat}")
 
-            # It returns a tensor, it should be transformed into a list before TX
-            new_query_info.features = [query_feat]
-            new_query_info.is_target = True
+                # It returns a tensor, it should be transformed into a list before TX
+                new_query_info.features.append(query_feat)
+                new_query_info.is_target = True
 
-            # Addition
-            self.query_feat = query_feat
+            except Exception as ex:
+                LOGGER.error(f"Feature extraction failed for Query image. Error [{ex}]")
+                self.reset_op_mode()
+                return None
 
-            LOGGER.info("Sending to the ReID module the target's features.")
-            self.write_to_fluentd(new_query_info)
-
-        except Exception as ex:
-            LOGGER.error(f"Feature extraction failed for Query image. Error [{ex}]")
-            self.reset_op_mode()
-            return None
+        LOGGER.info("Saving target features vector.")
+        self.query_feat = new_query_info.features
 
         return new_query_info 
 
@@ -179,22 +182,25 @@ class Estimator(FluentdHelper):
         @return: match_id [int] which points to the index of the matched detection.
         """
 
-        candidate_feats = torch.stack(candidate_feats, 1)[0, :, :] 
-
-        # Compute distance between
-        sim_measure = cosine_similarity(self.query_feat, candidate_feats)[0]
-
-        match_score = np.sort(sim_measure.flatten(), axis=0)[0]
-        if isinstance(match_score, list):
-            match_score = np.array(match_score, dtype=np.float)
-
-        if not np.any(match_score < self.match_thresh):
+        if self.query_feat == None:
+            LOGGER.warning("Target has not been set!")
             return -1
 
-        # Return id corresponding to the highest match
-        match_id = np.argsort(sim_measure.flatten(), axis=0)[-1]
+        # gfeats, img_path = inference(self.model, self.query_feat, len(self.query_feat))
 
-        return match_id
+        # for cf in candidate_feats:
+        #     dist_mat = cosine_similarity(cf, gfeats)
+        #     LOGGER.info(dist_mat)
+
+        match_id, match_score = match_query_to_targets(self.query_feat, candidate_feats, False)
+        LOGGER.info(match_score)
+        if float(match_score) < self.match_thresh:
+            return -1, -1
+
+        LOGGER.info(f"Selected ID {match_id} with score {match_score}")
+
+        return match_id, match_score
+
 
     def reid(self, query_feat, camera_code, det_time):
         LOGGER.debug(f"Running the cosine similarity function on input data")
@@ -232,7 +238,7 @@ class Estimator(FluentdHelper):
             # if a new query is provided, update query features
             det_track = self.extract_target_features(data)
         else:
-            # get features for all the detected boxes
+            # otherwise, get features for all the detected boxes
             det_track = self.extract_features(data)
 
         # prepare results
@@ -275,19 +281,19 @@ class Estimator(FluentdHelper):
                 return tresult
 
             # get id of highest match
-            match_id = self.reid_per_frame(det_track.features)
+            match_id, match_score = self.reid_per_frame(det_track.features)
 
             if match_id < 0:
                 return tresult
 
             result = {
-                "match_id": det_track.tracklets[match_id],
+                "match_id": str(match_score),
                 "detection_area": det_track.camera[match_id],
                 "detection_time": det_track.detection_time[match_id]
             }
 
             if kwargs["op_mode"] == "tracking":
-                tresult = self.create_result(match_id, det_track, f"{det_track.tracklets[match_id]}")
+                tresult = self.create_result(match_id, det_track, f"{match_score}")
             else:
                 tresult = det_track
 
@@ -297,7 +303,9 @@ class Estimator(FluentdHelper):
 
     ### SUPPORT FUNCTIONS ###
 
-    def load_target(self, det_track : DetTrackResult):        
+    def load_target(self, det_track : DetTrackResult):  
+        # Pay attention, load_target is used only when a reid gallery is available.
+        # Hence, with just use one image to do ReID, we don't need more than that.      
         query_feat = det_track.features[0]
         query_feat = query_feat.float()
 

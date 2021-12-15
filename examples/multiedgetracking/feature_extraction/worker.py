@@ -84,7 +84,7 @@ class Estimator(FluentdHelper):
             for elem in det_track.bbox:
                 # Perform image decoding and store in array
                 # The two approaches should be unified
-                image_as_array = cv2.imdecode(np.array(elem).astype(np.uint8), cv2.IMREAD_COLOR)
+                image_as_array = cv2.imdecode(elem, cv2.IMREAD_COLOR)
 
                 
                 imdata = Image.fromarray(image_as_array)

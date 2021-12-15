@@ -95,12 +95,14 @@ class Yolov5(FluentdHelper):
                 for *xyxy, conf, cls in reversed(det):
                     crop = save_one_box(xyxy, imc, file='test.jpg', BGR=True, save=False)
                     # Perform cropped image compression to reduce size
-                    crop_encoded = np.array(cv2.imencode('.jpg', crop)[1])
+                    crop_encoded = cv2.imencode('.jpg', crop)[1]
                     
                     bbs_list.append([crop_encoded, conf.numpy(), xyxy, self.camera_code, det_time])
 
         if len(bbs_list) > 0:
-            scene = np.array(cv2.imencode('.jpg', data)[1])
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
+            scene = cv2.imencode('.jpg', data, encode_param)[1]
+            
             result = DetTrackResult(
                 bbox=[item[0] for item in bbs_list],
                 bbox_coord=[item[2] for item in bbs_list],

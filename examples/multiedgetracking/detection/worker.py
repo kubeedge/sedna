@@ -14,9 +14,12 @@ from sedna.common.log import LOGGER
 
 from estimator import str_to_estimator_class
 
-camera_address = Context.get_parameters('video_url')
-stream_dispatcher = Context.get_parameters('stream_dispatcher_url')
+api_ip = Context.get_parameters("MANAGER_API_BIND_IP", "7.182.9.110")
+api_port = int(Context.get_parameters("MANAGER_API_BIND_PORT", "27345"))
+#TODO: Fix stream_dispatcher
+stream_dispatcher = Context.get_parameters('stream_dispatcher_url', f"http://{api_ip}:{api_port}/sedna/get_video_address")
 estimator_class = Context.get_parameters('estimator_class', "Yolov5")
+camera_address = Context.get_parameters('video_url')
 
 def retrieve_rtsp_stream() -> str:
     LOGGER.debug(f'Finding target RTSP stream')

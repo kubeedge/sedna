@@ -186,21 +186,14 @@ class ByteTracker(FluentdHelper):
                 score = a0[i]*a1[i]
                 _img = data[y0: y1, x0: x1]
 
-                crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
+                crop_encoded = cv2.imencode('.jpg', _img)[1]
 
                 object_crops.append([crop_encoded, score.item(), bboxes[i], self.camera_code, det_time]) 
             
             if len(object_crops) > 0:
-                scene = np.array(cv2.imencode('.jpg', data)[1])
-                result = DetTrackResult(
-                    bbox=[item[0] for item in object_crops],
-                    scene=scene,
-                    bbox_coord=[item[2] for item in object_crops],
-                    confidence=[item[1] for item in object_crops],
-                    camera=[item[3] for item in object_crops],
-                    detection_time=[item[4] for item in object_crops]
-                )
-                self.write_to_fluentd(object_crops)
+                self._build_result_object(object_crops, data)
+
+                self.write_to_fluentd(result)
                 LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
 
         except Exception as ex:
@@ -252,7 +245,7 @@ class ByteTracker(FluentdHelper):
                 _img = data[y0: y1, x0: x1]
 
                 # encode the object crop
-                crop_encoded = np.array(cv2.imencode('.jpg', _img)[1])
+                crop_encoded = cv2.imencode('.jpg', _img)[1]
 
                 # append
                 object_crops.append([
@@ -265,7 +258,9 @@ class ByteTracker(FluentdHelper):
                 ])
             
             if len(object_crops) > 0:
-                scene = np.array(cv2.imencode('.jpg', data)[1])
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
+                scene = cv2.imencode('.jpg', data, encode_param)[1]
+
                 result = DetTrackResult(
                     bbox=[item[0] for item in object_crops],
                     scene=scene,
@@ -307,3 +302,17 @@ class ByteTracker(FluentdHelper):
         else:
             return self.track(data, outputs, img_info, det_time)
      
+    def _build_result_object(self, object_crops, original_frame):
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
+        scene = cv2.imencode('.jpg', original_frame, encode_param)[1]
+
+        result = DetTrackResult(
+            bbox=[item[0] for item in object_crops],
+            scene=scene,
+            bbox_coord=[item[2] for item in object_crops],
+            confidence=[item[1] for item in object_crops],
+            camera=[item[3] for item in object_crops],
+            detection_time=[item[4] for item in object_crops]
+        )
+        
+        return result

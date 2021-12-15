@@ -102,6 +102,12 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
                     response_class=JSONResponse,
                     methods=["GET"],
                 ),
+                APIRoute(
+                    f"/{servername}/clean_frame_buffer",
+                    self.clean_frame_buffer,
+                    response_class=JSONResponse,
+                    methods=["GET"],
+                ),
             ],
             log_level="trace",
             timeout=600,
@@ -114,19 +120,24 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
     ### EXTERNAL ENDPOINTS ###
     ##########################
 
-    # Example: curl -X GET http://7.182.9.110:31269/sedna/enable_post_processing
+    # Example: curl -X GET http://7.182.9.110:9907/sedna/enable_post_processing
     # Enables post-processing which makes the service store images ready for rendering rather than the parent DetTrackResult object
     def enable_post_processing(self):
         self.interface.post_process = True
         return 200
 
-    # Example: curl -X GET http://7.182.9.110:31269/sedna/disable_post_processing
+    # Example: curl -X GET http://7.182.9.110:9907/sedna/disable_post_processing
     # Disables post-processing.
     def disable_post_processing(self):
         self.interface.post_process = False
         return 200
 
-    # Example: curl -X GET http://7.182.9.110:31269/sedna/get_reid_result
+    # Example: curl -X GET http://7.182.9.110:9907/sedna/clean_frame_buffer
+    # Wipes the frame buffer
+    def clean_frame_buffer(self):
+        self.interface.clean_frame_buffer()
+
+    # Example: curl -X GET http://7.182.9.110:9907/sedna/get_reid_result
     # Returns the oldest from the frame buffer (FIFO queue)
     async def get_reid_result(self):
         data = self.interface.get_reid_result()
@@ -139,14 +150,14 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
         if isinstance(data, (bytearray, bytes)):
              return StreamingResponse(content=data)
 
-        return StreamingResponse(content="ERROR")
+        return Response(content="NO FRAMES!")
 
-    # Example: curl -X GET http://7.182.9.110:31269/sedna/get_reid_buffer_size
+    # Example: curl -X GET http://7.182.9.110:9907/sedna/get_reid_buffer_size
     # Returns the size of the frame buffer
     def get_reid_buffer_size(self):
         return self.interface.get_reid_buffer_size()
 
-    # Example: curl -X POST http://7.182.9.110:31269/sedna/add_video_address --data '{"url":"http://localhost:8080/video/0"}'
+    # Example: curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"http://localhost:8080/video/0"}'
     # Add a new RTSP address to the list
     async def add_video_address(self, request: Request):
         body = await request.body()
@@ -155,16 +166,19 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
         url = body.get('url', None)
         return self.interface.add_video_address(url)
 
-    # Example: curl -X POST http://7.182.9.110:30749/sedna/set_app_details  -H 'Expect:' -F "op_mode=tracking" -F target=@zi_vid.png
-    # Updates the service configuration. It accepts a string specifing the operation mode and a file containing the target to search
+    # Example: curl -X POST http://7.182.9.110:9907/sedna/set_app_details  -H 'Expect:' -F "op_mode=tracking" -F target=@vit_vid.png  target=@zi_vid.png
+    # Updates the service configuration. It accepts a string specifing the operation mode and a file containing the target to search.
+    # All images MUST have the same extension (JPG, PNG ..).
     async def set_app_details(self, request: Request):
         form = await request.form()
         op_mode = form.get("op_mode", "detection")
-        target = form.get("target", None)
-        
-        if target is not None:     
-            target = await target.read()
-        
+        files = form.getlist("target")
+   
+        target = []
+        if files is not None and len(files) > 0:
+            for file in files:
+                target.append(await file.read()) 
+
         return self.interface.set_app_details(op_mode, target)
 
     ##########################
