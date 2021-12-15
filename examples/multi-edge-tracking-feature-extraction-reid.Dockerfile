@@ -41,6 +41,8 @@ COPY examples/multiedgetracking/feature_extraction/nets /home/work/nets
 ENV PYTHONPATH "${PYTHONPATH}:/home/work"
 
 COPY examples/multiedgetracking/fe_reid/worker.py  /home/work/worker.py
+COPY examples/multiedgetracking/fe_reid/multi_img_matching.py  /home/work/multi_img_matching.py
+COPY examples/multiedgetracking/fe_reid/__init__.py  /home/work/__init__.py
 
 ENV LOG_LEVEL="INFO"
 
