@@ -86,6 +86,8 @@ spec:
             name: agg-worker
             imagePullPolicy: IfNotPresent
             env: # user defined environments
+              - name: "ASCEND_VISIBLE_DEVICES"
+                value: "7"
               - name: "cut_layer"
                 value: "4"
               - name: "epsilon"
@@ -105,8 +107,6 @@ spec:
               limits:   
                 memory: 32Gi
                 huawei.com/Ascend910: 1
-            securityContext:
-              privileged: true
         volumes:
         - name: ascend-dirver
           hostPath:
