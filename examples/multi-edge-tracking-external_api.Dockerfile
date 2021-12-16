@@ -14,7 +14,7 @@ RUN apt update
 RUN apt install libgl1-mesa-glx -y
 
 # RUN apt install -y git
-RUN apt install -y gfortran libopenblas-dev liblapack-dev
+RUN apt install -y gfortran libopenblas-dev liblapack-dev ffmpeg
 
 ## Install base dependencies
 RUN pip install tqdm opencv-python pillow python-multipart torch

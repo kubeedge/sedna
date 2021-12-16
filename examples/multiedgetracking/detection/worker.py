@@ -26,21 +26,24 @@ def retrieve_rtsp_stream() -> str:
     if stream_dispatcher != None:
         try:
             rtsp_stream = requests.get(stream_dispatcher)
-            LOGGER.debug(f'Retrieved RTSP stream with address {rtsp_stream}')
+            LOGGER.info(f'Retrieved RTSP stream with address {rtsp_stream.json()}')
+            data = json.loads(rtsp_stream.json())
             # We have to do this sanity check otherwise cv2 will silenty fail and never open the RTSP stream
-            cv2_cleaned_string = rtsp_stream.text.strip().replace('"', '')
-            return cv2_cleaned_string
+            address = data["camera_address"].strip().replace('"', '')
+            camera_id = data["camera_id"]
+
+            return address, camera_id
         except Exception as ex:
             LOGGER.error(f'Unable to access stream dispatcher server, using fallback value. [{ex}]')
-            return camera_address
+            return None, -1
     else:
         LOGGER.debug(f'Using RTSP from env variable with address {camera_address}')
-        return camera_address
+        return camera_address, camera_address.split("/")[-1] # WARNING: Only for demo purposes!
     
 
-def start_stream_acquisition(stream_address):
+def start_stream_acquisition(stream_address, camera_code):
     optical_flow = LukasKanade()
-    camera_code = stream_address.split("/")[-1] # WARNING: Only for demo purposes!
+
     eclass = str_to_estimator_class(estimator_class=estimator_class)
     selected_estimator=eclass(camera_code=camera_code)
     edge_worker = ObjectDetector(selected_estimator)
@@ -98,5 +101,11 @@ def start_stream_acquisition(stream_address):
             startTime = time.time() # reset time
 
 if __name__ == '__main__':
-    result = retrieve_rtsp_stream()
-    start_stream_acquisition(result)
+    camera_id = -1
+    camera_address = None
+
+    while camera_id == -1 and camera_address == None:
+        camera_address, camera_id = retrieve_rtsp_stream()
+        time.sleep(2)
+
+    start_stream_acquisition(camera_address, camera_id)

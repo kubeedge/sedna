@@ -108,6 +108,19 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
                     response_class=JSONResponse,
                     methods=["GET"],
                 ),
+                # EXTRA API FOR CT#
+                APIRoute(
+                    f"/v1/person/user/tracking/stop",
+                    self.stop_tracking,
+                    response_class=JSONResponse,
+                    methods=["POST"],
+                ),
+                APIRoute(
+                    f"/v1/person/tracking/live/identification",
+                    self.set_app_details_v2,
+                    response_class=JSONResponse,
+                    methods=["POST"],
+                ),
             ],
             log_level="trace",
             timeout=600,
@@ -157,21 +170,26 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
     def get_reid_buffer_size(self):
         return self.interface.get_reid_buffer_size()
 
-    # Example: curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"http://localhost:8080/video/0"}'
+    # Example: curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://localhost:8080/video/0", "camid":0}'
     # Add a new RTSP address to the list
     async def add_video_address(self, request: Request):
         body = await request.body()
         body = json.loads(body)
 
-        url = body.get('url', None)
-        return self.interface.add_video_address(url)
+        url = body.get('url', None) 
+        camid = body.get('camid', None)
 
-    # Example: curl -X POST http://7.182.9.110:9907/sedna/set_app_details  -H 'Expect:' -F "op_mode=tracking" -F target=@vit_vid.png  target=@zi_vid.png
+        return self.interface.add_video_address(url, camid)
+
+    # Example: curl -X POST http://7.182.9.110:9907/sedna/set_app_details  -H 'Expect:' -F data='{"userID":"123", "op_mode":"tracking", "queryImagesFromNative": []}' -F target=@vit_vid.png  target=@zi_vid.png
     # Updates the service configuration. It accepts a string specifing the operation mode and a file containing the target to search.
     # All images MUST have the same extension (JPG, PNG ..).
     async def set_app_details(self, request: Request):
         form = await request.form()
-        op_mode = form.get("op_mode", "detection")
+        data_json = json.loads(form.get("data", "{}"))
+
+        op_mode = data_json.get("op_mode", "detection")
+        userID = data_json.get("userID", "123")
         files = form.getlist("target")
    
         target = []
@@ -180,6 +198,27 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
                 target.append(await file.read()) 
 
         return self.interface.set_app_details(op_mode, target)
+
+    # Example: curl -X POST http://7.182.9.110:9907/v1/person/tracking/live/identification  -H 'Expect:' --data '{"userID": "123", "op_mode":"tracking", "queryImagesFromNative": [], "cameraIds": [], "isEnhanced": 0}'
+    # Updates the service configuration. It accepts a string specifing the operation mode and a file containing the target to search.
+    # All images MUST have the same extension (JPG, PNG ..).
+    async def set_app_details_v2(self, request: Request):
+        body = await request.body()
+        data_json = json.loads(body)
+
+        userID = data_json.get("userID", "123")
+        op_mode = data_json.get("op_mode", "detection")
+        isEnhanced = data_json.get("isEnhanced", 0) #not used
+        queryImagesFromNative = data_json.get("queryImagesFromNative", [])
+        cameraIds = data_json.get("cameraIds", []) #not used
+
+        return self.interface.set_app_details_v2(userID, op_mode, queryImagesFromNative)
+
+    # Example: curl -X GET http://7.182.9.110:9907/sedna/get_reid_buffer_size
+    # Returns the size of the frame buffer
+    def stop_tracking(self):
+        """Not Implemented """
+        return 200
 
     ##########################
     ### INTERNAL ENDPOINTS ###

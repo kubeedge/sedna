@@ -193,7 +193,7 @@ class Estimator(FluentdHelper):
         #     LOGGER.info(dist_mat)
 
         match_id, match_score = match_query_to_targets(self.query_feat, candidate_feats, False)
-        LOGGER.info(match_score)
+
         if float(match_score) < self.match_thresh:
             return -1, -1
 
