@@ -28,7 +28,7 @@ from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
 from sedna.core.multi_edge_tracking import ReIDManagerService
 from sedna.common.log import LOGGER
 
-from components.rtsp_dispatcher import add_rtsp_stream, get_rtsp_stream
+from components.rtsp_dispatcher import add_rtsp_stream, get_rtsp_stream, reset_rtsp_stream_list
 
 class ReIDBuffer():
     def __init__(self, userid) -> None:
@@ -55,6 +55,7 @@ class Interface():
 
         # ReID frame buffer
         self.frame_buffer = deque() #FIFO
+        self.rtmp_pipe = self._create_rtmp_pipe()
 
     def upload_frame(self, data):
         LOGGER.info("Received reid result")
@@ -64,7 +65,7 @@ class Interface():
             self.frame_buffer.append(dt_object) if not self.post_process else self.frame_buffer.append((self._post_process(dt_object, time)))
 
             # Call here the function to write to RabbitMQ
-            threading.Thread(target=self.generate_video, args=(dt_object.scene,), daemon=False).start()
+            threading.Thread(target=self._generate_video, args=(dt_object.scene,), daemon=False).start()
 
             return 200
         except Exception as ex:
@@ -91,6 +92,14 @@ class Interface():
         LOGGER.info("Extracting RTSP stream from available ones")
         try:
             return get_rtsp_stream()
+        except Exception as ex:
+            LOGGER.error(f"Error while retrieving RTSP stream address. [{ex}]")
+            return None
+    
+    def reset_rtsp_stream_list(self):
+        LOGGER.info("Clearing RTSP stream list")
+        try:
+            return reset_rtsp_stream_list()
         except Exception as ex:
             LOGGER.error(f"Error while retrieving RTSP stream address. [{ex}]")
             return None
@@ -245,53 +254,42 @@ class Interface():
         # The seq number can be easily generated when iterating over the queue.
         pass
 
-    #TODO: Writing works, but the frames received by the RTMP server are empty.
-    def generate_video(self, frame):
+    def _create_rtmp_pipe(self):
         import subprocess as sp
-        # import copy
-
         rtmp_url="rtmp://7.182.9.110:1935/live/test"
-        fps = 15
+        
+        fps = 1
         width = 640
         height = 480
+        
+        command = ['ffmpeg',
+                '-y',
+                '-f', 'rawvideo',
+                '-vcodec', 'rawvideo',
+                '-pix_fmt', 'bgr24',
+                '-s', f"{width}x{height}",		# weight and height of your image
+                '-r', str(fps),					# fps defined,
+                '-i', '-',
+                '-c:v', 'libx264',
+                '-pix_fmt', 'yuv420p',
+                '-preset', 'ultrafast',
+                '-f', 'flv',
+                '-flvflags', 'no_duration_filesize',
+                rtmp_url]
+                
+        pipe_push = sp.Popen(command, stdin=sp.PIPE, stderr=sp.PIPE, shell=False)
+        return pipe_push
 
+    #TODO: Writing works, but the frames received by the RTMP server are empty.
+    def _generate_video(self, frame):
         try:
             image = cv2.imdecode(frame, cv2.IMREAD_COLOR)
             image = cv2.resize(image, (640,480))
 
-            command = ['ffmpeg',
-                    '-y',
-                    '-f', 'rawvideo',
-                    '-vcodec', 'rawvideo',
-                    '-pix_fmt', 'bgr24',
-                    '-s', f"{width}x{height}",		# weight and height of your image
-                    '-r', str(fps),					# fps defined,
-                    '-i', '-',
-                    '-c:v', 'libx264',
-                    '-pix_fmt', 'yuv420p',
-                    '-preset', 'ultrafast',
-                    '-f', 'flv',
-                    '-flvflags', 'no_duration_filesize',
-                    rtmp_url]
-                
-            pipe_push = sp.Popen(command, stdin=sp.PIPE, stderr=sp.PIPE, shell=False)
-            # qcp = copy.deepcopy(self.frame_buffer)
-
-            # while True:
-            #     try:
-            #         img = qcp.popleft().scene
-            #         pipe_push.stdin.write(img)
-            #     except IndexError as ex:
-            #         LOGGER.warning("Reached the end of the queue!")
-            #         break
-            
-            pipe_push.stdin.write(image)
-            out, err = pipe_push.communicate()
+            self.rtmp_pipe.stdin.write(image)
+            out, err = self.rtmp_pipe.communicate()
             LOGGER.info(out)
             LOGGER.info(err)
-
-            pipe_push.kill()
-            pipe_push.terminate()
         except Exception as ex:
             LOGGER.error(f"Error during transmission to RTMP server. [{ex}]")
 

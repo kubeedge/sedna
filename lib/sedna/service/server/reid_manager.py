@@ -72,6 +72,12 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
                     methods=["POST"],
                 ),
                 APIRoute(
+                    f"/{servername}/reset_rtsp_stream_list",
+                    self.reset_rtsp_stream_list,
+                    response_class=JSONResponse,
+                    methods=["GET"],
+                ),
+                APIRoute(
                     f"/{servername}/get_app_details",
                     self.get_app_details,
                     response_class=JSONResponse,
@@ -180,6 +186,12 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
         camid = body.get('camid', None)
 
         return self.interface.add_video_address(url, camid)
+
+
+    # Example: curl -X GET http://7.182.9.110:9907/sedna/reset_rtsp_stream_list
+    # Reset RTSP addresses list
+    async def reset_rtsp_stream_list(self, request: Request):
+        return self.interface.reset_rtsp_stream_list()
 
     # Example: curl -X POST http://7.182.9.110:9907/sedna/set_app_details  -H 'Expect:' -F data='{"userID":"123", "op_mode":"tracking", "queryImagesFromNative": []}' -F target=@vit_vid.png  target=@zi_vid.png
     # Updates the service configuration. It accepts a string specifing the operation mode and a file containing the target to search.

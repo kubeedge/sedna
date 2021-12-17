@@ -48,3 +48,15 @@ def add_rtsp_stream(item : str, camid: int):
         return 200
     else:
         return 404
+
+def reset_rtsp_stream_list():
+    lock.acquire()
+
+    try:
+        LOGGER.debug('Acquired a lock, adding new stream URI')
+        streams.clear()
+    finally:
+        LOGGER.debug('Released a lock')
+        lock.release()
+
+    return 200

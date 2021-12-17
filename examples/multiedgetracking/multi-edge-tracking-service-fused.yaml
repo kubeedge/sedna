@@ -15,7 +15,7 @@ spec:
           labels:
             app: reid-manager
         spec:
-          nodeName: "fraporion00001"
+          nodeName: fraporion00001
           containers:
             - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-external_api:v0.4.0
               imagePullPolicy: Always
@@ -39,7 +39,8 @@ spec:
           labels:
             app: object-detection
         spec:
-          nodeName: "fraprigel00001"
+          nodeSelector:
+            reid-role: detector # Remember to set this label in the K8S cluster for the edge nodes.
           containers:
             - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-detection:v0.4.0
               imagePullPolicy: Always
@@ -111,7 +112,7 @@ spec:
           labels:
             app: reid
         spec:
-          nodeName: "fraporion00001"
+          nodeName: fraporion00001
           containers:
             - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-feature-extraction-reid:v0.4.0
               name:  reid

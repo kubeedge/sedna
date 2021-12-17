@@ -191,7 +191,7 @@ class ByteTracker(FluentdHelper):
                 object_crops.append([crop_encoded, score.item(), bboxes[i], self.camera_code, det_time]) 
             
             if len(object_crops) > 0:
-                self._build_result_object(object_crops, data)
+                result = self._build_result_object(object_crops, data)
 
                 self.write_to_fluentd(result)
                 LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
