@@ -29,3 +29,6 @@ COPY examples/federated_learning/yolov5_coco128_mistnet/requirements.txt  /home/
 
 RUN pip install -r /home/work/requir1.txt
 RUN pip install -r /home/work/requirements.txt
+
+ENV http_proxy "
+ENV https_proxy ""

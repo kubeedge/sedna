@@ -1,4 +1,4 @@
-FROM baseclient:v0.4.0
+FROM decshub.org/baseclient:v0.4.0
 
 ENV PYTHONPATH="/usr/local/Ascend/driver/lib64:/usr/local/Ascend/nnrt/5.0.2/arm64-linux/pyACL/python/site-packages/acl:/home/lib:/home/plato:/home/plato/packages/yolov5"
 
