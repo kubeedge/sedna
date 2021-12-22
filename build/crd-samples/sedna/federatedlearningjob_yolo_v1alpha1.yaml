@@ -31,6 +31,8 @@ spec:
                 value: "32"
               - name: "epochs"
                 value: "100"
+              - name: "num_select_clients"
+                value: "2"
             resources: # user defined resources
               limits:
                 memory: 8Gi
@@ -58,6 +60,8 @@ spec:
                   value: "0.001"
                 - name: "epochs"
                   value: "1"
+                - name: "num_select_clients"
+                  value: "2"
               resources: # user defined resources
                 limits:
                   memory: 2Gi
@@ -84,6 +88,8 @@ spec:
                   value: "0.001"
                 - name: "epochs"
                   value: "1"
+                - name: "num_select_clients"
+                  value: "2"
               resources: # user defined resources
                 limits:
                   memory: 2Gi
