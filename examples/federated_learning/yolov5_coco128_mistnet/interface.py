@@ -19,7 +19,7 @@ from sedna.core.federated_learning import FederatedLearningV2
 
 
 
-simple_chooser = SimpleClientChoose(per_round=Context.get_parameters("num_select_clients"))
+simple_chooser = SimpleClientChoose(per_round=int(Context.get_parameters("num_select_clients")))
 
 # It has been determined that mistnet is required here.
 mistnet = MistNet(cut_layer=Context.get_parameters("cut_layer"),
