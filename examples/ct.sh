@@ -98,6 +98,8 @@ spec:
                 value: "1"
               - name: "EPOCHS"
                 value: "100"
+              - name: "num_select_clients"
+                value: "1"
             volumeMounts:
                 - name: ascend-dirver
                   mountPath: /usr/local/Ascend/driver
@@ -141,6 +143,8 @@ spec:
                   value: "0.001"
                 - name: "epochs"
                   value: "1"
+                - name: "num_select_clients"
+                  value: "1"
               resources: # user defined resources
                 limits:
                   memory: 2.5Gi
@@ -177,6 +181,8 @@ spec:
                 - name: "learning_rate"
                   value: "0.001"
                 - name: "epochs"
+                  value: "1"
+                - name: "num_select_clients"
                   value: "1"
               resources: # user defined resources
                 limits:
