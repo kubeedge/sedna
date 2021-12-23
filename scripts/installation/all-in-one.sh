@@ -460,9 +460,9 @@ function create_and_setup_edgenodes() {
 
   for((i=0;i<NUM_EDGE_NODES;i++)); do
     log_info "Installing $i-th edge node..."
-    local containername=sedna-mini-edge$i
+    local containername=${CLUSTER_NAME}-edge$i
     local hostname=edge$i
-    local label=sedna.io=sedna-mini-edge
+    local label=sedna.io=${CLUSTER_NAME}-edge
 
     # Many tricky arguments are from the kind code
     # https://github.com/kubernetes-sigs/kind/blob/4910c3e221a858e68e29f9494170a38e1c4e8b80/pkg/cluster/internal/providers/docker/provision.go#L148
@@ -488,17 +488,17 @@ function create_and_setup_edgenodes() {
     local existing_id=$(docker ps -qa --filter name=$containername --filter label=$label)
     if [ -n "$existing_id" ]; then
       if [ "${REUSE_EDGE_CONTAINER,,}" = true ] ; then
-        log_info "Use existing container for ''$containername'"
+        log_info "Use existing container for '$containername'"
         log_info "If not your attention, you can do:"
         log_info "  1) set REUSE_EDGE_CONTAINER=false"
-        log_info "  Or 2) clean it first."
-        log_info "And rerun this script."
+        log_info "  Or 2) clean it first by 'docker rm $containername'."
+        log_info "  3) And rerun this script."
         # start in case stopped
         docker start $containername
       else
         log_error "The container named $containername already exists, you can do:"
         log_error "  1) set REUSE_EDGE_CONTAINER=true"
-        log_error "  Or 2) clean it first."
+        log_error "  Or 2) clean it first manually by 'docker rm $containername'."
         log_fault "And rerun this script."
       fi
     else
@@ -545,7 +545,7 @@ function create_and_setup_edgenodes() {
 }
 
 function clean_edgenodes() {
-  for cid in $(docker ps -a --filter label=sedna.io=sedna-mini-edge -q); do
+  for cid in $(docker ps -a --filter label=sedna.io=${CLUSTER_NAME}-edge -q); do
     docker stop $cid; docker rm $cid
   done
 }
