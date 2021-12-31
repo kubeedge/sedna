@@ -1,5 +1,5 @@
 ===========================================
-Sedna Python SDK
+Python API Use Guide
 ===========================================
 
 .. mdinclude:: ../../../lib/sedna/README.md

@@ -1,0 +1,66 @@
+apiVersion: sedna.io/v1alpha1
+kind: JointInferenceService
+metadata:
+  name: helmet-detection-inference-example
+  namespace: default
+spec:
+  edgeWorker:
+    model:
+      name: "helmet-detection-inference-little-model"
+    hardExampleMining:
+      name: "IBT"
+      parameters:
+        - key: "threshold_img"
+          value: "0.9"
+        - key: "threshold_box"
+          value: "0.9"
+    template:
+      spec:
+        nodeName: $EDGE_NODE
+        containers:
+          - image: kubeedge/sedna-example-joint-inference-helmet-detection-little:v0.3.0
+            imagePullPolicy: IfNotPresent
+            name: little-model
+            env: # user defined environments
+              - name: input_shape
+                value: "416,736"
+              - name: "video_url"
+                value: "rtsp://localhost/video"
+              - name: "all_examples_inference_output"
+                value: "/data/output"
+              - name: "hard_example_cloud_inference_output"
+                value: "/data/hard_example_cloud_inference_output"
+              - name: "hard_example_edge_inference_output"
+                value: "/data/hard_example_edge_inference_output"
+            resources: # user defined resources
+              requests:
+                memory: 64M
+                cpu: 100m
+              limits:
+                memory: 2Gi
+            volumeMounts:
+              - name: outputdir
+                mountPath: /data/
+        volumes: # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /joint_inference/output
+              type: Directory
+
+  cloudWorker:
+    model:
+      name: "helmet-detection-inference-big-model"
+    template:
+      spec:
+        nodeName: $CLOUD_NODE
+        containers:
+          - image: kubeedge/sedna-example-joint-inference-helmet-detection-big:v0.3.0
+            name: big-model
+            imagePullPolicy: IfNotPresent
+            env: # user defined environments
+              - name: "input_shape"
+                value: "544,544"
+            resources: # user defined resources
+              requests:
+                memory: 2Gi

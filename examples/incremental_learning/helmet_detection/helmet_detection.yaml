@@ -1,0 +1,105 @@
+apiVersion: sedna.io/v1alpha1
+kind: IncrementalLearningJob
+metadata:
+  name: helmet-detection-demo
+spec:
+  initialModel:
+    name: "initial-model"
+  dataset:
+    name: "incremental-dataset"
+    trainProb: 0.8
+  trainSpec:
+    template:
+      spec:
+        nodeName: $WORKER_NODE
+        containers:
+          - image: $IMAGE
+            name: train-worker
+            imagePullPolicy: IfNotPresent
+            args: [ "train.py" ]
+            env:
+              - name: "batch_size"
+                value: "32"
+              - name: "epochs"
+                value: "1"
+              - name: "input_shape"
+                value: "352,640"
+              - name: "class_names"
+                value: "person,helmet,helmet-on,helmet-off"
+              - name: "nms_threshold"
+                value: "0.4"
+              - name: "obj_threshold"
+                value: "0.3"
+    trigger:
+      checkPeriodSeconds: 60
+      timer:
+        start: 02:00
+        end: 20:00
+      condition:
+        operator: ">"
+        threshold: 500
+        metric: num_of_samples
+  evalSpec:
+    template:
+      spec:
+        nodeName: $WORKER_NODE
+        containers:
+          - image: $IMAGE
+            name: eval-worker
+            imagePullPolicy: IfNotPresent
+            args: [ "eval.py" ]
+            env:
+              - name: "input_shape"
+                value: "352,640"
+              - name: "class_names"
+                value: "person,helmet,helmet-on,helmet-off"
+  deploySpec:
+    model:
+      name: "deploy-model"
+      hotUpdateEnabled: true
+      pollPeriodSeconds: 60
+    trigger:
+      condition:
+        operator: ">"
+        threshold: 0.1
+        metric: precision_delta
+    hardExampleMining:
+      name: "IBT"
+      parameters:
+        - key: "threshold_img"
+          value: "0.9"
+        - key: "threshold_box"
+          value: "0.9"
+    template:
+      spec:
+        nodeName: $WORKER_NODE
+        containers:
+          - image: $IMAGE
+            name: infer-worker
+            imagePullPolicy: IfNotPresent
+            args: [ "inference.py" ]
+            env:
+              - name: "input_shape"
+                value: "352,640"
+              - name: "video_url"
+                value: "file://video/video.mp4"
+              - name: "HE_SAVED_URL"
+                value: "/he_saved_url"
+            volumeMounts:
+              - name: localvideo
+                mountPath: /video/
+              - name: hedir
+                mountPath: /he_saved_url
+            resources: # user defined resources
+              limits:
+                memory: 2Gi
+        volumes: # user defined volumes
+          - name: localvideo
+            hostPath:
+              path: /incremental_learning/video/
+              type: DirectoryorCreate
+          - name: hedir
+            hostPath:
+              path: /incremental_learning/he/
+              type: DirectoryorCreate
+  outputDir: "/output"
