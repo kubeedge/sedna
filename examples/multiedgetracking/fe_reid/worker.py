@@ -106,23 +106,24 @@ class Estimator(FluentdHelper):
         det_track = data[0]
         # det_track = pickle.loads(d)
         try:
-            for elem in det_track.bbox:
-                # Perform image decoding and store in array
-                # The two approaches should be unified
-                image_as_array = cv2.imdecode(elem, cv2.IMREAD_COLOR)
+            with FTimer(f"feature_extraction"):
+                for elem in det_track.bbox:
+                    # Perform image decoding and store in array
+                    # The two approaches should be unified
+                    image_as_array = cv2.imdecode(elem, cv2.IMREAD_COLOR)
 
-                
-                imdata = Image.fromarray(image_as_array)
-                LOGGER.debug(f'Performing feature extraction for received image')
-                input = torch.unsqueeze(self.transform(imdata), 0)
-                input = input.to(self.device)
+                    
+                    imdata = Image.fromarray(image_as_array)
+                    LOGGER.debug(f'Performing feature extraction for received image')
+                    input = torch.unsqueeze(self.transform(imdata), 0)
+                    input = input.to(self.device)
 
-                with FTimer(f"feature_extraction"):
+                    
                     with torch.no_grad():
                         query_feat = self.model(input)
                         LOGGER.debug(f"Extracted tensor with features: {query_feat}")
-                        
-                det_track.features.append(query_feat)
+                            
+                    det_track.features.append(query_feat)
 
 
             LOGGER.debug(f"Extracted ReID features for {len(det_track.bbox)} object/s received from camera {det_track.camera[0]}")
@@ -192,7 +193,8 @@ class Estimator(FluentdHelper):
         #     dist_mat = cosine_similarity(cf, gfeats)
         #     LOGGER.info(dist_mat)
 
-        match_id, match_score = match_query_to_targets(self.query_feat, candidate_feats, False)
+        with FTimer(f"reid_no_gallery"):
+            match_id, match_score = match_query_to_targets(self.query_feat, candidate_feats, False)
 
         if float(match_score) < self.match_thresh:
             return -1, -1
@@ -206,7 +208,7 @@ class Estimator(FluentdHelper):
         LOGGER.debug(f"Running the cosine similarity function on input data")
         LOGGER.debug(f"{query_feat.shape} - {self.gallery_feats.shape}")
 
-        with FTimer("cosine_similarity"):
+        with FTimer("reid"):
             dist_mat = cosine_similarity(query_feat, self.gallery_feats)
         
         indices = np.argsort(dist_mat, axis=1)

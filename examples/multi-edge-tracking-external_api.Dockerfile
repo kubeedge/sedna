@@ -19,6 +19,9 @@ RUN apt install -y gfortran libopenblas-dev liblapack-dev ffmpeg
 ## Install base dependencies
 RUN pip install tqdm opencv-python pillow python-multipart torch
 
+## RabbitMQ dependency
+RUN pip install pika
+
 ## SEDNA SECTION ##
 
 COPY ./lib/requirements.txt /home

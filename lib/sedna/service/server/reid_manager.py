@@ -127,6 +127,18 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
                     response_class=JSONResponse,
                     methods=["POST"],
                 ),
+                APIRoute(
+                    f"/v1/vehicle/user/tracking/stop",
+                    self.stop_tracking,
+                    response_class=JSONResponse,
+                    methods=["POST"],
+                ),
+                APIRoute(
+                    f"/v1/vehicle/tracking/live/identification",
+                    self.set_app_details_v2,
+                    response_class=JSONResponse,
+                    methods=["POST"],
+                ),
             ],
             log_level="trace",
             timeout=600,
@@ -226,10 +238,10 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
 
         return self.interface.set_app_details_v2(userID, op_mode, queryImagesFromNative)
 
-    # Example: curl -X GET http://7.182.9.110:9907/sedna/get_reid_buffer_size
-    # Returns the size of the frame buffer
+    # Example: curl -X POST http://7.182.9.110:9907/v1/person/user/tracking/stop --data '{"userID": "123"}'
+    # Disable tracking
     def stop_tracking(self):
-        """Not Implemented """
+        self.interface.set_app_details("detection", None)
         return 200
 
     ##########################

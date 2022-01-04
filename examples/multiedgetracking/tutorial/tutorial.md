@@ -76,29 +76,29 @@ With the default deployment, you will have:
 
 Execute the following API calls in sequence to test the application/service (replace the IP with the IP of the node where the manager-api-pod is running):
 
-**STEP 1**: Add RTSP video sources for the tracking pods, 1 call per video address. This operation can be skipped if the RTSP stream addresses are hardcoded ahead of time in `examples/multiedgetracking/reid_manager/components/rtsp_dispatcher.py`.
+**STEP 1**: Add RTSP video sources for the tracking pods, one call per video address. This operation can be skipped if the RTSP stream addresses are hardcoded ahead of time in `examples/multiedgetracking/reid_manager/components/rtsp_dispatcher.py`.
 
-- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"camera_address":"rtsp://localhost:8080/video/0", "camera_id":0}'`
-- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"camera_address":"rtsp://localhost:8080/video/1", "camera_id":1}'`
-- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"camera_address":"rtsp://localhost:8080/video/2", "camera_id":2}'`
+- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/0", "camid":0}'`
+- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/1", "camid":1}'`
+- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/2", "camid":2}'`
 
-**STEP 2**: Upload the images of the target you want to track/find. You have two options: the first is to send files directly using call **A**, the second is to send base64 encoded images with call **B**. It is important that the images use the same compression algorithms (e.g., jpg, png).
+**STEP 2**: It is strongly recommended to upload first the images of the target you want to track/find before starting the RTSP video stream (especially if such streams are not genereated by a camera but rather from a video file). To do this, you have two options: the first is to send files directly using the command **A**, the second is to send base64 encoded images with the command **B**. It is important that the images use the same compression algorithm (e.g., jpg, png).
 
 - **Option A**: `curl -X POST http://7.182.9.110:9907/sedna/set_app_details  -H 'Expect:' -F data='{"userID":"123", "op_mode":"tracking", "queryImagesFromNative": []}' -F target=@vit_vid.png  target=@vit_vide2.png`
 - **Option B (not fully tested)**: `curl -X POST http://7.182.9.110:9907/v1/person/tracking/live/identification  -H 'Expect:' --data '{"userID": "123", "op_mode":"tracking", "queryImagesFromNative": [], "cameraIds": [], "isEnhanced": 0}'`
 
 After this step, you can start the videos from your RTSP server. However, it's recommended to wait a few seconds for the pods to receive the new configuration (target images and op_mode).
 
-**STEP 3**: Call this endpoint in a browser to fetch and see the ReID result from the FIFO queue:
+**STEP 3**: Call `http://7.182.9.110:9907/sedna/get_reid_result` in a browser to fetch and see the ReID result or run the following command from a CLI:
 
-- `curl -X GET http://7.182.9.110:9907/sedna/get_reid_result`
+- `curl -X GET http://7.182.9.110:9907/sedna/get_reid_result --output result.png`
 
 There are other endpoints available for the manager-api pod, details are in `lib/sedna/service/server/reid_manager.py`.
 
 ### Notes
 
 - For every received frame where we find the target, we stream the result to the RTMP server. The address is hardcoded in the `examples/multiedgetracking/reid_manager/worker.py` file. 
-- If you want to flush the frame buffer, call `curl -X GET http://7.182.9.110:9907/sedna/clean_frame_buffer`
-- If you want to check how many images are in the buffer, call `curl -X GET http://7.182.9.110:9907/sedna/get_reid_buffer_size`
+- If you want to flush the ReID result buffer, call `curl -X GET http://7.182.9.110:9907/sedna/clean_frame_buffer`
+- If you want to check how many images are in the ReID result buffer, call `curl -X GET http://7.182.9.110:9907/sedna/get_reid_buffer_size`
 - Once the RTSP video addresses are loaded by the pods, they cannot be changed. You need to restart the pods.
 - It is possible to hardcode the stream addresses in the manager-api pod to simplify testing operations.

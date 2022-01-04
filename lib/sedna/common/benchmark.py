@@ -1,21 +1,15 @@
-# from threading import Thread
 import time, json
-# import psutil
+
 from sedna.common.config import Context
 from sedna.common.log import LOGGER
-from pydoc import locate
 
-# This belong to a ConfigMap
+# Could be added in a ConfigMap
 FLUENTD_ADDRESS = Context.get_parameters("FLUENTD_IP", None)
 FLUENTD_PORT = 24224
 SEDNA_INDEX = 'sedna'
 
-if FLUENTD_ADDRESS:
-    from fluent import sender
-    from fluent import event
-
-# def get_logging_interface():
-
+from fluent import sender
+from fluent import event
 
 # Base class to send events to the Fluentd daemon in the cluster (if available)
 class FluentdHelper():
@@ -27,7 +21,8 @@ class FluentdHelper():
     
     # msg must be a json dict (e.g, {'valA' : 1 ..})
     def send_json_msg(self, msg):
-        event.Event('follow', {'message': json.dumps(msg)})
+        if FLUENTD_ADDRESS:
+            event.Event('follow', {'message': json.dumps(msg)})
         
 
 # Context Manager class to measure exeuction time of a function

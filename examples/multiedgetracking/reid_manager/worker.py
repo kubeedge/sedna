@@ -29,6 +29,7 @@ from sedna.core.multi_edge_tracking import ReIDManagerService
 from sedna.common.log import LOGGER
 
 from components.rtsp_dispatcher import add_rtsp_stream, get_rtsp_stream, reset_rtsp_stream_list
+from components.rabbitmq import RabbitMQWriter
 
 class ReIDBuffer():
     def __init__(self, userid) -> None:
@@ -55,7 +56,12 @@ class Interface():
 
         # ReID frame buffer
         self.frame_buffer = deque() #FIFO
+        self.rtmp_url="rtmp://7.182.9.110:1935/live/test"
         self.rtmp_pipe = self._create_rtmp_pipe()
+
+        # Create RAbbitMQ writer
+        # TODO: remove hardcoded parameters
+        self.rabbitmq_interface = RabbitMQWriter(address="7.182.9.110", port=32672, queue="reid")
 
     def upload_frame(self, data):
         LOGGER.info("Received reid result")
@@ -64,7 +70,10 @@ class Interface():
             time = datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
             self.frame_buffer.append(dt_object) if not self.post_process else self.frame_buffer.append((self._post_process(dt_object, time)))
 
-            # Call here the function to write to RabbitMQ
+            # Write to RabbitMQ
+            self.rabbitmq_interface.target_found(self.rtmp_url, dt_object, len(self.frame_buffer.count()) - 1)
+            
+            # Add frame to RTMP video
             threading.Thread(target=self._generate_video, args=(dt_object.scene,), daemon=False).start()
 
             return 200
@@ -248,15 +257,8 @@ class Interface():
             LOGGER.error(f"Error during output scene preparation. {[ex]}")
             return None
 
-    def _send_to_rabbit_mq(self, dt_object: List[DetTrackResult]):
-        # Use the data in the list of dt_object to build the required RabbitMQ json msg
-        # The frames in the buffer are ordered in time, as it's a queue.
-        # The seq number can be easily generated when iterating over the queue.
-        pass
-
     def _create_rtmp_pipe(self):
         import subprocess as sp
-        rtmp_url="rtmp://7.182.9.110:1935/live/test"
         
         fps = 1
         width = 640
@@ -275,7 +277,7 @@ class Interface():
                 '-preset', 'ultrafast',
                 '-f', 'flv',
                 '-flvflags', 'no_duration_filesize',
-                rtmp_url]
+                self.rtmp_url]
                 
         pipe_push = sp.Popen(command, stdin=sp.PIPE, stderr=sp.PIPE, shell=False)
         return pipe_push
