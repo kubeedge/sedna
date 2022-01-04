@@ -4,7 +4,7 @@ For interested readers, Sedna also has two important components that would be me
 
 If you don't have an existing Kubernetes, you can:
 1) Install Kubernetes by following the [Kubernetes website](https://kubernetes.io/docs/setup/).
-2) Or follow [quick start](quick-start.md) for other options.
+2) Or follow [quick start](index/quick-start.md) for other options.
 
 ### Prerequisites
 - [Kubectl][kubectl] with right kubeconfig

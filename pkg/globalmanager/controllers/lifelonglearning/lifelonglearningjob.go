@@ -18,13 +18,17 @@ package lifelonglearning
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	lruexpirecache "k8s.io/apimachinery/pkg/util/cache"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -50,6 +54,8 @@ const (
 	KindName = "LifelongLearningJob"
 	// Name is this controller name
 	Name = "LifelongLearning"
+	// VirtualKubeletNode is virtual node
+	VirtualKubeletNode = "virtual-kubelet"
 )
 
 // Kind contains the schema.GroupVersionKind for this controller type.
@@ -80,6 +86,8 @@ type Controller struct {
 	cfg *config.ControllerConfig
 
 	sendToEdgeFunc runtime.DownstreamSendFunc
+
+	lruExpireCache *lruexpirecache.LRUExpireCache
 }
 
 // Run starts the main goroutine responsible for watching and syncing jobs.
@@ -294,10 +302,51 @@ func (c *Controller) sync(key string) (bool, error) {
 	return forget, err
 }
 
+// setWorkerNodeNameOfJob sets the worker nodeName of the specified job
+// which is used for downstream to sync job info to the specified LC located in nodeName.
+func (c *Controller) setWorkerNodeNameOfJob(job *sednav1.LifelongLearningJob, jobStage string, nodeName string) error {
+	key := runtime.AnnotationsKeyPrefix + jobStage
+
+	return c.addJobAnnotations(job, key, nodeName)
+}
+
+// addJobAnnotations adds info in job annotations
+func (c *Controller) addJobAnnotations(job *sednav1.LifelongLearningJob, key string, value string) error {
+	ann := job.GetAnnotations()
+	if ann[key] == value {
+		// already set
+		return nil
+	}
+
+	patchData := metav1.PartialObjectMetadata{
+		ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{key: value}}}
+
+	patchDataBytes, err := json.Marshal(&patchData)
+	if err != nil {
+		return err
+	}
+
+	jobClient := c.client.LifelongLearningJobs(job.Namespace)
+	return runtime.RetryUpdateStatus(job.Name, job.Namespace, func() error {
+		newJob, err := jobClient.Get(context.TODO(), job.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		annotations := newJob.GetAnnotations()
+		if annotations[key] == value {
+			return nil
+		}
+
+		_, err = jobClient.Patch(context.TODO(), job.Name, types.MergePatchType, patchDataBytes, metav1.PatchOptions{})
+		return err
+	})
+}
+
 // transitJobState transit job to next state
 func (c *Controller) transitJobState(job *sednav1.LifelongLearningJob) (bool, error) {
 	var initialType sednav1.LLJobStageConditionType
-	var latestCondition = sednav1.LLJobCondition{
+	var latestCondition sednav1.LLJobCondition = sednav1.LLJobCondition{
 		Stage: sednav1.LLJobTrain,
 		Type:  initialType,
 	}
@@ -305,14 +354,16 @@ func (c *Controller) transitJobState(job *sednav1.LifelongLearningJob) (bool, er
 	var newConditionType sednav1.LLJobStageConditionType
 	var needUpdated = false
 
-	var podStatus = v1.PodUnknown
+	var podStatus v1.PodPhase = v1.PodUnknown
+	var pod *v1.Pod
+
 	jobConditions := job.Status.Conditions
 	if len(jobConditions) > 0 {
 		// get latest pod and pod status
 		latestCondition = (jobConditions)[len(jobConditions)-1]
 		klog.V(2).Infof("lifelonglearning job %v/%v latest stage %v:", job.Namespace, job.Name,
 			latestCondition.Stage)
-		pod := c.getSpecifiedPods(job, string(latestCondition.Stage))
+		pod = c.getSpecifiedPods(job, string(latestCondition.Stage))
 
 		if pod != nil {
 			podStatus = pod.Status.Phase
@@ -334,32 +385,36 @@ func (c *Controller) transitJobState(job *sednav1.LifelongLearningJob) (bool, er
 		// include train, eval, deploy pod
 		var err error
 		if jobStage == sednav1.LLJobDeploy {
-			err = c.restartInferPod(job)
-			if err != nil {
-				klog.V(2).Infof("lifelonglearning job %v/%v inference pod failed to restart, err:%s", job.Namespace, job.Name, err)
-			} else {
+			if !c.hasJobInCache(job) {
+				err = c.restartInferPod(job)
+				if err != nil {
+					klog.V(2).Infof("lifelonglearning job %v/%v inference pod failed to restart, err:%s", job.Namespace, job.Name, err)
+					return needUpdated, err
+				}
+
 				klog.V(2).Infof("lifelonglearning job %v/%v inference pod restarts successfully", job.Namespace, job.Name)
+				newConditionType = sednav1.LLJobStageCondCompleted
+				c.addJobToCache(job)
 			}
-		} else if podStatus != v1.PodPending && podStatus != v1.PodRunning {
-			err = c.createPod(job, jobStage)
+		} else {
+			if podStatus != v1.PodPending && podStatus != v1.PodRunning {
+				err = c.createPod(job, jobStage)
+				if err != nil {
+					return needUpdated, err
+				}
+			}
+			newConditionType = sednav1.LLJobStageCondStarting
 		}
-		if err != nil {
-			return needUpdated, err
-		}
-		newConditionType = sednav1.LLJobStageCondStarting
 
 	case sednav1.LLJobStageCondStarting, sednav1.LLJobStageCondRunning:
 		if podStatus == v1.PodRunning {
-			if jobStage == sednav1.LLJobDeploy {
-				newConditionType = sednav1.LLJobStageCondCompleted
-			} else {
-				// watch pod status, if pod running, set type running
-				newConditionType = sednav1.LLJobStageCondRunning
+			// add nodeName to job
+			if err := c.setWorkerNodeNameOfJob(job, string(jobStage), pod.Spec.NodeName); err != nil {
+				return needUpdated, err
 			}
-		} else if podStatus == v1.PodSucceeded {
-			// watch pod status, if pod completed, set type completed
-			newConditionType = sednav1.LLJobStageCondCompleted
-			klog.V(2).Infof("lifelonglearning job %v/%v %v stage completed!", job.Namespace, job.Name, jobStage)
+
+			// watch pod status, if pod running, set type running
+			newConditionType = sednav1.LLJobStageCondRunning
 		} else if podStatus == v1.PodFailed {
 			newConditionType = sednav1.LLJobStageCondFailed
 			klog.V(2).Infof("lifelonglearning job %v/%v %v stage failed!", job.Namespace, job.Name, jobStage)
@@ -441,6 +496,21 @@ func (c *Controller) getSpecifiedPods(job *sednav1.LifelongLearningJob, podType 
 	return latestPod
 }
 
+func (c *Controller) getHas256(target interface{}) string {
+	h := sha256.New()
+	h.Write([]byte(fmt.Sprintf("%v", target)))
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func (c *Controller) addJobToCache(job *sednav1.LifelongLearningJob) {
+	c.lruExpireCache.Add(c.getHas256(job.Status), job, 10*time.Second)
+}
+
+func (c *Controller) hasJobInCache(job *sednav1.LifelongLearningJob) bool {
+	_, ok := c.lruExpireCache.Get(c.getHas256(job.Status))
+	return ok
+}
+
 func (c *Controller) restartInferPod(job *sednav1.LifelongLearningJob) error {
 	inferPod := c.getSpecifiedPods(job, runtime.InferencePodType)
 	if inferPod == nil {
@@ -492,6 +562,18 @@ func IsJobFinished(j *sednav1.LifelongLearningJob) bool {
 	return false
 }
 
+func (c *Controller) addPodAnnotations(spec *v1.PodTemplateSpec, key string, value string) {
+	ann := spec.GetAnnotations()
+	if ann == nil {
+		ann = make(map[string]string)
+	}
+
+	if _, ok := ann[key]; !ok {
+		ann[key] = value
+		spec.SetAnnotations(ann)
+	}
+}
+
 func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1.LLJobStage) (err error) {
 	ctx := context.Background()
 	var podTemplate *v1.PodTemplateSpec
@@ -541,12 +623,20 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 		originalDataURLOrIndex = dataset.Spec.URL
 	}
 
-	var workerParam = new(runtime.WorkerParam)
+	var workerParam *runtime.WorkerParam = new(runtime.WorkerParam)
+
 	if podtype == sednav1.LLJobTrain {
-		workerParam.WorkerType = "Train"
+		workerParam.WorkerType = runtime.TrainPodType
 
 		podTemplate = &job.Spec.TrainSpec.Template
 		// Env parameters for train
+
+		c.addPodAnnotations(podTemplate, "type", workerParam.WorkerType)
+		c.addPodAnnotations(podTemplate, "data", dataURL)
+		datasetUseInitializer := true
+		if podTemplate.Spec.NodeName == VirtualKubeletNode {
+			datasetUseInitializer = false
+		}
 
 		workerParam.Env = map[string]string{
 			"NAMESPACE":   job.Namespace,
@@ -571,7 +661,7 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 				URL: &runtime.MountURL{
 					URL:                   dataURL,
 					Secret:                jobSecret,
-					DownloadByInitializer: true,
+					DownloadByInitializer: datasetUseInitializer,
 				},
 				EnvName: "TRAIN_DATASET_URL",
 			},
@@ -582,14 +672,25 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 					Secret:                datasetSecret,
 					URL:                   originalDataURLOrIndex,
 					Indirect:              dataset.Spec.URL != originalDataURLOrIndex,
-					DownloadByInitializer: true,
+					DownloadByInitializer: datasetUseInitializer,
 				},
 				EnvName: "ORIGINAL_DATASET_URL",
 			},
 		)
 	} else {
 		podTemplate = &job.Spec.EvalSpec.Template
-		workerParam.WorkerType = "Eval"
+		workerParam.WorkerType = runtime.EvalPodType
+
+		c.addPodAnnotations(podTemplate, "type", workerParam.WorkerType)
+		c.addPodAnnotations(podTemplate, "data", dataURL)
+		datasetUseInitializer := true
+		if podTemplate.Spec.NodeName == VirtualKubeletNode {
+			datasetUseInitializer = false
+		}
+		modelUseInitializer := true
+		if podTemplate.Spec.NodeName == VirtualKubeletNode {
+			modelUseInitializer = false
+		}
 
 		// Configure Env information for eval by initial WorkerParam
 		workerParam.Env = map[string]string{
@@ -606,7 +707,7 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 			modelMountURLs = append(modelMountURLs, runtime.MountURL{
 				URL:                   url,
 				Secret:                jobSecret,
-				DownloadByInitializer: true,
+				DownloadByInitializer: modelUseInitializer,
 			})
 		}
 		workerParam.Mounts = append(workerParam.Mounts,
@@ -629,7 +730,7 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 				URL: &runtime.MountURL{
 					URL:                   dataURL,
 					Secret:                datasetSecret,
-					DownloadByInitializer: true,
+					DownloadByInitializer: datasetUseInitializer,
 				},
 				Name:    "datasets",
 				EnvName: "TEST_DATASET_URL",
@@ -639,7 +740,7 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 				URL: &runtime.MountURL{
 					Secret:                datasetSecret,
 					URL:                   originalDataURLOrIndex,
-					DownloadByInitializer: true,
+					DownloadByInitializer: datasetUseInitializer,
 					Indirect:              dataset.Spec.URL != originalDataURLOrIndex,
 				},
 				Name:    "origin-dataset",
@@ -672,7 +773,7 @@ func (c *Controller) createInferPod(job *sednav1.LifelongLearningJob) error {
 		return err
 	}
 
-	var workerParam = new(runtime.WorkerParam)
+	var workerParam *runtime.WorkerParam = new(runtime.WorkerParam)
 	workerParam.Mounts = append(workerParam.Mounts,
 		runtime.WorkerMount{
 			URL: &runtime.MountURL{
@@ -694,6 +795,7 @@ func (c *Controller) createInferPod(job *sednav1.LifelongLearningJob) error {
 	}
 
 	workerParam.WorkerType = runtime.InferencePodType
+	c.addPodAnnotations(&job.Spec.DeploySpec.Template, "type", workerParam.WorkerType)
 	workerParam.HostNetwork = true
 
 	// create edge pod
@@ -714,10 +816,11 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: cc.KubeClient.CoreV1().Events("")})
 
 	jc := &Controller{
-		kubeClient: cc.KubeClient,
-		client:     cc.SednaClient.SednaV1alpha1(),
-		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), Name),
-		cfg:        cfg,
+		kubeClient:     cc.KubeClient,
+		client:         cc.SednaClient.SednaV1alpha1(),
+		queue:          workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), Name),
+		cfg:            cfg,
+		lruExpireCache: lruexpirecache.NewLRUExpireCache(10),
 	}
 
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
