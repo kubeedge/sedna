@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 
@@ -231,4 +232,20 @@ func (s *Storage) CopyFile(srcURL string, objectURL string) error {
 	}
 
 	return nil
+}
+
+// DeleteFile deletes file
+func (s *Storage) DeleteFile(objectURL string) error {
+	prefix, err := s.CheckURL(objectURL)
+	if err != nil {
+		return err
+	}
+	switch prefix {
+	case S3Prefix:
+		return s.MinioClient.deleteFile(objectURL)
+	case LocalPrefix:
+		return os.Remove(objectURL)
+	default:
+		return fmt.Errorf("invalid url(%s)", objectURL)
+	}
 }

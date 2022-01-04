@@ -145,3 +145,20 @@ func (mc *MinioClient) parseURL(URL string) (string, string, error) {
 
 	return "", "", fmt.Errorf("invalid url(%s)", URL)
 }
+
+// deleteFile deletes file
+func (mc *MinioClient) deleteFile(objectURL string) error {
+	bucket, absPath, err := mc.parseURL(objectURL)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), MaxTimeOut)
+	defer cancel()
+
+	if err = mc.Client.RemoveObject(ctx, bucket, absPath, minio.RemoveObjectOptions{}); err != nil {
+		return fmt.Errorf("delete file(url=%s) failed, error: %+v", objectURL, err)
+	}
+
+	return nil
+}

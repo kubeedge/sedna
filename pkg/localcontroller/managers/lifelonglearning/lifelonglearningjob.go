@@ -20,8 +20,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -61,6 +63,9 @@ const (
 	AnnotationsRoundsKey          = "sedna.io/rounds"
 	AnnotationsNumberOfSamplesKey = "sedna.io/number-of-samples"
 	AnnotationsDataFileOfEvalKey  = "sedna.io/data-file-of-eval"
+
+	// WorkerS3StatusHandlerIntervalSeconds is interval time of handling s3 status of worker
+	WorkerS3StatusHandlerIntervalSeconds = 30
 )
 
 // LifelongLearningJobManager defines lifelong-learning-job Manager
@@ -257,6 +262,8 @@ func (lm *Manager) trainTask(job *Job) error {
 				// continue anyway
 			}
 
+			go lm.monitorS3Worker(job, sednav1.LLJobTrain)
+
 			jobConfig.TrainTriggerStatus = TriggerCompletedStatus
 			klog.Infof("job(name=%s) complete the %sing phase triggering task successfully",
 				jobConfig.UniqueIdentifier, jobStage)
@@ -296,6 +303,8 @@ func (lm *Manager) evalTask(job *Job) error {
 			}
 
 			forwardSamples(jobConfig, jobStage)
+
+			go lm.monitorS3Worker(job, sednav1.LLJobEval)
 
 			jobConfig.EvalTriggerStatus = TriggerCompletedStatus
 			klog.Infof("job(%s) completed the %sing phase triggering task successfully",
@@ -968,7 +977,62 @@ func (lm *Manager) monitorWorker() {
 		if err := lm.Client.WriteMessage(msg, job.getHeader()); err != nil {
 			klog.Errorf("job(%s) failed to write message: %v", name, err)
 			continue
+		} else {
+			klog.Infof("job(%s) write message(%v) to GM", name, msg)
 		}
+	}
+}
+
+func (lm *Manager) monitorS3Worker(job *Job, stage sednav1.LLJobStage) {
+	jobConfig := job.JobConfig
+	var statusFile string
+	switch stage {
+	case sednav1.LLJobTrain:
+		statusFile = strings.Join([]string{jobConfig.OutputConfig.TrainOutput, strconv.Itoa(jobConfig.Rounds), "status.json"}, "/")
+	case sednav1.LLJobEval:
+		statusFile = strings.Join([]string{jobConfig.OutputConfig.EvalOutput, strconv.Itoa(jobConfig.Rounds), "status.json"}, "/")
+	}
+
+	tempLocalFile := filepath.Join(os.TempDir(), "status.json")
+	for {
+		time.Sleep(WorkerS3StatusHandlerIntervalSeconds * time.Second)
+		localFile, err := jobConfig.Storage.Download(statusFile, tempLocalFile)
+		if err != nil {
+			continue
+		}
+
+		bytes, _ := ioutil.ReadFile(localFile)
+		workerMessage := workertypes.MessageContent{}
+		err = json.Unmarshal(bytes, &workerMessage)
+		if err != nil {
+			continue
+		}
+
+		wo := clienttypes.Output{}
+		wo.Models = workerMessage.Results
+		wo.OwnerInfo = workerMessage.OwnerInfo
+
+		msg := &clienttypes.UpstreamMessage{
+			Phase:  workerMessage.Kind,
+			Status: workerMessage.Status,
+			Output: &wo,
+		}
+
+		name := util.GetUniqueIdentifier(workerMessage.Namespace, workerMessage.OwnerName, workerMessage.OwnerKind)
+		if err := lm.Client.WriteMessage(msg, job.getHeader()); err != nil {
+			klog.Errorf("job(%s) failed to write message: %v", name, err)
+			continue
+		}
+
+		if err = jobConfig.Storage.DeleteFile(statusFile); err != nil {
+			continue
+		}
+
+		if err = jobConfig.Storage.DeleteFile(tempLocalFile); err != nil {
+			continue
+		}
+
+		break
 	}
 }
 
