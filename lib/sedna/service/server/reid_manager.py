@@ -221,7 +221,7 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
             for file in files:
                 target.append(await file.read()) 
 
-        return self.interface.set_app_details(op_mode, target)
+        return self.interface.set_app_details(op_mode, target, userID)
 
     # Example: curl -X POST http://7.182.9.110:9907/v1/person/tracking/live/identification  -H 'Expect:' --data '{"userID": "123", "op_mode":"tracking", "queryImagesFromNative": [], "cameraIds": [], "isEnhanced": 0}'
     # Updates the service configuration. It accepts a string specifing the operation mode and a file containing the target to search.

@@ -78,7 +78,7 @@ class Estimator(FluentdHelper):
         self.op_mode = None
         self.use_gallery = use_gallery
 
-        # ReID parameters: CLARIFY
+        # ReID parameters
         if self.use_gallery:
             self.log_dir = log_dir
             self.gallery_feats = torch.load(os.path.join(self.log_dir, dataset, gfeats), map_location=self.device)

@@ -19,7 +19,14 @@ spec:
           containers:
             - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-external_api:v0.4.0
               imagePullPolicy: Always
-              name:  detection
+              name:  reid-manager
+              env:  # user defined environments
+              - name: rabbitmq_address
+                value: "7.182.9.110"
+              - name: rabbitmq_port
+                value: "32672"
+              - name: rabbitmq_queue
+                value: "reid"
               resources:  # user defined resources
                 requests:
                   memory: 64M
@@ -56,8 +63,6 @@ spec:
                 value: "100"
               - name: input_shape
                 value: "640"
-              - name: "video_url"
-                value: "rtsp://172.17.0.1/video/0"
               # - name: "stream_dispatcher_url"
               #   value: "http://7.182.9.110:9907/sedna/get_video_address"
               # - name: "status_update_endpoint"
