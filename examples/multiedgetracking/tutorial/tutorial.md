@@ -78,9 +78,11 @@ Execute the following API calls in sequence to test the application/service (rep
 
 **STEP 1**: Add RTSP video sources for the tracking pods, one call per video address. This operation can be skipped if the RTSP stream addresses are hardcoded ahead of time in `examples/multiedgetracking/reid_manager/components/rtsp_dispatcher.py`.
 
-- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/0", "camid":0}'`
-- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/1", "camid":1}'`
-- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/2", "camid":2}'`
+- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/0", "camid":0, "receiver":"hostname"}'`
+- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/1", "camid":1, "receiver":"hostname"}'`
+- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/2", "camid":2, "receiver":"hostname"}'`
+
+The field `receiver` must contain the `hostname` of the machine which will access the relative RTSP stream. For example, if your tracking pods are running on a machine with hostname `edge-1`, you will write `"receiver":"edge-1"`. The ENV variable defined in the YAML file while take care of injecting the correct value hostname value into the tracking pods.
 
 **STEP 2**: It is strongly recommended to upload first the images of the target you want to track/find before starting the RTSP video stream (especially if such streams are not genereated by a camera but rather from a video file). To do this, you have two options: the first is to send files directly using the command **A**, the second is to send base64 encoded images with the command **B**. It is important that the images use the same compression algorithm (e.g., jpg, png).
 
