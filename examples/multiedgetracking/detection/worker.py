@@ -23,6 +23,7 @@ class Bootstrapper():
         self.stream_dispatcher = Context.get_parameters('stream_dispatcher_url', f"http://{self.api_ip}:{self.api_port}/sedna/get_video_address")
         self.estimator_class = Context.get_parameters('estimator_class', "Yolov5")
         self.camera_address = Context.get_parameters('video_url')
+        self.hostname = Context.get_parameters('hostname', "unknown")
         self.optical_flow = LukasKanade()
 
         self.eclass = str_to_estimator_class(estimator_class=self.estimator_class)
@@ -44,7 +45,7 @@ class Bootstrapper():
     def retrieve_rtsp_stream(self) -> str:
         LOGGER.debug(f'Retrieving source stream/s')
         try:
-            rtsp_stream = requests.get(self.stream_dispatcher)
+            rtsp_stream = requests.get(self.stream_dispatcher, params={"receiver":self.hostname}, timeout=5)
             data = json.loads(rtsp_stream.json())
             # We have to do this sanity check otherwise cv2 will silenty fail and never open the RTSP stream
             address = data["camera_address"].strip().replace('"', '')

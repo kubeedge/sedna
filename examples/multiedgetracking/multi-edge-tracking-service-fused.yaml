@@ -63,6 +63,10 @@ spec:
                 value: "100"
               - name: input_shape
                 value: "640"
+              - name: hostname
+                valueFrom:
+                  fieldRef:
+                    fieldPath: spec.nodeName
               # - name: "stream_dispatcher_url"
               #   value: "http://7.182.9.110:9907/sedna/get_video_address"
               # - name: "status_update_endpoint"

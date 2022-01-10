@@ -188,16 +188,18 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
     def get_reid_buffer_size(self):
         return self.interface.get_reid_buffer_size()
 
-    # Example: curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://localhost:8080/video/0", "camid":0}'
-    # Add a new RTSP address to the list
+    # Example: curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://localhost:8080/video/0", "camid":0, "receiver": "hostname"}'
+    # Add a new RTSP address to the list.
+    # The parameter 'hostname' is used to bind the stream to a specific machine. Such machine will receive and process the stream.
     async def add_video_address(self, request: Request):
         body = await request.body()
         body = json.loads(body)
 
         url = body.get('url', None) 
         camid = body.get('camid', None)
+        receiver = body.get('receiver', 'unknown')
 
-        return self.interface.add_video_address(url, camid)
+        return self.interface.add_video_address(url, camid, receiver)
 
 
     # Example: curl -X GET http://7.182.9.110:9907/sedna/reset_rtsp_stream_list
@@ -248,8 +250,10 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
     ### INTERNAL ENDPOINTS ###
     ##########################
 
-    def get_video_address(self):
-        return self.interface.get_video_address()
+    def get_video_address(self, request: Request):
+        hostname = request.query_params.get("receiver", "unknown")
+
+        return self.interface.get_video_address(hostname)
 
     async def upload_frame(self, request: Request):
         body = await request.body()

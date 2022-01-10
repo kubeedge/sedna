@@ -80,10 +80,6 @@ class Interface():
             # Write to RabbitMQ
             self.rabbitmq_interface.target_found(self.rtmp_url, dt_object, len(self.frame_buffer) - 1)
             
-            # Add frame to RTMP video
-            # threading.Thread(target=self._generate_video, args=(dt_object.scene,), daemon=False).start()
-            # self._generate_video(dt_object.scene)
-
             return 200
         except Exception as ex:
             LOGGER.error(f"Unable to add new frame to in-memory buffer. [{ex}]")
@@ -97,18 +93,18 @@ class Interface():
             LOGGER.error(f"Unable to get frame buffer size. [{ex}]")
             return 0
 
-    def add_video_address(self, url, camid=0):
+    def add_video_address(self, url, camid=0, receiver="unknown"):
         LOGGER.info("Adding new RTSP stream to list")
         try:
-            return add_rtsp_stream(url, camid)
+            return add_rtsp_stream(url, camid, receiver)
         except Exception as ex:
             LOGGER.error(f"Error while adding RTSP stream. [{ex}]")
             return None
 
-    def get_video_address(self):
+    def get_video_address(self, hostname):
         LOGGER.info("Extracting RTSP stream from available ones")
         try:
-            return get_rtsp_stream()
+            return get_rtsp_stream(hostname)
         except Exception as ex:
             LOGGER.error(f"Error while retrieving RTSP stream address. [{ex}]")
             return None
