@@ -27,6 +27,8 @@ spec:
                 value: "32672"
               - name: rabbitmq_queue
                 value: "reid"
+              - name: "streaming_server_url"
+                value: "rtmp://7.182.9.110:1935/live/"
               resources:  # user defined resources
                 requests:
                   memory: 64M

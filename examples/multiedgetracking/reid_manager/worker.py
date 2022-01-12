@@ -51,12 +51,12 @@ class Interface():
         self.encoding = "jpeg"
         self.scaling_factor = 0.5
 
-        # ReID Dict (WIP)
+        # ReID Dict
         self.reid_ht : Dict[str, ReIDBuffer] = dict() 
 
-        # RTMP parameters
-        self.rtmp_url="rtmp://7.182.9.110:1935/live/"
-        # threading.Thread(target=self._generate_video, daemon=False).start()
+        # Streaming server parameters
+        self.rtmp_url= Context.get_parameters('streaming_server_url', "rtmp://7.182.9.110:1935/live/")
+ 
 
         # RabbitMQ parameters
         self.rabbitmq_address = Context.get_parameters('rabbitmq_address', "7.182.9.110")
