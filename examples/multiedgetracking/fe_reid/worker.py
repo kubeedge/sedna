@@ -136,38 +136,46 @@ class Estimator(FluentdHelper):
         return det_track      
 
 
-    def extract_target_features(self, new_query_info) -> Any:
+    def extract_target_features(self, ldata) -> Any:
         """Extract the features for the query image. This function is invoked when a new query image is provided."""
-        LOGGER.info(f"Received {len(new_query_info.bbox)} sample images for the target.")
-        new_query_info.features = []
-        
-        for image in new_query_info.bbox:
-            # new_query_info contains the query image.
-            try:
-                query_img = Image.fromarray(image)
-            except Exception as ex:
-                LOGGER.error(f"Query image not found. Error [{ex}]")
-                self.reset_op_mode()
-                return None
 
-            # Attempt forward pass
-            try:
-                input = torch.unsqueeze(self.transform(query_img), 0).to(self.device)
-                with FTimer(f"feature_extraction"):
-                    with torch.no_grad():
-                        query_feat = self.model(input)
-                        LOGGER.debug(f"Extracted tensor with features: {query_feat}")
+        # We reset the previous targets.
+        # We have to do this to avoid desync in some corner case.
+        self.targets_list.clear()
 
-                # It returns a tensor, it should be transformed into a list before TX
-                new_query_info.features.append(query_feat)
-                new_query_info.is_target = True
+        for new_query_info in ldata:
+            LOGGER.info(f"Received {len(new_query_info.bbox)} sample images for the target.")
+            new_query_info.features = []
+            
+            for image in new_query_info.bbox:
+                # new_query_info contains the query image.
+                try:
+                    query_img = Image.fromarray(image)
+                except Exception as ex:
+                    LOGGER.error(f"Query image not found. Error [{ex}]")
+                    self.reset_op_mode()
+                    return None
 
-            except Exception as ex:
-                LOGGER.error(f"Feature extraction failed for query image. Error [{ex}]")
-                self.reset_op_mode()
-                return None
+                # Attempt forward pass
+                try:
+                    input = torch.unsqueeze(self.transform(query_img), 0).to(self.device)
+                    with FTimer(f"feature_extraction"):
+                        with torch.no_grad():
+                            query_feat = self.model(input)
+                            LOGGER.debug(f"Extracted tensor with features: {query_feat}")
 
-        self._update_targets_list(new_query_info.userID, new_query_info.features)
+                    # It returns a tensor, it should be transformed into a list before TX
+                    new_query_info.features.append(query_feat)
+                    new_query_info.is_target = True
+
+                except Exception as ex:
+                    LOGGER.error(f"Feature extraction failed for query image. Error [{ex}]")
+                    self.reset_op_mode()
+                    return None
+            
+                self.targets_list.append(Target(new_query_info.userID, new_query_info.features))
+            
+            # self._update_targets_list(new_query_info.userID, new_query_info.features)
 
     def _update_targets_list(self, userid, features):
         target = list(filter(lambda x: x.userid == userid, self.targets_list))

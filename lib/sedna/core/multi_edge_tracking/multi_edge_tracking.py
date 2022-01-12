@@ -314,6 +314,7 @@ class FE_ReIDService(JobBase):
             self.target = status.targets_collection
             
             # The target collection is a list of targets/userid that might grow overtime
+            ldata = []
             for target in self.target:
                 img_arr = []
                 for images in target.targets:
@@ -327,9 +328,10 @@ class FE_ReIDService(JobBase):
                     img_arr.append(np.asarray(images))  
 
                 data = DetTrackResult(img_arr, None, [], 0, 0, is_target=True)
-                data.userID = target.userid 
+                data.userID = target.userid
+                ldata.append(data)
 
-                self.inference(data, post_process=None, new_target=True)
+                self.inference(ldata, post_process=None, new_target=True)
         else:
             self.log.debug("Target unchanged")
 

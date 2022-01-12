@@ -17,7 +17,7 @@ import threading
 from typing import Dict
 import uuid
 import io
-import time
+import time, itertools
 from datetime import datetime
 import base64
 import cv2
@@ -56,7 +56,7 @@ class Interface():
 
         # RTMP parameters
         self.rtmp_url="rtmp://7.182.9.110:1935/live/"
-        threading.Thread(target=self._generate_video, daemon=False).start()
+        # threading.Thread(target=self._generate_video, daemon=False).start()
 
         # RabbitMQ parameters
         self.rabbitmq_address = Context.get_parameters('rabbitmq_address', "7.182.9.110")
@@ -87,7 +87,12 @@ class Interface():
                 user_buffer = self.reid_ht[dt_object.userID].frame_buffer
 
             seq_number = len(user_buffer)
-            user_buffer.append(dt_object) if not self.post_process else user_buffer.append((self._post_process(dt_object, time, seq_number)))
+
+            if self.post_process:
+                dt_object = self._post_process(dt_object, time, seq_number)
+                threading.Thread(target=self._generate_video_v2, args=(dt_object.userID, dt_object.scene), daemon=False).start()
+
+            user_buffer.append(dt_object)
 
             # Write to RabbitMQ
             self.rabbitmq_interface.target_found(self.rtmp_url + dt_object.userID, dt_object.userID, dt_object, seq_number - 1)
@@ -303,7 +308,7 @@ class Interface():
         
         command = ['ffmpeg',
                 '-y',
-                '-stream_loop', '-1',
+                # '-stream_loop', '-1',
                 '-f', 'rawvideo',
                 '-vcodec', 'rawvideo',
                 '-pix_fmt', 'bgr24',
@@ -317,81 +322,88 @@ class Interface():
                 '-f', 'flv',
                 '-flvflags', 'no_duration_filesize',
                 self.rtmp_url+userid]
-
-        # command = ['ffmpeg',
-        #             '-re',
-        #             '-i', f'vittorio.mkv',
-        #             '-f', 'flv',
-        #             self.rtmp_url+userid
-        #             ]
-                
+               
         pipe_push = sp.Popen(command, stdin=sp.PIPE, stdout=sp.DEVNULL, stderr=sp.DEVNULL, shell=False)
 
         return pipe_push
+    
+    def _generate_video_v2(self, userid, scene, expansion_factor=50):
 
-    def _create_video(self):
-        for buffer in self.reid_ht.items():
-            lb = buffer[1].frame_buffer.copy()
-            out = cv2.VideoWriter(f'{buffer[0]}.mkv',cv2.VideoWriter_fourcc(*'FLV1'), 1, (640,480))
-            for item in lb:
-                image = cv2.imdecode(item.scene, cv2.IMREAD_COLOR)
+        with FTimer("video_reconstruction"):
+            pipe = self._create_rtmp_pipe(userid)
+
+            try:                   
+                image = cv2.imdecode(scene, cv2.IMREAD_COLOR)
                 image = cv2.resize(image, (640,480))
-                out.write(image)
+
+                for i in range(expansion_factor):
+                    pipe.stdin.write(image)
+
+            except Exception as ex:
+                LOGGER.error(f"Error during transmission to RTMP server. [{ex}]")
+
+            pipe.stdin.close()
+            pipe.wait()
+
+    # def _create_video(self):
+    #     for buffer in self.reid_ht.items():
+    #         lb = buffer[1].frame_buffer.copy()
+    #         out = cv2.VideoWriter(f'{buffer[0]}.avi',cv2.VideoWriter_fourcc(*'FMP4'), 1, (640,480))
+    #         for item in lb:
+    #             image = cv2.imdecode(item.scene, cv2.IMREAD_COLOR)
+    #             image = cv2.resize(image, (640,480))
+    #             out.write(image)
             
-            out.release()
+    #         out.release()
     
     # This is called every n seconds to generate the updated version of the video stream
-    # TODO: This can become a very intensive operation depending on the amount of frames in each
-    # buffer. At some point, this needs to be improved.
-    def _generate_video(self, regeneration_interval=5, expansion_factor=100):
-        prev_len = 0
+    # TODO: This can become an unsostuinable operation depending on the amount of frames in each
+    # buffer and the numnber of generated streams. At some point, this needs to be improved.
+    # def _generate_video(self, regeneration_interval=2, expansion_factor=50, sliding_window_size=1):
+    #     prev_len = 0
 
-        while True:
-            # As there could be many buffers, we create a video stream separately for each one.
-            for buffer in self.reid_ht.items():
-                # We create a copy of the frame buffer
-                lb = buffer[1].frame_buffer.copy()
+    #     while True:
+    #         # As there could be many buffers, we create a video stream separately for each one.
+    #         for buffer in self.reid_ht.items():
+    #             # We create a copy of the frame buffer
+    #             lb = buffer[1].frame_buffer.copy()
 
-                if len(lb) != prev_len: 
-                    LOGGER.info(f"Reconstruct ReID video for user {buffer[0]}")
+    #             # Check if there are new frames
+    #             if len(lb) != prev_len: 
+    #                 LOGGER.info(f"Reconstruct ReID video for user {buffer[0]}")
 
-                    with FTimer("video_reconstruction"):
-                        pipe = self._create_rtmp_pipe(buffer[0])
+    #                 # Get the most recent frames using a sliding window
+    #                 if len(lb) > sliding_window_size:
+    #                     slb = deque(itertools.islice(lb, len(lb)-sliding_window_size, None))
 
-                        try:                   
-                            for item in lb:
-                                image = cv2.imdecode(item.scene, cv2.IMREAD_COLOR)
-                                image = cv2.resize(image, (640,480))
+    #                     with FTimer("video_reconstruction"):
+    #                         pipe = self._create_rtmp_pipe(buffer[0])
 
-                                # As the number of frames at our disposal is small,
-                                # we replicate the same frame N times. We do so to 
-                                # have enough frames in the output buffer for FFMPEG
-                                # to create a renderable stream.
-                                for i in range(expansion_factor):
-                                    pipe.stdin.write(image)
-                            # pipe.stdin.flush() # has no effect
-                            # out, err = pipe.communicate() # cannot be used because it kills the pipe
-                            # LOGGER.info(out)
-                            # LOGGER.info(err)
-                        except Exception as ex:
-                            LOGGER.error(f"Error during transmission to RTMP server. [{ex}]")
+    #                         try:                   
+    #                             for item in slb:
+    #                                 image = cv2.imdecode(item.scene, cv2.IMREAD_COLOR)
+    #                                 image = cv2.resize(image, (640,480))
 
-                        pipe.stdin.close()
-                        prev_len = len(lb)
+    #                                 # As the number of frames at our disposal is small,
+    #                                 # we replicate the same frame N times. We do so to 
+    #                                 # have enough frames in the output buffer for FFMPEG
+    #                                 # to create a renderable stream.
+    #                                 for i in range(expansion_factor):
+    #                                     pipe.stdin.write(image)
+    #                             # pipe.stdin.flush() # has no effect
+    #                             # out, err = pipe.communicate() # cannot be used because it kills the pipe
+    #                             # LOGGER.info(out)
+    #                             # LOGGER.info(err)
+    #                         except Exception as ex:
+    #                             LOGGER.error(f"Error during transmission to RTMP server. [{ex}]")
+
+    #                         pipe.stdin.close()
+    #                         pipe.wait()
+
+    #                         prev_len = len(lb)
                         
-            # self._create_video()
-            time.sleep(regeneration_interval)
-
-    def _generate_video_test(self, regeneration_interval=5, expansion_factor=100):
-        prev_len = 0
-
-        while True:
-            self._create_video()
-            self._create_rtmp_pipe("vittorio")
-
-            time.sleep(regeneration_interval)
-    
-
+    #         # self._create_video()
+    #         time.sleep(regeneration_interval)
 
 # Starting the external API module
 reid_manager = ReIDManagerService(interface=Interface)
