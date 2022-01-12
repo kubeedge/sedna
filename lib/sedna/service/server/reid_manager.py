@@ -18,7 +18,7 @@ import numpy as np
 
 from fastapi import FastAPI, Request
 from fastapi.routing import APIRoute
-from starlette.responses import JSONResponse, StreamingResponse, Response
+from starlette.responses import JSONResponse, StreamingResponse, Response, PlainTextResponse
 
 from .base import BaseServer
 
@@ -80,7 +80,6 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
                 APIRoute(
                     f"/{servername}/get_app_details",
                     self.get_app_details,
-                    response_class=JSONResponse,
                     methods=["POST"],
                 ),
                 APIRoute(
@@ -163,15 +162,19 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
         self.interface.post_process = False
         return 200
 
-    # Example: curl -X GET http://7.182.9.110:9907/sedna/clean_frame_buffer
-    # Wipes the frame buffer
-    def clean_frame_buffer(self):
-        self.interface.clean_frame_buffer()
+    # Example: curl -X GET http://7.182.9.110:9907/sedna/clean_frame_buffer?userid=DEFAULT
+    # Wipes the frame buffer for the specified user.
+    def clean_frame_buffer(self, request: Request):
+        userid = request.query_params.get("userid", "DEFAULT")
+        
+        self.interface.clean_frame_buffer(userid)
 
-    # Example: curl -X GET http://7.182.9.110:9907/sedna/get_reid_result
-    # Returns the oldest from the frame buffer (FIFO queue)
-    async def get_reid_result(self):
-        data = self.interface.get_reid_result()
+    # Example: curl -X GET http://7.182.9.110:9907/sedna/get_reid_result?userid=DEFAULT
+    # Returns the oldest ReID result from the frame buffer (FIFO queue) of the specified user.
+    async def get_reid_result(self, request: Request):
+        userid = request.query_params.get("userid", "DEFAULT")
+
+        data = self.interface.get_reid_result(userid)
 
         # If this is True, it means that we are sending out an image
         if isinstance(data, (np.ndarray, np.generic) ):
@@ -183,10 +186,12 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
 
         return Response(content="NO FRAMES!")
 
-    # Example: curl -X GET http://7.182.9.110:9907/sedna/get_reid_buffer_size
-    # Returns the size of the frame buffer
-    def get_reid_buffer_size(self):
-        return self.interface.get_reid_buffer_size()
+    # Example: curl -X GET http://7.182.9.110:9907/sedna/get_reid_buffer_size?userid=DEFAULT
+    # Returns the size of the frame buffer for the spcified user.
+    def get_reid_buffer_size(self, request: Request):
+        userid = request.query_params.get("userid", "DEFAULT")
+
+        return self.interface.get_reid_buffer_size(userid)
 
     # Example: curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://localhost:8080/video/0", "camid":0, "receiver": "hostname"}'
     # Add a new RTSP address to the list.
@@ -215,7 +220,7 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
         data_json = json.loads(form.get("data", "{}"))
 
         op_mode = data_json.get("op_mode", "detection")
-        userID = data_json.get("userID", "123")
+        userID = data_json.get("userID", "DEFAULT")
         files = form.getlist("target")
    
         target = []
@@ -232,7 +237,7 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
         body = await request.body()
         data_json = json.loads(body)
 
-        userID = data_json.get("userID", "123")
+        userID = data_json.get("userID", "DEFAULT")
         op_mode = data_json.get("op_mode", "detection")
         isEnhanced = data_json.get("isEnhanced", 0) #not used
         queryImagesFromNative = data_json.get("queryImagesFromNative", [])
@@ -261,4 +266,4 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
 
     async def get_app_details(self, request: Request):
         body = await request.body()
-        return self.interface.get_app_details(body)
+        return Response(self.interface.get_app_details(body))

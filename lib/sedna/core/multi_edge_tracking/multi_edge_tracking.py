@@ -28,7 +28,7 @@ from sedna.common.log import LOGGER
 
 from sedna.common.utils import get_host_ip
 from sedna.common.class_factory import ClassFactory, ClassType
-from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
+from sedna.core.multi_edge_tracking.data_classes import OP_MODE, DetTrackResult, SyncDS
 from sedna.core.multi_edge_tracking.utils import transfer_reid_result
 
 from sedna.service.fe_endpoint import FE
@@ -117,7 +117,7 @@ class ReIDService(JobBase):
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic=["reid"])
             self.consumer = KafkaConsumerThread(self.kafka_address, self.kafka_port, topic=["feature_extraction"], sync_queue=self.sync_queue)
 
-        self.op_mode = "detection"
+        self.op_mode = OP_MODE.DETECTION
       
     def start(self):
         if callable(self.estimator):
@@ -221,7 +221,7 @@ class FE_ReIDService(JobBase):
             self.log.error("ERROR! Estimator is not set!")
 
         # Operating Mode
-        self.op_mode = "detection"
+        self.op_mode = OP_MODE.DETECTION
         self.target = None
 
     def start(self):
@@ -279,53 +279,57 @@ class FE_ReIDService(JobBase):
                 ClassType.CALLBACK, post_process)
 
         res = self.estimator.predict(data, op_mode=self.op_mode, **kwargs)
-        fe_result = deepcopy(res)
+        
+        # This is a List of DetTrackObjects! 
+        reid_result = deepcopy(res)
 
         if callback_func:
             res = callback_func(res)
 
-        if fe_result != None:
+        if reid_result != None:
             if self.kafka_enabled:
                 with FTimer(f"upload_fe_reid_results"):
-                    cres = self.producer.write_result(fe_result)
+                    cres = self.producer.write_result(reid_result)
             else:
-                threading.Thread(target=transfer_reid_result, args=(fe_result, self.upload_endpoint, self.post_process_result), daemon=False).start()
+                threading.Thread(target=transfer_reid_result, args=(reid_result, self.upload_endpoint, self.post_process_result), daemon=False).start()
 
-        return [None, cres, fe_result, None]
+        return [None, cres, reid_result, None]
 
-    def update_operational_mode(self, status):
+    def update_operational_mode(self, status: SyncDS):
         self.log.debug("Configuration update triggered")
 
         if status == None:
             return
         
-        if self.op_mode != status['op_mode']:
-            self.log.info(f"{status['op_mode']} mode activated!")
-            self.op_mode = status['op_mode']
+        if self.op_mode != status.op_mode:
+            self.log.info(f"{status.op_mode} mode activated!")
+            self.op_mode = status.op_mode
 
-            if self.op_mode == "detection":
+            if self.op_mode == OP_MODE.DETECTION:
                 self.target = None
                 return
 
-        if self.target != status['target'] and self.op_mode != "detection":
+        if self.target != status.targets_collection and self.op_mode != OP_MODE.DETECTION:
             self.log.info("Target has been updated!")
-            self.target = status['target']
+            self.target = status.targets_collection
+            
+            # The target collection is a list of targets/userid that might grow overtime
+            for target in self.target:
+                img_arr = []
+                for images in target.targets:
+                    # json_data = json.dumps(images)
+                    # img_bytes = base64.b64decode(json_data.encode('utf-8'))
 
-            img_arr = []
+                    # convert bytes data to PIL Image object
+                    # img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
 
-            for images in self.target:
-                json_data = json.dumps(images)
-                img_bytes = base64.b64decode(json_data.encode('utf-8'))
+                    # PIL image object to numpy array
+                    img_arr.append(np.asarray(images))  
 
-                # convert bytes data to PIL Image object
-                img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+                data = DetTrackResult(img_arr, None, [], 0, 0, is_target=True)
+                data.userID = target.userid 
 
-                # PIL image object to numpy array
-                img_arr.append(np.asarray(img))  
-
-            data = DetTrackResult(img_arr, None, [], 0, 0, is_target=True)
-
-            self.inference(data, post_process=None, new_target=True)
+                self.inference(data, post_process=None, new_target=True)
         else:
             self.log.debug("Target unchanged")
 
@@ -371,7 +375,7 @@ class FEService(JobBase):
             self.log.error("ERROR! Estimator is not set!")
 
         # Operating Mode
-        self.op_mode = "detection"
+        self.op_mode = OP_MODE.DETECTION
         self.target = None
 
     def start(self):
@@ -443,21 +447,22 @@ class FEService(JobBase):
         return [None, cres, fe_result, None]
 
 
-    def update_operational_mode(self, status):
+    # TODO: Update code logic
+    def update_operational_mode(self, status: SyncDS):
         self.log.debug("Configuration update triggered")
 
         if status == None:
             return
-        
-        if self.op_mode != status['op_mode']:
-            self.log.info(f"{status['op_mode']} mode activated!")
-            self.op_mode = status['op_mode']
+       
+        if self.op_mode != status.op_mode:
+            self.log.info(f"{status.op_mode} mode activated!")
+            self.op_mode = status.op_mode
 
-            if self.op_mode == "detection":
+            if self.op_mode == OP_MODE.DETECTION:
                 self.target = None
                 return
 
-        if self.target != status['target'] and self.op_mode != "detection":
+        if self.target != status.targets_dict and self.op_mode != OP_MODE.DETECTION:
             self.log.info("Target has been updated!")
             self.target = status['target']
 
@@ -518,7 +523,7 @@ class ObjectDetector(JobBase):
 
             self.producer = KafkaProducer(self.kafka_address, self.kafka_port, topic=["object_detection"])
         
-        self.op_mode = "detection"
+        self.op_mode = OP_MODE.DETECTION
 
         self.start()
  
@@ -565,15 +570,15 @@ class ObjectDetector(JobBase):
 
         return [cres, detection_result]
 
-    def update_operational_mode(self, status):
+    def update_operational_mode(self, status: SyncDS):
         self.log.debug("Configuration update triggered")
 
         if status == None:
             return
         
-        if self.op_mode != status['op_mode']:
-            self.log.info(f"{status['op_mode']} mode activated!")
-            self.op_mode = status['op_mode']
+        if self.op_mode != status.op_mode:
+            self.log.info(f"{status.op_mode} mode activated!")
+            self.op_mode = status.op_mode
 
 class StatusSyncThread(threading.Thread):
     """
@@ -598,8 +603,9 @@ class StatusSyncThread(threading.Thread):
         try:
             status = requests.post(self.update_endpoint, data=self.last_update, timeout=self.timeout)
             LOGGER.debug(f'Current status retrieved {status.content}')
-            return json.loads(status.content)
-
+            return pickle.loads(status.content)
+        except EOFError:
+            pass # We don't care in this case, it means that there is nothing to update.
         except Exception as ex:
             LOGGER.error(f'Unable to retrieve sync status, using fallback value. [{ex}]')
 
@@ -614,8 +620,8 @@ class StatusSyncThread(threading.Thread):
             
             # We only update the pods if there are new information
             if status:
-                if self.last_update == None or self.last_update != status.get("last_update", ""):
-                    self.last_update = status.get("last_update", "")
+                if self.last_update == None or self.last_update != status.last_update:
+                    self.last_update = status.last_update
                     self.callback(status)
             
             time.sleep(self.update_interval)

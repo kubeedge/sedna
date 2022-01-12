@@ -4,6 +4,7 @@ import json
 
 from sedna.common.log import LOGGER
 
+# TODO: Is it worth using a decorator with pre/post execution hooks?
 class RabbitMQWriter():
     """
     Basic implementation of a RabbitMQ writer.
@@ -19,11 +20,16 @@ class RabbitMQWriter():
 
         LOGGER.info("Connecting to RabbitMQ server")
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(self.address, self.port))
-        self.channel = self.connection.channel()
-
-        self.channel.queue_declare(queue=self.queue)
 
     def target_lost(self):
+        try:
+            channel = self.connection.channel()
+        except pika.exceptions.ConnectionWrongStateError:
+            self.connection = pika.BlockingConnection(pika.ConnectionParameters(self.address, self.port))
+            channel = self.connection.channel()
+            
+        channel.queue_declare(queue=self.queue)
+
         data = {
             "code":40001,		
             "content": {
@@ -32,12 +38,21 @@ class RabbitMQWriter():
         }
 
         try:
-            self.channel.basic_publish(exchange='', routing_key=self.queue, body=json.dumps(data))
+            channel.basic_publish(exchange='', routing_key=self.queue, body=json.dumps(data))
+            channel.close()
         except Exception as ex:
             LOGGER.error(f"Unable to write to RabbitMQ. [{ex}]")
 
-    def target_found(self, address, elem, index):
+    def target_found(self, address, userid, elem, index):
         LOGGER.debug("Writing to RabbitMQ")
+        try:
+            channel = self.connection.channel()
+        except pika.exceptions.ConnectionWrongStateError:
+            self.connection = pika.BlockingConnection(pika.ConnectionParameters(self.address, self.port))
+            channel = self.connection.channel()
+
+        channel.queue_declare(queue=self.queue)
+
 
         data = {
             "code":40002, 
@@ -50,14 +65,15 @@ class RabbitMQWriter():
                 "coordinate":"0.001497,0.000002",
                 "seq": index		
             },
-
+            "userId": userid,
             "trackId": self.uuid,			
             "msg":"SEARCH_SUCCESS"			 	 
             }
         }
 
         try:
-            self.channel.basic_publish(exchange='', routing_key=self.queue, body=json.dumps(data))
+            channel.basic_publish(exchange='', routing_key=self.queue, body=json.dumps(data))
+            channel.close()
         except Exception as ex:
             LOGGER.error(f"Unable to write to RabbitMQ. [{ex}]")
 

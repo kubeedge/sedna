@@ -30,7 +30,7 @@ from sedna.common.benchmark import FTimer, FluentdHelper
 from sedna.common.log import LOGGER
 from sedna.core.multi_edge_tracking.multi_edge_tracking import FE_ReIDService
 from sedna.algorithms.reid.mAP import cosine_similarity
-from sedna.core.multi_edge_tracking.data_classes import DetTrackResult
+from sedna.core.multi_edge_tracking.data_classes import DetTrackResult, OP_MODE
 from multi_img_matching import match_query_to_targets
 
 os.environ['BACKEND_TYPE'] = 'TORCH'
@@ -49,13 +49,16 @@ dataset = Context.get_parameters('dataset')
 use_gallery = bool(distutils.util.strtobool(Context.get_parameters('use_gallery', "True")))
 match_thresh = float(Context.get_parameters('match_thresh', 800))
 
+class Target:
+    def __init__(self, _userid, _features, _targetid="0000") -> None:
+        self.userid : str = _userid
+        self.features : List = _features
+        self.targetid : str = _targetid
 
 class Estimator(FluentdHelper):
 
     def __init__(self, **kwargs):
         super(Estimator, self).__init__()
-        LOGGER.info(f"Starting feature extraction module")
-
         # Initialize ReID feature extraction module
         self.model = None
 
@@ -72,22 +75,20 @@ class Estimator(FluentdHelper):
         ])
 
         # Initialize query features
-        self.query_feat = None
         self.match_thresh = match_thresh
 
+        # Service parameters
         self.op_mode = None
         self.use_gallery = use_gallery
+        self.targets_list : List[Target] = []
 
-        # ReID parameters
+        # ReID parameters when using gallery
         if self.use_gallery:
+            LOGGER.info("Enabled ReID with gallery!")
             self.log_dir = log_dir
             self.gallery_feats = torch.load(os.path.join(self.log_dir, dataset, gfeats), map_location=self.device)
             self.img_path = np.load(os.path.join(self.log_dir, dataset, imgpath))
-            LOGGER.debug(f'[{self.gallery_feats.shape}, {len(self.img_path)}]')
-            self.target = None
-            self.target_ID = "0000"
 
-        LOGGER.debug(f"Expected image format is {self.image_size}")
     
     def load(self,
              model_url: str = "") -> None:
@@ -137,8 +138,6 @@ class Estimator(FluentdHelper):
 
     def extract_target_features(self, new_query_info) -> Any:
         """Extract the features for the query image. This function is invoked when a new query image is provided."""
-        self.query_feat = None
-
         LOGGER.info(f"Received {len(new_query_info.bbox)} sample images for the target.")
         new_query_info.features = []
         
@@ -164,16 +163,24 @@ class Estimator(FluentdHelper):
                 new_query_info.is_target = True
 
             except Exception as ex:
-                LOGGER.error(f"Feature extraction failed for Query image. Error [{ex}]")
+                LOGGER.error(f"Feature extraction failed for query image. Error [{ex}]")
                 self.reset_op_mode()
                 return None
 
-        LOGGER.info("Saving target features vector.")
-        self.query_feat = new_query_info.features
+        self._update_targets_list(new_query_info.userID, new_query_info.features)
 
-        return new_query_info 
+    def _update_targets_list(self, userid, features):
+        target = list(filter(lambda x: x.userid == userid, self.targets_list))
 
-    def reid_per_frame(self, candidate_feats: torch.Tensor) -> int:
+        if len(target) > 0:
+            LOGGER.info(f"Update existing features for user {userid}")
+            target[0].features = features
+        else:
+            LOGGER.info(f"Create new list of features for user {userid}")
+            self.targets_list.append(Target(userid, features))
+
+
+    def reid_per_frame(self, features, candidate_feats: torch.Tensor) -> int:
         """
         For each frame, this function receives the ReID features for all the detected boxes. The similarity is computed
         between the query features and the candidate features (from the boxes). If matching score for all detected boxes
@@ -183,7 +190,7 @@ class Estimator(FluentdHelper):
         @return: match_id [int] which points to the index of the matched detection.
         """
 
-        if self.query_feat == None:
+        if features == None:
             LOGGER.warning("Target has not been set!")
             return -1
 
@@ -194,7 +201,7 @@ class Estimator(FluentdHelper):
         #     LOGGER.info(dist_mat)
 
         with FTimer(f"reid_no_gallery"):
-            match_id, match_score = match_query_to_targets(self.query_feat, candidate_feats, False)
+            match_id, match_score = match_query_to_targets(features, candidate_feats, False)
 
         if float(match_score) < self.match_thresh:
             return -1, -1
@@ -231,95 +238,88 @@ class Estimator(FluentdHelper):
 
     def predict(self, data, **kwargs) -> Any:
         """Implements the on-the-fly ReID where detections per frame are matched with the candidate boxes."""
-        tresult = None
+        tresult = []
 
-        if data == None:
-            return None
+        # Here we dedice if we received a set of targets or a
+        # normal image to process.
 
         if kwargs.get("new_target", False):
             # if a new query is provided, update query features
-            det_track = self.extract_target_features(data)
+            self.extract_target_features(data)
+
+            if self.use_gallery:
+                self._extract_target_id()
+            return tresult
         else:
             # otherwise, get features for all the detected boxes
             det_track = self.extract_features(data)
 
-        # prepare results
 
+        # Start a different ReID logic based on the presence of a gallery.
         if self.use_gallery:
             reid_dict = {}
 
-            # if prediction is called for the query feature
-            if det_track.is_target:
-                self.load_target(det_track)
-                return None
-
-            for idx, elem in enumerate(det_track.bbox):
-                query_feat = det_track.features[idx]
-                query_feat = query_feat.float()
+            for idx, _ in enumerate(det_track.bbox):
+                query_feat = det_track.features[idx].float()
 
                 result = self.reid(query_feat, det_track.camera[idx], det_track.detection_time[idx]) 
 
-                # Create new dettrack object and exit when the target is found (return only new instance)
+                # Create and append a new dettrack object and exit when the target is found
                 if result != None:
-                    if kwargs['op_mode'] == "tracking":
-                        if self.target_ID == result.get('object_id'):
-                            LOGGER.info(f"Target found!")
-                            reid_dict[result.get('object_id')] = result
-                            # det_track.ID.append(result.get('object_id'))
-                            tresult = self.create_result(idx, det_track, result.get('object_id'))
-                        else:
-                            LOGGER.debug(f"Target {self.target_ID} not found!")
-                            # det_track.ID.append(-1)
+                    if kwargs['op_mode'] == OP_MODE.TRACKING:
+                        for target in self.targets_list:
+                            if target.targetid == result.get('object_id'):
+                                LOGGER.info(f"Target found!")
+                                reid_dict[result.get('object_id')] = result
+                                # det_track.ID.append(result.get('object_id'))
+                                tresult.append(self.create_result(idx, det_track, result.get('object_id'), target.userid))
+                            else:
+                                LOGGER.debug(f"Target {target.targetid} not found!")
+                                # det_track.ID.append(-1)
                     else:
                         reid_dict[result.get('object_id')] = result
-                        tresult = det_track
+                        tresult = [det_track]
 
             for key in reid_dict:
                 LOGGER.info(json.dumps(reid_dict[key]))
         
         else:
-            # Keep record of the ReID objects
-            if det_track.is_target:
-                return tresult
+            for target in self.targets_list:
+                # get id of highest match for each userid
+                match_id, match_score = self.reid_per_frame(target.features, det_track.features)
 
-            # get id of highest match
-            match_id, match_score = self.reid_per_frame(det_track.features)
+                if match_id < 0:
+                    return tresult
 
-            if match_id < 0:
-                return tresult
+                result = {
+                    "userID": str(target.userid),
+                    "match_id": str(match_score),
+                    "detection_area": det_track.camera[match_id],
+                    "detection_time": det_track.detection_time[match_id]
+                }
 
-            result = {
-                "match_id": str(match_score),
-                "detection_area": det_track.camera[match_id],
-                "detection_time": det_track.detection_time[match_id]
-            }
+                if kwargs["op_mode"] == OP_MODE.TRACKING:
+                    tresult.append(self.create_result(match_id, det_track, f"{match_score}", target.userid))
+                else:
+                    tresult = [det_track]
 
-            if kwargs["op_mode"] == "tracking":
-                tresult = self.create_result(match_id, det_track, f"{match_score}")
-            else:
-                tresult = det_track
-
-            LOGGER.info(result)
+                LOGGER.info(result)
 
         return tresult
 
     ### SUPPORT FUNCTIONS ###
 
-    def load_target(self, det_track : DetTrackResult):  
+    def _extract_target_id(self):  
         # Pay attention, load_target is used only when a reid gallery is available.
         # Hence, with just use one image to do ReID, we don't need more than that.      
-        query_feat = det_track.features[0]
-        query_feat = query_feat.float()
+        for target in self.targets_list:
+            result = self.reid(target.features[0].float(), 0, 0)
+            target.targetid = result.get('object_id')
 
-        result = self.reid(query_feat, 0, 0)
+            LOGGER.info(f"Target with ID {target.targetid} acquired!")
 
-        self.target = query_feat
-        self.target_ID = result.get('object_id')
-
-        LOGGER.info(f"Target with ID {self.target_ID} acquired!")
-
-    def create_result(self, idx, dt: DetTrackResult, id):
-        return DetTrackResult(
+    def create_result(self, idx, dt: DetTrackResult, id, userid):
+        item = DetTrackResult(
             bbox=[dt.bbox[idx]],
             scene=dt.scene,
             confidence=[dt.confidence[idx]],
@@ -328,14 +328,16 @@ class Estimator(FluentdHelper):
             bbox_coord=[dt.bbox_coord[idx]],
             ID=[id]
         )
+        item.userID = userid
+        return item
 
     def _extract_id(self, text):
         return text.split("/")[-1].split(".")[0].split("_")[0]
 
     def reset_op_mode(self):
         LOGGER.info("Performing operational mode emergency reset!")
-        self.op_mode = "detection"
-        self.target = None
+        self.op_mode = OP_MODE.DETECTION
+        self.targets_list = []
 
     def convert_to_list(self, data, camera_code, det_time):
         return [data.numpy().tolist(), camera_code, det_time]
