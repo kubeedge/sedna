@@ -34,6 +34,7 @@ const (
 	defaultWebsocketPort    = 9000
 	defaultLCServer         = "http://localhost:9100"
 	defaultKBServer         = "http://localhost:9020"
+	defaultPeriod           = 30
 )
 
 // ControllerConfig indicates the config of controller
@@ -58,6 +59,10 @@ type ControllerConfig struct {
 
 	// kb config to info the worker
 	KB KBConfig `json:"knowledgeBaseServer,omitempty"`
+
+	// period config min resync period
+	// default 30s
+	MinResyncPeriodSeconds int64 `json:"minResyncPeriodSeconds,omitempty"`
 }
 
 // WebSocket describes GM of websocket config
@@ -120,6 +125,7 @@ func NewDefaultControllerConfig() *ControllerConfig {
 		KB: KBConfig{
 			Server: defaultKBServer,
 		},
+		MinResyncPeriodSeconds: defaultPeriod,
 	}
 }
 
