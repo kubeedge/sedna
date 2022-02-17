@@ -94,6 +94,8 @@ class BaseServer:
 
     def wait_stop(self, current):
         """wait the stop flag to shutdown the server"""
+        if sys.version_info >= (3, 8):
+            current.isAlive = current.is_alive
         while 1:
             time.sleep(self.WAIT_TIME)
             if not current.isAlive():
