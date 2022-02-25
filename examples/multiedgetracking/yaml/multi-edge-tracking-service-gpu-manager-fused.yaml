@@ -1,0 +1,160 @@
+apiVersion: sedna.io/v1alpha1
+kind: MultiEdgeTrackingService
+metadata:
+  name: pedestrian-tracking
+spec:
+  kafkaSupport: false
+  reidManagerDeploy:
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: reid-manager
+      template:
+        metadata:
+          labels:
+            app: reid-manager
+        spec:
+          nodeName: fraporion00001
+          containers:
+            - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-external_api:v0.4.0
+              imagePullPolicy: Always
+              name:  reid-manager
+              env:  # user defined environments
+              - name: rabbitmq_address
+                value: "7.182.9.110"
+              - name: rabbitmq_port
+                value: "32672"
+              - name: rabbitmq_queue
+                value: "reid"
+              resources:  # user defined resources
+                requests:
+                  memory: 64M
+                  cpu: 500m
+                limits:
+                  memory: 2Gi
+  motDeploy:
+    model:
+      name: detection-pedestrians-yolox
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: object-detection
+      template:
+        metadata:
+          labels:
+            app: object-detection
+        spec:
+          nodeSelector:
+            reid-role: detector # Remember to set this label in the K8S cluster for the edge nodes.
+          containers:
+            - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-gpu-detection:v0.4.0
+              imagePullPolicy: Always
+              name:  detection
+              env:  # user defined environments
+              - name: "estimator_class"
+                value: "ByteTracker"
+              - name: confidence_thr
+                value: "0.7"
+              - name: track_buffer
+                value: "100"
+              - name: min_box_area
+                value: "200"
+              - name: input_shape
+                value: "640"
+              - name: fps
+                value: "5"
+              - name: hostname
+                valueFrom:
+                  fieldRef:
+                    fieldPath: spec.nodeName
+              resources:  # user defined resources
+                requests:
+                  memory: 4Gi
+                  cpu: 2000m
+                limits:
+                  memory: 10Gi
+
+  feDeploy:
+    model:
+      name: "feature-extraction-efficientnet"
+    spec:
+      replicas: 0
+      selector:
+        matchLabels:
+          app: feature-extraction
+      template:
+        metadata:
+          labels:
+            app: feature-extraction
+        spec:
+          nodeName: "frapedge00001"
+          containers:
+          - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-feature-extraction:v0.4.0
+            imagePullPolicy: Always
+            ports:
+              - containerPort: 6000
+            name:  feature-extraction
+            env:  # user defined environments
+            - name: input_shape
+              value: "256,128"
+            resources:  # user defined resources
+              requests:
+                memory: 128M
+                cpu: 500m
+              limits:
+                memory: 2Gi
+
+  reIDDeploy:
+    model:
+      name: "feature-extraction-efficientnet"
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: reid
+      template:
+        metadata:
+          labels:
+            app: reid
+        spec:
+          nodeName: fraporion00001
+          containers:
+            - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-feature-extraction-reid:v0.4.0
+              name:  reid
+              imagePullPolicy: Always
+              env:  # user defined environments
+              - name: use_gallery
+                value: "True"
+              - name: match_thresh
+                value: "800"
+              - name: input_shape
+                value: "256,128"
+              - name: "log_dir"
+                value: "/data/ai_models/deep_eff_reid/loggers/runs/"
+              - name: "img_dir"
+                value: "/data/ai_models/deep_eff_reid/"
+              - name: "gfeats"
+                value: "gfeats.pth"
+              - name: "qfeats"
+                value: "qfeats.pth"
+              - name: "imgpath"
+                value: "imgpath.npy"
+              - name: "dataset"
+                value: "efficientnetv2_huawei2021"
+              - name: "post_process_result"
+                value: "False"
+              resources:  # user defined resources
+                requests:
+                  memory: 2Gi
+                  cpu: 2000m
+              volumeMounts:
+              - name: outputdir
+                mountPath: /data/
+          volumes:   # user defined volumes
+            - name: outputdir
+              hostPath:
+                # user must create the directory in host
+                path: /data/
+                type: Directory

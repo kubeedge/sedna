@@ -17,14 +17,14 @@ class DetTrackResult:
         self.bbox_coord : List = bbox_coord
         self.scene = scene
         self.confidence : List = confidence
-        self.detection_time : List = detection_time
-        self.camera : List = camera
+        self.detection_time = detection_time
+        self.camera = camera
         self.features : List = features
         self.is_target = is_target
-        self.ID : List = ID
+        self.targetID : List = ID
 
         try:
-            self.image_key = f'{datetime.strptime(self.detection_time[0], "%a, %d %B %Y %H:%M:%S.%f").timestamp()}_{self.camera[0]}' 
+            self.image_key = f'{datetime.strptime(self.detection_time, "%a, %d %B %Y %H:%M:%S.%f").timestamp()}_{self.camera}' 
         except:
             self.image_key = "0"
 

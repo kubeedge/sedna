@@ -1,4 +1,4 @@
-FROM python:3.7
+FROM python:3.8
 #FROM python:3.7-slim-bullseye
 
 # To pull from codehub, we use access tokens (read-only non-api) to avoid leaking sensitive information.

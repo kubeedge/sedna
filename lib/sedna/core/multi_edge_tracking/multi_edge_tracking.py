@@ -266,6 +266,7 @@ class FE_ReIDService(JobBase):
 
     def put_data(self, data):
         self.sync_queue.put(data)
+        self.log.debug(f"Elements in the processing queue: {self.sync_queue.qsize()}")
         self.log.debug("Data deposited")
 
     def inference(self, data=None, post_process=None, **kwargs):
@@ -278,15 +279,15 @@ class FE_ReIDService(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        res = self.estimator.predict(data, op_mode=self.op_mode, **kwargs)
+        reid_result = self.estimator.predict(data, op_mode=self.op_mode, **kwargs)
         
         # This is a List of DetTrackObjects! 
-        reid_result = deepcopy(res)
+        # reid_result = deepcopy(res)
 
-        if callback_func:
-            res = callback_func(res)
+        # if callback_func:
+        #     res = callback_func(res)
 
-        if reid_result != None:
+        if reid_result != []:
             if self.kafka_enabled:
                 with FTimer(f"upload_fe_reid_results"):
                     cres = self.producer.write_result(reid_result)
@@ -509,6 +510,7 @@ class ObjectDetector(JobBase):
         self.api_port = int(self.get_parameters("MANAGER_API_BIND_PORT", "27345"))
         
         self.status_update_endpoint = self.get_parameters("status_update_endpoint", f"http://{self.api_ip}:{self.api_port}/sedna/get_app_details")
+        self.sync_queue = queue.Queue()
 
         if estimator is None:
             self.log.error("ERROR! Estimator is not set!")
@@ -529,6 +531,23 @@ class ObjectDetector(JobBase):
 
         self.start()
  
+    def fetch_data(self):
+        while True:
+            token = self.sync_queue.get()
+            self.log.debug(f'Data consumed')
+            try:
+                self.inference(token)
+            except Exception as e:
+                msg = f"Error processing token {token}: {e}" 
+                self.log.error((msg[:60] + '..' + msg[len(msg)-40:-1]) if len(msg) > 60 else msg)
+
+            self.sync_queue.task_done()
+
+    def put_data(self, data):
+        self.sync_queue.put(data)
+        self.log.debug(f"Elements in the processing queue: {self.sync_queue.qsize()}")
+        self.log.debug("Data deposited")
+
     def start(self):
         if callable(self.estimator):
             self.estimator = self.estimator()
@@ -547,6 +566,8 @@ class ObjectDetector(JobBase):
         if not self.kafka_enabled:
             self.log.debug("Starting default REST webservice/s")
             self.edge = FE(service_name=self.job_name,host=self.remote_ip, port=self.port)
+
+        threading.Thread(target=self.fetch_data, daemon=True).start()
 
     def inference(self, data=None, post_process=None, **kwargs):
         callback_func = None

@@ -13,11 +13,9 @@
 # limitations under the License.
 
 import pickle
-import threading
-from typing import Dict
+from typing import Dict, List
 import uuid
 import io
-import time, itertools
 from datetime import datetime
 import base64
 import cv2
@@ -57,7 +55,6 @@ class Interface():
         # Streaming server parameters
         self.rtmp_url= Context.get_parameters('streaming_server_url', "rtmp://7.182.9.110:1935/live/")
  
-
         # RabbitMQ parameters
         self.rabbitmq_address = Context.get_parameters('rabbitmq_address', "7.182.9.110")
         self.rabbitmq_port = int(Context.get_parameters('rabbitmq_port', 32672))
@@ -70,32 +67,40 @@ class Interface():
         time = datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
 
         try:
-            dt_object_list = pickle.loads(data)
+            dt_object_list : List[DetTrackResult] = pickle.loads(data)
         except Exception as ex:
             LOGGER.error(f"Unable to access received data. [{ex}]")
-            return None
+            return 500
 
         # As we receive a list of objects with results for each userid, we iterate over it. 
         for dt_object in dt_object_list:
-            try:
-                user_buffer = self.reid_ht[dt_object.userID].frame_buffer
-            except KeyError:
-                # If the buffer doesn't exists, we create it.
-                # This helps in case of ReID Manager restart/crash
-                # to avoid information loss.
-                self.reid_ht[dt_object.userID] = ReIDBuffer()
-                user_buffer = self.reid_ht[dt_object.userID].frame_buffer
+            if dt_object != None:
+                try:
+                    user_buffer = self.reid_ht[dt_object.userID].frame_buffer
+                except KeyError:
+                    # If the buffer doesn't exists, we create it.
+                    # This helps in case of ReID Manager restart/crash
+                    # to avoid information loss.
+                    self.reid_ht[dt_object.userID] = ReIDBuffer()
+                    user_buffer = self.reid_ht[dt_object.userID].frame_buffer
 
-            seq_number = len(user_buffer)
+                seq_number = len(user_buffer)
 
-            if self.post_process:
-                dt_object = self._post_process(dt_object, time, seq_number)
-                threading.Thread(target=self._generate_video_v2, args=(dt_object.userID, dt_object.scene), daemon=False).start()
+                if self.post_process:
+                    dt_object, image = self._post_process(dt_object, time, seq_number)
+                    try:
+                        # Threading is not a good idea as we introduce a race condition.
+                        # threading.Thread(target=self._generate_video_v2, args=(dt_object.userID, image), daemon=False).start()
 
-            user_buffer.append(dt_object)
+                        # The downside of not using threads is that this becomes a blocking call, increasing the acquisition delay.
+                        self._generate_video_v2(dt_object.userID, image)
+                    except Exception as ex:
+                        LOGGER.error(f"Unable to reconstruct output video. [{ex}]")
 
-            # Write to RabbitMQ
-            self.rabbitmq_interface.target_found(self.rtmp_url + dt_object.userID, dt_object.userID, dt_object, seq_number - 1)
+                user_buffer.append(dt_object)
+
+                # Write to RabbitMQ
+                self.rabbitmq_interface.target_found(self.rtmp_url + dt_object.userID, dt_object.userID, dt_object, seq_number - 1)
             
         return 200
 
@@ -262,8 +267,8 @@ class Interface():
         # add text centered on image
         cv2.putText(img, text, (textX, textY), font, 1, (0, 255, 0), 2)
     
-    # Post-process will overwrite the original scene with a new version containing ReID information
-    def _post_process(self, data, time, seq_number):
+    # Post-process will enrich the source image with extra ReID information
+    def _post_process(self, data : DetTrackResult, time, seq_number):
         try:
             image = cv2.imdecode(data.scene, cv2.IMREAD_COLOR)
 
@@ -271,13 +276,13 @@ class Interface():
                 cv2.rectangle(image, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0,255, 0), 2)
             
                 # Add ID
-                self._write_text_on_image(image, data.ID[0], int(bbox[0]), int(bbox[1]-10))
+                self._write_text_on_image(image, str(data.targetID[idx]), int(bbox[0]), int(bbox[1]-10))
             
             # Add camera
-            self._write_text_on_image(image, f"Camera:{data.camera[idx]}", 0, 30)
+            self._write_text_on_image(image, f"Camera:{data.camera}", 0, 30)
 
             # Add acquisition delay
-            difference = datetime.strptime(time, "%a, %d %B %Y %H:%M:%S.%f") - datetime.strptime(data.detection_time[0], "%a, %d %B %Y %H:%M:%S.%f")
+            difference = datetime.strptime(time, "%a, %d %B %Y %H:%M:%S.%f") - datetime.strptime(data.detection_time, "%a, %d %B %Y %H:%M:%S.%f")
             self._write_text_on_image(image, f"T-Delta:{difference.microseconds/1000}ms", 0, 60)
 
             # Add sequence number (relative to the local ReID buffer)
@@ -290,7 +295,7 @@ class Interface():
             
             data.scene = output
 
-            return data
+            return data, image
 
         except Exception as ex:
             LOGGER.error(f"Error during output scene preparation. {[ex]}")
@@ -298,13 +303,9 @@ class Interface():
 
     # Called only once to create the pipe to write to FFMPEG
     # TODO: Use python-ffmpeg library rather than subprocess..
-    def _create_rtmp_pipe(self, userid):
+    def _create_rtmp_pipe(self, userid, height=480, width=640, fps=1):
         import subprocess as sp
         LOGGER.debug("Create RTMP pipe")
-
-        fps = 1
-        width = 640
-        height = 480
         
         command = ['ffmpeg',
                 '-y',
@@ -330,14 +331,15 @@ class Interface():
     def _generate_video_v2(self, userid, scene, expansion_factor=50):
 
         with FTimer("video_reconstruction"):
-            pipe = self._create_rtmp_pipe(userid)
+            h, w, _ = scene.shape
+            pipe = self._create_rtmp_pipe(userid, h, w)
 
             try:                   
-                image = cv2.imdecode(scene, cv2.IMREAD_COLOR)
-                image = cv2.resize(image, (640,480))
+                # image = cv2.imdecode(scene, cv2.IMREAD_COLOR)
+                # image = cv2.resize(scene, (640,480))
 
                 for i in range(expansion_factor):
-                    pipe.stdin.write(image)
+                    pipe.stdin.write(scene)
 
             except Exception as ex:
                 LOGGER.error(f"Error during transmission to RTMP server. [{ex}]")

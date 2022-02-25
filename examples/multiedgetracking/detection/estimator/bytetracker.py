@@ -72,7 +72,12 @@ class ByteTracker(FluentdHelper):
         self.std = (0.229, 0.224, 0.225)
         self.swap = (2, 0, 1)
 
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        if torch.cuda.is_available():
+            self.device = "cuda"
+            LOGGER.info("Using GPU")
+        else:
+            self.device = "cpu"
+            LOGGER.info("Using CPU")
 
         self.original_size = None
 
@@ -120,6 +125,7 @@ class ByteTracker(FluentdHelper):
         self.model.load_state_dict(checkpoint["model"])
         
         self.model = fuse_model(self.model)
+        self.model.to(self.device)
 
     def evaluate(self, **kwargs):
         LOGGER.debug(f"Evaluating model")
@@ -144,7 +150,8 @@ class ByteTracker(FluentdHelper):
 
         # Convert numpy image to tensor
         img = torch.from_numpy(img).unsqueeze(0).to(self.device)
-        img = img.float()
+        if self.device == "cpu":
+            img = img.float()
 
         # Run Inference
         with torch.no_grad():
@@ -166,7 +173,7 @@ class ByteTracker(FluentdHelper):
 
         return outputs, img_info
 
-    def detect_only(self, data, outputs, img_info, det_time):
+    def detection(self, data, outputs, img_info, det_time):
         object_crops = []
         result = None
 
@@ -188,7 +195,13 @@ class ByteTracker(FluentdHelper):
 
                 crop_encoded = cv2.imencode('.jpg', _img)[1]
 
-                object_crops.append([crop_encoded, score.item(), bboxes[i], self.camera_code, det_time]) 
+                object_crops.append([
+                    crop_encoded,
+                    score.item(),
+                    bboxes[i],
+                    self.camera_code,
+                    det_time]
+                ) 
             
             if len(object_crops) > 0:
                 result = self._build_result_object(object_crops, data)
@@ -202,7 +215,7 @@ class ByteTracker(FluentdHelper):
         return result
 
 
-    def track(self, data, outputs, img_info, det_time):
+    def tracking(self, data, outputs, img_info, det_time):
         # initialize placeholders for the tracking data
         online_tlwhs = []
         online_ids = []
@@ -258,15 +271,15 @@ class ByteTracker(FluentdHelper):
                 ])
             
             if len(object_crops) > 0:
-                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
                 scene = cv2.imencode('.jpg', data, encode_param)[1]
 
                 result = DetTrackResult(
                     bbox=[item[0] for item in object_crops],
                     scene=scene,
                     confidence=[item[2] for item in object_crops],
-                    detection_time=[item[5] for item in object_crops],
-                    camera=[item[4] for item in object_crops],
+                    detection_time=det_time,
+                    camera=self.camera_code,
                     bbox_coord=[item[1] for item in object_crops],
                     tracking_ids=[item[3] for item in object_crops]
                 )
@@ -278,7 +291,6 @@ class ByteTracker(FluentdHelper):
             LOGGER.error(f"No objects tracked! [{ex}].")
 
         return result
-
 
     def predict(self, data, **kwargs):
         """
@@ -292,16 +304,18 @@ class ByteTracker(FluentdHelper):
         det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
 
         # get detections from the image forward pass
-        outputs, img_info = self.forward(data)
+        with FTimer("bytetracker_forward"):
+            outputs, img_info = self.forward(data)
 
         if outputs is None or (outputs[0] is None):
             return None
 
-        if kwargs['op_mode'] == "detection":
-            return self.detect_only(data, outputs, img_info, det_time)
-        else:
-            return self.track(data, outputs, img_info, det_time)
-     
+        try:
+            return getattr(self, kwargs["op_mode"].value)(data, outputs, img_info, det_time)
+        except AttributeError as ex:
+            LOGGER.error(f"Operational mode {kwargs['op_mode'].value} not supported. [{ex}]")
+            return None 
+
     def _build_result_object(self, object_crops, original_frame):
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
         scene = cv2.imencode('.jpg', original_frame, encode_param)[1]
@@ -311,8 +325,8 @@ class ByteTracker(FluentdHelper):
             scene=scene,
             bbox_coord=[item[2] for item in object_crops],
             confidence=[item[1] for item in object_crops],
-            camera=[item[3] for item in object_crops],
-            detection_time=[item[4] for item in object_crops]
+            camera=self.camera_code,
+            detection_time=object_crops[0][4]
         )
         
         return result

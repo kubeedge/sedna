@@ -50,6 +50,19 @@ class Yolov5(FluentdHelper):
             LOGGER.error(f"Error while transmitting data to fluentd. Details: [{ex}]")
 
     def predict(self, data, **kwargs):
+        det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
+
+        try:
+            return getattr(self, kwargs["op_mode"].value)(data, det_time)
+        except AttributeError as ex:
+            LOGGER.error(f"Operational mode {kwargs['op_mode'].value} not supported. [{ex}]")
+            return None 
+
+    def tracking(self, data, det_time, **kwargs):
+        return self.detection(data, det_time)
+
+    def detection(self, data, det_time, **kwargs):
+
         LOGGER.debug("Manipulating source image")
         img = letterbox(data, self.img_size, stride=self.stride)[0]
 
@@ -78,7 +91,6 @@ class Yolov5(FluentdHelper):
         s = ""
         bbs_list = []
         result = None
-        det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S")
 
         for _, det in enumerate(pred):  # detections per image
             imc = data.copy()
@@ -108,8 +120,8 @@ class Yolov5(FluentdHelper):
                 bbox_coord=[item[2] for item in bbs_list],
                 scene=scene,
                 confidence=[item[1] for item in bbs_list],
-                detection_time=[item[4] for item in bbs_list],
-                camera=[item[3] for item in bbs_list]
+                detection_time=det_time,
+                camera=self.camera_code
             )                   
 
             # Send some data to fluentd for monitoring

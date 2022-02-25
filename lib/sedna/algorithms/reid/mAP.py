@@ -14,6 +14,18 @@ def euclidean_distance(qf, gf):
     return dist_mat.cpu().numpy()
 
 
+def cosine_similarity_cpu(qf, gf):
+    epsilon = 0.00001
+    dist_mat = np.matmul(qf, gf.T)
+    qf_norm = np.linalg.norm(qf, axis=1, keepdims=True)
+    gf_norm = np.linalg.norm(gf, axis=1, keepdims=True)
+    qg_normdot = np.matmul(qf_norm, gf_norm.t())
+
+    dist_mat = np.multiply(dist_mat, 1 / qg_normdot)
+    dist_mat = np.clip(dist_mat, -1 + epsilon, 1 - epsilon)
+    dist_mat = np.arccos(dist_mat)
+    return dist_mat
+
 def cosine_similarity(qf, gf):
     epsilon = 0.00001
     dist_mat = qf.mm(gf.t())

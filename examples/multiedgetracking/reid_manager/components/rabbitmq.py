@@ -61,7 +61,7 @@ class RabbitMQWriter():
             "currentLocation": 
             {						
                 "pullStream": address,	
-                "cameraId": elem.camera[0],					
+                "cameraId": elem.camera,					
                 "coordinate":"0.001497,0.000002",
                 "seq": index		
             },

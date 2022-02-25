@@ -1,4 +1,4 @@
-FROM python:3.8
+FROM pytorch/pytorch:1.8.1-cuda10.2-cudnn7-devel
 #FROM python:3.7-slim-bullseye
 
 # To pull from codehub, we use access tokens (read-only non-api) to avoid leaking sensitive information.
@@ -8,27 +8,27 @@ FROM python:3.8
 WORKDIR /home
 
 ## Install git
-RUN apt update 
+RUN apt update -o Acquire::https::developer.download.nvidia.com::Verify-Peer=false
 
 # Required by OpenCV
-RUN apt install libgl1-mesa-glx -y
+RUN apt install libglib2.0-0 libgl1 libglx-mesa0 libgl1-mesa-glx -y
 
 # RUN apt install -y git
 RUN apt install -y gfortran libopenblas-dev liblapack-dev
 
 ## Install base dependencies
-RUN pip install torch torchvision tqdm opencv-python pillow pytorch-ignite
+RUN pip install torch torchvision tqdm opencv-python pillow pytorch-ignite --trusted-host=developer.download.nvidia.com
 
 ## Add Kafka Python library
-RUN pip install kafka-python 
+RUN pip install kafka-python --trusted-host=developer.download.nvidia.com
 
 ## Add Fluentd Python library
-RUN pip install fluent-logger
+RUN pip install fluent-logger --trusted-host=developer.download.nvidia.com
 
 ## SEDNA SECTION ##
 
 COPY ./lib/requirements.txt /home
-RUN pip install -r /home/requirements.txt
+RUN pip install -r /home/requirements.txt --trusted-host=developer.download.nvidia.com
 
 # This instructions should make Sedna reachable from the dertorch code part
 ENV PYTHONPATH "${PYTHONPATH}:/home/lib"

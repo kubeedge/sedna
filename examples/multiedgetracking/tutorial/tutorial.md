@@ -20,7 +20,7 @@ The image below shows the architecture of the deployment:
 - Folder with specific implementation `examples\multiedgetracking\fe_reid`
 - Base service in `lib/sedna/core/multi_edge_tracking/multi_edge_tracking.py`
 - Defined by the Dockerfile `multi-edge-tracking-feature-extraction-reid.Dockerfile`
-- It loads the model defined by the CRD in the YAML file `model_feature_extraction.yaml`
+- It loads the model defined by the CRD in the YAML file `yaml/models/model_feature_extraction.yaml`
 - It should be deployed in the cloud
 
 **Detection/Tracking Pods**: they take care of tracking objects coming from a video stream.
@@ -29,7 +29,7 @@ The image below shows the architecture of the deployment:
 - AI model code in `examples/multiedgetracking/detection/estimator/bytetracker.py`
 - Base service in `lib/sedna/core/multi_edge_tracking/multi_edge_tracking.py`
 - Defined by the Dockerfile `multi-edge-tracking-detection.Dockerfile`
-- They load the model defined by the CRD in the YAML file `model_detection.yaml`
+- They load the model defined by the CRD in the YAML file `yaml/models/model_detection.yaml`
 - It should be deployed at the edge
 
 ## Build
@@ -42,7 +42,9 @@ Build the GM `make gmimage` and restart the GM pod.
 
 ## Deployment
 
-Before deploying, check the `multi-edge-tracking-service-fused.yaml` and make sure to set properly the parameters such as nodeSelector, nodeName docker image repository, kafkaSupport etc..
+Before deploying, check the `yaml/multi-edge-tracking-service-manager-fused.yaml` and make sure to set properly the parameters such as nodeSelector, nodeName docker image repository, kafkaSupport etc..
+
+You can use the `yaml/multi-edge-tracking-service-gpu-manager-fused.yaml` if you want to use the GPU-tuned Docker images for the detectors/trackers.
 
 For the pods running in the cloud, you need to use **nodeName** instead of nodeSelector. This is a limitation that will be addressed in a future version.
 
@@ -57,9 +59,9 @@ For the edge nodes, you can use nodeSelector. I recommend labeling them with the
 
 To deploy the application, run the following commands:
 
-- Do only once: `kubectl create -f model_feature_extraction.yaml`
-- Do only once: `kubectl create -f model_detection.yaml`
-- `kubectl create -f multi-edge-tracking-service-fused.yaml`
+- Do only once: `kubectl create -f yaml/models/model_feature_extraction.yaml`
+- Do only once: `kubectl create -f yaml/models/model_detection.yaml`
+- `kubectl create -f yaml/multi-edge-tracking-service-fused.yaml`
 
 With the default deployment, you will have:
 
@@ -78,22 +80,22 @@ Execute the following API calls in sequence to test the application/service (rep
 
 **STEP 1**: Add RTSP video sources for the tracking pods, one call per video address. This operation can be skipped if the RTSP stream addresses are hardcoded ahead of time in `examples/multiedgetracking/reid_manager/components/rtsp_dispatcher.py`.
 
-- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/0", "camid":0, "receiver":"hostname"}'`
-- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/1", "camid":1, "receiver":"hostname"}'`
-- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://172.17.0.1/video/2", "camid":2, "receiver":"hostname"}'`
+- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://7.182.8.79/video/0", "camid":0, "receiver":"hostname"}'`
+- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://7.182.8.79/video/1", "camid":1, "receiver":"hostname"}'`
+- `curl -X POST http://7.182.9.110:9907/sedna/add_video_address --data '{"url":"rtsp://7.182.8.79/video/2", "camid":2, "receiver":"hostname"}'`
 
-The field `receiver` must contain the `hostname` of the machine which will access the relative RTSP stream. For example, if your tracking pods are running on a machine with hostname `edge-1`, you will write `"receiver":"edge-1"`. The ENV variable defined in the YAML file while take care of injecting the correct value hostname value into the tracking pods.
+The field `receiver` must contain the `hostname` of the machine which will access the relative RTSP stream. For example, if your tracking pods are running on a machine with hostname `edge-1`, you will write `"receiver":"edge-1"`. The ENV variable defined in the YAML file while take care of injecting the correct hostname value into the tracking pods. In order for this to work, the `/etc/hosts` file has to be correctly configured on the host machine.
 
 **STEP 2**: It is strongly recommended to upload first the images of the target you want to track/find before starting the RTSP video stream (especially if such streams are not genereated by a camera but rather from a video file). To do this, you have two options: the first is to send files directly using the command **A**, the second is to send base64 encoded images with the command **B**. It is important that the images use the same compression algorithm (e.g., jpg, png).
 
-- **Option A**: `curl -X POST http://7.182.9.110:9907/sedna/set_app_details  -H 'Expect:' -F data='{"userID":"123", "op_mode":"tracking", "queryImagesFromNative": []}' -F target=@vit_vid.png  target=@vit_vide2.png`
-- **Option B (not fully tested)**: `curl -X POST http://7.182.9.110:9907/v1/person/tracking/live/identification  -H 'Expect:' --data '{"userID": "123", "op_mode":"tracking", "queryImagesFromNative": [], "cameraIds": [], "isEnhanced": 0}'`
+- **Option A**: `curl -X POST http://7.182.9.110:9907/sedna/set_app_details  -H 'Expect:' -F data='{"userID":"DEFAULT", "op_mode":"tracking", "queryImagesFromNative": []}' -F target=@vit_vid.png  target=@vit_vide2.png`
+- **Option B (not fully tested)**: `curl -X POST http://7.182.9.110:9907/v1/person/tracking/live/identification  -H 'Expect:' --data '{"userID": "DEFAULT", "op_mode":"tracking", "queryImagesFromNative": [], "cameraIds": [], "isEnhanced": 0}'`
 
 After this step, you can start the videos from your RTSP server. However, it's recommended to wait a few seconds for the pods to receive the new configuration (target images and op_mode).
 
-**STEP 3**: Call `http://7.182.9.110:9907/sedna/get_reid_result` in a browser to fetch and see the ReID result or run the following command from a CLI:
+**STEP 3**: Call `http://7.182.9.110:9907/sedna/get_reid_result?userid=DEFAULT` in a browser to fetch and see the ReID result or run the following command from a CLI:
 
-- `curl -X GET http://7.182.9.110:9907/sedna/get_reid_result --output result.png`
+- `curl -X GET http://7.182.9.110:9907/sedna/get_reid_result?userid=DEFAULT --output result.png`
 
 There are other endpoints available for the manager-api pod, details are in `lib/sedna/service/server/reid_manager.py`.
 
