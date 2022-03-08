@@ -63,8 +63,10 @@ EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 dockerfiles_multiedgetracking=(
 multi-edge-tracking-external_api.Dockerfile
 multi-edge-tracking-feature-extraction-reid.Dockerfile
+multi-edge-tracking-gpu-feature-extraction-reid.Dockerfile
 multi-edge-tracking-feature-extraction.Dockerfile
 multi-edge-tracking-detection.Dockerfile
+multi-edge-tracking-gpu-detection.Dockerfile
 multi-edge-tracking-reid.Dockerfile
 )
 
