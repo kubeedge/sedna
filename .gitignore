@@ -28,3 +28,4 @@ __pycache__/
 
 # go build output
 /_output
+examples/gst-plugins-bad

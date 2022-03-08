@@ -38,12 +38,11 @@ COPY ./lib /home/lib
 
 # Add NN import required by Torch and for the feature extraction
 COPY examples/multiedgetracking/feature_extraction/nets /home/work/nets
+COPY examples/multiedgetracking/feature_extraction/M3L /home/work/
+
 ENV PYTHONPATH "${PYTHONPATH}:/home/work"
 
-COPY examples/multiedgetracking/fe_reid/worker.py  /home/work/worker.py
-COPY examples/multiedgetracking/fe_reid/multi_img_matching.py  /home/work/multi_img_matching.py
-COPY examples/multiedgetracking/fe_reid/__init__.py  /home/work/__init__.py
-
+COPY examples/multiedgetracking/fe_reid /home/work
 ENV LOG_LEVEL="INFO"
 
 ENTRYPOINT ["python"]

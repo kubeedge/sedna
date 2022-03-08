@@ -79,8 +79,6 @@ class ByteTracker(FluentdHelper):
             self.device = "cpu"
             LOGGER.info("Using CPU")
 
-        self.original_size = None
-
         # Tracking parameters
         self.tracker_args = Namespace(
             track_thresh=track_thresh,
@@ -131,6 +129,67 @@ class ByteTracker(FluentdHelper):
         LOGGER.debug(f"Evaluating model")
         self.model.eval()
 
+    def forward_batched(self, data):
+        """ Data is of List images type"""
+        
+        img_info = {}
+
+        # Image information
+        t_ = data[0].copy()
+        height, width = t_.shape[:2]
+
+        # Store image information, will be used during post processing
+        img_info["height"] = height
+        img_info["width"] = width
+        
+        LOGGER.debug("Batching images")
+        num_imgs = len(data)
+
+        # Image info now stores the raw images
+        img_info["raw_img"] = []   
+        
+        # Input batched
+        input_batched = torch.zeros(num_imgs, 3, self.test_size, self.test_size)
+        
+        # Iterate over all images and concat
+        with FTimer("pre_process"):
+            for i, img in enumerate(data):
+                # img_info["raw_image"].append(img)
+                imgp, ratio = pre_process(img, [self.test_size, self.test_size], self.rgb_means, self.std, self.swap)
+                
+                if i == 0:
+                    img_info["ratio"] = ratio
+                    
+                # Convert numpy image to tensor
+                input_batched[i, :, :, :] = torch.from_numpy(imgp).unsqueeze(0).to(self.device)
+            
+        if self.device == "cpu":
+            input_batched = input_batched.float()
+                
+        input_batched = input_batched.to(self.device)
+        
+        # Forward pass 
+        with torch.no_grad():
+            with FTimer("detection"):
+                # Image forward pass, output now contains
+                # outputs is a [batch_size, num_box, 5 + num_classes] tensor
+                # outputs[:, :, 5: 5 + num_classes] contains the confidence score for each class
+                
+                # in batching mode, outputs will be of shape [b, num_boxes, 5 + num_classes] instead of [1, num_boxes, 5 + num_classes]                
+                outputs = self.model(input_batched)
+
+                # Filter detection based on confidence threshold and nms
+                outputs = outputs.cpu()
+
+        with FTimer("nms"):
+            outputs = postprocess(
+                    outputs,
+                    self.num_classes,
+                    self.confidence_thr,
+                    self.nms_thr)
+            
+        return outputs, img_info
+
     def forward(self, data):
         # Image information
         img_info = {"id": 0}
@@ -145,7 +204,8 @@ class ByteTracker(FluentdHelper):
         img_info["raw_img"] = img
 
         # Resize and normalize image
-        img, ratio = pre_process(img, [self.test_size, self.test_size], self.rgb_means, self.std, self.swap)
+        with FTimer("pre_process"):
+            img, ratio = pre_process(img, [self.test_size, self.test_size], self.rgb_means, self.std, self.swap)
         img_info["ratio"] = ratio
 
         # Convert numpy image to tensor
@@ -173,59 +233,73 @@ class ByteTracker(FluentdHelper):
 
         return outputs, img_info
 
-    def detection(self, data, outputs, img_info, det_time):
+    def detection(self, data, output, img_info, det_time):
         object_crops = []
         result = None
 
         # Prepare image with boxes overlaid
-        try:
-            bboxes = outputs[0][:, 0:4]
-            a0 = outputs[0][:, 4]
-            a1 = outputs[0][:, 5]
-            bboxes /= img_info["ratio"]
+        if output is not None:
+            try:
+                bboxes = output[:, 0:4]
+                a0 = output[:, 4]
+                a1 = output[:, 5]
+                bboxes /= img_info["ratio"]
 
-            # Crop to person detections
-            # person crops is a list of numpy arrays containing the image cropped to that person only
+                # Crop to person detections
+                # person crops is a list of numpy arrays containing the image cropped to that person only
 
-            for i in range(len(bboxes)):
-                box = bboxes[i]
-                x0, y0, x1, y1 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
-                score = a0[i]*a1[i]
-                _img = data[y0: y1, x0: x1]
+                for i in range(len(bboxes)):
+                    box = bboxes[i]
+                    x0, y0, x1, y1 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                    score = a0[i]*a1[i]
+                    _img = data[y0: y1, x0: x1]
 
-                crop_encoded = cv2.imencode('.jpg', _img)[1]
+                    crop_encoded = cv2.imencode('.jpg', _img)[1]
 
-                object_crops.append([
-                    crop_encoded,
-                    score.item(),
-                    bboxes[i],
-                    self.camera_code,
-                    det_time]
-                ) 
-            
-            if len(object_crops) > 0:
-                result = self._build_result_object(object_crops, data)
+                    object_crops.append([
+                        crop_encoded,
+                        box,
+                        score.item(),
+                        self.camera_code,
+                        det_time
+                    ])
 
-                self.write_to_fluentd(result)
-                LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
+                if len(object_crops) > 0:
+                    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                    scene = cv2.imencode('.jpg', data, encode_param)[1]
 
-        except Exception as ex:
-            LOGGER.error(f"No objects identified [{ex}].")
+                    result = DetTrackResult(
+                        bbox=[item[0] for item in object_crops],
+                        scene=scene,
+                        confidence=[item[2] for item in object_crops],
+                        detection_time=det_time,
+                        camera=self.camera_code,
+                        bbox_coord=[item[1] for item in object_crops],
+                        tracking_ids=[-1]*len(object_crops)
+                    )
+                
+                    self.write_to_fluentd(result)
+                    LOGGER.info(f"Found {len(object_crops)} objects/s in camera {self.camera_code}")
+
+            except Exception as ex:
+                LOGGER.error(f"No objects identified [{ex}].")
 
         return result
 
 
-    def tracking(self, data, outputs, img_info, det_time):
+    def tracking(self, data, output, img_info, det_time):
         # initialize placeholders for the tracking data
         online_tlwhs = []
         online_ids = []
         online_scores = []
         result = None
 
+        original_size = (data.shape[0], data.shape[1])
+
         try:
             # update tracker
             with FTimer("tracking"):
-                online_targets = self.tracker.update(outputs[0], self.original_size, (image_size, image_size))
+                online_targets = self.tracker.update(output, original_size, (image_size, image_size))
 
             for t in online_targets:
                 # bounding box and tracking id
@@ -266,8 +340,6 @@ class ByteTracker(FluentdHelper):
                     box,
                     online_scores[i],
                     online_ids[i],
-                    self.camera_code,
-                    det_time
                 ])
             
             if len(object_crops) > 0:
@@ -294,39 +366,28 @@ class ByteTracker(FluentdHelper):
 
     def predict(self, data, **kwargs):
         """
-        Run the pedestrian detector/tracker on the input image available at img_path
-        :param img_path: path to image.
+        Run the pedestrian detector/tracker on a list of images
+        :param data: path to image.
         :return:
             img_with_bbox List[np.ndarray]
         """
-        
-        self.original_size = (data.shape[0], data.shape[1])
-        det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
+        tresult = []
 
-        # get detections from the image forward pass
+        imgs_ = list(map(lambda z: z[0], data)) 
+
         with FTimer("bytetracker_forward"):
-            outputs, img_info = self.forward(data)
-
-        if outputs is None or (outputs[0] is None):
-            return None
-
-        try:
-            return getattr(self, kwargs["op_mode"].value)(data, outputs, img_info, det_time)
-        except AttributeError as ex:
-            LOGGER.error(f"Operational mode {kwargs['op_mode'].value} not supported. [{ex}]")
-            return None 
-
-    def _build_result_object(self, object_crops, original_frame):
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
-        scene = cv2.imencode('.jpg', original_frame, encode_param)[1]
-
-        result = DetTrackResult(
-            bbox=[item[0] for item in object_crops],
-            scene=scene,
-            bbox_coord=[item[2] for item in object_crops],
-            confidence=[item[1] for item in object_crops],
-            camera=self.camera_code,
-            detection_time=object_crops[0][4]
-        )
+            outputs, img_info = self.forward_batched(imgs_)
         
-        return result
+        # Did we detect something?
+        if len(outputs) > 0:
+            for idx, output in enumerate(outputs):
+                try:
+                    dettrack_obj = getattr(self, kwargs["op_mode"].value)(data[idx][0], output, img_info, data[idx][1])
+                    if dettrack_obj is not None:
+                        tresult.append(dettrack_obj)
+                except AttributeError as ex:
+                    LOGGER.error(f"Operational mode {kwargs['op_mode'].value} not supported. [{ex}]")
+                    return []
+
+            LOGGER.info(f"Transmitting {len(tresult)} DetTrack objects for ReID")        
+        return tresult

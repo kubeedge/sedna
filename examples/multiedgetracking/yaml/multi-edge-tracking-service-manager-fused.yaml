@@ -65,6 +65,10 @@ spec:
                 value: "640"
               - name: fps
                 value: "5"
+              - name: batch_size
+                value: "1"
+              - name: parallelism
+                value: "1"
               - name: hostname
                 valueFrom:
                   fieldRef:
@@ -72,13 +76,13 @@ spec:
               resources:  # user defined resources
                 requests:
                   memory: 4Gi
-                  cpu: 2000m
+                  cpu: 1000m
                 limits:
                   memory: 10Gi
 
   feDeploy:
     model:
-      name: "feature-extraction-efficientnet"
+      name: "feature-extraction-m3l"
     spec:
       replicas: 0
       selector:
@@ -108,7 +112,7 @@ spec:
 
   reIDDeploy:
     model:
-      name: "feature-extraction-efficientnet"
+      name: "feature-extraction-m3l"
     spec:
       replicas: 1
       selector:

@@ -221,8 +221,11 @@ class FE_ReIDService(JobBase):
             self.log.error("ERROR! Estimator is not set!")
 
         # Operating Mode
-        self.op_mode = OP_MODE.DETECTION
-        self.target = None
+        self.sync_params = dict(
+            op_mode = OP_MODE.DETECTION,
+            threshold = 0.75,
+            target = None
+        )
 
     def start(self):
         if callable(self.estimator):
@@ -269,7 +272,7 @@ class FE_ReIDService(JobBase):
         self.log.debug(f"Elements in the processing queue: {self.sync_queue.qsize()}")
         self.log.debug("Data deposited")
 
-    def inference(self, data=None, post_process=None, **kwargs):
+    def inference(self, data=None, post_process=None, new_target=False, **kwargs):
         callback_func = None
         cres = None
 
@@ -279,7 +282,7 @@ class FE_ReIDService(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        reid_result = self.estimator.predict(data, op_mode=self.op_mode, **kwargs)
+        reid_result = self.estimator.predict(data, new_target=new_target, **self.sync_params)
         
         # This is a List of DetTrackObjects! 
         # reid_result = deepcopy(res)
@@ -302,21 +305,23 @@ class FE_ReIDService(JobBase):
         if status == None:
             return
         
-        if self.op_mode != status.op_mode:
+        # Update OP_MODE
+        if self.sync_params['op_mode'] != status.op_mode:
             self.log.info(f"{status.op_mode} mode activated!")
-            self.op_mode = status.op_mode
+            self.sync_params['op_mode'] = status.op_mode
 
-            if self.op_mode == OP_MODE.DETECTION:
+            if self.sync_params['op_mode'] == OP_MODE.DETECTION:
                 self.target = None
                 return
 
-        if self.target != status.targets_collection and self.op_mode != OP_MODE.DETECTION:
+        # Update target
+        if self.sync_params['target'] != status.targets_collection and self.sync_params['op_mode'] != OP_MODE.DETECTION:
             self.log.info("Target has been updated!")
-            self.target = status.targets_collection
+            self.sync_params['target'] = status.targets_collection
             
             # The target collection is a list of targets/userid that might grow overtime
             ldata = []
-            for target in self.target:
+            for target in self.sync_params['target']:
                 img_arr = []
                 for images in target.targets:
                     # json_data = json.dumps(images)
@@ -332,9 +337,12 @@ class FE_ReIDService(JobBase):
                 data.userID = target.userid
                 ldata.append(data)
 
-                self.inference(ldata, post_process=None, new_target=True)
+            self.inference(ldata, post_process=None, new_target="True")
         else:
-            self.log.debug("Target unchanged")
+            self.log.info("Target unchanged")
+
+        # Update matching threshold
+        self.sync_params['threshold'] = status.threshold
 
 class FEService(JobBase):
     """
@@ -584,7 +592,7 @@ class ObjectDetector(JobBase):
         if callback_func:
             detection_result = callback_func(detection_result)
 
-        if detection_result != None:
+        if detection_result != []:
             with FTimer(f"upload_bboxes"):
                 if self.kafka_enabled:
                     cres = self.producer.write_result(detection_result)
@@ -625,7 +633,7 @@ class StatusSyncThread(threading.Thread):
         LOGGER.debug(f'Attempting to synchronize the pod configuration')
         try:
             status = requests.post(self.update_endpoint, data=self.last_update, timeout=self.timeout)
-            LOGGER.debug(f'Current status retrieved {status.content}')
+            LOGGER.debug(f'Current status retrieved')
             return pickle.loads(status.content)
         except EOFError:
             pass # We don't care in this case, it means that there is nothing to update.

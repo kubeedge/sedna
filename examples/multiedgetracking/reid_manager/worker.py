@@ -16,6 +16,7 @@ import pickle
 from typing import Dict, List
 import uuid
 import io
+import numpy as np
 from datetime import datetime
 import base64
 import cv2
@@ -72,9 +73,9 @@ class Interface():
             LOGGER.error(f"Unable to access received data. [{ex}]")
             return 500
 
-        # As we receive a list of objects with results for each userid, we iterate over it. 
+        # As we receive a list of objects with results for each userid, we iterate over it.
         for dt_object in dt_object_list:
-            if dt_object != None:
+            if dt_object:
                 try:
                     user_buffer = self.reid_ht[dt_object.userID].frame_buffer
                 except KeyError:
@@ -137,10 +138,11 @@ class Interface():
             LOGGER.error(f"Error while retrieving RTSP stream address. [{ex}]")
             return None
 
-    def set_app_details(self, op_mode, target=[], userid="DEFAULT"):
+    def set_app_details(self, op_mode, target=[], userid="DEFAULT", threshold=0.75):
         LOGGER.info("Update service configuration")
         try:
             self.sync_object.op_mode = OP_MODE(op_mode)
+            self.sync_object.threshold = threshold
 
             LOGGER.info(f"Received {len(target)} images for the target for user {userid}.")
             temp = []
@@ -163,10 +165,11 @@ class Interface():
             return None
 
     # TODO: Merge with set_app_details
-    def set_app_details_v2(self, userid="DEFAULT", op_mode="detection", target=[]):
+    def set_app_details_v2(self, userid="DEFAULT", op_mode="detection", threshold=0.75, target=[]):
         LOGGER.info("Update service configuration")
         try:
             self.sync_object.op_mode = OP_MODE(op_mode)
+            self.sync_object.threshold = threshold
 
             LOGGER.info(f"Received {len(target)} images for the target.")
             temp = []

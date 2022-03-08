@@ -4,7 +4,7 @@ from sedna.common.config import Context
 from sedna.common.log import LOGGER
 
 # Could be added in a ConfigMap
-FLUENTD_ADDRESS = Context.get_parameters("FLUENTD_IP", None)
+FLUENTD_ADDRESS = Context.get_parameters("FLUENTD_IP", "fluentd-service.kube-logging-0.svc.cluster.local")
 FLUENTD_PORT = 24224
 SEDNA_INDEX = 'sedna'
 

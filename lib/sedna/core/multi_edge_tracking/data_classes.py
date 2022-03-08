@@ -32,6 +32,7 @@ class DetTrackResult:
 class SyncDS:
     def __init__(self) -> None:
         self.op_mode = OP_MODE.DETECTION
+        self.threshold = 0.75
         self.last_update = datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
         self.targets_collection : List[TargetImages] = [] # A list of targets, for each userid.
 

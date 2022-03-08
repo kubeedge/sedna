@@ -212,7 +212,7 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
     async def reset_rtsp_stream_list(self, request: Request):
         return self.interface.reset_rtsp_stream_list()
 
-    # Example: curl -X POST http://7.182.9.110:9907/sedna/set_app_details  -H 'Expect:' -F data='{"userID":"123", "op_mode":"tracking", "queryImagesFromNative": []}' -F target=@vit_vid.png  target=@zi_vid.png
+    # Example: curl -X POST http://7.182.9.110:9907/sedna/set_app_details  -H 'Expect:' -F data='{"userID":"123", "op_mode":"tracking", "threshold": 0.75, "queryImagesFromNative": []}' -F target=@vit_vid.png  target=@zi_vid.png
     # Updates the service configuration. It accepts a string specifing the operation mode and a file containing the target to search.
     # All images MUST have the same extension (JPG, PNG ..).
     async def set_app_details(self, request: Request):
@@ -221,6 +221,7 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
 
         op_mode = data_json.get("op_mode", "detection")
         userID = data_json.get("userID", "DEFAULT")
+        threshold = data_json.get("threshold", 0.75)
         files = form.getlist("target")
    
         target = []
@@ -228,9 +229,9 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
             for file in files:
                 target.append(await file.read()) 
 
-        return self.interface.set_app_details(op_mode, target, userID)
+        return self.interface.set_app_details(op_mode, target, userID, threshold)
 
-    # Example: curl -X POST http://7.182.9.110:9907/v1/person/tracking/live/identification  -H 'Expect:' --data '{"userID": "123", "op_mode":"tracking", "queryImagesFromNative": [], "cameraIds": [], "isEnhanced": 0}'
+    # Example: curl -X POST http://7.182.9.110:9907/v1/person/tracking/live/identification  -H 'Expect:' --data '{"userID": "123", "op_mode":"tracking", "threshold": 0.75, "queryImagesFromNative": [], "cameraIds": [], "isEnhanced": 0}'
     # Updates the service configuration. It accepts a string specifing the operation mode and a file containing the target to search.
     # All images MUST have the same extension (JPG, PNG ..).
     async def set_app_details_v2(self, request: Request):
@@ -239,11 +240,12 @@ class ReIDManagerServer(BaseServer):  # pylint: disable=too-many-arguments
 
         userID = data_json.get("userID", "DEFAULT")
         op_mode = data_json.get("op_mode", "detection")
+        threshold = data_json.get("threshold", 0.75)
         isEnhanced = data_json.get("isEnhanced", 0) #not used
         queryImagesFromNative = data_json.get("queryImagesFromNative", [])
         cameraIds = data_json.get("cameraIds", []) #not used
 
-        return self.interface.set_app_details_v2(userID, op_mode, queryImagesFromNative)
+        return self.interface.set_app_details_v2(userID, op_mode, threshold, queryImagesFromNative)
 
     # Example: curl -X POST http://7.182.9.110:9907/v1/person/user/tracking/stop --data '{"userID": "123"}'
     # Disable tracking

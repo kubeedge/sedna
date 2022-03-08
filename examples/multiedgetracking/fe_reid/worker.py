@@ -19,6 +19,7 @@ import os
 import threading
 import cv2
 import distutils
+import copy
 
 import torch
 import torchvision.transforms as T
@@ -48,7 +49,6 @@ dataset = Context.get_parameters('dataset')
 
 # NO-GALLERY PARAMS
 use_gallery = bool(distutils.util.strtobool(Context.get_parameters('use_gallery', "True")))
-match_thresh = float(Context.get_parameters('match_thresh', 800))
 
 class Target:
     def __init__(self, _userid, _features, _targetid="0000") -> None:
@@ -81,11 +81,8 @@ class Estimator(FluentdHelper):
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
-        # Initialize query features
-        self.match_thresh = match_thresh
-
         # Service parameters
-        self.op_mode = None
+        self.parameters = None
         self.use_gallery = use_gallery
         self.targets_list : List[Target] = []
 
@@ -104,7 +101,7 @@ class Estimator(FluentdHelper):
         assert os.path.isfile(model_url), FileNotFoundError("ReID model not found at {}.".format(model_url))
         self.model = torch.load(model_url, map_location=torch.device(self.device))
         self.model.to(self.device)
-
+        
     def evaluate(self) -> NoReturn:
         """Turn eval mode on for the model."""
 
@@ -112,56 +109,53 @@ class Estimator(FluentdHelper):
         self.model.eval()
 
     def extract_features(self, data):
-
-        det_track = data[0]
+        cdata = data.copy()
 
         try:
             with FTimer(f"feature_extraction"):
+                for idx, det_track in enumerate(cdata):
+                    # combine all images
+                    if det_track:
+                        input_batch = None
+                        for i, elem in enumerate(det_track.bbox):
+                            # Perform image decoding and store in array
+                            # The two approaches should be unified
+                            image_as_array = cv2.imdecode(elem, cv2.IMREAD_COLOR)
+                            imdata = Image.fromarray(image_as_array)
+                            LOGGER.debug(f'Performing feature extraction for received image')
+                            # input = torch.unsqueeze(self.transform(imdata), 0)
+                            input = self.transform(imdata)
 
-                # combine all images
-                input_batch = None
-                for i, elem in enumerate(det_track.bbox):
-                    # Perform image decoding and store in array
-                    # The two approaches should be unified
-                    image_as_array = cv2.imdecode(elem, cv2.IMREAD_COLOR)
-                    imdata = Image.fromarray(image_as_array)
-                    LOGGER.debug(f'Performing feature extraction for received image')
-                    # input = torch.unsqueeze(self.transform(imdata), 0)
-                    input = self.transform(imdata)
+                            if i == 0:
+                                input_batch = torch.zeros(len(det_track.bbox), input.shape[0], input.shape[1], input.shape[2],
+                                                        dtype=torch.float)
+                            input_batch[i, :, :, :] = input
 
-                    if i == 0:
-                        input_batch = torch.zeros(len(det_track.bbox), input.shape[0], input.shape[1], input.shape[2],
-                                                dtype=torch.float)
-                    input_batch[i, :, :, :] = input
+                        
+                        input_batch = input_batch.to(self.device)
 
-                
-                input_batch = input_batch.to(self.device)
+                        # do forward pass once
+                        qf = None
+                        with torch.no_grad():
+                            query_feat = self.model(input_batch)
+                            qf = query_feat.to(self.device)
 
-                # do forward pass once
-                qf = None
-                with torch.no_grad():
-                    query_feat = self.model(input_batch)
-                    LOGGER.debug(f"Extracted tensor with features: {query_feat}")
-                    qf = query_feat.to(self.device)
+                        num_person = qf.shape[0]
+                        data[idx].features = []
 
-                # unwrap and append - might be unnecessary
-                # det_track.features.append(qf)
+                        for j in range(0, num_person):
+                            f = torch.unsqueeze(qf[j, :], 0)
+                            #np.expand_dims(qf[i, :], 0)
+                            data[idx].features.append(f)
 
-                num_person = qf.shape[0]
-                for i in range(0, num_person):
-                    f = torch.unsqueeze(qf[i, :], 0)
-                    #np.expand_dims(qf[i, :], 0)
-                    det_track.features.append(f)
-
-                LOGGER.debug(
-                    f"Extracted ReID features for {len(det_track.bbox)} object/s received from camera {det_track.camera}")
-                self.write_to_fluentd(det_track)
+                        LOGGER.debug(f"Extracted ReID features for {len(det_track.bbox)} object/s received from camera {det_track.camera}")
+                        self.write_to_fluentd(det_track)
 
         except Exception as ex:
             LOGGER.error(f"Unable to extract features [{ex}]")
             return None
 
-        return det_track
+        return data
 
     def extract_features_(self, data):
         det_track = data[0]
@@ -211,7 +205,7 @@ class Estimator(FluentdHelper):
             for image in new_query_info.bbox:
                 # new_query_info contains the query image.
                 try:
-                    query_img = Image.fromarray(image)
+                    query_img = Image.fromarray(image[:,:,:3]) #dropping non-color channels
                 except Exception as ex:
                     LOGGER.error(f"Query image not found. Error [{ex}]")
                     self.reset_op_mode()
@@ -234,8 +228,8 @@ class Estimator(FluentdHelper):
                     self.reset_op_mode()
                     return None
             
-                self.targets_list.append(Target(new_query_info.userID, new_query_info.features))
-            
+            self.targets_list.append(Target(new_query_info.userID, new_query_info.features))
+        
             # self._update_targets_list(new_query_info.userID, new_query_info.features)
 
     def _update_targets_list(self, userid, features):
@@ -272,10 +266,7 @@ class Estimator(FluentdHelper):
         with FTimer(f"reid_no_gallery"):
             match_id, match_score = match_query_to_targets(features, candidate_feats, False)
 
-        if float(match_score) < self.match_thresh:
-            return -1, -1
-
-        # LOGGER.info(f"Selected ID {match_id} with score {match_score}")
+        LOGGER.debug(f"{match_score}")
 
         return match_id, match_score
 
@@ -305,70 +296,87 @@ class Estimator(FluentdHelper):
         
         return None
 
-    def predict(self, data, **kwargs) -> Any:
+    def predict(self, data, new_target=False, **kwargs) -> Any:
         """Implements the on-the-fly ReID where detections per frame are matched with the candidate boxes."""
         tresult = []
+
+        # First of all, we update the class parameters
+        self.parameters = kwargs
 
         # Here we dedice if we received a set of targets or a
         # normal image to process.
 
-        if kwargs.get("new_target", False):
+        if new_target:
             # if a new query is provided, update query features
             self.extract_target_features(data)
 
             if self.use_gallery:
                 self._extract_target_id()
             return tresult
-        else:
-            # otherwise, get features for all the detected boxes
-            det_track = self.extract_features(data)
 
+        # Extract the features from all the received DetTrack objects
+        data = data[0] # This is because Kafka sends us a list of lists
 
-        # Start a different ReID logic based on OP_MODE and use of gallery.
-        try:
-            if self.use_gallery:
-                return getattr(self, kwargs["op_mode"].value)(det_track)
-            else:
-                return getattr(self, kwargs["op_mode"].value + "_no_gallery")(det_track)
-        except AttributeError as ex:
-            LOGGER.error(f"Error in dynamic function mapping. [{ex}]")
-            return tresult
+        dettrack_objs_with_features = self.extract_features(data)
+
+        LOGGER.info(f"Processing a batch of {len(dettrack_objs_with_features)} DetTrack objects enriched with features")
+
+        for dettrack_obj in dettrack_objs_with_features:
+            try:
+                if self.use_gallery:
+                    if dettrack_obj is not None:
+                        reid_result = getattr(self, kwargs["op_mode"].value)(dettrack_obj)
+                        if reid_result is not None:
+                            tresult.append(reid_result)
+                else:
+                    reid_result = getattr(self, kwargs["op_mode"].value + "_no_gallery")(dettrack_obj)
+                    if reid_result is not None:
+                        tresult.append(reid_result)
+
+            except AttributeError as ex:
+                LOGGER.error(f"Error in dynamic function mapping. [{ex}]")
+                return tresult
+
+        return tresult
 
     ### OP_MODE FUNCTIONS ###
 
     def detection_no_gallery(self, det_track):
-        LOGGER.warning(f"This operational mode ({self.op_mode}) is not allowed without gallery!")
-        return []
+        LOGGER.warning(f"This operational mode ({self.parameters['op_mode']}) is not allowed without gallery!")
+        return None
 
     def tracking_no_gallery(self, det_track : DetTrackResult):
         # tresult = []
-        det_track.targetID = [-1] * len(self.targets_list) 
+        det_track.targetID = [-1] * len(det_track.bbox) 
         
         for target in self.targets_list:
             # get id of highest match for each userid
             match_id, match_score = self.reid_per_frame(target.features, det_track.features)
 
-            if match_id < 0:
-                return []
+            if float(match_score) >= self.parameters['threshold']:
+                result = {
+                    "userID": str(target.userid),
+                    "match_id": str(match_score),
+                    "detection_area": det_track.camera,
+                    "detection_time": det_track.detection_time
+                }
 
-            result = {
-                "userID": str(target.userid),
-                "match_id": str(match_score),
-                "detection_area": det_track.camera,
-                "detection_time": det_track.detection_time
-            }
+                # tresult.append(self.create_result(match_id, det_track, f"{match_score}", target.userid))
+                det_track.targetID[match_id]= str(target.userid)
+                det_track.userID = target.userid
+                det_track.is_target = match_id
 
-            # tresult.append(self.create_result(match_id, det_track, f"{match_score}", target.userid))
-            det_track.targetID[match_id]= f"{match_score}"
-            det_track.userID = target.userid
+                LOGGER.info(result)
+        
+        if det_track.targetID.count(-1) == len(det_track.targetID):
+            # No target found, we don't send any result back
+            return None
 
-        LOGGER.info(result)
-
-        return [det_track]
+        return det_track
 
     def detection(self, det_track :DetTrackResult):
         reid_dict = {}
-
+        
         for idx, _ in enumerate(det_track.bbox):
             query_feat = det_track.features[idx].float()
 
@@ -383,7 +391,7 @@ class Estimator(FluentdHelper):
         for key in reid_dict:
             LOGGER.info(json.dumps(reid_dict[key]))
 
-        return [det_track]
+        return det_track
 
     def tracking(self, det_track : DetTrackResult):
         reid_dict = {}
@@ -425,7 +433,7 @@ class Estimator(FluentdHelper):
                     ID=[elem]
                 )
                 item.userID = det_track.userID
-                return [item]
+                return item
 
         return []        
 
@@ -456,7 +464,7 @@ class Estimator(FluentdHelper):
 
     def reset_op_mode(self):
         LOGGER.info("Performing operational mode emergency reset!")
-        self.op_mode = OP_MODE.DETECTION
+        self.parameters['op_mode'] = OP_MODE.DETECTION
         self.targets_list = []
 
     def convert_to_list(self, data, camera_code, det_time):

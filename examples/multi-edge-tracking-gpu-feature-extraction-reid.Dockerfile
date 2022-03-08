@@ -16,19 +16,25 @@ RUN apt install libglib2.0-0 libgl1 libglx-mesa0 libgl1-mesa-glx -y
 # RUN apt install -y git
 RUN apt install -y gfortran libopenblas-dev liblapack-dev
 
+# Update Python 
+RUN apt install python3.8 python3.8-distutils python3-venv curl -y
+RUN python3.8 --version
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+RUN python3.8 get-pip.py
+
 ## Install base dependencies
-RUN pip install torch torchvision tqdm opencv-python pillow pytorch-ignite --trusted-host=developer.download.nvidia.com
+RUN python3.8 -m pip install torch torchvision tqdm opencv-python pillow pytorch-ignite --trusted-host=developer.download.nvidia.com
 
 ## Add Kafka Python library
-RUN pip install kafka-python --trusted-host=developer.download.nvidia.com
+RUN python3.8 -m pip install kafka-python --trusted-host=developer.download.nvidia.com
 
 ## Add Fluentd Python library
-RUN pip install fluent-logger --trusted-host=developer.download.nvidia.com
+RUN python3.8 -m pip install fluent-logger --trusted-host=developer.download.nvidia.com
 
 ## SEDNA SECTION ##
 
 COPY ./lib/requirements.txt /home
-RUN pip install -r /home/requirements.txt --trusted-host=developer.download.nvidia.com
+RUN python3.8 -m pip install -r /home/requirements.txt --trusted-host=developer.download.nvidia.com
 
 # This instructions should make Sedna reachable from the dertorch code part
 ENV PYTHONPATH "${PYTHONPATH}:/home/lib"
@@ -38,13 +44,12 @@ COPY ./lib /home/lib
 
 # Add NN import required by Torch and for the feature extraction
 COPY examples/multiedgetracking/feature_extraction/nets /home/work/nets
+COPY examples/multiedgetracking/feature_extraction/M3L /home/work/
+
 ENV PYTHONPATH "${PYTHONPATH}:/home/work"
 
-COPY examples/multiedgetracking/fe_reid/worker.py  /home/work/worker.py
-COPY examples/multiedgetracking/fe_reid/multi_img_matching.py  /home/work/multi_img_matching.py
-COPY examples/multiedgetracking/fe_reid/__init__.py  /home/work/__init__.py
-
+COPY examples/multiedgetracking/fe_reid /home/work
 ENV LOG_LEVEL="INFO"
 
-ENTRYPOINT ["python"]
+ENTRYPOINT ["python3.8"]
 CMD ["worker.py"]
