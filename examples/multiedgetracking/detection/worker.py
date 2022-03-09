@@ -99,9 +99,9 @@ class Bootstrapper():
                 'nvvidconv ! video/x-raw , format=(string)BGRx !'
                 'videoconvert !'
                 'appsink')
-                # camera = cv2.VideoCapture(f'rtspsrc location={stream_address} latency=0 ! queue ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink', cv2.CAP_GSTREAMER)
+                #camera = cv2.VideoCapture(f'rtspsrc location={stream_address} latency=0 ! queue ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink drop=1', cv2.CAP_GSTREAMER)
                 camera = cv2.VideoCapture(stream_address, cv2.CAP_FFMPEG)
-                camera.set(cv2.CAP_PROP_BUFFERSIZE, 0)
+                # camera.set(cv2.CAP_PROP_BUFFERSIZE, 0)
                 camera.set(cv2.CAP_PROP_FPS, self.fps)
             except Exception as ex:
                 LOGGER.error(f'Unable to access stream [{ex}]')

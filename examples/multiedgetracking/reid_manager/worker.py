@@ -29,12 +29,14 @@ from sedna.core.multi_edge_tracking import ReIDManagerService
 from sedna.common.log import LOGGER
 from sedna.common.config import Context
 
+from components.video_builder import VideoBuilder
 from components.rtsp_dispatcher import add_rtsp_stream, get_rtsp_stream, reset_rtsp_stream_list
 from components.rabbitmq import RabbitMQWriter
 
 class ReIDBuffer():
     def __init__(self) -> None:
         self.uuid = str(uuid.uuid4())
+        self.counter = 0
         self.frame_buffer = deque()
 
 class Interface():
@@ -63,8 +65,10 @@ class Interface():
 
         self.rabbitmq_interface = RabbitMQWriter(address=self.rabbitmq_address, port=self.rabbitmq_port, queue=self.rabbitmq_queue)
 
+        # Dict of VideoBuilder threads
+        self.video_builder_list = {}
+
     def upload_frame(self, data):
-        LOGGER.info("Store ReID result")
         time = datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
 
         try:
@@ -85,23 +89,15 @@ class Interface():
                     self.reid_ht[dt_object.userID] = ReIDBuffer()
                     user_buffer = self.reid_ht[dt_object.userID].frame_buffer
 
-                seq_number = len(user_buffer)
-
                 if self.post_process:
-                    dt_object, image = self._post_process(dt_object, time, seq_number)
-                    try:
-                        # Threading is not a good idea as we introduce a race condition.
-                        # threading.Thread(target=self._generate_video_v2, args=(dt_object.userID, image), daemon=False).start()
+                    dt_object, _ = self._post_process(dt_object, time, self.reid_ht[dt_object.userID].counter)
 
-                        # The downside of not using threads is that this becomes a blocking call, increasing the acquisition delay.
-                        self._generate_video_v2(dt_object.userID, image)
-                    except Exception as ex:
-                        LOGGER.error(f"Unable to reconstruct output video. [{ex}]")
-
+                LOGGER.info(f"Store frame with ReID results for user {dt_object.userID} and counter {self.reid_ht[dt_object.userID].counter}")
                 user_buffer.append(dt_object)
+                self.reid_ht[dt_object.userID].counter +=1
 
                 # Write to RabbitMQ
-                self.rabbitmq_interface.target_found(self.rtmp_url + dt_object.userID, dt_object.userID, dt_object, seq_number - 1)
+                self.rabbitmq_interface.target_found(self.rtmp_url + dt_object.userID, dt_object.userID, dt_object, self.reid_ht[dt_object.userID].counter - 1)
             
         return 200
 
@@ -157,6 +153,7 @@ class Interface():
             self._update_targets_collection(userid, temp)
 
             self.reid_ht[userid] = ReIDBuffer()
+            self.create_video_builder(userid)
 
             return 200
 
@@ -186,6 +183,7 @@ class Interface():
             self._update_targets_collection(userid, temp)
 
             self.reid_ht[userid] = ReIDBuffer()
+            self.create_video_builder(userid)
 
             return 200
 
@@ -225,6 +223,13 @@ class Interface():
             LOGGER.error(f"Unable to update pods configuration. [{ex}]")
         
         return response
+
+    def create_video_builder(self, userid):
+        if userid not in self.video_builder_list:
+            LOGGER.info("Creating new video builder thread")
+            self.video_builder_list[userid] = VideoBuilder(self.reid_ht[userid], self.rtmp_url, userid, 1)
+        else:
+            LOGGER.info(f"Video builder thread already exists for user {userid}")
 
     def get_reid_result(self, userid="DEFAULT"):
         LOGGER.info(f"Fetch frames from user {userid} buffer.")
@@ -303,112 +308,6 @@ class Interface():
         except Exception as ex:
             LOGGER.error(f"Error during output scene preparation. {[ex]}")
             return None
-
-    # Called only once to create the pipe to write to FFMPEG
-    # TODO: Use python-ffmpeg library rather than subprocess..
-    def _create_rtmp_pipe(self, userid, height=480, width=640, fps=1):
-        import subprocess as sp
-        LOGGER.debug("Create RTMP pipe")
-        
-        command = ['ffmpeg',
-                '-y',
-                # '-stream_loop', '-1',
-                '-f', 'rawvideo',
-                '-vcodec', 'rawvideo',
-                '-pix_fmt', 'bgr24',
-                '-s', f"{width}x{height}",		# weight and height of your image
-                '-r', str(fps),					# fps defined,
-                '-i', '-',
-                '-r', '1',
-                '-c:v', 'libx264',
-                '-pix_fmt', 'yuv420p',
-                '-preset', 'ultrafast',
-                '-f', 'flv',
-                '-flvflags', 'no_duration_filesize',
-                self.rtmp_url+userid]
-               
-        pipe_push = sp.Popen(command, stdin=sp.PIPE, stdout=sp.DEVNULL, stderr=sp.DEVNULL, shell=False)
-
-        return pipe_push
-    
-    def _generate_video_v2(self, userid, scene, expansion_factor=50):
-
-        with FTimer("video_reconstruction"):
-            h, w, _ = scene.shape
-            pipe = self._create_rtmp_pipe(userid, h, w)
-
-            try:                   
-                # image = cv2.imdecode(scene, cv2.IMREAD_COLOR)
-                # image = cv2.resize(scene, (640,480))
-
-                for i in range(expansion_factor):
-                    pipe.stdin.write(scene)
-
-            except Exception as ex:
-                LOGGER.error(f"Error during transmission to RTMP server. [{ex}]")
-
-            pipe.stdin.close()
-            pipe.wait()
-
-    # def _create_video(self):
-    #     for buffer in self.reid_ht.items():
-    #         lb = buffer[1].frame_buffer.copy()
-    #         out = cv2.VideoWriter(f'{buffer[0]}.avi',cv2.VideoWriter_fourcc(*'FMP4'), 1, (640,480))
-    #         for item in lb:
-    #             image = cv2.imdecode(item.scene, cv2.IMREAD_COLOR)
-    #             image = cv2.resize(image, (640,480))
-    #             out.write(image)
-            
-    #         out.release()
-    
-    # This is called every n seconds to generate the updated version of the video stream
-    # TODO: This can become an unsostuinable operation depending on the amount of frames in each
-    # buffer and the numnber of generated streams. At some point, this needs to be improved.
-    # def _generate_video(self, regeneration_interval=2, expansion_factor=50, sliding_window_size=1):
-    #     prev_len = 0
-
-    #     while True:
-    #         # As there could be many buffers, we create a video stream separately for each one.
-    #         for buffer in self.reid_ht.items():
-    #             # We create a copy of the frame buffer
-    #             lb = buffer[1].frame_buffer.copy()
-
-    #             # Check if there are new frames
-    #             if len(lb) != prev_len: 
-    #                 LOGGER.info(f"Reconstruct ReID video for user {buffer[0]}")
-
-    #                 # Get the most recent frames using a sliding window
-    #                 if len(lb) > sliding_window_size:
-    #                     slb = deque(itertools.islice(lb, len(lb)-sliding_window_size, None))
-
-    #                     with FTimer("video_reconstruction"):
-    #                         pipe = self._create_rtmp_pipe(buffer[0])
-
-    #                         try:                   
-    #                             for item in slb:
-    #                                 image = cv2.imdecode(item.scene, cv2.IMREAD_COLOR)
-    #                                 image = cv2.resize(image, (640,480))
-
-    #                                 # As the number of frames at our disposal is small,
-    #                                 # we replicate the same frame N times. We do so to 
-    #                                 # have enough frames in the output buffer for FFMPEG
-    #                                 # to create a renderable stream.
-    #                                 for i in range(expansion_factor):
-    #                                     pipe.stdin.write(image)
-    #                             # pipe.stdin.flush() # has no effect
-    #                             # out, err = pipe.communicate() # cannot be used because it kills the pipe
-    #                             # LOGGER.info(out)
-    #                             # LOGGER.info(err)
-    #                         except Exception as ex:
-    #                             LOGGER.error(f"Error during transmission to RTMP server. [{ex}]")
-
-    #                         pipe.stdin.close()
-    #                         pipe.wait()
-
-    #                         prev_len = len(lb)
-                        
-    #         # self._create_video()
-    #         time.sleep(regeneration_interval)
 
 # Starting the external API module
 reid_manager = ReIDManagerService(interface=Interface)
