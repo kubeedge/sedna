@@ -10,8 +10,9 @@ class OP_MODE(Enum):
 
 # Class defining the output of a ReID service.
 class DetTrackResult:
-    def __init__(self, bbox : List = None, scene = None, confidence : List = None, detection_time : List = None, camera : int = 0, bbox_coord : List = [], tracking_ids : List = [], features : List = [], is_target=False, ID : List = []):
+    def __init__(self, frame_index : int = 0, bbox : List = None, scene = None, confidence : List = None, detection_time : List = None, camera : int = 0, bbox_coord : List = [], tracking_ids : List = [], features : List = [], is_target=False, ID : List = []):
         self.userID = "DEFAULT"
+        self.frame_index = frame_index 
         self.bbox : List = bbox
         self.tracklets : List = tracking_ids
         self.bbox_coord : List = bbox_coord

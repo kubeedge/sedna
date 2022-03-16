@@ -161,7 +161,7 @@ class ByteTracker(FluentdHelper):
                     img_info["ratio"] = ratio
                     
                 # Convert numpy image to tensor
-                input_batched[i, :, :, :] = torch.from_numpy(imgp).unsqueeze(0).to(self.device)
+                input_batched[i, :, :, :] = torch.from_numpy(imgp).unsqueeze(0)
             
         if self.device == "cpu":
             input_batched = input_batched.float()
@@ -233,7 +233,7 @@ class ByteTracker(FluentdHelper):
 
         return outputs, img_info
 
-    def detection(self, data, output, img_info, det_time):
+    def detection(self, data, output, img_info, det_time, frame_nr):
         object_crops = []
         result = None
 
@@ -269,6 +269,7 @@ class ByteTracker(FluentdHelper):
                     scene = cv2.imencode('.jpg', data, encode_param)[1]
 
                     result = DetTrackResult(
+                        frame_index=frame_nr,
                         bbox=[item[0] for item in object_crops],
                         scene=scene,
                         confidence=[item[2] for item in object_crops],
@@ -287,7 +288,7 @@ class ByteTracker(FluentdHelper):
         return result
 
 
-    def tracking(self, data, output, img_info, det_time):
+    def tracking(self, data, output, img_info, det_time, frame_nr):
         # initialize placeholders for the tracking data
         online_tlwhs = []
         online_ids = []
@@ -347,6 +348,7 @@ class ByteTracker(FluentdHelper):
                 scene = cv2.imencode('.jpg', data, encode_param)[1]
 
                 result = DetTrackResult(
+                    frame_index=frame_nr,
                     bbox=[item[0] for item in object_crops],
                     scene=scene,
                     confidence=[item[2] for item in object_crops],
@@ -382,7 +384,7 @@ class ByteTracker(FluentdHelper):
         if len(outputs) > 0:
             for idx, output in enumerate(outputs):
                 try:
-                    dettrack_obj = getattr(self, kwargs["op_mode"].value)(data[idx][0], output, img_info, data[idx][1])
+                    dettrack_obj = getattr(self, kwargs["op_mode"].value)(data[idx][0], output, img_info, data[idx][1], data[idx][2])
                     if dettrack_obj is not None:
                         tresult.append(dettrack_obj)
                 except AttributeError as ex:

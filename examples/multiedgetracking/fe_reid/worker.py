@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+from functools import reduce
 import json
 import pickle
 import os
@@ -110,86 +111,102 @@ class Estimator(FluentdHelper):
 
     def extract_features(self, data):
         cdata = data.copy()
+        input_batch = None
+        j = 0
 
         try:
-            with FTimer(f"feature_extraction"):
-                for idx, det_track in enumerate(cdata):
-                    # combine all images
-                    if det_track:
-                        input_batch = None
-                        for i, elem in enumerate(det_track.bbox):
-                            # Perform image decoding and store in array
-                            # The two approaches should be unified
-                            image_as_array = cv2.imdecode(elem, cv2.IMREAD_COLOR)
-                            imdata = Image.fromarray(image_as_array)
-                            LOGGER.debug(f'Performing feature extraction for received image')
-                            # input = torch.unsqueeze(self.transform(imdata), 0)
-                            input = self.transform(imdata)
+            all_bboxes = list(map(lambda x: x.bbox, cdata)) # list of lists
+            total_bboxes = reduce(lambda count, l: count + len(l), all_bboxes, 0)
 
-                            if i == 0:
-                                input_batch = torch.zeros(len(det_track.bbox), input.shape[0], input.shape[1], input.shape[2],
-                                                        dtype=torch.float)
-                            input_batch[i, :, :, :] = input
+            with FTimer(f"data_loading"):
+                for bbox_group in all_bboxes:
+                    for elem in bbox_group:
+                        # Perform image decoding and store in array
+                        # The two approaches should be unified
+                        image_as_array = cv2.imdecode(elem, cv2.IMREAD_COLOR)
+                        imdata = Image.fromarray(image_as_array)
+                        LOGGER.debug(f'Performing feature extraction for received image')
+                        # input = torch.unsqueeze(self.transform(imdata), 0)
+                        input = self.transform(imdata)
 
-                        
-                        input_batch = input_batch.to(self.device)
+                        if j == 0:
+                            input_batch = torch.zeros(total_bboxes, input.shape[0], input.shape[1], input.shape[2], dtype=torch.float)
 
-                        # do forward pass once
-                        qf = None
-                        with torch.no_grad():
+                        input_batch[j, :, :, :] = input
+                        j += 1
+
+                input_batch = input_batch.to(self.device)
+
+                # do forward pass once
+                qf = None
+                with torch.no_grad():
+                        with FTimer(f"feature_extraction_forward"):
                             query_feat = self.model(input_batch)
                             qf = query_feat.to(self.device)
 
-                        num_person = qf.shape[0]
-                        data[idx].features = []
+                offset = 0
+                for k, bbox_group in enumerate(all_bboxes):
+                    data[k].features = []
+                    num_person = len(bbox_group)    
+                    for j in range(offset, num_person+offset):
+                        f = torch.unsqueeze(qf[j, :], 0)
+                        #np.expand_dims(qf[i, :], 0)
+                        data[k].features.append(f)
+                    offset += num_person
 
-                        for j in range(0, num_person):
-                            f = torch.unsqueeze(qf[j, :], 0)
-                            #np.expand_dims(qf[i, :], 0)
-                            data[idx].features.append(f)
-
-                        LOGGER.debug(f"Extracted ReID features for {len(det_track.bbox)} object/s received from camera {det_track.camera}")
-                        self.write_to_fluentd(det_track)
-
+                LOGGER.debug(f"Extracted ReID features for {offset} object/s")
+                # self.write_to_fluentd(det_track)
         except Exception as ex:
             LOGGER.error(f"Unable to extract features [{ex}]")
             return None
 
         return data
 
-    def extract_features_(self, data):
-        det_track = data[0]
-        # det_track = pickle.loads(d)
-        try:
-            with FTimer(f"feature_extraction"):
-                for elem in det_track.bbox:
-                    # Perform image decoding and store in array
-                    # The two approaches should be unified
-                    image_as_array = cv2.imdecode(elem, cv2.IMREAD_COLOR)
+        # try:
+        #     for idx, det_track in enumerate(cdata):
+        #         # combine all images
+        #         if det_track:
+        #             input_batch = None
+        #             with FTimer(f"data_loading"):
+        #                 for i, elem in enumerate(det_track.bbox):
+        #                     # Perform image decoding and store in array
+        #                     # The two approaches should be unified
+        #                     image_as_array = cv2.imdecode(elem, cv2.IMREAD_COLOR)
+        #                     imdata = Image.fromarray(image_as_array)
+        #                     LOGGER.debug(f'Performing feature extraction for received image')
+        #                     # input = torch.unsqueeze(self.transform(imdata), 0)
+        #                     input = self.transform(imdata)
+
+        #                     if i == 0:
+        #                         input_batch = torch.zeros(len(det_track.bbox), input.shape[0], input.shape[1], input.shape[2],
+        #                                                 dtype=torch.float)
+        #                     input_batch[i, :, :, :] = input
 
                     
-                    imdata = Image.fromarray(image_as_array)
-                    LOGGER.debug(f'Performing feature extraction for received image')
-                    input = torch.unsqueeze(self.transform(imdata), 0)
-                    input = input.to(self.device)
+        #             input_batch = input_batch.to(self.device)
 
-                    
-                    with torch.no_grad():
-                        query_feat = self.model(input)
-                        LOGGER.debug(f"Extracted tensor with features: {query_feat}")
+        #             # do forward pass once
+        #             qf = None
+        #             with torch.no_grad():
+        #                     with FTimer(f"feature_extraction_forward"):
+        #                         query_feat = self.model(input_batch)
+        #                         qf = query_feat.to(self.device)
 
-                    qf = query_feat.to(self.device)
-                    det_track.features.append(qf)
+        #             num_person = qf.shape[0]
+        #             data[idx].features = []
 
+        #             for j in range(0, num_person):
+        #                 f = torch.unsqueeze(qf[j, :], 0)
+        #                 #np.expand_dims(qf[i, :], 0)
+        #                 data[idx].features.append(f)
 
-            LOGGER.debug(f"Extracted ReID features for {len(det_track.bbox)} object/s received from camera {det_track.camera}")
-            self.write_to_fluentd(det_track)
-        except Exception as ex:
-            LOGGER.error(f"Unable to extract features [{ex}]")
-            return None
+        #             LOGGER.debug(f"Extracted ReID features for {len(det_track.bbox)} object/s received from camera {det_track.camera}")
+        #             self.write_to_fluentd(det_track)
+        # except Exception as ex:
+        #     LOGGER.error(f"Unable to extract features [{ex}]")
+        #     return None
 
-        return det_track      
-
+        # return data
 
     def extract_target_features(self, ldata) -> Any:
         """Extract the features for the query image. This function is invoked when a new query image is provided."""
@@ -198,37 +215,40 @@ class Estimator(FluentdHelper):
         # We have to do this to avoid desync in some corner case.
         self.targets_list.clear()
 
-        for new_query_info in ldata:
-            LOGGER.info(f"Received {len(new_query_info.bbox)} sample images for the target for user {new_query_info.userID}.")
-            new_query_info.features = []
-            
-            for image in new_query_info.bbox:
-                # new_query_info contains the query image.
-                try:
-                    query_img = Image.fromarray(image[:,:,:3]) #dropping non-color channels
-                except Exception as ex:
-                    LOGGER.error(f"Query image not found. Error [{ex}]")
-                    self.reset_op_mode()
-                    return None
+        try:
+            for new_query_info in ldata:
+                LOGGER.info(f"Received {len(new_query_info.bbox)} sample images for the target for user {new_query_info.userID}.")
+                new_query_info.features = []
+                
+                for image in new_query_info.bbox:
+                    # new_query_info contains the query image.
+                    try:
+                        query_img = Image.fromarray(image[:,:,:3]) #dropping non-color channels
+                    except Exception as ex:
+                        LOGGER.error(f"Query image not found. Error [{ex}]")
+                        self.reset_op_mode()
+                        return None
 
-                # Attempt forward pass
-                try:
-                    input = torch.unsqueeze(self.transform(query_img), 0).to(self.device)
-                    with FTimer(f"feature_extraction"):
-                        with torch.no_grad():
-                            query_feat = self.model(input)
-                            LOGGER.debug(f"Extracted tensor with features: {query_feat}")
+                    # Attempt forward pass
+                    try:
+                        input = torch.unsqueeze(self.transform(query_img), 0).to(self.device)
+                        with FTimer(f"feature_extraction"):
+                            with torch.no_grad():
+                                query_feat = self.model(input)
+                                LOGGER.debug(f"Extracted tensor with features: {query_feat}")
 
-                    # It returns a tensor, it should be transformed into a list before TX
-                    new_query_info.features.append(query_feat)
-                    new_query_info.is_target = True
+                        # It returns a tensor, it should be transformed into a list before TX
+                        new_query_info.features.append(query_feat)
+                        new_query_info.is_target = True
 
-                except Exception as ex:
-                    LOGGER.error(f"Feature extraction failed for query image. Error [{ex}]")
-                    self.reset_op_mode()
-                    return None
-            
-            self.targets_list.append(Target(new_query_info.userID, new_query_info.features))
+                    except Exception as ex:
+                        LOGGER.error(f"Feature extraction failed for query image. Error [{ex}]")
+                        self.reset_op_mode()
+                        return None
+                
+                self.targets_list.append(Target(new_query_info.userID, new_query_info.features))
+        except Exception as ex:
+            LOGGER.error(f"Unable to extract features for the target [{ex}]")
         
             # self._update_targets_list(new_query_info.userID, new_query_info.features)
 
@@ -388,6 +408,9 @@ class Estimator(FluentdHelper):
                 det_track.targetID.append(result.get('object_id'))
                 det_track.userID = "DEFAULT"
 
+        # Moving tensors to CPU (we don't need them on GPU anymore)
+        det_track.features = [t.to('cpu') for t in det_track.features]
+
         for key in reid_dict:
             LOGGER.info(json.dumps(reid_dict[key]))
 
@@ -412,6 +435,9 @@ class Estimator(FluentdHelper):
                     else:
                         LOGGER.debug(f"Target {target.targetid} not found!")
                         det_track.targetID.append(-1)
+
+        # Moving tensors to CPU (we don't need them on GPU anymore)
+        det_track.features = [t.to('cpu') for t in det_track.features]
 
         for key in reid_dict:
             LOGGER.info(json.dumps(reid_dict[key]))

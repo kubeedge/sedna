@@ -333,7 +333,7 @@ class FE_ReIDService(JobBase):
                     # PIL image object to numpy array
                     img_arr.append(np.asarray(images))  
 
-                data = DetTrackResult(img_arr, None, [], 0, 0, is_target=True)
+                data = DetTrackResult(0, img_arr, None, [], 0, 0, is_target=True)
                 data.userID = target.userid
                 ldata.append(data)
 
@@ -489,7 +489,7 @@ class FEService(JobBase):
             # PIL image object to numpy array
             img_arr = np.asarray(img)      
 
-            data = DetTrackResult([img_arr], None, [], 0, 0, is_target=True)
+            data = DetTrackResult(0, [img_arr], None, [], 0, 0, is_target=True)
             # data = pickle.dumps(data)
             # data = [ img_arr, 1.0, 0, 0, 1 ]
             self.inference(data, post_process=None, new_target=True)

@@ -15,6 +15,7 @@ The image below shows the architecture of the deployment:
 - High-level API definition `lib/sedna/service/server/reid_manager.py`.
 - Defined by the Dockerfile `multi-edge-tracking-external_api.Dockerfile`.
 - It should be deployed in the cloud.
+- This pods has the ability to output a FLV/RTSP stream with the result of the ReID pipeline depending on the pod's configuration parameters (YAML file).
 
 **FeReID Pod**: it takes care of feature extraction and ReID steps.
 
