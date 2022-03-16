@@ -24,10 +24,11 @@ class VideoBuilder(threading.Thread):
 
         self.start()
 
-    def _create_rtmp_pipe(self):
+    def _create_pipe(self):
         import subprocess as sp
         LOGGER.info("Create FFMPEG pipe")
-        
+        container = "rtsp"
+
         if self.rtmp_url.split("::")[0] == "rtmp":
             LOGGER.info("Using FLV protocol")
             container = "flv"
@@ -56,8 +57,15 @@ class VideoBuilder(threading.Thread):
 
         return pipe_push
     
+    def _recover_pipe(self, pipe):
+        LOGGER.debug("Terminate broken pipe")
+        pipe.stdin.close()
+        pipe.kill()
+
+        return self._create_pipe()
+
     def run(self) -> None:
-        pipe = self._create_rtmp_pipe()
+        pipe = self._create_pipe()
         image = None
 
         LOGGER.info("Start streaming loop")
@@ -77,3 +85,4 @@ class VideoBuilder(threading.Thread):
 
             except Exception as ex:
                 LOGGER.error(f"Error during transmission to RTMP server. [{ex}]")
+                pipe = self._recover_pipe(pipe)

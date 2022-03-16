@@ -47,7 +47,7 @@ class Bootstrapper():
             self.camera_address, self.camera_id = self.retrieve_rtsp_stream()
             time.sleep(2)
 
-        getattr(self, f"start_stream_acquisition_{self.device}")(self.camera_address, self.camera_id)
+        self.start_stream_acquisition(self.camera_address, self.camera_id)
 
     def retrieve_rtsp_stream(self) -> str:
         LOGGER.debug(f'Retrieving source stream/s')
@@ -75,7 +75,7 @@ class Bootstrapper():
         f.write(video)
         f.close()
 
-    def connect_to_camera(self, stream_address):
+    def connect_to_camera_cpu(self, stream_address):
         camera = None
         while camera == None or not camera.isOpened():
             try:
@@ -87,7 +87,7 @@ class Bootstrapper():
 
         return camera
 
-    def connect_to_camera_gstreamer(self, stream_address):
+    def connect_to_camera_cuda(self, stream_address):
         camera = None
         while camera == None or not camera.isOpened():
             try:
@@ -101,87 +101,83 @@ class Bootstrapper():
                 'appsink')
                 #camera = cv2.VideoCapture(f'rtspsrc location={stream_address} latency=0 ! queue ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink drop=1', cv2.CAP_GSTREAMER)
                 camera = cv2.VideoCapture(stream_address, cv2.CAP_FFMPEG)
-                # camera.set(cv2.CAP_PROP_BUFFERSIZE, 0)
+                camera.set(cv2.CAP_PROP_BUFFERSIZE, 0)
             except Exception as ex:
                 LOGGER.error(f'Unable to access stream [{ex}]')
             time.sleep(1)
 
         return camera
 
-    def start_stream_acquisition_cuda(self, stream_address, camera_code):
-        selected_estimator=self.eclass(camera_code=camera_code)
+    # def start_stream_acquisition_cuda(self, stream_address, camera_code):
+    #     selected_estimator=self.eclass(camera_code=camera_code)
         
-        nframe = 0
-        stream_buffer = [] 
+    #     nframe = 0
+    #     stream_buffer = [] 
 
-        startTime = time.time()
-        prev_frame = numpy.empty(0)
+    #     startTime = time.time()
+    #     prev_frame = numpy.empty(0)
 
-        # We use a pool of workers with GPU
+    #     # We use a pool of workers with GPU
+    #     worker_pool = [ObjectDetector(selected_estimator)] * self.parallelism
+
+    #     # First connection to the camera/video stream
+    #     camera = self.connect_to_camera_gstreamer(stream_address)
+
+    #     while True:
+    #         # It can happen that the camera closes at somepoint or the video interrputs.
+    #         # In such cases, we need to reconnect.
+    #         if not camera.grab():
+    #             camera = self.connect_to_camera_gstreamer(stream_address)
+    #             nframe = 0
+
+    #         # Increase frame counter
+    #         nframe += 1
+    #         nowTime = time.time()
+
+    #         try:          
+    #             if nowTime - startTime > 1/self.fps:
+    #                 _, input_yuv = camera.read()
+    #                 img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
+    #                 det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
+
+    #                 if prev_frame.size:
+    #                     if self.optical_flow(prev_frame, img_rgb):
+    #                         LOGGER.debug("Movement detected")
+    #                         stream_buffer.append((img_rgb, det_time, nframe))
+    #                         #worker_pool[nframe % len(worker_pool)].put_data(img_rgb)
+    #                         # threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
+    #                 else:
+    #                     # The first time we are going to process the frame anyway
+    #                     LOGGER.debug("Processing first frame in the RTSP stream")
+    #                     stream_buffer.append((img_rgb, det_time, nframe))
+    #                     #worker_pool[nframe % len(worker_pool)].put_data(img_rgb)
+    #                     # threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
+                    
+    #                 if len(stream_buffer) == self.batch_size:
+    #                     worker_pool[nframe % len(worker_pool)].put_data(stream_buffer)
+    #                     stream_buffer = []
+
+    #                 prev_frame = img_rgb
+    #                 startTime = time.time() # reset time
+    #         except Exception as ex:
+    #             LOGGER.error(ex)
+                
+    def start_stream_acquisition(self, stream_address, camera_code):
+        selected_estimator=self.eclass(camera_code=camera_code)
         worker_pool = [ObjectDetector(selected_estimator)] * self.parallelism
 
-        # First connection to the camera/video stream
-        camera = self.connect_to_camera_gstreamer(stream_address)
-
-        while True:
-            # It can happen that the camera closes at somepoint or the video interrputs.
-            # In such cases, we need to reconnect.
-            if not camera.grab():
-                camera = self.connect_to_camera_gstreamer(stream_address)
-                nframe = 0
-
-            try:
-                with FTimer("frame_read"):
-                    grabbed, input_yuv = camera.read()
-                if grabbed:
-                    nframe += 1
-                    det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
-                    
-                    img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
-
-                    LOGGER.debug(f"Camera is open, current frame index is {nframe}")
-
-                    nowTime = time.time()
-                
-                    if nowTime - startTime > 1/self.fps:
-                        if prev_frame.size:
-                            if self.optical_flow(prev_frame, img_rgb):
-                                LOGGER.debug("Movement detected")
-                                stream_buffer.append((img_rgb, det_time, nframe))
-                                #worker_pool[nframe % len(worker_pool)].put_data(img_rgb)
-                                # threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
-                        else:
-                            # The first time we are going to process the frame anyway
-                            LOGGER.debug("Processing first frame in the RTSP stream")
-                            stream_buffer.append((img_rgb, det_time, nframe))
-                            #worker_pool[nframe % len(worker_pool)].put_data(img_rgb)
-                            # threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
-                        
-                        if len(stream_buffer) == self.batch_size:
-                            worker_pool[nframe % len(worker_pool)].put_data(stream_buffer)
-                            stream_buffer = []
-
-                        prev_frame = img_rgb
-                        startTime = time.time() # reset time
-            except Exception as ex:
-                LOGGER.error(ex)
-                
-    def start_stream_acquisition_cpu(self, stream_address, camera_code):
-        selected_estimator=self.eclass(camera_code=camera_code)
-        edge_worker = ObjectDetector(selected_estimator)
-
         nframe = 0
         startTime = time.time()
         prev_frame = numpy.empty(0)
         stream_buffer = [] 
 
-        camera = self.connect_to_camera(stream_address)
+        camera = getattr(self, f"connect_to_camera_{self.device}")(stream_address)
 
         while True:           
             # It can happen that the camera closes at somepoint or the video interrputs.
             # In such cases, we need to reconnect.
             if not camera.grab():
-                camera = self.connect_to_camera(stream_address)
+                camera = getattr(self, f"connect_to_camera_{self.device}")(stream_address)
                 nframe  = 0
             
             # We use grab() to avoid populating the camera buffer with images from the past.
@@ -190,30 +186,31 @@ class Bootstrapper():
             nowTime = time.time()
         
             if nowTime - startTime > 1/self.fps:
-                _, input_yuv = camera.read()
-                img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
+                grabbed, input_yuv = camera.read()
+                if grabbed:
+                    img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
 
-                det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
-                LOGGER.debug(f"Camera is open, current frame index is {nframe}")
+                    det_time = datetime.datetime.now().strftime("%a, %d %B %Y %H:%M:%S.%f")
+                    LOGGER.debug(f"Camera is open, current frame index is {nframe}")
 
-                if prev_frame.size:
-                    if self.optical_flow(prev_frame, img_rgb):
-                        LOGGER.info("Movement detected")
+                    if prev_frame.size:
+                        if self.optical_flow(prev_frame, img_rgb):
+                            LOGGER.info("Movement detected")
+                            stream_buffer.append((img_rgb, det_time, nframe))
+                            # threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
+                    else:
+                        # The first time we are going to process the frame anyway
+                        LOGGER.info("Processing first frame in the RTSP stream")
                         stream_buffer.append((img_rgb, det_time, nframe))
                         # threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
-                else:
-                    # The first time we are going to process the frame anyway
-                    LOGGER.info("Processing first frame in the RTSP stream")
-                    stream_buffer.append((img_rgb, det_time, nframe))
-                    # threading.Thread(target=edge_worker.inference, args=(img_rgb,), daemon=False).start()
-                
-                # Batching disabled with CPU (force batchsize to 1)
-                if len(stream_buffer) == self.batch_size:
-                    edge_worker.put_data(stream_buffer)
-                    stream_buffer = []
+                    
+                    # Batching disabled with CPU (force batchsize to 1)
+                    if len(stream_buffer) == self.batch_size:
+                        worker_pool[nframe % len(worker_pool)].put_data(stream_buffer)
+                        stream_buffer = []
 
-                prev_frame = img_rgb
-                startTime = time.time() # reset time
+                    prev_frame = img_rgb
+                    startTime = time.time() # reset time
 
             nframe += 1
 

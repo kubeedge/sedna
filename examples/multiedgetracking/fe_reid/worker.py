@@ -392,6 +392,9 @@ class Estimator(FluentdHelper):
             # No target found, we don't send any result back
             return None
 
+        # Moving tensors to CPU (we don't need them on GPU anymore)
+        det_track.features = [t.to('cpu') for t in det_track.features]
+
         return det_track
 
     def detection(self, det_track :DetTrackResult):
@@ -413,6 +416,9 @@ class Estimator(FluentdHelper):
 
         for key in reid_dict:
             LOGGER.info(json.dumps(reid_dict[key]))
+
+        # Moving tensors to CPU (we don't need them on GPU anymore)
+        det_track.features = [t.to('cpu') for t in det_track.features]
 
         return det_track
 
