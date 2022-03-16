@@ -27,6 +27,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kubeedge/sedna/pkg/localcontroller/common/constants"
+	"github.com/kubeedge/sedna/pkg/localcontroller/util"
 )
 
 // Resource defines resource (e.g., dataset, model, jointinferenceservice) table
@@ -117,7 +118,13 @@ func init() {
 
 // getClient gets db client
 func getClient() *gorm.DB {
-	dbURL := constants.DataBaseURL
+	var prefix string
+	var ok bool
+	if prefix, ok = os.LookupEnv(constants.RootFSMountDirENV); !ok {
+		prefix = "/rootfs"
+	}
+
+	dbURL := util.AddPrefixPath(prefix, constants.DataBaseURL)
 
 	if _, err := os.Stat(dbURL); err != nil {
 		if os.IsNotExist(err) {
