@@ -91,7 +91,7 @@ spec:
               - name: "cut_layer"
                 value: "4"
               - name: "epsilon"
-                value: "10000"
+                value: "100"
               - name: "aggregation_algorithm"
                 value: "mistnet"
               - name: "BATCH_SIZE"
