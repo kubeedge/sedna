@@ -41,6 +41,7 @@ import (
 	"github.com/kubeedge/sedna/pkg/localcontroller/trigger"
 	"github.com/kubeedge/sedna/pkg/localcontroller/util"
 	workertypes "github.com/kubeedge/sedna/pkg/localcontroller/worker"
+	"github.com/microcosm-cc/bluemonday"
 )
 
 const (
@@ -131,7 +132,9 @@ func New(client clienttypes.ClientI, datasetManager *dataset.Manager, options *o
 
 // Insert inserts lifelong-learning-job config to db
 func (lm *Manager) Insert(message *clienttypes.Message) error {
-	name := util.GetUniqueIdentifier(message.Header.Namespace, message.Header.ResourceName, message.Header.ResourceKind)
+	p := bluemonday.NewPolicy()
+	name := p.Sanitize(util.GetUniqueIdentifier(message.Header.Namespace,
+		message.Header.ResourceName, message.Header.ResourceKind))
 
 	first := false
 	job, ok := lm.LifelongLearningJobMap[name]
@@ -164,14 +167,13 @@ func (lm *Manager) startJob(name string) {
 		return
 	}
 
-	err = lm.initJob(job, name)
-	if err != nil {
-		klog.Errorf("failed to init job(@%s): %+v", name)
+	if err = lm.initJob(job, name); err != nil {
+		klog.Errorf("failed to init job(%s): %+v", name)
 		return
 	}
 
-	klog.Infof("lifelong learning job(@%s) is started", name)
-	defer klog.Infof("lifelong learning job(@%s) is stopped", name)
+	klog.Infof("lifelong learning job(%s) is started", name)
+	defer klog.Infof("lifelong learning job(%s) is stopped", name)
 
 	// handle data from dataset
 	go lm.handleData(job)
@@ -201,7 +203,7 @@ func (lm *Manager) startJob(name string) {
 		}
 
 		if err != nil {
-			klog.Errorf("job(@%s) failed to complete the %s task: %v", name, jobStage, err)
+			klog.Errorf("job(%s) failed to complete the %s task: %v", name, jobStage, err)
 		}
 
 		<-tick.C
