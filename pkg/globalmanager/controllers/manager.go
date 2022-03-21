@@ -76,8 +76,7 @@ func (m *Manager) Start() error {
 		namespace = metav1.NamespaceAll
 	}
 
-	// TODO(llhuii): make this period configurable
-	minResyncPeriod := time.Second * 30
+	minResyncPeriod := time.Second * time.Duration(m.Config.MinResyncPeriodSeconds)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClient, genResyncPeriod(minResyncPeriod), kubeinformers.WithNamespace(namespace))
 

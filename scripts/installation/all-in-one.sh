@@ -18,7 +18,7 @@
 # - A Kubernetes v1.21 cluster with multi worker nodes, default none worker node.
 # - KubeEdge with multi nodes, default is latest KubeEdge and one edge node.
 # - Sedna, default is latest release version.
-# 
+#
 # It requires you:
 # - 2 CPUs or more
 # - 2GB+ free memory, depends on node number setting
@@ -76,12 +76,12 @@ function prepare_env() {
   readonly MAX_EDGE_WORKER_NODES=3
 
   # TODO: find a better way to figure this kind control plane
-  readonly CONTROL_PLANE_NAME=${CLUSTER_NAME}-control-plane 
+  readonly CONTROL_PLANE_NAME=${CLUSTER_NAME}-control-plane
   readonly CLOUD_WORKER_NODE_NAME=${CLUSTER_NAME}-worker
 
-  # cloudcore default websocket port 
+  # cloudcore default websocket port
   : ${CLOUDCORE_WS_PORT:=10000}
-  # cloudcore default cert port 
+  # cloudcore default cert port
   : ${CLOUDCORE_CERT_PORT:=10002}
 
   # for debug purpose
@@ -168,7 +168,7 @@ function patch_kindnet() {
   # which would require KUBERNETES_SERVICE_HOST/KUBERNETES_SERVICE_PORT environment variables.
   # But edgecore(up to 1.8.0) does not inject these environments.
   # Here make a patch: can be any value
-  run_in_control_plane kubectl set env -n kube-system daemonset/kindnet KUBERNETES_SERVICE_HOST=10.96.0.1 KUBERNETES_SERVICE_PORT=443 
+  run_in_control_plane kubectl set env -n kube-system daemonset/kindnet KUBERNETES_SERVICE_HOST=10.96.0.1 KUBERNETES_SERVICE_PORT=443
 }
 
 function create_k8s_cluster() {
@@ -224,10 +224,15 @@ function setup_cloudcore() {
   CLOUDCORE_EXPOSED_ADDR=$CLOUDCORE_EXPOSED_IP:$CLOUDCORE_EXPOSED_WS_PORT
 
   # keadm accepts version format: 1.8.0
-  local version=${KUBEEDGE_VERSION/v} 
+  local version=${KUBEEDGE_VERSION/v}
   run_in_control_plane bash -euc "
     # install cloudcore
-    pgrep cloudcore >/dev/null || keadm init --kubeedge-version=$version --advertise-address=$CLOUDCORE_ADVERTISE_ADDRESSES"'
+    pgrep cloudcore >/dev/null || {
+      # keadm 1.8.1 is incompatible with 1.9.1 since crds' upgrade
+      rm -rf /etc/kubeedge/crds
+
+      keadm init --kubeedge-version=$version --advertise-address=$CLOUDCORE_ADVERTISE_ADDRESSES"'
+    }
 
     # wait token to be created
     exit_code=1
@@ -248,10 +253,168 @@ function setup_cloudcore() {
   KUBEEDGE_TOKEN=$(run_in_control_plane keadm gettoken)
 }
 
+_change_detect_yaml_change() {
+  # execute the specified yq commands on stdin
+  # if same, output nothing
+  # else output the updated yaml
+  local yq_cmds="${1:-.}"
+  docker run -i --rm --entrypoint sh mikefarah/yq -c "
+   yq e . - > a
+   yq e '$yq_cmds' a > b
+   cmp -s a b || cat b
+   "
+}
 
-function setup_edgemesh() {
-  # TODO: wait for edgemesh one line installer
-  : 
+reconfigure_edgecore() {
+  # update edgecore.yaml for every edge node
+  local script_name=reconfigure-edgecore
+
+  if ((NUM_EDGE_NODES<1)); then
+    return
+  fi
+
+  local yq_cmds="$1"
+
+  # I want to leverage kubectl but k8s has no ways to run job on each node once
+  # see https://github.com/kubernetes/kubernetes/issues/64623 for more detais
+  # So I use Daemonset temporarily
+
+  kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: $script_name
+  namespace: kubeedge
+spec:
+  selector:
+    matchLabels:
+      edgecore: script
+  template:
+    metadata:
+      labels:
+        edgecore: script
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/edge
+                    operator: Exists
+      hostPID: true
+      volumes:
+      - name: config
+        hostPath:
+          path: /etc/kubeedge/config
+      containers:
+      - name: $script_name
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        image: mikefarah/yq
+        command:
+        - sh
+        - -c
+        - |
+         # inject random cmd to reapply when reconfigure
+         : $$
+         yq e . /config/edgecore.yaml > a && yq e '$(echo $yq_cmds)' a > b || exit 1
+         cmp -s a b && echo No need to reconfigure \$NODE_NAME edgecore || {
+           # backup and overwrite config, kill edgecore and wait systemd restart it
+           cp /config/edgecore.yaml /config/edgecore.yaml.reconfigure_bk
+           cp b /config/edgecore.yaml
+
+           pkill edgecore
+
+           # check to edgecore process status
+           > pids
+           for i in 0 1 2 3; do
+             sleep 10
+             { pidof edgecore || echo =\$i; } >> pids
+           done
+           [ \$(sort -u pids | wc -l) -le 2 ] && echo Reconfigure \$NODE_NAME edgecore successfully || {
+             echo Failed to reconfigure \$NODE_NAME edgecore >&2
+             echo And recovery edgecore config yaml >&2
+             cp a /config/edgecore.yaml
+
+             # prevent daemonset execute this script too frequently
+             sleep 1800
+             exit 1
+           }
+         }
+         sleep inf
+EOF
+
+  # wait this script been executed
+  kubectl -n kubeedge rollout status --timeout=5m ds $script_name
+  # wait all edge nodes to be ready if restarted
+  kubectl wait --for=condition=ready node -l node-role.kubernetes.io/edge=
+
+  # keep this daemonset script for debugging
+  # kubectl -n kubeedge delete ds $script_name
+
+}
+
+reconfigure_cloudcore() {
+
+  local config_file=/etc/kubeedge/config/cloudcore.yaml
+  local yq_cmds=$1
+
+  run_in_control_plane cat $config_file |
+    _change_detect_yaml_change "$yq_cmds" |
+  run_in_control_plane bash -euc "
+   cat > cc.yaml
+   ! grep -q . cc.yaml || {
+     echo reconfigure and restart cloudcore
+     cp $config_file ${config_file}.reconfigure_bk
+     cp cc.yaml $config_file
+     pkill cloudcore || true
+     # TODO: use a systemd service
+     (cloudcore &>> /var/log/kubeedge/cloudcore.log &)
+   }
+
+  "
+  echo Reconfigure cloudcore successfully
+}
+
+function install_edgemesh() {
+  if ((NUM_EDGE_NODES<1)); then
+    # no edge node, no edgemesh
+    return
+  fi
+
+  local server_node_name
+  if ((NUM_CLOUD_WORKER_NODES>0)); then
+    server_node_name=${CLUSTER_NAME}-worker
+  else
+    server_node_name=${CLUSTER_NAME}-control-plane
+  fi
+
+  echo Installing edgemesh with server on $server_node_name
+  # enable Local APIServer
+  reconfigure_cloudcore '.modules.dynamicController.enable=true'
+
+  reconfigure_edgecore '
+    .modules.edged.clusterDNS="169.254.96.16"
+    | .modules.edged.clusterDomain="cluster.local"
+    | .modules.metaManager.metaServer.enable=true
+  '
+
+  # no server.publicIP
+  # since allinone is in flat network, we just use private ip for edgemesh server
+ helm upgrade --install edgemesh \
+    --set server.nodeName=$server_node_name \
+    https://raw.githubusercontent.com/kubeedge/edgemesh/main/build/helm/edgemesh.tgz
+
+  echo Install edgemesh successfully
 }
 
 function gen_cni_config() {
@@ -365,12 +528,24 @@ function create_and_setup_edgenodes() {
     "
     # fix cni config file
     gen_cni_config | docker exec -i $containername tee /etc/cni/net.d/10-edgecni.conflist >/dev/null
-   
+
+    {
+      # wait edge node to be created at background
+      nwait=20
+      for((i=0;i<nwait;i++)); do
+        kubectl get node $hostname &>/dev/null && break
+        sleep 3
+      done
+    } &
+
   done
+  # wait all edge nodes to be created
+  wait
+
 }
 
 function clean_edgenodes() {
-  for cid in $(docker ps -a --filter label=sedna.io=sedna-mini-edge -q); do 
+  for cid in $(docker ps -a --filter label=sedna.io=sedna-mini-edge -q); do
     docker stop $cid; docker rm $cid
   done
 }
@@ -387,8 +562,6 @@ function setup_cloud() {
   setup_control_kubeconfig
 
   setup_cloudcore
-
-  setup_edgemesh
 }
 
 function clean_cloud() {
@@ -434,7 +607,7 @@ function get_latest_version() {
   # ...
   # "tag_name": "v1.0.0",
   # ...
-  
+
   # Sometimes this will reach rate limit
   # https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting
   local url=https://api.github.com/repos/$repo/releases/latest
@@ -458,7 +631,7 @@ function arch() {
 
 function _download_tool() {
   local name=$1 url=$2
-  local file=/usr/local/bin/$name 
+  local file=/usr/local/bin/$name
 	curl -Lo $file $url
   chmod +x $file
 }
@@ -488,9 +661,17 @@ function ensure_kubectl() {
   ensure_tool kubectl https://dl.k8s.io/release/v${version/v}/bin/linux/$(arch)/kubectl
 }
 
+function ensure_helm() {
+  if check_command_exists helm; then
+    return
+  fi
+  curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+}
+
 function ensure_tools() {
   ensure_kind
   ensure_kubectl
+  ensure_helm
 }
 
 function main() {
@@ -502,6 +683,11 @@ function main() {
     create)
       setup_cloud
       setup_edge
+      # wait all nodes to be ready
+      kubectl wait --for=condition=ready node --all
+
+      # edgemesh need to be installed before sedna
+      install_edgemesh
       install_sedna
       log_info "Mini Sedna is created successfully"
       ;;

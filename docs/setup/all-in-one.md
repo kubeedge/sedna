@@ -15,7 +15,7 @@ It requires you:
 For example: 
 
   ```bash
-  curl https://raw.githubusercontent.com/kubeedge/sedna/master/scripts/installation/all-in-one.sh | NUM_EDGE_NODES=2 bash -
+  curl https://raw.githubusercontent.com/kubeedge/sedna/master/scripts/installation/all-in-one.sh | KUBEEDGE_VERSION=v1.8.0 NUM_EDGE_NODES=2 bash -
   ```
 
 Above command installs a mini Sedna environment, including:
@@ -36,3 +36,8 @@ Advanced options:
 |FORCE_INSTALL_SEDNA       | If 'true', force to reinstall Sedna|false|
 |NODE_IMAGE       | Custom node image| kubeedge/sedna-allinone-node:v1.21.1|
 |REUSE_EDGE_CONTAINER      | Whether reuse edge node containers or not|true|
+
+Clean all-in-one Sedna:  
+  ```bash
+  curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/all-in-one.sh | bash /dev/stdin clean
+  ```

@@ -9,11 +9,24 @@ Sedna is an edge-cloud synergy AI project incubated in KubeEdge SIG AI. Benefiti
 
 Sedna can simply enable edge-cloud synergy capabilities to existing training and inference scripts, bringing the benefits of reducing costs, improving model performance, and protecting data privacy.
 
+
 .. toctree::
     :maxdepth: 1
-    :caption: QUICK START
+    :caption: GUIDE
 
-    quickstart
+    index/guide
+    index/quickstart
+
+
+.. toctree::
+    :maxdepth: 1
+    :titlesonly:
+    :glob:
+    :caption: DEPLOY
+
+    Cluster Installation (for production) <setup/install>
+    AllinOne Installation (for development) <setup/all-in-one>
+    Standalone Installation (for hello world) <setup/local-up>
 
 
 .. toctree::
@@ -33,32 +46,26 @@ Sedna can simply enable edge-cloud synergy capabilities to existing training and
 
 .. toctree::
     :maxdepth: 1
-    :titlesonly:
-    :glob:
-    :caption: DEPLOY
-
-    Installtion <setup/install>
-    Standalone <setup/local-up>
-
-.. toctree::
-    :maxdepth: 1
     :glob:
     :caption: EXAMPLES
 
-    examples/federated_learning/surface_defect_detection/README
-    examples/incremental_learning/helmet_detection/README
     examples/joint_inference/helmet_detection_inference/README
+    examples/incremental_learning/helmet_detection/README
+    examples/federated_learning/surface_defect_detection/README
+    examples/federated_learning/yolov5_coco128_mistnet/README
     examples/lifelong_learning/atcii/README
     examples/storage/s3/*
 
 
 .. toctree::
     :maxdepth: 1
-    :caption: API
+    :caption: API REFERENCE
     :titlesonly:
     :glob:
 
     api/lib/*
+    Python API <autoapi/lib/sedna/index>
+
 
 .. toctree::
     :maxdepth: 1
@@ -70,25 +77,16 @@ Sedna can simply enable edge-cloud synergy capabilities to existing training and
 
 
 .. toctree::
-    :maxdepth: 1
-    :caption: API REFERENCE
-    :titlesonly:
-    :glob:
-
-    autoapi/lib/sedna/index
-
-
-.. toctree::
     :caption: ROADMAP
     :hidden:
 
-    roadmap
+    index/roadmap
 
 
 RELATED LINKS
 =============
 
-.. mdinclude:: related_link.md
+.. mdinclude:: index/related_link.md
 
 Indices and tables
 ==================
