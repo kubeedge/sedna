@@ -23,6 +23,6 @@ RUN rm -rf /home/plato/.git
 RUN pip install -r /home/plato/requirements.txt
 
 WORKDIR /home/work
-COPY examples/federated_learning/surface_defect_detection_v2  /home/work/
+COPY examples/federated_learning/surface_defect_detection_pytorch  /home/work/
 
 ENTRYPOINT ["python", "train.py"]
