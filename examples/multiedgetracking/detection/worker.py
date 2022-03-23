@@ -2,7 +2,7 @@ import datetime
 import json
 import time
 import numpy
-
+from copy import deepcopy
 import requests
 import cv2
 from sedna.common.benchmark import FTimer
@@ -206,7 +206,7 @@ class Bootstrapper():
                     
                     # Batching disabled with CPU (force batchsize to 1)
                     if len(stream_buffer) == self.batch_size:
-                        worker_pool[nframe % len(worker_pool)].put_data(stream_buffer)
+                        worker_pool[nframe % len(worker_pool)].put_data(deepcopy(stream_buffer))
                         stream_buffer = []
 
                     prev_frame = img_rgb
