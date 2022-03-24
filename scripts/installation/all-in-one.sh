@@ -394,11 +394,14 @@ function install_edgemesh() {
   local server_node_name
   if ((NUM_CLOUD_WORKER_NODES>0)); then
     server_node_name=${CLUSTER_NAME}-worker
+    # master node also needs edgemesh agent for apiservice's communication
+    kubectl taint nodes ${CLUSTER_NAME}-control-plane node-role.kubernetes.io/master=:NoSchedule-
   else
     server_node_name=${CLUSTER_NAME}-control-plane
   fi
 
   echo Installing edgemesh with server on $server_node_name
+
   # enable Local APIServer
   reconfigure_cloudcore '.modules.dynamicController.enable=true'
 
