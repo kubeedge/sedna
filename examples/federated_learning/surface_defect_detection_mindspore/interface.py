@@ -35,7 +35,7 @@ fedavg = FedAvgV2()
 s3_transmitter = FederatedLearningV2.get_transmitter_from_config()
 
 class SddDataset():
-    def __init__(self, x, y) -> None:
+    def __init__(self, x, y):
         self.labels = y
         self.images = x
         self.index = 0
@@ -54,7 +54,7 @@ class SddDataset():
 
     
 class myDataset:
-    def __init__(self, trainset=None, testset=None) -> None:
+    def __init__(self, trainset=None, testset=None):
         self.customized = True
         transform = [
             c_vision.Resize((128, 128)),
@@ -107,7 +107,7 @@ class SddModel(nn.Cell):
         return x
 
 class Estimator:
-    def __init__(self) -> None:
+    def __init__(self):
         self.model = SddModel()
         self.pretrained = None
         self.saved = None

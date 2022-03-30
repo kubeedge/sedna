@@ -35,7 +35,7 @@ fedavg = FedAvgV2()
 s3_transmitter = FederatedLearningV2.get_transmitter_from_config()
 
 class SddDataset(Dataset):
-    def __init__(self, x, y) -> None:
+    def __init__(self, x, y):
         self.images = x
         self.labels = y
     
@@ -46,13 +46,13 @@ class SddDataset(Dataset):
         return self.images[index], self.labels[index]
     
 class myDataset:
-    def __init__(self, trainset=None, testset=None) -> None:
+    def __init__(self, trainset=None, testset=None):
         self.customized = True
         self.trainset = SddDataset(trainset[0], trainset[1])
         self.testset = SddDataset(testset[0], testset[1])
 
 class Estimator:
-    def __init__(self) -> None:
+    def __init__(self):
         self.model = self.build()
         self.pretrained = None
         self.saved = None
