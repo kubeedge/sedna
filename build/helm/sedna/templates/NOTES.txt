@@ -1,0 +1,4 @@
+*******************
+***** SUCCESS *****
+*******************
+* Visit https://github.com/kubeedge/sedna for more information.

@@ -1,0 +1,18 @@
+image: kubeedge/sedna-gm:v0.4.3
+resources:
+  requests:
+    memory: 32Mi
+    cpu: 100m
+  limits:
+    memory: 256Mi
+# gm-config
+kubeConfig: ""
+master: ""
+namespace: ""
+websocket:
+  address: 0.0.0.0
+  port: 9000
+localController:
+  server: http://localhost:9100
+knowledgeBaseServer:
+  server: http://kb.sedna:9020

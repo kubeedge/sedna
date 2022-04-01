@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gm
+  namespace: sedna
+spec:
+  selector:
+    sedna: gm
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+      name: "tcp-0"

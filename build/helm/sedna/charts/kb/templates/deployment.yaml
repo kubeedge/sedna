@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kb
+  labels:
+    sedna: kb
+  namespace: sedna
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      sedna: kb
+  template:
+    metadata:
+      labels:
+        sedna: kb
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/edge
+                operator: DoesNotExist
+      serviceAccountName: sedna
+      containers:
+      - name: kb
+        imagePullPolicy: IfNotPresent
+        image: {{ .Values.image }}
+        env:
+          - name: KB_URL
+            value: "sqlite:///db/kb.sqlite3"
+        volumeMounts:
+        - name: kb-url
+          mountPath: /db
+        resources:
+          requests:
+            memory: {{ .Values.resources.requests.memory }}
+            cpu: {{ .Values.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.resources.limits.memory }}
+      volumes:
+        - name: kb-url
+          hostPath:
+            path: /opt/kb-data
+            type: DirectoryOrCreate
