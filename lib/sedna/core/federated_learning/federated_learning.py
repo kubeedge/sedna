@@ -192,7 +192,7 @@ class FederatedLearningV2:
 
         from plato.config import Config
         from plato.datasources import base
-        from examples.nnrt.nnrt_datasource_yolo import DataSource
+        from examples.ms_nnrt.ms_nnrt_datasource_yolo import DataSource
         # set parameters
         server = Config().server._asdict()
         clients = Config().clients._asdict()
