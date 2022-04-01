@@ -16,9 +16,9 @@ from interface import mistnet, s3_transmitter
 from interface import Dataset, Estimator
 from sedna.common.config import BaseConfig
 from sedna.core.federated_learning import FederatedLearningV2
-from examples.nnrt.nnrt_models.acl_inference import Inference
-from examples.nnrt.nnrt_trainer_yolo import Trainer
-from examples.nnrt.nnrt_algorithms.mistnet import Algorithm
+from examples.ms_nnrt.ms_nnrt_models.ms_acl_inference import Inference
+from examples.ms_nnrt.ms_nnrt_trainer_yolo import Trainer
+from examples.ms_nnrt.ms_nnrt_algorithms.ms_mistnet import Algorithm
 
 def main():
     data = Dataset()
@@ -31,9 +31,10 @@ def main():
         from plato.utils import s3
         s3_client = s3.S3(s3_transmitter.parameters["s3_endpoint_url"], s3_transmitter.parameters["access_key"],
                       s3_transmitter.parameters["secret_key"], s3_transmitter.parameters["s3_bucket"])
-        s3_client.download_from_s3("model/client_model/yolov5x_cutlayer4.om", "./yolov5x_cutlayer4.om")
+        #s3_client.download_from_s3("model/client_model/yolov5x_cutlayer4.om", "./yolov5x_cutlayer4.om")
+        s3_client.download_from_s3("model/client_model/network_f.om", "./network_f.om")
 
-    estimator.model = Inference(0, "./yolov5x_cutlayer4.om", 640, 640)
+    estimator.model = Inference(0, "./network_f.om", 640, 640)
     estimator.trainer = Trainer(model=estimator.model)
     estimator.algorithm = Algorithm(estimator.trainer)
 

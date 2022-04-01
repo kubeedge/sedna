@@ -16,6 +16,7 @@ from interface import mistnet, s3_transmitter, simple_chooser
 from interface import Dataset, Estimator
 from sedna.service.server import AggregationServerV2
 from sedna.common.config import BaseConfig
+
 from plato.models.yolo import Model
 from plato.config import Config
 
@@ -23,8 +24,8 @@ def run_server():
     data = Dataset()
     estimator = Estimator()
 
-    estimator.pretrained = BaseConfig.pretrained_model_url.replace("yolov5.pth", "")
-    estimator.saved = BaseConfig.model_url.replace("yolov5.pth", "")
+    estimator.pretrained = BaseConfig.pretrained_model_url.replace("YoloV5_for_MindSpore_0-300_274800.ckpt", "")
+    estimator.saved = BaseConfig.model_url.replace("YoloV5_for_MindSpore_0-300_274800.ckpt", "")
     estimator.model = Model('yolov5x.yaml', data.parameters["num_classes"])
 
     server = AggregationServerV2(
