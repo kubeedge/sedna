@@ -24,7 +24,7 @@ def main():
     data = Dataset()
     estimator = Estimator()
     data.parameters["data_path"] = BaseConfig.train_dataset_url.replace("robot.txt", "")
-    data.parameters["train_path"] = os.path.join(data.parameters["data_path"], "./coco128/images/train2017/")
+    data.parameters["train_path"] = os.path.join(data.parameters["data_path"], "./coco128/train2017/")
     data.parameters["test_path"] = data.parameters["train_path"]
 
     if "s3_endpoint_url" in s3_transmitter.parameters:
