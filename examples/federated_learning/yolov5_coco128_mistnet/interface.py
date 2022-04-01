@@ -38,6 +38,7 @@ class Dataset:
             "data_path": "./data/COCO",
             "train_path": "./data/COCO/coco128/images/train2017/",
             "test_path": "./data/COCO/coco128/images/train2017/",
+            "train_annFile": "./data/COCO/coco128/annotations/instances_train2017.json",
             # number of training examples
             "num_train_examples": 128,
             # number of testing examples
