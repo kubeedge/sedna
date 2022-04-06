@@ -17,7 +17,8 @@ from interface import Dataset, Estimator
 from sedna.service.server import AggregationServerV2
 from sedna.common.config import BaseConfig
 
-from plato.models.yolo import Model
+# from plato.models.yolo import Model
+from plato.models.mindspore.ms_yolov5 import Model
 from plato.config import Config
 
 def run_server():
