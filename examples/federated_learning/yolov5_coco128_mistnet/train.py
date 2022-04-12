@@ -34,7 +34,7 @@ def main():
         #s3_client.download_from_s3("model/client_model/yolov5x_cutlayer4.om", "./yolov5x_cutlayer4.om")
         s3_client.download_from_s3("model/client_model/network_f.om", "./network_f.om")
 
-    estimator.model = Inference(0, "./network_f.om", 640, 640)
+    estimator.model = Inference(0, "./network_f.om", 320, 320)
     estimator.trainer = Trainer(model=estimator.model)
     estimator.algorithm = Algorithm(estimator.trainer)
 

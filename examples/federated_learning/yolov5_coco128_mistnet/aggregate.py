@@ -27,8 +27,8 @@ def run_server():
 
     estimator.pretrained = BaseConfig.pretrained_model_url.replace("YoloV5_for_MindSpore_0-300_274800.ckpt", "")
     estimator.saved = BaseConfig.model_url.replace("YoloV5_for_MindSpore_0-300_274800.ckpt", "")
-    estimator.model = Model('yolov5x.yaml', data.parameters["num_classes"])
-
+    #estimator.model = Model('yolov5x.yaml', data.parameters["num_classes"])
+    estimator.model = Model()
     server = AggregationServerV2(
         data=data,
         estimator=estimator,
