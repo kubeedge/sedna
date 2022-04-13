@@ -26,7 +26,7 @@ def main():
     data.parameters["data_path"] = BaseConfig.train_dataset_url.replace("robot.txt", "")
     data.parameters["train_path"] = os.path.join(data.parameters["data_path"], "./coco128/train2017/")
     data.parameters["test_path"] = data.parameters["train_path"]
-    data.parameters["train_annFile"] = os.path.join(data.parameters["data_path"], "coco128/annotations/instances_train2017.json")
+    data.parameters["train_annFile"] = os.path.join(data.parameters["data_path"], "./coco128/annotations/instances_train2017.json")
     if "s3_endpoint_url" in s3_transmitter.parameters:
         from plato.utils import s3
         s3_client = s3.S3(s3_transmitter.parameters["s3_endpoint_url"], s3_transmitter.parameters["access_key"],
