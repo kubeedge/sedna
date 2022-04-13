@@ -21,43 +21,43 @@ import (
 	"strings"
 )
 
-type TrainReadyData struct {
-	Input struct {
-		Models []struct {
-			Format  string   `json:"format"`
-			URL     string   `json:"url"`
-			Devices []string `json:"devices"`
-		} `json:"models"`
-		DataURL string       `json:"dataURL"`
-		DataIndexURL string  `json:"dataIndexURL"`
-		OutputDir   string   `json:"outputDir"`
-	} `json:"input"`
+var stageMap = map[string]int{
+	"Train": 1,
+	"Eval": 2,
+	"Deploy": 3,
+	"TrainWaiting": 1,
+	"TrainReady": 2,
+	"TrainStarting": 3,
+	"TrainRunning": 4,
+	"TrainCompleted": 5,
+	"TrainFailed": 6,
+	"EvalWaiting": 7,
+	"EvalReady": 8,
+	"EvalStarting": 9,
+	"EvalRunning": 10,
+	"EvalCompleted": 11,
+	"EvalFailed": 12,
+	"DeployWaiting": 13,
+	"DeployReady": 14,
+	"DeployStarting": 15,
+	"DeployRunning": 16,
+	"DeployComplete": 17,
+	"DeployFailed": 18,
 }
-type TrainCompletedData struct {
-	Output struct {
-		Models []struct {
-			Format  string   `json:"format"`
-			URL     string   `json:"url"`
-			Devices []string `json:"devices"`
-		} `json:"models"`
-	} `json:"output"`
-}
-
 
 var kubeconfig string
 
 var (
-	TrainProb          *prometheus.Desc
-	Status             *prometheus.Desc
-	Stage              *prometheus.Desc
-	FullStage          *prometheus.Desc
-	NumberOfSamples    *prometheus.Desc
-	LastHeartBreakTime *prometheus.Desc
-	TrainModelPath     *prometheus.Desc
-	EvalNewModelMetric *prometheus.Desc
-	EvalOldModelMetric *prometheus.Desc
-	DeployModelPath    *prometheus.Desc
-	IlVersion          *prometheus.Desc
+	JobConditionType   		*prometheus.Desc
+	NumberOfSamples    		*prometheus.Desc
+	LastHeartBeatTime  		*prometheus.Desc
+	LastProbeTime  			*prometheus.Desc
+	StartTime       		*prometheus.Desc
+	CompletionTime  		*prometheus.Desc
+	ActivePodNumber  		*prometheus.Desc
+	FailedPodNumber       	*prometheus.Desc
+	SucceededPodNumber  	*prometheus.Desc
+	Phase			  		*prometheus.Desc
 )
 
 type  Exporter struct {
@@ -94,20 +94,16 @@ func NewExporter() (*Exporter, error) {
 }
 
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
-	ch <- TrainProb
-	ch <- Status
+	ch <- JobConditionType
 	ch <- NumberOfSamples
-	ch <- Stage
-	ch <- FullStage
-
 	ch <- LastHeartBeatTime
 	ch <- LastProbeTime
-
-	ch <- TrainModelPath
-	ch <- EvalNewModelMetric
-	ch <- EvalOldModelMetric
-	ch <- DeployModelPath
-	ch <- IlVersion
+	ch <- StartTime
+	ch <- CompletionTime
+	ch <- ActivePodNumber
+	ch <- FailedPodNumber
+	ch <- SucceededPodNumber
+	ch <- Phase
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
@@ -116,12 +112,6 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		panic(err)
 	}
-
-	//trainProb := federatedRes.Spec.Dataset.TrainProb
-	//ch <- prometheus.MustNewConstMetric(
-	//	TrainProb,
-	//	prometheus.GaugeValue,
-	//	trainProb)
 
 	conditions := federatedRes.Status.Conditions
 	//status := conditions[len(conditions)-1].Status
@@ -133,26 +123,26 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		prometheus.GaugeValue,
 		fakeMetric)
 
-	stage := conditions[len(conditions)-1].Stage
-	stageType := conditions[len(conditions)-1].Type
-	fullStage := string(stage) + string(stageType)
-	ch <- prometheus.MustNewConstMetric(
-		FullStage,
-		prometheus.GaugeValue,
-		float64(stageMap[fullStage]))
+	//stage := conditions[len(conditions)-1].Stage
 
+	//1.condition type  complete/falied/training
+	condType := conditions[len(conditions)-1].Type
+	condTypeStr := string(condType)
 	ch <- prometheus.MustNewConstMetric(
-		Stage,
+		JobConditionType,
 		prometheus.GaugeValue,
-		float64(stageMap[string(stage)]))
+		float64(condMap[condTypeStr]))
 
+
+	//2.last heart beat time
 	lastHeartBeatTime := conditions[len(conditions)-1].LastHeartbeatTime
 	heartBeatTimeUnix := lastHeartBeatTime.Unix()
 	ch <- prometheus.MustNewConstMetric(
-		LastHeartBreakTime,
+		LastHeartBeatTime,
 		prometheus.GaugeValue,
 		float64(heartBeatTimeUnix)*1000)
 
+	//3.last probe beat time
 	lastProbeTime := conditions[len(conditions)-1].LastProbeTime
 	probeTimeUnix := lastProbeTime.Unix()
 	ch <- prometheus.MustNewConstMetric(
@@ -160,22 +150,13 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		prometheus.GaugeValue,
 		float64(probeTimeUnix)*1000)
 
-	trainModelPath                := "null"
-	newEvalModelPath              := "null"
-	newEvalModelMap               := "null"
-	newEvalModelAllPrecision      := "null"
-	newEvalModelPrecision         := "null"
-	newEvalModelAllRecall         := "null"
-	newEvalModelRecall            := "null"
-	oldEvalModelPath              := "null"
-	oldEvalModelMap               := "null"
-	oldEvalModelAllPrecision      := "null"
-	oldEvalModelPrecision         := "null"
-	oldEvalModelAllRecall         := "null"
-	oldEvalModelRecall            := "null"
-	deployModelPath               := "null"
-	deployStatus                  := "waiting"
-	ilVersion                     := 0.0
+	//4.start time
+	lastProbeTime := conditions[len(conditions)-1].LastProbeTime
+	probeTimeUnix := lastProbeTime.Unix()
+	ch <- prometheus.MustNewConstMetric(
+		lastProbeTime,
+		prometheus.GaugeValue,
+		float64(probeTimeUnix)*1000)
 
 
 	var condition v1alpha1.ILJobCondition
@@ -317,7 +298,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		prometheus.GaugeValue,
 		ilVersion)
 
-	datasetRes, err := e.client.DatasetClient("default").Get(ctx, "federated-dataset", metav1.GetOptions{})
+	datasetRes, err := e.client.DatasetClient("default").Get(ctx, "dataset-1", metav1.GetOptions{})
 	if err != nil {
 		panic(err)
 	}
