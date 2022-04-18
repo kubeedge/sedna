@@ -16,6 +16,8 @@ limitations under the License.
 
 package v1alpha1
 
+//go:generate controller-gen object paths=$GOFILE
+
 import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +29,7 @@ import (
 // +kubebuilder:subresource:status
 
 // FederatedLearningJob describes the data that a FederatedLearningJob resource should have
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type FederatedLearningJob struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -36,6 +39,7 @@ type FederatedLearningJob struct {
 }
 
 // FLJobSpec is a description of a federatedlearning job
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type FLJobSpec struct {
 	AggregationWorker AggregationWorker `json:"aggregationWorker"`
 	TrainingWorkers   []TrainingWorker  `json:"trainingWorkers"`
@@ -44,21 +48,25 @@ type FLJobSpec struct {
 }
 
 // Transmitter describes the transmitter of data plane between training workers and aggregation worker
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type Transmitter struct {
 	S3 *S3Transmitter `json:"s3,omitempty"`
 	WS *WSTransmitter `json:"ws,omitempty"`
 }
 
 // S3Transmitter describes the s3 transmitter
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type S3Transmitter struct {
 	AggregationDataPath string `json:"aggDataPath"`
 	CredentialName      string `json:"credentialName,omitempty"`
 }
 
 // WSTransmitter describes the websocket transmitter
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type WSTransmitter struct{}
 
 // AggregationWorker describes the data an aggregation worker should have
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AggregationWorker struct {
 	// Model defines train model of federated learning job
 	Model    TrainModel         `json:"model"`
@@ -66,21 +74,24 @@ type AggregationWorker struct {
 }
 
 // TrainingWorker describes the data a training worker should have
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type TrainingWorker struct {
 	Dataset  TrainDataset       `json:"dataset"`
 	Template v1.PodTemplateSpec `json:"template"`
 }
 
 // TrainDataset defines dataset of federated learning job
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type TrainDataset struct {
 	Name string `json:"name"`
 }
-
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type TrainModel struct {
 	Name string `json:"name"`
 }
 
 // PretrainedModel defines pretrained model of federated learning job
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type PretrainedModel struct {
 	Name string `json:"name"`
 }
@@ -88,6 +99,7 @@ type PretrainedModel struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // FederatedLearningJobList is a list of FederatedLearningJobs.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type FederatedLearningJobList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
@@ -95,6 +107,7 @@ type FederatedLearningJobList struct {
 }
 
 // FLJobStatus represents the current state of a federatedlearning job.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type FLJobStatus struct {
 
 	// The latest available observations of a federated job's current state.
@@ -129,10 +142,11 @@ type FLJobStatus struct {
 	// +optional
 	Phase FLJobPhase `json:"phase,omitempty"`
 }
-
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type FLJobConditionType string
 
 // These are valid conditions of a job.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 const (
 	// FLJobCondComplete means the job has completed its execution.
 	FLJobCondComplete FLJobConditionType = "Complete"
@@ -143,6 +157,7 @@ const (
 )
 
 // FLJobCondition describes current state of a job.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type FLJobCondition struct {
 	// Type of job condition, Complete or Failed.
 	Type FLJobConditionType `json:"type"`
@@ -163,9 +178,11 @@ type FLJobCondition struct {
 }
 
 // FLJobPhase is a label for the condition of a job at the current time.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type FLJobPhase string
 
 // These are the valid statuses of jobs.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 const (
 	// FLJobPending means the job has been accepted by the system, but one or more of the pods
 	// has not been started. This includes time before being bound to a node, as well as time spent
