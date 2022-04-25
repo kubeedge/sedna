@@ -165,7 +165,7 @@ class Estimator_server:
         self.pretrained = None
         self.saved = None
         self.hyperparameters = {
-            "use_mindspore": "True",
+            "use_mindspore": True,
             "type": "yolov5",
             "rounds": 1,
             "target_accuracy": 0.99,
