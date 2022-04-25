@@ -134,7 +134,7 @@ class Dataset:
             "partition_size": 128,
         }
 
-class Estimator:
+class Estimator_edge:
     def __init__(self) -> None:
         # initialize inference object with deviceID, om path, image height and width
         self.model = None
@@ -143,6 +143,29 @@ class Estimator:
         self.pretrained = None
         self.saved = None
         self.hyperparameters = {
+            "type": "yolov5",
+            "rounds": 1,
+            "target_accuracy": 0.99,
+            "epochs": int(Context.get_parameters("EPOCHS", 500)),
+            "batch_size": int(Context.get_parameters("BATCH_SIZE", 16)),
+            "optimizer": "SGD",
+            "linear_lr": False,
+            # The machine learning model
+            "model_name": "yolov5",
+            "model_config": "./yolov5x.yaml",
+            "train_params": "./hyp.scratch.yaml",
+            "learning_rate": 0.002
+        }
+class Estimator_server:
+    def __init__(self) -> None:
+        # initialize inference object with deviceID, om path, image height and width
+        self.model = None
+        self.trainer = None
+        self.algorithm = None
+        self.pretrained = None
+        self.saved = None
+        self.hyperparameters = {
+            "use_mindspore": "True",
             "type": "yolov5",
             "rounds": 1,
             "target_accuracy": 0.99,

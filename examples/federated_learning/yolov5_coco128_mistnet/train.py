@@ -13,7 +13,7 @@
 # limitations under the License.
 import os
 from interface import mistnet, s3_transmitter
-from interface import Dataset, Estimator
+from interface import Dataset, Estimator_edge
 from sedna.common.config import BaseConfig
 from sedna.core.federated_learning import FederatedLearningV2
 from examples.ms_nnrt.ms_nnrt_models.ms_acl_inference import Inference
@@ -22,7 +22,7 @@ from examples.ms_nnrt.ms_nnrt_algorithms.ms_mistnet import Algorithm
 
 def main():
     data = Dataset()
-    estimator = Estimator()
+    estimator = Estimator_edge()
     data.parameters["data_path"] = BaseConfig.train_dataset_url.replace("robot.txt", "")
     data.parameters["train_path"] = os.path.join(data.parameters["data_path"], "./coco128/train2017/")
     data.parameters["test_path"] = data.parameters["train_path"]
@@ -34,7 +34,7 @@ def main():
         #s3_client.download_from_s3("model/client_model/yolov5x_cutlayer4.om", "./yolov5x_cutlayer4.om")
         s3_client.download_from_s3("model/client_model/network_f.om", "./network_f.om")
 
-    estimator.model = Inference(0, "./network_f.om", 320, 320)
+    estimator.model = Inference(0, "./network_f.om", 320, 320)  #1*3*640*640--->1*12*320*320
     estimator.trainer = Trainer(model=estimator.model)
     estimator.algorithm = Algorithm(estimator.trainer)
 
