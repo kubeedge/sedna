@@ -171,8 +171,8 @@ class Estimator_server:
             "target_accuracy": 0.99,
             "epochs": int(Context.get_parameters("EPOCHS", 500)),
             "batch_size": int(Context.get_parameters("BATCH_SIZE", 16)),
-            "max_epoch": 200,
-            "per_batch_size": 8,
+            "max_epoch": 2,
+            "per_batch_size": 1,
             "optimizer": "SGD",
             "linear_lr": False,
             # The machine learning model
