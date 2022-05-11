@@ -121,7 +121,7 @@ Using a local NFS allows to easily share folders between pods and the host. Also
     kubectl create -f yaml/kafka/zoodeploy.yaml
     kubectl create -f yaml/kafka/zooservice.yaml
     ```
-3. Check that Zookeeper and the Kafka broker is healty (check the logs, it should print that the creation of the admin topic is successful).
+3. Check that Zookeeper and the Kafka broker is healthy (check the logs, it should print that the creation of the admin topic is successful).
 4. Note down your master node external IP, you will need it later to update a field in two YAML files.
     - If you are running on a single node deployment, the above step is not required as the default service name should be automatically resolvable by all pods using the cluster DNS (*kafka-service*).
     - This step is also not necessary if you are not running kubeedge.
@@ -158,7 +158,7 @@ Do the following:
 
 The provided YAML files are configured to run the feature extraction and ReID pods on the **master** node, while the VideoAnalytics runs on an **agent** node. This is configured using the *nodeSelector* option which you can edit in case you want to deploy the pods differently. For example, you can also simply **run everything on the master node**.
 
-Now, let's create the feature extraction service: `kubectl create -f yaml/feature-extraction-service.yaml` and check that it's healhty.
+Now, let's create the feature extraction service: `kubectl create -f yaml/feature-extraction-service.yaml` and check that it's healthy.
 
 Following, the application workflow is divided in 2 parts: analysis of the video and ReID.
 
@@ -212,5 +212,5 @@ All the scripts must be launched from the tutorial folder and require `sudo`. Al
 ## What the automated installation won't do for you
 
 1. Put the AI model in the correct directory.
-2. Add the query images used ny ReID to find a target.
-3. Configure parameters such as ReID threshold.
+2. Add the query images used by ReID to find a target.
+3. Configure hyperparameters for pedestrian detection and ReID.
