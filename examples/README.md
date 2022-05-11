@@ -1,5 +1,5 @@
 # Sedna-examples
-A directory to share Sedna examples and tutorials to  demonstrate Sedna can implement across edge-cloud collaborative training 
+A directory to share Sedna examples and tutorials to demonstrate how Sedna can implement cross edge-cloud collaborative training 
 and collaborative inference capabilities.  
 
 This repository is home to the following features of examples:
@@ -7,6 +7,7 @@ This repository is home to the following features of examples:
 * [Incremental Learning](#incremental-learning)
 * [Federated Learning](#federated-learning)
 * [Lifelong Learning](#lifelong-learning)
+* [Pedestrians ReID](#pedestrian-reid)
 * [Shared Storage](#shared-storage)
 
 ### Joint Inference
@@ -20,6 +21,9 @@ Example: [Using Federated Learning Job in Surface Defect Detection Scenario](./f
 
 ### Lifelong Learning
 Example: [Using Lifelong Learning Job in Thermal Comfort Prediction Scenario](./lifelong_learning/atcii/README.md)
+
+### Pedestrian ReID
+Example: [Using ReID to Track an Infected COVID-19 Carrier in Pandemic Scenario](./multiedgetracking/tutorial/README.md)
 
 ### Shared Storage
 | Support Protocols  |Support Features| Examples |Release|

@@ -1,0 +1,43 @@
+apiVersion: sedna.io/v1alpha1
+kind: FeatureExtractionService
+metadata:
+  name: feature-extraction # DON'T EDIT THIS LABEL
+spec:
+  replicas: 1
+  kafkaSupport: true
+  model:
+    name: feature-extraction-m3l
+  selector:
+    matchLabels:
+      app: feature-extraction
+  template:
+    metadata:
+      labels:
+        app: feature-extraction
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ''
+      containers:
+      - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-feature-extraction:sase
+        imagePullPolicy: Always
+        name:  feature-extraction
+        env:
+        - name: KAFKA_BIND_IPS  # a list of Kafka brokers IP, separated by pipe (|)
+          value: "MASTER_NODE_IP|kafka-service"
+        - name: KAFKA_BIND_PORTS # a list of Kafka brokers port, separated by pipe (|)
+          value: "9092|9092" 
+        - name: input_shape
+          value: "256,128"
+        volumeMounts:
+          - name: vol1
+            mountPath: /data/
+        resources:
+          requests:
+            memory: 1Gi
+            cpu: 1000m
+          limits:
+            memory: 2Gi
+      volumes:
+        - name: vol1
+          persistentVolumeClaim:
+            claimName: reid-pvc

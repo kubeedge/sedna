@@ -57,8 +57,16 @@ fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-IMAGE_TAG=${IMAGE_TAG:-v0.4.0}
+IMAGE_TAG=${IMAGE_TAG:-v0.4.0} 
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
+
+dockerfiles_multiedgetracking=(
+multi-edge-tracking-feature-extraction.Dockerfile
+# multi-edge-tracking-gpu-feature-extraction.Dockerfile
+# multi-edge-tracking-gpu-videoanalytics.Dockerfile
+multi-edge-tracking-reid.Dockerfile
+multi-edge-tracking-videoanalytics.Dockerfile
+)
 
 dockerfiles_federated_learning=(
 federated-learning-mistnet-yolo-aggregator.Dockerfile
@@ -83,7 +91,8 @@ incremental-learning-helmet-detection.Dockerfile
 # Iterate over the input folders and build them sequentially.
 for tp in ${type[@]}; do
    if [[ "$tp" == "all" ]]; then
-      dockerfiles+=( 
+      dockerfiles+=(
+         "${dockerfiles_multiedgetracking[@]}"
          "${dockerfiles_federated_learning[@]}"
          "${dockerfiles_joint_inference[@]}"
          "${dockerfiles_lifelong_learning[@]}"

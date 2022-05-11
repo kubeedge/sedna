@@ -2,3 +2,5 @@
 plato-learn~=0.26  # Apache-2.0
 # lifelong_learning
 scikit-learn~=0.24.1  # BSD
+# multi_edge_tracking
+kafka-python~=2.0.2 # Apache-2.0

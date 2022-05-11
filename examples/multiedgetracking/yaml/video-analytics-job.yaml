@@ -1,0 +1,54 @@
+apiVersion: sedna.io/v1alpha1
+kind: VideoAnalyticsJob
+metadata:
+  name: video-analytics # DON'T EDIT THIS LABEL
+spec:
+  backoffLimit: 5
+  kafkaSupport: true
+  model:
+    name: detection-pedestrians-yolox
+  template:
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ''
+      containers:
+        - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-tracking-videoanalytics:sase
+          imagePullPolicy: Always
+          name:  detection
+          env:
+          - name: OBS_TOKEN
+            value: ""
+          - name: KAFKA_BIND_IPS  # a list of Kafka brokers IP, separated by pipe (|)
+            value: "MASTER_NODE_IP|kafka-service"
+          - name: KAFKA_BIND_PORTS # a list of Kafka brokers port, separated by pipe (|)
+            value: "9092|9092" 
+          - name: "estimator_class" # only ByteTracker is currently supported
+            value: "ByteTracker"
+          - name: confidence_thr # ByteTracker NMS confidence threshold
+            value: "0.7"
+          - name: fps # video sampling rate, used only when processing a network stream
+            value: "5"
+          - name: "video_id" # the video id, can be any value
+            value: "0000-1111-2222"
+          - name: "video_address" # the video source can be rtsp (recommended), http, or a file loaded from NFS
+            value: "rtsp://RTSP_SERVER_IP/video/0" #rtsp://7.182.8.79/video/0
+          - name: op_mode # covid19
+            value: covid19
+          - name: hostname
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 1000m
+            limits:
+              memory: 4Gi
+          volumeMounts:
+            - mountPath: /data/
+              name: vol1
+      restartPolicy: Never
+      volumes:
+        - name: vol1
+          persistentVolumeClaim:
+            claimName: reid-pvc

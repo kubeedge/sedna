@@ -34,7 +34,7 @@ class BackendBase:
     def model_name(self):
         if self.default_name:
             return self.default_name
-        model_postfix = {"pytorch": ".pth",
+        model_postfix = {"pytorch": [".pth", ".pt"],
                          "keras": ".pb", "tensorflow": ".pb"}
         continue_flag = "_finetune_" if self.fine_tune else ""
         post_fix = model_postfix.get(self.framework, ".pkl")

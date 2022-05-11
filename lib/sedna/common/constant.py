@@ -21,6 +21,9 @@ class K8sResourceKind(Enum):
     """
 
     DEFAULT = "default"
+    REID_JOB = "reidjob"
+    VIDEO_ANALYTICS_JOB = "videoanalyticsjob"
+    FEATURE_EXTRACTION_SERVICE = "featureextractionservice"
     JOINT_INFERENCE_SERVICE = "jointinferenceservice"
     FEDERATED_LEARNING_JOB = "federatedlearningjob"
     INCREMENTAL_JOB = "incrementallearningjob"

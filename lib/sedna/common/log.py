@@ -15,11 +15,26 @@
 """Base logger"""
 
 import logging
-
-import colorlog
-
+import json
 from sedna.common.config import BaseConfig
 
+LOG_LEVEL = BaseConfig.log_level
+
+class JsonFormatter:
+    """
+    JSON logs formatter, required for application-level tracing
+    """
+
+    def format(self, record):
+        formatted_record = dict()
+        try:
+            for key in ['created', 'levelname', 'pathname', 'funcName', 'msg']:
+                formatted_record[key] = getattr(record, key)
+
+            return json.dumps(formatted_record, indent=None)
+        except TypeError:
+            print(record)
+            return ""
 
 class Logger:
     """
@@ -29,19 +44,17 @@ class Logger:
     """
 
     def __init__(self, name: str = BaseConfig.job_name):
+        
         self.logger = logging.getLogger(name)
+        self.logger.setLevel(level=LOG_LEVEL)
 
-        self.format = colorlog.ColoredFormatter(
-            '%(log_color)s[%(asctime)-15s] %(filename)s(%(lineno)d)'
-            ' [%(levelname)s]%(reset)s - %(message)s', )
-
+        self.format = JsonFormatter()
         self.handler = logging.StreamHandler()
         self.handler.setFormatter(self.format)
+        self.handler.setLevel(level=LOG_LEVEL)
 
         self.logger.addHandler(self.handler)
-        self.logLevel = 'INFO'
-        self.logger.setLevel(logging.INFO)
-        self.logger.propagate = False
 
+        self.logger.propagate = False
 
 LOGGER = Logger().logger
