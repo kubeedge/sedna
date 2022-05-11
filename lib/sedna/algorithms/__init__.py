@@ -17,3 +17,4 @@ from . import hard_example_mining  # joint_inference incremental_learning
 from . import multi_task_learning  # lifelong_learning
 from . import unseen_task_detect  # lifelong_learning
 from . import optical_flow  # multi_edge_tracking
+from . import reid # multi_edge_tracking

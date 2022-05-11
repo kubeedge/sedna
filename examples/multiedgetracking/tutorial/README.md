@@ -11,7 +11,9 @@ Requirements:
 
 # Introduction
 
-This proposal introduces an edge-cloud distributed system to help identify and track potential carriers of the COVID-19 virus. By detecting proximity or contact risks, we have the ability to monitor the possible contamination of bystanders. The goal is to counter the spread of the virus and help against the global pandemic crisis.
+This proposal introduces an edge-cloud distributed system to help identify and track potential carriers of the COVID-19 virus. By detecting proximity or contact risks, we have the ability to monitor the possible contamination of bystanders. The goal is to counter the spread of the virus and help against the global pandemic crisis. The key AI component in our proposal is the ReID: Re-Identification (ReID) solves the problem of, given a set of images of an object, finding all occurrences of the same subject in a database. The database contains images collected from cameras at different points in time. One of the problems of this approach is the need to create a domain-specific gallery before it is possible to find the target.
+
+However, our ReID solution is much more advanced as it does not require a gallery, instead, it uses an on-the-fly search mechanism which greatly simplifies the deployment of the application as the gallery creation phase is completely skipped.
 
 The example images below show the ability of our system to re-identify a potential carrier of the virus and detect close contact proximity risk.
 
@@ -85,7 +87,7 @@ Using a local NFS allows to easily share folders between pods and the host. Also
 
     ```
     sudo apt-get update && sudo apt-get install -y nfs-kernel-server
-    sudo mkdir /data/network_shared/reid
+    sudo mkdir -p /data/network_shared/reid
     sudo mkdir /data/network_shared/reid/processed
     sudo mkdir /data/network_shared/reid/query
     sudo mkdir /data/network_shared/reid/images
@@ -110,6 +112,7 @@ Using a local NFS allows to easily share folders between pods and the host. Also
 3. Change the storage request field in the `yaml/pvc/reid-volume-claim.yaml` as needed.
 4. Run `kubectl create -f yaml/pvc/reid-volume-claim.yaml`.
 
+The VideoAnalytics and ReID jobs will make use of this PVC. The mounting is made so that the directory structure on the host is mirrored in the pods (the path is the same).
 
 ## 3. Apache Kafka
 
@@ -121,7 +124,7 @@ Using a local NFS allows to easily share folders between pods and the host. Also
     kubectl create -f yaml/kafka/zoodeploy.yaml
     kubectl create -f yaml/kafka/zooservice.yaml
     ```
-3. Check that Zookeeper and the Kafka broker is healthy (check the logs, it should print that the creation of the admin topic is successful).
+3. Check that Zookeeper and the Kafka broker is healty (check the logs, it should print that the creation of the admin topic is successful).
 4. Note down your master node external IP, you will need it later to update a field in two YAML files.
     - If you are running on a single node deployment, the above step is not required as the default service name should be automatically resolvable by all pods using the cluster DNS (*kafka-service*).
     - This step is also not necessary if you are not running kubeedge.
@@ -140,7 +143,6 @@ tar -xzvf ss.tar.gz
 cd EasyDarwin-linux-8.1.0-1901141151
 sudo ./easydarwin
 ```
-
 # Application Deployment
 
 First, make sure to copy the AI models to the correct path on the nodes **BEFORE** starting the pods. If you use the YAML files provided with this example:
@@ -151,14 +153,21 @@ First, make sure to copy the AI models to the correct path on the nodes **BEFORE
 Do the following:
 - Run `kubectl create -f yaml/models/model_m3l.yaml`
 - Run `kubectl create -f yaml/models/model_detection.yaml`
-- Put into the folder `/data/network_shared/reid/query` some images of the target that will be used for the ReID.
 - Start the streaming server (if you didn't do it yet AND are planning to process a RTSP stream).
 
 # Running the application
 
 The provided YAML files are configured to run the feature extraction and ReID pods on the **master** node, while the VideoAnalytics runs on an **agent** node. This is configured using the *nodeSelector* option which you can edit in case you want to deploy the pods differently. For example, you can also simply **run everything on the master node**.
 
-Now, let's create the feature extraction service: `kubectl create -f yaml/feature-extraction-service.yaml` and check that it's healthy.
+Download the sample video and query images which will be placed in the NFS folder:
+```
+wget http://obs.eu-central-201.myhuaweicloud.com/bucket-sedna.obs.eu-central-201.myhuaweicloud.com:80/test_video.zip?AWSAccessKeyId=GWQRKFEFDMSUHM36WN7V&Expires=1652284916&Signature=IFO8%2B55%2BxsOuqozaRipSoCuFUYA%3D
+unzip test_video.zip
+sudo cp -r test_video/query /data/network_shared/reid/query #copy sample images to query folder
+sudo cp test_video/test_video.mp4 /data/network_shared/reid/video/test_video.mp4 #copy sample video to video folder
+```
+
+Now, let's create the feature extraction service: `kubectl create -f yaml/feature-extraction-service.yaml` and check that it's healhty.
 
 Following, the application workflow is divided in 2 parts: analysis of the video and ReID.
 
@@ -166,10 +175,9 @@ Following, the application workflow is divided in 2 parts: analysis of the video
 
 1. Modify the env variables in `yaml/video-analytics-job.yaml`:
     - Make sure that the IP in `video_address` is the same as the streaming server address (if you are using RTSP).
-    - This field can map to an RTSP stream, and HTTP resource (CDN), or a file on disk.
     - We recommend setting the FPS parameter to a small value in the range [1,5] when running on CPU.
 2. Create the VideoAnalytics job: `kubectl create -f yaml/video-analytics-job.yaml`
-3. Send a video to the streaming server using FFMPEG, for example: `ffmpeg -re -i filename.mp4 -vcodec libx264 -f rtsp rtsp://<RTSP_SERVER_IP>/video/0`
+3. Send a video to the streaming server using FFMPEG, for example: `ffmpeg -re -i /data/network_shared/reid/video/test_video.mp4 -vcodec libx264 -f rtsp rtsp://<RTSP_SERVER_IP>/video/0`
 4. If everything was setup correctly, the pod will start the processing of the video and move to the `Succeeded` phase when done.
 5. **NOTE**: Keep in mind that, depending on the characteristics of the input video, this steps can take a considerable amount of time to complete especially if you are running on CPU. Moreover, this job will not exit until it receives all the results generated from the feature extraction service. Check the VideoAnalytics job and its logs to check the progress status.
 
@@ -196,14 +204,16 @@ The automated installation procedure will run for you the majority of the config
 
 1. The `deploy.sh` script setups the cluster and bootstraps the required components, it has to be **run at least once** before running `run.sh`. It assumes that:
     - You didn't change anything manually in the provided YAML files except for the ENV variables injected in the application pods (feature extraction, video analytics and reid).
-    - You are using Kafka as data exchange layer. If you disabled Kafka, you can't use the automated deployment script!
     - You input the **correct** values to the `deploy.sh` script before launching it:
         - External IP of the master node.
         - Path to the NFS (depending on your configuration, this can also be the default value).
-    - Example: `./deploy.sh -a 10.1.1.1 -p /data/network_shared`
+    - Example: `./deploy.sh -a 10.1.1.1 -p /data/network_shared/reid`
 
 2. The `run.sh` script will run the application on your cluster. It assumes that:
     - The environment variables for the VideoAnalytics and ReID job are configured correctly as explained in the [Running the application](#running-the-application) section above.
+    - If you are processing a video stream, launch the script as follows:
+        - `run.sh -s <RTSP_SERVER_IP> -f VIDEO_PATH`
+        - For example: `./run.sh -s 7.182.8.79 -f /data/network_shared/reid/video/test_video.mp4`
 
 3. The `cleanup.sh` script can be used to perform a complete cleanup of the resources created on the cluster except for the NFS directory, that you have to delete manually.
 
@@ -213,4 +223,4 @@ All the scripts must be launched from the tutorial folder and require `sudo`. Al
 
 1. Put the AI model in the correct directory.
 2. Add the query images used by ReID to find a target.
-3. Configure hyperparameters for pedestrian detection and ReID.
+3. Configure parameters such as ReID threshold or RTSP streaming server.

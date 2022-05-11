@@ -56,7 +56,7 @@ class ObjectDetector(BaseService, FileOperations):
         if isinstance(data, List):
             self.data_counter += len(data)
             LOGGER.info(f"Received data from FE module (counter={self.data_counter}). Writing to local storage")
-            self.write_to_disk(data, folder='/data/')
+            self.write_to_disk(data, folder='/data/network_shared/reid/')
             self.heartbeat = time.time()
             return None
 

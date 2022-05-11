@@ -23,14 +23,14 @@ spec:
           - name: user_id # the user running the job
             value: "synthetic"
           - name: query_images # a list of images, separated by pipe (|)
-            value: "/data/query/1.jpg|/data/query/2.jpg|/data/query/3.jpg"
+            value: "/data/network_shared/reid/query/1.jpg|/data/network_shared/reid/query/2.jpg|/data/network_shared/reid/query/3.jpg"
           resources:
             requests:
               memory: 2Gi
               cpu: 2000m
           volumeMounts:
           - name: vol1
-            mountPath: /data/
+            mountPath: /data/network_shared/reid/
       restartPolicy: Never
       volumes:
         - name: vol1

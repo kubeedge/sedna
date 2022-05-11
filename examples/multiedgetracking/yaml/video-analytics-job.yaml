@@ -45,7 +45,7 @@ spec:
             limits:
               memory: 4Gi
           volumeMounts:
-            - mountPath: /data/
+            - mountPath: /data/network_shared/reid/
               name: vol1
       restartPolicy: Never
       volumes:

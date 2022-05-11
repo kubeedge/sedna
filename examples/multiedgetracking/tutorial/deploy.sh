@@ -73,7 +73,7 @@ do
   sleep 0.2
 done
 
-echo -n "" && echo "🟢 Zookeeper is ready."
+echo "" && echo "🟢 Zookeeper is ready."
 
 while [ $(check_deployment_status $KAFKA) -ne 0 ]
 do
@@ -81,7 +81,7 @@ do
   sleep 0.2
 done
 
-echo -n "" && echo "🟢 Apache Kafka is ready."
+echo "" && echo "🟢 Apache Kafka is ready."
 
 # create CRDs for the models
 echo "⚪ Create CRDs for AI models."

@@ -24,6 +24,22 @@ function check_pod_status {
   echo "$func_result"
 }
 
+
+usage="$(basename "$0") [-h] [-s RTSP_SERVER_ADDRESS] [-f VIDEO_PATH]
+Run the application.
+    -h  show this help text
+    -s  IP of the streaming server
+    -f  path to the video to stream"
+
+while getopts 's:f:' flag
+do
+    case "$flag" in
+        s) RTSP_SERVER_ADDRESS="$OPTARG";;
+        f) VIDEO_PATH="$OPTARG";;
+        \?) printf "illegal option: -%s\n" "$OPTARG" >&2; echo "$usage" >&2; exit 1;;
+    esac
+done
+
 ### FEATURE EXTRACTION ###
 
 # create feature extraction service 
@@ -33,13 +49,16 @@ kubectl apply -f ../yaml/feature-extraction-service.yaml
 # check that FE is running
 while [ $(check_pod_status $FE_LABEL) != '"Running"' ]
 do
-  echo -ne "🟡 Feature Extraction service is not ready ${sp:i++%${#sp}:1} \r"
+  echo -ne "🟡 Feature Extraction service is not ready ${sp:i++%${#sp}:1} \\r"
   sleep 0.2
 done
 
-echo -n "" && echo "🟢 Feature Extraction service is ready."
+echo "" && echo "🟢 Feature Extraction service is ready."
 
 ### VIDEO ANALYTICS ###
+
+# remove old jobs, if any
+kubectl delete -f ../yaml/video-analytics-job.yaml
 
 # create VideoAnalytics Job
 echo "⚪ Create VideoAnalytics job."
@@ -48,11 +67,17 @@ kubectl apply -f ../yaml/video-analytics-job.yaml
 # wait for the job to be ready
 while [ $(check_pod_status $VA_LABEL) != '"Running"' ] && [ $(check_pod_status $VA_LABEL) != '"Succeeded"' ]
 do
-  echo -ne "🟡 VideoAnalytics job is not ready ${sp:i++%${#sp}:1} \r"
+  echo -ne "🟡 VideoAnalytics job is not ready ${sp:i++%${#sp}:1} \\r"
   sleep 0.2
 done
 
-echo -n "" && echo "🟢 VideoAnalytics job is ready."
+echo "" && echo "🟢 VideoAnalytics job is ready."
+
+# mandatory arguments
+if [ "$RTSP_SERVER_ADDRESS" ]; then
+  echo "🎥 Streaming video ${VIDEO_PATH} with FFMPEG to server ${RTSP_SERVER_ADDRESS}"
+  $(nohup ffmpeg -re -i ${VIDEO_PATH} -vcodec libx264 -f rtsp rtsp://${RTSP_SERVER_ADDRESS}/video/0 > log.log 2>&1 &)
+fi
 
 # wait for the job to complete
 while [ $(check_pod_status $VA_LABEL) != '"Succeeded"' ]
@@ -74,20 +99,20 @@ kubectl apply -f ../yaml/reid-job.yaml
 # wait for the job to be ready
 while [ $(check_pod_status $REID_LABEL) != '"Running"' ] && [ $(check_pod_status $REID_LABEL) != '"Succeeded"' ]
 do
-  echo -ne "🟡 ReID job is not ready ${sp:i++%${#sp}:1} \r"
+  echo -ne "🟡 ReID job is not ready ${sp:i++%${#sp}:1} \\r"
   sleep 0.2
 done
 
-echo -n "" && echo "🟢 ReID job is ready."
+echo "" && echo "🟢 ReID job is ready."
 
 # wait for the job to complete
 while [ $(check_pod_status $REID_LABEL) != '"Succeeded"' ]
 do
-  echo -ne "🟡 Waiting for ReID job completion (this will take awhile) ${sp:i++%${#sp}:1} \r"
+  echo -ne "🟡 Waiting for ReID job completion (this will take awhile) ${sp:i++%${#sp}:1} \\r"
   sleep 0.2
 done
 
-echo -n "" &&  echo "🟢 ReID job has completed."
+echo "" &&  echo "🟢 ReID job has completed."
 echo "⚪ Clean-up ReID job resources."
 kubectl delete -f ../yaml/reid-job.yaml
 

@@ -28,16 +28,9 @@ spec:
           value: "9092|9092" 
         - name: input_shape
           value: "256,128"
-        volumeMounts:
-          - name: vol1
-            mountPath: /data/
         resources:
           requests:
             memory: 1Gi
             cpu: 1000m
           limits:
             memory: 2Gi
-      volumes:
-        - name: vol1
-          persistentVolumeClaim:
-            claimName: reid-pvc

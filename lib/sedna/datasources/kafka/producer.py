@@ -28,7 +28,7 @@ class Producer(Client):
         self.producer = KafkaProducer(
             value_serializer=lambda v: pickle.dumps(v, protocol=pickle.HIGHEST_PROTOCOL),
             bootstrap_servers=boostrap_servers,
-            max_request_size=2000000,
+            max_request_size=10000000,
             linger_ms=1000
             )
 
