@@ -26,6 +26,14 @@ type DatasetListerExpansion interface{}
 // DatasetNamespaceLister.
 type DatasetNamespaceListerExpansion interface{}
 
+// FeatureExtractionServiceListerExpansion allows custom methods to be added to
+// FeatureExtractionServiceLister.
+type FeatureExtractionServiceListerExpansion interface{}
+
+// FeatureExtractionServiceNamespaceListerExpansion allows custom methods to be added to
+// FeatureExtractionServiceNamespaceLister.
+type FeatureExtractionServiceNamespaceListerExpansion interface{}
+
 // FederatedLearningJobListerExpansion allows custom methods to be added to
 // FederatedLearningJobLister.
 type FederatedLearningJobListerExpansion interface{}
@@ -81,3 +89,19 @@ type ObjectTrackingServiceListerExpansion interface{}
 // ObjectTrackingServiceNamespaceListerExpansion allows custom methods to be added to
 // ObjectTrackingServiceNamespaceLister.
 type ObjectTrackingServiceNamespaceListerExpansion interface{}
+
+// ReidJobListerExpansion allows custom methods to be added to
+// ReidJobLister.
+type ReidJobListerExpansion interface{}
+
+// ReidJobNamespaceListerExpansion allows custom methods to be added to
+// ReidJobNamespaceLister.
+type ReidJobNamespaceListerExpansion interface{}
+
+// VideoAnalyticsJobListerExpansion allows custom methods to be added to
+// VideoAnalyticsJobLister.
+type VideoAnalyticsJobListerExpansion interface{}
+
+// VideoAnalyticsJobNamespaceListerExpansion allows custom methods to be added to
+// VideoAnalyticsJobNamespaceLister.
+type VideoAnalyticsJobNamespaceListerExpansion interface{}
