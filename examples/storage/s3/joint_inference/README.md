@@ -124,7 +124,7 @@ spec:
             hostPath:
               # user must create the directory in host
               path: /joint_inference/output
-              type: DirectoryorCreate
+              type: DirectoryOrCreate
 
   cloudWorker:
     model:
