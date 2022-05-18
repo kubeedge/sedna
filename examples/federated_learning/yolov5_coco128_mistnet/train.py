@@ -32,7 +32,7 @@ def main():
         s3_client = s3.S3(s3_transmitter.parameters["s3_endpoint_url"], s3_transmitter.parameters["access_key"],
                       s3_transmitter.parameters["secret_key"], s3_transmitter.parameters["s3_bucket"])
         #s3_client.download_from_s3("model/client_model/yolov5x_cutlayer4.om", "./yolov5x_cutlayer4.om")
-        #s3_client.download_from_s3("model/client_model/network_f.om", "./network_f.om")
+        s3_client.download_from_s3("model/client_model/network_f.om", "./network_f.om")
 
     estimator.model = Inference(0, "./network_f.om", 320, 320)  #1*3*640*640--->1*12*320*320
     estimator.trainer = Trainer(model=estimator.model)
