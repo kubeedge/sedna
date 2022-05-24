@@ -106,10 +106,10 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 	currentType := latestCondition.Type
 	jobStage := latestCondition.Stage
 
-	syncModelWithName := func(modelName string) {
-		if err := c.syncModelWithName(dsNodeName, modelName, job.Namespace); err != nil {
+	syncModelWithName := func(modelName string, nodeName string) {
+		if err := c.syncModelWithName(nodeName, modelName, job.Namespace); err != nil {
 			klog.Warningf("Error to sync model %s when sync incremental learning job %s to node %s: %v",
-				modelName, job.Name, dsNodeName, err)
+				modelName, job.Name, nodeName, err)
 		}
 	}
 
@@ -131,29 +131,68 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 		return false
 	}
 
-	doJobStageEvent := func(modelName string, nodeName string) {
-		if currentType == sednav1.ILJobStageCondWaiting {
-			syncJobWithNodeName(dsNodeName)
-			if modelName != "" {
-				syncModelWithName(modelName)
-			}
-		} else if currentType == sednav1.ILJobStageCondRunning {
-			syncJobWithNodeName(nodeName)
-		} else if currentType == sednav1.ILJobStageCondCompleted || currentType == sednav1.ILJobStageCondFailed {
-			if !isJobResidentNode(nodeName) {
-				// delete LC's job from nodeName that's different from dataset node when worker's status is completed or failed.
-				c.sendToEdgeFunc(nodeName, watch.Deleted, job)
-			}
+	// delete job
+	deleteJob := func(nodeName string) {
+		if !isJobResidentNode(nodeName) {
+			// delete LC's job from nodeName that's different from dataset node when worker's status
+			// is completed or failed.
+			c.sendToEdgeFunc(nodeName, watch.Deleted, job)
 		}
 	}
 
-	switch jobStage {
-	case sednav1.ILJobTrain:
-		doJobStageEvent(job.Spec.InitialModel.Name, trainNodeName)
-	case sednav1.ILJobEval:
-		doJobStageEvent(job.Spec.DeploySpec.Model.Name, evalNodeName)
-	case sednav1.ILJobDeploy:
-		doJobStageEvent("", deployNodeName)
+	switch currentType {
+	case sednav1.ILJobStageCondWaiting:
+		switch jobStage {
+		case sednav1.ILJobTrain:
+			syncModelWithName(job.Spec.InitialModel.Name, dsNodeName)
+			syncJobWithNodeName(dsNodeName)
+		case sednav1.ILJobEval:
+			syncModelWithName(job.Spec.DeploySpec.Model.Name, dsNodeName)
+			if job.Spec.EvalSpec.InitialModel != nil {
+				syncModelWithName(job.Spec.EvalSpec.InitialModel.Name, dsNodeName)
+			}
+			syncJobWithNodeName(dsNodeName)
+		case sednav1.ILJobDeploy:
+			deployNodeName = evalNodeName
+
+			syncModelWithName(job.Spec.DeploySpec.Model.Name, evalNodeName)
+			if job.Spec.EvalSpec.InitialModel != nil && !job.Spec.DeploySpec.Model.HotUpdateEnabled {
+				syncModelWithName(job.Spec.EvalSpec.InitialModel.Name, deployNodeName)
+			}
+			syncJobWithNodeName(deployNodeName)
+		}
+	case sednav1.ILJobStageCondRunning:
+		switch jobStage {
+		case sednav1.ILJobTrain:
+			syncJobWithNodeName(trainNodeName)
+		case sednav1.ILJobEval:
+			if trainNodeName != evalNodeName && trainNodeName != dsNodeName {
+				c.sendToEdgeFunc(trainNodeName, watch.Deleted, job)
+			}
+			syncJobWithNodeName(evalNodeName)
+		case sednav1.ILJobDeploy:
+			if evalNodeName != deployNodeName && evalNodeName != dsNodeName {
+				c.sendToEdgeFunc(evalNodeName, watch.Deleted, job)
+			}
+
+			if job.Spec.EvalSpec.InitialModel != nil {
+				syncModelWithName(job.Spec.EvalSpec.InitialModel.Name, deployNodeName)
+			}
+			syncModelWithName(job.Spec.DeploySpec.Model.Name, deployNodeName)
+			syncJobWithNodeName(deployNodeName)
+		}
+	case sednav1.ILJobStageCondCompleted, sednav1.ILJobStageCondFailed:
+		if !job.Spec.DeploySpec.Model.HotUpdateEnabled {
+			deployNodeName = evalNodeName
+		}
+		switch jobStage {
+		case sednav1.ILJobTrain:
+			deleteJob(trainNodeName)
+		case sednav1.ILJobEval:
+			deleteJob(evalNodeName)
+		case sednav1.ILJobDeploy:
+			deleteJob(deployNodeName)
+		}
 	}
 
 	return nil

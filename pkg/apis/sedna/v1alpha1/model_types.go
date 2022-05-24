@@ -36,8 +36,9 @@ type Model struct {
 
 // ModelSpec is a description of a model
 type ModelSpec struct {
-	URL    string `json:"url"`
-	Format string `json:"format"`
+	URL     string   `json:"url"`
+	Format  string   `json:"format"`
+	Devices []string `json:"device_soc_versions,omitempty"`
 
 	CredentialName string `json:"credentialName,omitempty"`
 }
