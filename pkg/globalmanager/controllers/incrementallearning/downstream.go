@@ -62,18 +62,15 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 	// more details at https://github.com/kubernetes/kubernetes/issues/3030
 	job.Kind = KindName
 
-	jobConditions := job.Status.Conditions
-	if len(jobConditions) == 0 {
-		return nil
-	}
-
 	dataName := job.Spec.Dataset.Name
+	// LC has dataset object on this node that may call dataset node
+	var dsNodeName string
 	ds, err := c.client.Datasets(job.Namespace).Get(context.TODO(), dataName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("dataset(%s/%s) not found", job.Namespace, dataName)
+		klog.Errorf("not found job(name=%s/%s)'s dataset, error: %v", job.Kind, job.Name, err)
+	} else {
+		dsNodeName = ds.Spec.NodeName
 	}
-	// LC has dataset object on this node that may call dataset node
-	dsNodeName := ds.Spec.NodeName
 
 	var trainNodeName string
 	var evalNodeName string
@@ -99,6 +96,15 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 			c.sendToEdgeFunc(node, eventType, job)
 		}
 
+		return nil
+	}
+
+	if dsNodeName == "" {
+		return nil
+	}
+
+	jobConditions := job.Status.Conditions
+	if len(jobConditions) == 0 {
 		return nil
 	}
 
