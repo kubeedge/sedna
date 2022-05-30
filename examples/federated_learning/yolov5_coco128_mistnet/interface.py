@@ -40,7 +40,7 @@ class Dataset:
             "test_path": "./data/COCO/coco128/images/train2017/",
             "train_annFile": "./data/COCO/coco128/annotations/instances_train2017.json",
             # number of data augmentation in mindspore framework
-            "aug_num": 1,                                          ####new adding params
+            "aug_num": 20,                                          ####new adding params
             # Size of the training set
             "trainset_size": 296,                                  ####new adding params
             # number of training examples
@@ -175,9 +175,9 @@ class Estimator_server:
             "target_accuracy": 0.99,
             "epochs": int(Context.get_parameters("EPOCHS", 500)),
             "batch_size": int(Context.get_parameters("BATCH_SIZE", 16)),
-            "repeat_epoch": 200,        #repeat_epoch=200(epoch)/aug_num       ####new adding params
+            "repeat_epoch": 10,        #repeat_epoch=200(epoch)/aug_num       ####new adding params
             "per_batch_size": 8,                                        ####new adding params
-            "group_size": 1,     ###Be consistent with aug_num          ####new adding params
+            "group_size": 20,     ###Be consistent with aug_num          ####new adding params
             "optimizer": "SGD",
             "linear_lr": False,
             # The machine learning model
