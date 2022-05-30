@@ -492,7 +492,7 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: cc.KubeClient.CoreV1().Events("")})
 
-	fc := &Controller{
+	rc := &Controller{
 		kubeClient: cc.KubeClient,
 		client:     cc.SednaClient.SednaV1alpha1(),
 
@@ -503,38 +503,38 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			fc.enqueueController(obj, true)
+			rc.enqueueController(obj, true)
 
-			// when a video analytics job is added,
+			// when a reid job is added,
 			// send it to edge's LC.
-			fc.syncToEdge(watch.Added, obj)
+			rc.syncToEdge(watch.Added, obj)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			fc.enqueueController(cur, true)
+			rc.enqueueController(cur, true)
 
-			// when a video analytics job is updated,
+			// when a reid job is updated,
 			// send it to edge's LC as Added event.
-			fc.syncToEdge(watch.Added, cur)
+			rc.syncToEdge(watch.Added, cur)
 		},
 		DeleteFunc: func(obj interface{}) {
-			fc.enqueueController(obj, true)
+			rc.enqueueController(obj, true)
 
-			// when a video analytics job is deleted,
+			// when a reid job is deleted,
 			// send it to edge's LC.
-			fc.syncToEdge(watch.Deleted, obj)
+			rc.syncToEdge(watch.Deleted, obj)
 		},
 	})
 
-	fc.jobLister = jobInformer.Lister()
-	fc.jobStoreSynced = jobInformer.Informer().HasSynced
+	rc.jobLister = jobInformer.Lister()
+	rc.jobStoreSynced = jobInformer.Informer().HasSynced
 
 	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    fc.addPod,
-		UpdateFunc: fc.updatePod,
-		DeleteFunc: fc.deletePod,
+		AddFunc:    rc.addPod,
+		UpdateFunc: rc.updatePod,
+		DeleteFunc: rc.deletePod,
 	})
-	fc.podStore = podInformer.Lister()
-	fc.podStoreSynced = podInformer.Informer().HasSynced
+	rc.podStore = podInformer.Lister()
+	rc.podStoreSynced = podInformer.Informer().HasSynced
 
-	return fc, nil
+	return rc, nil
 }

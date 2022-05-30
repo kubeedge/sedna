@@ -24,7 +24,7 @@ __all__ = ('LukasKanade')
 
 
 class BaseFilter(metaclass=abc.ABCMeta):
-    """The base class to define unified interface."""
+    """The base class to define an unified interface."""
 
     def __call__(self, old_frame=None, current_frame=None):
         """predict function, and it must be implemented by
@@ -38,6 +38,9 @@ class BaseFilter(metaclass=abc.ABCMeta):
 
 @ClassFactory.register(ClassType.OF, alias="LukasKanadeOF")
 class LukasKanade(BaseFilter, abc.ABC):
+    """
+        Class to detect movement between two consecutive images.
+    """
     def __init__(self, **kwargs):
         # Parameters for ShiTomasi corner detection
         self.feature_params = dict(maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)
@@ -83,6 +86,9 @@ class LukasKanade(BaseFilter, abc.ABC):
         
 @ClassFactory.register(ClassType.OF, alias="LukasKanadeOF_CUDA")
 class LukasKanadeCUDA(BaseFilter, abc.ABC):
+    """
+        Class to detect movement between two consecutive images (GPU implementation).
+    """
     def __init__(self, **kwargs):
         # Parameters for ShiTomasi corner detection
         self.feature_params = dict(srcType= cv2.CV_8UC1, maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)

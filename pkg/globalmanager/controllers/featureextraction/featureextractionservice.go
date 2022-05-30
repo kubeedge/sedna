@@ -50,16 +50,14 @@ import (
 )
 
 const (
-	FEWorker = "fe"
-	FEPort   = 6000
-)
-
-const (
 	// Name is this controller name
 	Name = "FeatureExtraction"
-
 	// KindName is the kind name of CR this controller controls
 	KindName = "FeatureExtractionService"
+	// VideoAnalyticsWorker is this name given to the worker pod
+	FEWorker = "fe"
+	// VideoAnalyticsPort is the port where the service will be exposed
+	FEPort = 6000
 )
 
 // FeatureExtractionServicerKind contains the schema.GroupVersionKind for this controller type.
@@ -184,7 +182,7 @@ func (c *Controller) updateDeployment(old, cur interface{}) {
 	c.addDeployment(curD)
 }
 
-// obj could be an *sednav1.ObjectSearchService, or a DeletionFinalStateUnknown marker item,
+// obj could be an *sednav1.FeatureExtractionService, or a DeletionFinalStateUnknown marker item,
 // immediate tells the controller to update the status right away, and should
 // happen ONLY when there was a successful pod run.
 func (c *Controller) enqueueController(obj interface{}, immediate bool) {
@@ -387,8 +385,6 @@ func (c *Controller) sync(key string) (bool, error) {
 
 	if failedPods > 0 || failedDeployment > 0 {
 		serviceFailed = true
-		// TODO: Split code to handle deployment failure separately
-		// TODO: get the failed worker, and knows that which worker fails, edge inference worker or cloud inference worker
 		reason = "workerFailed"
 		message = "the worker of FeatureExtractionService failed"
 		newCondtionType = sednav1.FeatureExtractionServiceCondFailed

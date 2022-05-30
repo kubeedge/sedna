@@ -7,7 +7,7 @@ This repository is home to the following features of examples:
 * [Incremental Learning](#incremental-learning)
 * [Federated Learning](#federated-learning)
 * [Lifelong Learning](#lifelong-learning)
-* [Pedestrians ReID](#pedestrian-reid)
+* [Multi-Edge Inference](#multi-edge-inference)
 * [Shared Storage](#shared-storage)
 
 ### Joint Inference
@@ -22,8 +22,8 @@ Example: [Using Federated Learning Job in Surface Defect Detection Scenario](./f
 ### Lifelong Learning
 Example: [Using Lifelong Learning Job in Thermal Comfort Prediction Scenario](./lifelong_learning/atcii/README.md)
 
-### Pedestrian ReID
-Example: [Using ReID to Track an Infected COVID-19 Carrier in Pandemic Scenario](./multiedgetracking/tutorial/README.md)
+### Multi-Edge Inference
+Example: [Using ReID to Track an Infected COVID-19 Carrier in Pandemic Scenario](./multiedgeinference/pedestrian_tracking/README.md)
 
 ### Shared Storage
 | Support Protocols  |Support Features| Examples |Release|

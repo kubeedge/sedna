@@ -17,32 +17,14 @@ limitations under the License.
 package videoanalytics
 
 import (
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/watch"
 
-	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
 
+// NOTE: For this job we don't need synchronization with the edge
 func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) error {
-	job, ok := obj.(*sednav1.VideoAnalyticsJob)
-	if !ok {
-		return nil
-	}
-
-	// Since Kind may be empty,
-	// we need to fix the kind here if missing.
-	// more details at https://github.com/kubernetes/kubernetes/issues/3030
-	job.Kind = KindName
-
-	nodeName := job.Spec.Template.Spec.NodeName
-	if len(nodeName) == 0 {
-		return fmt.Errorf("empty node name")
-	}
-
-	return c.sendToEdgeFunc(nodeName, eventType, job)
-
+	return nil
 }
 
 func (c *Controller) SetDownstreamSendFunc(f runtime.DownstreamSendFunc) error {

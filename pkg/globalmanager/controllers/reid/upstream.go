@@ -21,10 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"k8s.io/klog/v2"
+
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 )
 
 const upstreamStatusUpdateRetries = 3
@@ -47,19 +48,6 @@ func newUnmarshalError(namespace, name, operation string, content []byte) error 
 	return fmt.Errorf("Unable to unmarshal content for (%s/%s) operation: '%s', content: '%+v'", namespace, name, operation, string(content))
 }
 
-// retryUpdateStatus simply retries to call the status update func
-func retryUpdateStatus(name, namespace string, updateStatusFunc func() error) error {
-	var err error
-	for retry := 0; retry <= upstreamStatusUpdateRetries; retry++ {
-		err = updateStatusFunc()
-		if err == nil {
-			return nil
-		}
-		klog.Warningf("Error to update %s/%s status, retried %d times: %+v", namespace, name, retry, err)
-	}
-	return err
-}
-
 // updateFromEdge updates the reid job's status
 func (c *Controller) updateFromEdge(name, namespace, operation string, content []byte) (err error) {
 	// Output defines owner output information
@@ -68,7 +56,6 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 	}
 
 	var status struct {
-		// Phase always should be "inference"
 		Phase  string  `json:"phase"`
 		Status string  `json:"status"`
 		Output *Output `json:"output"`

@@ -12,9 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import aggregation
-from . import hard_example_mining
-from . import multi_task_learning
-from . import unseen_task_detect
-from . import optical_flow
-from . import reid
+import importlib
+
+from sedna.common.log import LOGGER
+
+def str_to_class(module_name=".", class_name="ByteTracker"):
+    """Return a class type from a string reference"""
+    LOGGER.info(f"Dynamically loading class {class_name}")
+    try:
+        module_ = importlib.import_module(module_name + class_name.lower(), package="model")
+        try:
+            class_ = getattr(module_, class_name)
+        except AttributeError:
+            LOGGER.error('Class does not exist')
+    except ImportError:
+        LOGGER.error('Module does not exist')
+    return class_ or None

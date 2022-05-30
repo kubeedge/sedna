@@ -1,0 +1,10 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: feature-extraction-m3l
+  namespace: default
+spec:
+  url: "/data/ai_models/m3l/m3l.pth"
+  format: "pth"
+  description: "M3L to extract ReID features."
+  purpose: "feature_extraction"

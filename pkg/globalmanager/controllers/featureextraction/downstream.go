@@ -17,32 +17,14 @@ limitations under the License.
 package featureextraction
 
 import (
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/watch"
 
-	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
 
+// NOTE: For this job we don't need synchronization
 func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) error {
-	service, ok := obj.(*sednav1.FeatureExtractionService)
-	if !ok {
-		return nil
-	}
-
-	// Since Kind may be empty,
-	// we need to fix the kind here if missing.
-	// more details at https://github.com/kubernetes/kubernetes/issues/3030
-	service.Kind = KindName
-
-	// Here only propagate to the nodes with non empty name
-	nodeName := service.Spec.Template.Spec.NodeName
-	if len(nodeName) == 0 {
-		return fmt.Errorf("empty node name")
-	}
-
-	return c.sendToEdgeFunc(nodeName, eventType, service)
+	return nil
 }
 
 func (c *Controller) SetDownstreamSendFunc(f runtime.DownstreamSendFunc) error {
