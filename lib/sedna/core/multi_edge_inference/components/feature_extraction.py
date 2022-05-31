@@ -14,8 +14,11 @@
 
 from typing import List
 from sedna.core.multi_edge_inference.components import BaseService
-from sedna.core.multi_edge_inference.plugins import PLUGIN, PluggableModel, PluggableNetworkService
-from sedna.core.multi_edge_inference.plugins.registered import Feature_Extraction, VideoAnalytics_I
+from sedna.core.multi_edge_inference.plugins \
+    import PLUGIN, PluggableModel, PluggableNetworkService
+from sedna.core.multi_edge_inference.plugins.registered \
+    import Feature_Extraction, VideoAnalytics_I
+
 
 class FEService(BaseService):
     """
@@ -41,33 +44,52 @@ class FEService(BaseService):
     models : List
         A list of PluggableModel. By passing a specific instance
         of the model, it is possible to customize the FeatureExtraction
-        component to, for example, extract differently the objects 
+        component to, for example, extract differently the objects
         features.
     timeout: int
-        It sets a timeout condition to terminate the main fetch loop after the specified
-        amount of seconds has passed since we received the last frame.
+        It sets a timeout condition to terminate the main fetch loop
+        after the specified amount of seconds has passed since we
+        received the last frame.
     asynchronous: bool
-        If True, the AI processing will be decoupled from the data acquisition step.
-        If False, the processing will be sequential. In general, set it to True when
-        ingesting a stream (e.g., RTSP) and to False when reading from disk
-        (e.g., a video file).
+        If True, the AI processing will be decoupled from the data
+        acquisition step. If False, the processing will be sequential.
+        In general, set it to True when ingesting a stream (e.g., RTSP)
+        and to False when reading from disk (e.g., a video file).
 
 
     Examples
     --------
-    >>> model = FeatureExtractionAI() # A class implementing the PluggableModel abstract class (example in pedestrian_tracking/feature_extraction/worker.py)
-    >>> fe_service = FEService(models=[model], asynchronous=False)
+    model = FeatureExtractionAI() # A class implementing the PluggableModel
+    abstract class (example pedestrian_tracking/feature_extraction/worker.py)
+
+    fe_service = FEService(models=[model], asynchronous=False)
 
     Notes
     -----
-    For the parameters described above, only 'models' has to be defined, while 
+    For the parameters described above, only 'models' has to be defined, while
     for others the default value will work in most cases.
     """
 
+    def __init__(
+        self,
+        consumer_topics=["object_detection"],
+        producer_topics=["enriched_object"],
+        plugins: List[PluggableNetworkService] = [],
+        models: List[PluggableModel] = [],
+        timeout=10,
+        asynchronous=False
+    ):
 
-    def __init__(self, consumer_topics = ["object_detection"], producer_topics=["enriched_object"], plugins: List[PluggableNetworkService] = [], models: List[PluggableModel] = [], timeout = 10, asynchronous = False):
-        merged_plugins =  [VideoAnalytics_I(), Feature_Extraction(wrapper=self)] + plugins
-        super().__init__(consumer_topics, producer_topics, merged_plugins, models, timeout, asynchronous)
+        merged_plugins =  \
+            [VideoAnalytics_I(), Feature_Extraction(wrapper=self)] + plugins
+
+        super().__init__(
+            consumer_topics,
+            producer_topics,
+            merged_plugins,
+            models,
+            timeout,
+            asynchronous)
 
     def process_data(self, ai, data, **kwargs):
         for ai in self.models:
@@ -85,6 +107,7 @@ class FEService(BaseService):
         pass
 
     def get_target_features(self, ldata):
-        # TODO: Fix this workaround, we need a function to select a model based on its name
+        # TODO: Fix this workaround, we need a function to select a model
+        # based on its name
         fe_ai = self.models[0]
         return fe_ai.get_target_features(ldata)

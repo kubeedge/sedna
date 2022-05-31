@@ -15,6 +15,7 @@
 import pickle
 from sedna.service.client import http_request
 
+
 class Detection:
     """Endpoint to trigger the Object Tracking component"""
 

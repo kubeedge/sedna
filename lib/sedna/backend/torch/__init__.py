@@ -21,13 +21,18 @@ from torch.backends import cudnn
 from sedna.backend.base import BackendBase
 from sedna.common.log import LOGGER
 
+
 class TorchBackend(BackendBase):
     def __init__(self, estimator, fine_tune=True, **kwargs):
         super(TorchBackend, self).__init__(
             estimator=estimator, fine_tune=fine_tune, **kwargs)
         self.framework = "pytorch"
         self.has_load = False
-        self.device = "cuda" if torch.cuda.is_available() and self.use_cuda else "cpu"
+
+        self.device = "cpu"
+        if self.use_cuda:
+            if torch.cuda.is_available():
+                self.device = "cuda"
         cudnn.benchmark = False
 
         if callable(self.estimator):

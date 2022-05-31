@@ -14,6 +14,6 @@
 
 from sedna.common.config import Context
 
+
 def get_parameters(param, default=None):
     return Context.get_parameters(param=param, default=default)
-    

@@ -17,17 +17,24 @@ from threading import Thread
 from sedna.datasources.kafka.consumer import Consumer
 from sedna.datasources.kafka.producer import Producer
 
+
 class KafkaProducer:
-    def __init__(self, address, port, topic=[], asynchronous = False):
+    def __init__(self, address, port, topic=[], asynchronous=False):
         self.producer = Producer(address=address, port=port)
         self.topic = topic
         self.asynchronous = asynchronous
 
     def write_result(self, data):
-        return self.producer.publish_data_asynchronous(data, topic=self.topic) if self.asynchronous else self.producer.publish_data_synchronous(data, topic=self.topic)
+        if self.asynchronous:
+            return self.producer.publish_data_asynchronous(
+                data, topic=self.topic)
+        else:
+            return self.producer.publish_data_synchronous(
+                data, topic=self.topic)
+
 
 class KafkaConsumerThread(Thread):
-    def __init__(self, address, port, topic=[], callback = None):
+    def __init__(self, address, port, topic=[], callback=None):
         super().__init__()
         self.consumer = Consumer(address=address, port=port)
         self.callback = callback

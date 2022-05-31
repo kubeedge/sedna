@@ -22,6 +22,7 @@ from sedna.service.server.base import BaseServer
 
 __all__ = ('DetectionServer', )
 
+
 class DetectionServer(BaseServer):  # pylint: disable=too-many-arguments
     """
     REST api server for object detection component

@@ -16,12 +16,19 @@
 import pickle
 from sedna.datasources.kafka import KafkaConsumer, LOGGER, Client
 
+
 class Consumer(Client):
-    def __init__(self, address = ["localhost"], port = [9092], group_id="default", consumer_timeout_ms=250) -> None:
+    def __init__(
+        self,
+        address=["localhost"], port=[9092],
+        group_id="default",
+        consumer_timeout_ms=250
+    ) -> None:
+
         super().__init__(address, port)
 
         self.group_id = group_id
-        self.consumer_timeout_ms=consumer_timeout_ms
+        self.consumer_timeout_ms = consumer_timeout_ms
         self.disconnected = False
 
         LOGGER.debug("Creating Kafka consumer")
@@ -37,7 +44,7 @@ class Consumer(Client):
                 max_poll_interval_ms=10000,
                 consumer_timeout_ms=self.consumer_timeout_ms
                 )
-                
+
     def get_topics(self):
         return self.consumer.topics()
 
@@ -47,7 +54,8 @@ class Consumer(Client):
                 LOGGER.debug(f"Subscribing to topics {t}.")
                 self.consumer.subscribe(t)
             except Exception as e:
-                LOGGER.error(f"Unable to subscribe to topic {topic}. [{e}]")
+                LOGGER.error(
+                    f"Unable to subscribe to topic {topic}. [{e}]")
 
     def consume_messages(self):
         try:
@@ -55,7 +63,8 @@ class Consumer(Client):
             return list(map(lambda message: message.value, self.consumer))
 
         except Exception as e:
-            LOGGER.error(f"Error while reading messages from Kafka broker:  [{e}]")
+            LOGGER.error(
+                f"Error while reading messages from Kafka broker:  [{e}]")
             return []
 
     def consume_messages_poll(self):
@@ -66,11 +75,12 @@ class Consumer(Client):
             for key, record in messages.items():
                 for item in record:
                     data.append(item.value)
-            
-            return data 
+
+            return data
 
         except Exception as e:
-            LOGGER.error(f"Error while polling messages from Kafka broker: [{e}]")
+            LOGGER.error(
+                f"Error while polling messages from Kafka broker: [{e}]")
             return []
 
     def pause(self):
@@ -83,4 +93,3 @@ class Consumer(Client):
         LOGGER.debug("Shutting down consumer")
         self.disconnected = True
         self.consumer.close()
-        

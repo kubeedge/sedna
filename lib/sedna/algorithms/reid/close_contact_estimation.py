@@ -16,17 +16,20 @@ from typing import List, Tuple
 import cv2
 import numpy as np
 
+
 class ContactTracker(object):
     """
-    The ContactTracker object is invoked in frames where the target person was identified.
+    The ContactTracker object is invoked in frames where the
+    target person was identified.
     Modified from https://github.com/IIT-PAVIS/Social-Distancing
     """
-    def __init__(self, draw_top_view = False) -> None:
+    def __init__(self, draw_top_view=False) -> None:
         """
 
-        @param h_ratio: Ratio between the closest horizontal line of the scene to the furthest visible. It must be a
-        float value in (0,1)
-        @param v_ratio: Ratio between the height of the trapezoid wrt the rectangular bird’s view scene (image height).
+        @param h_ratio: Ratio between the closest horizontal line of the scene
+        to the furthest visible. It must be a float value in (0,1)
+        @param v_ratio: Ratio between the height of the trapezoid wrt the
+        rectangular bird’s view scene (image height).
         It must be a float value in (0,1).
         """
 
@@ -44,11 +47,16 @@ class ContactTracker(object):
         self.ellipse_target = None
 
         self.CTV_L = {}
-        self.distance_threshold = 1.8 # meters
+        self.distance_threshold = 1.8  # meters
         self.draw_top_view = draw_top_view
         self.top_view_exists = False
 
-    def prep_homography(self, img_shape, bbox_target, h_ratio: float = 0.5, v_ratio: float = 0.5):
+    def prep_homography(self,
+                        img_shape,
+                        bbox_target,
+                        h_ratio: float = 0.5,
+                        v_ratio: float = 0.5):
+
         self.h_ratio = h_ratio
         self.v_ratio = v_ratio
 
@@ -70,7 +78,6 @@ class ContactTracker(object):
                     (self.ellipse_target[2], self.ellipse_target[3]),
                     0, 0, 360,
                     (255, 0, 0), thickness=-1)
-
 
     def compute_homography(self, img_shape: List[int]) -> None:
         """
@@ -108,13 +115,14 @@ class ContactTracker(object):
         if self.homography_matrix is None:
             self.compute_homography([img.shape[0], img.shape[1]])
 
-        t_ellipse_bbox_candidate, t_ellipse_candidate = self.create_ellipse([bbox_candidate])
+        t_ellipse_bbox_candidate, t_ellipse_candidate = \
+            self.create_ellipse([bbox_candidate])
         ellipse_bbox_candidate = t_ellipse_bbox_candidate[0]
         ellipse_candidate = t_ellipse_candidate[0]
 
         # check for overlap between bounding boxes: coarse check
-        has_overlap = self.check_bbox_overlap(ellipse_bbox_candidate, self.ellipse_bbox_target)
-
+        has_overlap = self.check_bbox_overlap(
+            ellipse_bbox_candidate, self.ellipse_bbox_target)
 
         if has_overlap:
             # check if the contours intersect or not: finer check
@@ -158,7 +166,8 @@ class ContactTracker(object):
 
         return in_contact
 
-    def create_ellipse(self, bbox_list: List[List[int]] = None) -> Tuple[List, List]:
+    def create_ellipse(
+            self, bbox_list: List[List[int]] = None) -> Tuple[List, List]:
         """
         Create ellipses for each of the generated bounding boxes.
         @param bbox_list:
@@ -169,8 +178,7 @@ class ContactTracker(object):
         draw_ellipse_requirements = []
 
         for i, box in enumerate(bbox_list):
-
-            x0, y0, x1, y1 = int(box[0]), int(box[1] ), int(box[2]), int(box[3])
+            x0, y0, x1, y1 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
 
             left, right, top, bottom = x0, x1, y0, y1
 
@@ -185,9 +193,8 @@ class ContactTracker(object):
             # computing how the height of the circle varies in perspective
             pts = np.array([
                 [bbox_center[0], top],
-                [bbox_center[0], bottom]], np.float32
-            )
-            pts1 = pts.reshape(-1, 1, 2).astype(np.float32) # n,1,2
+                [bbox_center[0], bottom]], np.float32)
+            pts1 = pts.reshape(-1, 1, 2).astype(np.float32)  # n,1,2
 
             dst1 = cv2.perspectiveTransform(pts1, self.homography_matrix)
 
@@ -212,10 +219,9 @@ class ContactTracker(object):
 
         return ellipse_bboxes, draw_ellipse_requirements
 
-    def check_bbox_overlap(self,
-                           ellipse1: Tuple,
-                           ellipse2: Tuple) -> bool:
-        """Check if ellipse bounding rectangles overlap or not.
+    def check_bbox_overlap(self, ellipse1: Tuple, ellipse2: Tuple) -> bool:
+        """
+        Check if ellipse bounding rectangles overlap or not.
         Args:
             ellipse1 (tuple): ellipse one
             ellipse2 (tuple): ellipse two
@@ -226,7 +232,8 @@ class ContactTracker(object):
         r1 = self.to_rectangle(ellipse1)
         r2 = self.to_rectangle(ellipse2)
 
-        if (r1[0] >= r2[2]) or (r1[2] <= r2[0]) or (r1[3] <= r2[1]) or (r1[1] >= r2[3]):
+        if (r1[0] >= r2[2]) or (r1[2] <= r2[0]) \
+                or (r1[3] <= r2[1]) or (r1[1] >= r2[3]):
             return False
         else:
             return True

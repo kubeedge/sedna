@@ -21,58 +21,69 @@ from sedna.common.log import LOGGER
 from kafka.admin import NewTopic
 from kafka.errors import NoBrokersAvailable
 
+
 class Client(ABC):
-    def __init__(self, address = ["localhost"], port = [9092]) -> None:
+    def __init__(self, address=["localhost"], port=[9092]) -> None:
         self.kafka_address = address
-        self.kafka_port =  port
+        self.kafka_port = port
         self.kafka_endpoints = []
 
         for addr, port in zip(self.kafka_address, self.kafka_port):
-            LOGGER.debug(f"Adding address {addr} with port {port} to list of endpoints.")
+            LOGGER.debug(f"Adding address {addr} with \
+                port {port} to list of endpoints.")
             self.kafka_endpoints.append(f"{addr}:{port}")
 
     @abstractmethod
     def connect(self, bootstrap_servers):
         raise NoBrokersAvailable
 
-    # Call this function to connect to the brokers when you have issues using the
-    # standard connect.
+    # Call this function to connect to the brokers
+    # when you have issues using the standard connect.
     def hardened_connect(self):
         try:
             self.connect(self.kafka_endpoints)
         except NoBrokersAvailable:
-            LOGGER.info("Switching to hardened connection procedure with Round Robin.")
+            LOGGER.info(
+                "Switching to hardened connection procedure.")
             for srv in self.kafka_endpoints:
                 try:
                     return self.connect(srv)
                 except NoBrokersAvailable:
-                    LOGGER.error(f"Broker {srv} is not reachable, skipping")
+                    LOGGER.error(
+                        f"Broker {srv} is not reachable, skipping")
                     continue
 
             raise NoBrokersAvailable
 
+
 class AdminClient(Client):
-    def __init__(self, address = ["localhost"], port = [9092]) -> None:
+    def __init__(self, address=["localhost"], port=[9092]) -> None:
         super().__init__(address, port)
         LOGGER.debug("Creating Kafka admin client")
-        self.admin_client = KafkaAdminClient(bootstrap_servers=self.kafka_endpoints, request_timeout_ms=20000)
-
+        self.admin_client = KafkaAdminClient(
+            bootstrap_servers=self.kafka_endpoints, request_timeout_ms=20000)
 
     def _parse_topics(self, topics, num_partitions, replication_factor):
         topic_list = []
         for topic in topics:
-            topic_list.append(NewTopic(name=topic, num_partitions=num_partitions, replication_factor=replication_factor))
+            topic_list.append(
+                NewTopic(
+                    name=topic,
+                    num_partitions=num_partitions,
+                    replication_factor=replication_factor))
 
         return topic_list
 
     def create_topics(self, topics, num_partitions=1, replication_factor=1):
-        topic_list = self._parse_topics(topics, num_partitions, replication_factor)
-        res = self.admin_client.create_topics(new_topics=topic_list, validate_only=False)
-        
+        topic_list = self._parse_topics(
+            topics, num_partitions, replication_factor)
+        res = self.admin_client.create_topics(
+            new_topics=topic_list, validate_only=False)
         return res
 
     def delete_topics(self, topics, num_partitions=1, replication_factor=1):
-        topic_list = self._parse_topics(topics, num_partitions, replication_factor)
-        res = self.admin_client.delete_topics(new_topics=topic_list, validate_only=False)
-        
+        topic_list = self._parse_topics(
+            topics, num_partitions, replication_factor)
+        res = self.admin_client.delete_topics(
+            new_topics=topic_list, validate_only=False)
         return res

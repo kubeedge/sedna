@@ -22,6 +22,7 @@ from sedna.service.server.base import BaseServer
 
 __all__ = ('FEServer', )
 
+
 class FEServer(BaseServer):  # pylint: disable=too-many-arguments
     """
     rest api server for feature extraction
@@ -63,7 +64,7 @@ class FEServer(BaseServer):  # pylint: disable=too-many-arguments
                     self.get_target_features,
                     methods=["POST"],
                 ),
-                 APIRoute(
+                APIRoute(
                     f"/{service_name}/status",
                     self.status,
                     response_class=JSONResponse,
@@ -88,7 +89,9 @@ class FEServer(BaseServer):  # pylint: disable=too-many-arguments
 
     async def get_target_features(self, request: Request):
         s = await request.body()
-        return Response(content=pickle.dumps(self.model.get_target_features(pickle.loads(s))))
+        return Response(
+            content=pickle.dumps(
+                self.model.get_target_features(pickle.loads(s))))
 
     async def update_service(self, request: Request):
         s = await request.body()

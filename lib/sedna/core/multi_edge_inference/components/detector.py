@@ -19,16 +19,20 @@ import numpy as np
 from sedna.algorithms.optical_flow import LukasKanade, LukasKanadeCUDA
 from sedna.common.log import LOGGER
 
-from sedna.core.multi_edge_inference.plugins import PLUGIN, PluggableModel, PluggableNetworkService
-from sedna.core.multi_edge_inference.plugins.registered import Feature_Extraction_I, VideoAnalytics
-from sedna.core.multi_edge_inference.components import BaseService, FileOperations
+from sedna.core.multi_edge_inference.plugins \
+    import PLUGIN, PluggableModel, PluggableNetworkService
+from sedna.core.multi_edge_inference.plugins.registered \
+    import Feature_Extraction_I, VideoAnalytics
+from sedna.core.multi_edge_inference.components \
+    import BaseService, FileOperations
+
 
 class ObjectDetector(BaseService, FileOperations):
     """
     In MultiEdgeInference, the Object Detection/Tracking component
-    is deployed as a service at the edge and it used to detect or track objects
-    (for example, pedestrians) and send the result to the cloud for
-    further processing using Kafka or REST API.
+    is deployed as a service at the edge and it used to detect or
+    track objects (for example, pedestrians) and send the result
+    to the cloud for further processing using Kafka or REST API.
 
     Parameters
     ----------
@@ -47,36 +51,58 @@ class ObjectDetector(BaseService, FileOperations):
     models : List
         A list of PluggableModel. By passing a specific instance
         of the model, it is possible to customize the ObjectDetector
-        to, for example, track different objects as long as the 
+        to, for example, track different objects as long as the
         PluggableModel interface is respected.
     timeout: int
-        It sets a timeout condition to terminate the main fetch loop after the specified
-        amount of seconds has passed since we received the last frame.
+        It sets a timeout condition to terminate the main fetch loop
+        after the specified amount of seconds has passed since we
+        received the last frame.
     asynchronous: bool
-        If True, the AI processing will be decoupled from the data acquisition step.
-        If False, the processing will be sequential. In general, set it to True when
-        ingesting a stream (e.g., RTSP) and to False when reading from disk
-        (e.g., a video file).
+        If True, the AI processing will be decoupled from the data
+        acquisition step. If False, the processing will be sequential.
+        In general, set it to True when ingesting a stream (e.g., RTSP)
+        and to False when reading from disk (e.g., a video file).
 
 
     Examples
     --------
-    >>> model = ByteTracker() # A class implementing the PluggableModel abstract class (example in pedestrian_tracking/detector/model/bytetracker.py)
-    >>> objecttracking_service = ObjectDetector(models=[model], asynchronous=True)
+    model = ByteTracker() # A class implementing the PluggableModel abstract
+    class (example in pedestrian_tracking/detector/model/bytetracker.py)
+    objecttracking_service = ObjectDetector(models=[model], asynchronous=True)
 
     Notes
     -----
-    For the parameters described above, only 'models' has to be defined, while 
+    For the parameters described above, only 'models' has to be defined, while
     for others the default value will work in most cases.
     """
 
-    def __init__(self, consumer_topics = ["enriched_object"], producer_topics=["object_detection"], plugins: List[PluggableNetworkService] = [], models: List[PluggableModel] = [], timeout = 10, asynchronous = False):
-        merged_plugins = [VideoAnalytics(wrapper=self), Feature_Extraction_I()] + plugins
-        super().__init__(consumer_topics, producer_topics, merged_plugins, models, timeout, asynchronous)
+    def __init__(
+        self,
+        consumer_topics=["enriched_object"],
+        producer_topics=["object_detection"],
+        plugins: List[PluggableNetworkService] = [],
+        models: List[PluggableModel] = [],
+        timeout=10,
+        asynchronous=False
+    ):
 
-        self.optical_flow = LukasKanadeCUDA() if self.models[0].device == "cuda" else LukasKanade()
+        merged_plugins = \
+            [VideoAnalytics(wrapper=self), Feature_Extraction_I()] + plugins
+
+        super().__init__(
+            consumer_topics,
+            producer_topics,
+            merged_plugins,
+            models,
+            timeout,
+            asynchronous)
+
+        if self.models[0].device == "cuda":
+            self.optical_flow = LukasKanadeCUDA()
+        else:
+            self.optical_flow = LukasKanade()
         self.prev_frame = np.empty(0)
-        
+
         self.heartbeat = time.time()
         self.data_counter = 0
 
@@ -90,7 +116,7 @@ class ObjectDetector(BaseService, FileOperations):
             else:
                 plg = self.get_plugin(PLUGIN.FEATURE_EXTRACTION_I)
                 plg.plugin_api.transmit(result, **kwargs)
-        
+
         return
 
     # We change the preprocess function to add the optical flow analysis
@@ -98,7 +124,10 @@ class ObjectDetector(BaseService, FileOperations):
         # TODO: Improve this check, this is not reliable.
         if isinstance(data, List):
             self.data_counter += len(data)
-            LOGGER.info(f"Received data from FE module (counter={self.data_counter}). Writing to local storage")
+            LOGGER.info(
+                f"Received data from FE module (counter={self.data_counter}).\
+                Writing to local storage"
+                )
             self.write_to_disk(data, folder='/data/network_shared/reid/')
             self.heartbeat = time.time()
             return None
@@ -110,7 +139,7 @@ class ObjectDetector(BaseService, FileOperations):
         else:
             self.prev_frame = data[0]
             return data
-        
+
         return None
 
     def close(self):

@@ -15,9 +15,13 @@
 from typing import List
 from sedna.common.log import LOGGER
 
-from sedna.core.multi_edge_inference.components import BaseService, FileOperations
-from sedna.core.multi_edge_inference.plugins import PLUGIN, PluggableModel, PluggableNetworkService
-from sedna.core.multi_edge_inference.plugins.registered import Feature_Extraction_I, ReID_Server
+from sedna.core.multi_edge_inference.components \
+    import BaseService, FileOperations
+from sedna.core.multi_edge_inference.plugins \
+    import PLUGIN, PluggableModel, PluggableNetworkService
+from sedna.core.multi_edge_inference.plugins.registered \
+    import Feature_Extraction_I, ReID_Server
+
 
 class ReID(BaseService, FileOperations):
     """
@@ -40,30 +44,50 @@ class ReID(BaseService, FileOperations):
         model as the ReID doesn't really use an AI model but rather
         a wrapper for the ReID functions.
     timeout: int
-        It sets a timeout condition to terminate the main fetch loop after the specified
-        amount of seconds has passed since we received the last frame.
+        It sets a timeout condition to terminate the main fetch loop
+        after the specified amount of seconds has passed since we
+        received the last frame.
     asynchronous: bool
-        If True, the AI processing will be decoupled from the data acquisition step.
-        If False, the processing will be sequential. In general, set it to True when
-        ingesting a stream (e.g., RTSP) and to False when reading from disk
-        (e.g., a video file).
+        If True, the AI processing will be decoupled from the data
+        acquisition step. If False, the processing will be sequential.
+        In general, set it to True when ingesting a stream (e.g., RTSP)
+        and to False when reading from disk (e.g., a video file).
 
 
     Examples
     --------
-    >>> model = ReIDWorker() # A class implementing the PluggableModel abstract class (example in pedestrian_tracking/reid/worker.py)
-    >>> self.job = ReID(models=[model], asynchronous=False)
+    model = ReIDWorker() # A class implementing the PluggableModel abstract
+    class (example in pedestrian_tracking/reid/worker.py)
+
+    self.job = ReID(models=[model], asynchronous=False)
 
     Notes
     -----
-    For the parameters described above, only 'models' has to be defined, while 
+    For the parameters described above, only 'models' has to be defined, while
     for others the default value will work in most cases.
     """
 
-    def __init__(self, consumer_topics = [], producer_topics=[], plugins: List[PluggableNetworkService] = [], models: List[PluggableModel] = [], timeout = 10, asynchronous = True):
+    def __init__(
+        self,
+        consumer_topics=[],
+        producer_topics=[],
+        plugins: List[PluggableNetworkService] = [],
+        models: List[PluggableModel] = [],
+        timeout=10,
+        asynchronous=True
+    ):
+
         self.models = models
-        merged_plugins =  [ReID_Server(wrapper=self), Feature_Extraction_I()] + plugins
-        super().__init__(consumer_topics, producer_topics, merged_plugins, models, timeout, asynchronous)
+        merged_plugins =  \
+            [ReID_Server(wrapper=self), Feature_Extraction_I()] + plugins
+
+        super().__init__(
+            consumer_topics,
+            producer_topics,
+            merged_plugins,
+            models,
+            timeout,
+            asynchronous)
 
     def _post_init(self):
         super()._post_init()
@@ -82,10 +106,15 @@ class ReID(BaseService, FileOperations):
                 target_list = self.get_target_features(ldata)
                 ai.update_target(target_list)
             except Exception as ex:
-                LOGGER.error(f"Unable to update AI parameters/configuration for service {ai.__class__.__name__}. [{ex}]") 
+                LOGGER.error(
+                    f"Unable to update AI parameters/configuration for \
+                        service {ai.__class__.__name__}. [{ex}]"
+                    )
         return
 
     def get_target_features(self, ldata):
-        feature_extraction_plugin = self.get_plugin(PLUGIN.FEATURE_EXTRACTION_I)
-        features = feature_extraction_plugin.plugin_api.get_target_features(ldata)
+        feature_extraction_plugin = \
+            self.get_plugin(PLUGIN.FEATURE_EXTRACTION_I)
+        features = \
+            feature_extraction_plugin.plugin_api.get_target_features(ldata)
         return features

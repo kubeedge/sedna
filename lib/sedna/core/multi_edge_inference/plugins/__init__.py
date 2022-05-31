@@ -32,42 +32,53 @@ from sedna.common.log import LOGGER
 
 from sedna.core.multi_edge_inference.utils import get_parameters
 
+MODEL_NOT_FOUND = "MODEL_UNKNOWN"
+
 
 # Class defining the possible plugin services.
 class PLUGIN(Enum):
     REID_MANAGER = "ReIDManager"
     REID_MANAGER_I = "ReIDManager_I"
     REID = "ReID_Server"
-    REID_I = "ReID_I"    
+    REID_I = "ReID_I"
     FEATURE_EXTRACTION = "Feature_Extraction"
     FEATURE_EXTRACTION_I = "Feature_Extraction_I"
-    VIDEO_ANALYTICS = "VideoAnalytics"    
+    VIDEO_ANALYTICS = "VideoAnalytics"
     VIDEO_ANALYTICS_I = "VideoAnalytics_I"
+
 
 class PluggableNetworkService(ABC):
     """
     Abstract class to wrap a REST service.
     """
-    def __init__(self, ip, port, plugin_api : object = None):
+    def __init__(self, ip, port, plugin_api: object = None):
         self.ip = ip
         self.port = port
         self.plugin_api = plugin_api
 
-        assert self.__class__.__name__ in PLUGIN._value2member_map_, f'Plugin {self.__class__.__name__} is non registered!'
+        assert self.__class__.__name__ in PLUGIN._value2member_map_, \
+            f'Plugin {self.__class__.__name__} is non registered!'
 
         self.kind = PLUGIN(self.__class__.__name__).name
 
         self._post_init()
 
-        LOGGER.info(f"Created PluggableNetworkService of kind {self.kind} with IP {self.ip} and port {self.port}")
+        LOGGER.info(
+            f"Created PluggableNetworkService of kind {self.kind} \
+                with IP {self.ip} and port {self.port}"
+            )
 
     def _post_init(self):
-        # If the plugin is hosted, we are starting it as a server exposing an API (in a separate thread).
-        # If the plugin is NOT hosted, we already have everything (the interface).
+        # If the plugin is hosted, we are starting it as a server exposing
+        # an API (in a separate thread). If the plugin is NOT hosted, we
+        # already have everything (the interface).
         if self.plugin_api is not None:
             start = getattr(self.plugin_api, "start", None)
             if callable(start):
-                threading.Thread(target=self.plugin_api.start, daemon=True).start()
+                threading.Thread(
+                    target=self.plugin_api.start, daemon=True
+                    ).start()
+
 
 class PluggableModel(ABC):
     """
@@ -98,7 +109,7 @@ class PluggableModel(ABC):
         if os.path.isfile(self.config.model_url):
             return os.path.basename(self.config.model_url)
         else:
-            "unknown"        
+            MODEL_NOT_FOUND
 
     @abstractmethod
     def load(self, **kwargs):
@@ -161,11 +172,11 @@ class PluggableModel(ABC):
         else:
             LOGGER.warn(f"{backend_type} Not Support yet, use itself")
             from sedna.backend.base import BackendBase as REGISTER
-        
+
         model_save_url = self.config.get("model_url")
         base_model_save = self.config.get("base_model_url") or model_save_url
         model_save_name = self.config.get("model_name")
-        
+
         return REGISTER(
             estimator=self, use_cuda=use_cuda,
             model_save_path=base_model_save,

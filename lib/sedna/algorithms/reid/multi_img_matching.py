@@ -16,12 +16,16 @@ import torch
 from typing import List, Any, Tuple
 import numpy as np
 
+
 def cosine_similarity_score(
         query: np.ndarray = None,
         candidates: np.ndarray = None):
-    """ Computes the cosine similarity score between the query feature and the candidate features.
-    @param query: Feature map of dimension [1, n_feat_dim] representing the query.
-    @param candidates: Feature map of dimension [n_candidates, n_feat_dim] representing the candidate for match.
+    """ Computes the cosine similarity score between the
+        query feature and the candidate features.
+    @param query: Feature map of dimension
+        [1, n_feat_dim] representing the query.
+    @param candidates: Feature map of dimension
+        [n_candidates, n_feat_dim] representing the candidate for match.
     """
     sim_measure = np.matmul(query, candidates.T)
     return sim_measure
@@ -47,16 +51,21 @@ def match_query_to_targets(query_feats: List,
                            candidate_feats: List,
                            avg_mode: bool = False) -> Tuple[int, float]:
     """
-    Query features refer to the features of the person we are looking for in the video.
-    Candidate features refers to features of the persons found by the detector in the current scene.
+    Query features refer to the features of
+    the person we are looking for in the video.
+    Candidate features refers to features of the
+    persons found by the detector in the current scene.
     Args:
-        query_feats: [M x d] M being the number of target images we use as query
-        candidate_feats: [N x d] N being the number of persons detected in the current scene
-        avg_mode: If set, use an average representation of the query. Query feats becomes [1 x d]
+        query_feats: [M x d] M being the number of target images in the query
+        candidate_feats:
+            [N x d] N is the number of persons detected in the scene
+        avg_mode: If set, use an average representation of the query.
+            Query feats becomes [1 x d]
     Returns:
         Id of the candidate which best matches the query
     """
-    query_feats, candidate_feats = tensor_reshape(query_feats), tensor_reshape(candidate_feats)
+    query_feats, candidate_feats = \
+        tensor_reshape(query_feats), tensor_reshape(candidate_feats)
 
     if avg_mode:
         # average query_feats

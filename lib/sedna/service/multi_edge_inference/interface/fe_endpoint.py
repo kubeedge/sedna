@@ -16,6 +16,7 @@ import pickle
 
 from sedna.service.client import http_request
 
+
 class FE:
     """Endpoint to trigger the Feature Extraction"""
 
@@ -33,9 +34,14 @@ class FE:
         return http_request(url=_url, method="POST", data=pickle.dumps(data))
 
     def get_target_features(self, data, **kwargs):
-        """Send target images to FE service and receive back the features for the ReID"""
+        """Send target images to FE service and receive back
+            the ReID features"""
         _url = f"{self.endpoint}/get_target_features"
-        response = http_request(url=_url, method="POST", data=pickle.dumps(data), no_decode=True)
+        response = http_request(
+            url=_url,
+            method="POST",
+            data=pickle.dumps(data),
+            no_decode=True)
         return pickle.loads(response.content)
 
     def update_service(self, data, **kwargs):

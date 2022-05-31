@@ -33,7 +33,15 @@ from sedna.common.file_ops import FileOps
 @retry(stop=tenacity.stop_after_attempt(5),
        retry=tenacity.retry_if_result(lambda x: x is None),
        wait=tenacity.wait_fixed(3))
-def http_request(url, method=None, timeout=None, binary=True, no_decode=False, **kwargs):
+def http_request(
+    url,
+    method=None,
+    timeout=None,
+    binary=True,
+    no_decode=False,
+    **kwargs
+):
+
     _maxTimeout = timeout if timeout else 300
     _method = "GET" if not method else method
     try:
@@ -46,8 +54,10 @@ def http_request(url, method=None, timeout=None, binary=True, no_decode=False, *
                         response.content.decode("utf-8"))
         elif 200 < response.status_code < 400:
             LOGGER.info(f"Redirect_URL: {response.url}")
-        LOGGER.warning(f'Get invalid status code {response.status_code} in request {url}')
-        
+        LOGGER.warning(
+            f'Get invalid status code \
+                {response.status_code} in request {url}')
+
     except (ConnectionRefusedError, requests.exceptions.ConnectionError):
         LOGGER.warning(f'Connection refused in request {url}')
     except requests.exceptions.HTTPError as err:
@@ -56,6 +66,7 @@ def http_request(url, method=None, timeout=None, binary=True, no_decode=False, *
         LOGGER.warning(f"Timeout Error in request {url} : {err}")
     except requests.exceptions.RequestException as err:
         LOGGER.warning(f"Error occurred in request {url} : {err}")
+
 
 class LCReporter(threading.Thread):
     """Inherited thread, which is an entity that periodically report to

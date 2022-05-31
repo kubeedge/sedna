@@ -16,6 +16,7 @@ import pickle
 from sedna.core.multi_edge_inference.data_classes import DetTrackResult
 from sedna.service.client import http_request
 
+
 class ReID_Endpoint:
     """Endpoint to trigger the ReID"""
 
@@ -27,7 +28,7 @@ class ReID_Endpoint:
     def check_server_status(self):
         return http_request(url=self.endpoint, method="GET")
 
-    def transmit(self, x : DetTrackResult, **kwargs):
+    def transmit(self, data: DetTrackResult, **kwargs):
         """Transfer feature vector to ReID worker"""
         _url = f"{self.endpoint}/reid"
-        return http_request(url=_url, method="POST", data=pickle.dumps(x))
+        return http_request(url=_url, method="POST", data=pickle.dumps(data))
