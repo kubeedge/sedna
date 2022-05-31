@@ -147,8 +147,10 @@ sudo ./easydarwin
 
 First, make sure to copy the AI models to the correct path on the nodes **BEFORE** starting the pods. If you use the YAML files provided with this example:
 
-- The node running the VideoAnalytics job should have the YoloX model in `"/data/ai_models/object_detection/pedestrians/yolox.pth"`.
-- The node running the feature extraction service should have the required model:`"/data/ai_models/m3l/m3l.pth"`.
+1. Download the YoloX model at this [LINK](https://drive.google.com/file/d/1i4oW5GBdF7IO5r_GTkogI4LgDvwOkWHb/view?usp=sharing).
+2. On the node running the VideoAnalytics job, place the downloaded file in `"/data/ai_models/object_detection/pedestrians/yolox.pth"`.
+3. Download the M3L model at this [LINK](https://drive.google.com/file/d/1Kyq2DSXBaGKp3eDNjCmxiKa9SLBZn-Ua/view?usp=sharing).
+4. On the node running the Feature Extraction service, place the downloaded file in:`"/data/ai_models/m3l/m3l.pth"`.
 
 Do the following:
 - Run `kubectl create -f yaml/models/model_m3l.yaml`

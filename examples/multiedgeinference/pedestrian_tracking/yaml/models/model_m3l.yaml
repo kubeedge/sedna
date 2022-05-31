@@ -6,5 +6,3 @@ metadata:
 spec:
   url: "/data/ai_models/m3l/m3l.pth"
   format: "pth"
-  description: "M3L to extract ReID features."
-  purpose: "feature_extraction"

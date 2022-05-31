@@ -60,8 +60,8 @@ const (
 	FEPort = 6000
 )
 
-// FeatureExtractionServicerKind contains the schema.GroupVersionKind for this controller type.
-var FeatureExtractionServiceKind = sednav1.SchemeGroupVersion.WithKind("FeatureExtractionService")
+// FeatureExtractionServiceKind contains the schema.GroupVersionKind for this controller type.
+var FeatureExtractionServiceKind = sednav1.SchemeGroupVersion.WithKind(KindName)
 
 // Controller ensures that all FeatureExtractionService objects
 // have corresponding pods to run their configured workload.
@@ -541,7 +541,6 @@ func (c *Controller) createWorkers(service *sednav1.FeatureExtractionService) (a
 	}
 
 	return activePods, activeDeployments, nil
-
 }
 
 func (c *Controller) GetName() string {

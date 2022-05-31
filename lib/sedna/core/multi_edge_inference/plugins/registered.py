@@ -15,8 +15,8 @@
 from sedna.common.utils import get_host_ip
 from sedna.core.multi_edge_inference.plugins import PluggableNetworkService
 from sedna.core.multi_edge_inference.utils import get_parameters
-from sedna.service.multi_edge_tracking.interface import *
-from sedna.service.multi_edge_tracking.server import *
+from sedna.service.multi_edge_inference.interface import *
+from sedna.service.multi_edge_inference.server import *
 
 """
 Each PluggableNetworkService can be separated into server and interface.

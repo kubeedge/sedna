@@ -57,7 +57,7 @@ fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-IMAGE_TAG=${GIT_TAG:-v0.5.0} 
+IMAGE_TAG=${IMAGE_TAG:-v0.5.0} 
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 
 dockerfiles_multiedgeinference=(

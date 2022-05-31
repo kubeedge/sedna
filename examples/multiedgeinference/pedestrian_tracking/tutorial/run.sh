@@ -92,6 +92,9 @@ kubectl delete -f ../yaml/video-analytics-job.yaml
 
 ### REID ###
 
+# remove old ReID job, if any
+kubectl delete -f ../yaml/reid-job.yaml
+
 # create ReID job
 echo "⚪ Create ReID job."
 kubectl apply -f ../yaml/reid-job.yaml
