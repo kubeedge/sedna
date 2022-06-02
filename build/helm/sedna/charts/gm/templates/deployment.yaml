@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gm
+  labels:
+    sedna: gm
+  namespace: sedna
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      sedna: gm
+  template:
+    metadata:
+      labels:
+        sedna: gm
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/edge
+                operator: DoesNotExist
+      serviceAccountName: sedna
+      containers:
+      - name: gm
+        image: {{ .Values.image }}
+        command: ["sedna-gm", "--config", "/config/gm.yaml", "-v2"]
+        volumeMounts:
+        - name: gm-config
+          mountPath: /config
+        resources:
+          requests:
+            memory: {{ .Values.resources.requests.memory }}
+            cpu: {{ .Values.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.resources.limits.memory }}
+      volumes:
+        - name: gm-config
+          configMap:
+            name: gm-config

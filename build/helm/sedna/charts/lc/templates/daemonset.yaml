@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    sedna: lc
+  name: lc
+  namespace: sedna
+spec:
+  selector:
+    matchLabels:
+      sedna: lc
+  template:
+    metadata:
+      labels:
+        sedna: lc
+    spec:
+      containers:
+        - name: lc
+          image: kubeedge/sedna-lc:v0.4.3
+          env:
+            - name: GM_ADDRESS
+              value: gm.sedna:9000
+            - name: BIND_PORT
+              value: "9100"
+            - name: NODENAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ROOTFS_MOUNT_DIR
+              value: /rootfs
+          resources:
+            requests:
+              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ .Values.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.resources.limits.memory }}
+          volumeMounts:
+            - name: localcontroller
+              mountPath: /rootfs
+      volumes:
+        - name: localcontroller
+          hostPath:
+            path: /
+      restartPolicy: Always
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet

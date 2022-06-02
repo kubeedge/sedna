@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gm-config
+  namespace: sedna
+data:
+  gm.yaml: |
+    kubeConfig: {{ .Values.kubeConfig }}
+    master: {{ .Values.master }}
+    namespace: {{ .Values.namespace }}
+    websocket:
+      address: {{ .Values.websocket.address }}
+      port: {{ .Values.websocket.port }}
+    localController:
+      server: {{ .Values.localController.server }}
+    knowledgeBaseServer:
+      server: {{ .Values.knowledgeBaseServer.server }}

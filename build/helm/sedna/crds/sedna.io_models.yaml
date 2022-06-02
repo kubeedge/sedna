@@ -1,0 +1,71 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: models.sedna.io
+spec:
+  group: sedna.io
+  names:
+    kind: Model
+    listKind: ModelList
+    plural: models
+    singular: model
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              credentialName:
+                type: string
+              format:
+                type: string
+              url:
+                type: string
+            required:
+            - format
+            - url
+            type: object
+          status:
+            properties:
+              metrics:
+                items:
+                  properties:
+                    key:
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - key
+                  - value
+                  type: object
+                type: array
+              updateTime:
+                format: date-time
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
