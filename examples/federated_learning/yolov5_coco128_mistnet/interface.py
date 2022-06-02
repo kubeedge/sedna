@@ -175,7 +175,7 @@ class Estimator_server:
             "target_accuracy": 0.99,
             "epochs": int(Context.get_parameters("EPOCHS", 500)),
             "batch_size": int(Context.get_parameters("BATCH_SIZE", 16)),
-            "repeat_epoch": 1,        #repeat_epoch=200(epoch)/aug_num       ####new adding params
+            "repeat_epoch": 200,        #repeat_epoch=200(epoch)/aug_num       ####new adding params
             "per_batch_size": 8,                                        ####new adding params
             "group_size": 1,     ###Be consistent with aug_num          ####new adding params
             "optimizer": "SGD",
