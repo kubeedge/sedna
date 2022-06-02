@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// Datasets returns a DatasetInformer.
 	Datasets() DatasetInformer
+	// FeatureExtractionServices returns a FeatureExtractionServiceInformer.
+	FeatureExtractionServices() FeatureExtractionServiceInformer
 	// FederatedLearningJobs returns a FederatedLearningJobInformer.
 	FederatedLearningJobs() FederatedLearningJobInformer
 	// IncrementalLearningJobs returns a IncrementalLearningJobInformer.
@@ -40,6 +42,10 @@ type Interface interface {
 	ObjectSearchServices() ObjectSearchServiceInformer
 	// ObjectTrackingServices returns a ObjectTrackingServiceInformer.
 	ObjectTrackingServices() ObjectTrackingServiceInformer
+	// ReidJobs returns a ReidJobInformer.
+	ReidJobs() ReidJobInformer
+	// VideoAnalyticsJobs returns a VideoAnalyticsJobInformer.
+	VideoAnalyticsJobs() VideoAnalyticsJobInformer
 }
 
 type version struct {
@@ -56,6 +62,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // Datasets returns a DatasetInformer.
 func (v *version) Datasets() DatasetInformer {
 	return &datasetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// FeatureExtractionServices returns a FeatureExtractionServiceInformer.
+func (v *version) FeatureExtractionServices() FeatureExtractionServiceInformer {
+	return &featureExtractionServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // FederatedLearningJobs returns a FederatedLearningJobInformer.
@@ -91,4 +102,14 @@ func (v *version) ObjectSearchServices() ObjectSearchServiceInformer {
 // ObjectTrackingServices returns a ObjectTrackingServiceInformer.
 func (v *version) ObjectTrackingServices() ObjectTrackingServiceInformer {
 	return &objectTrackingServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ReidJobs returns a ReidJobInformer.
+func (v *version) ReidJobs() ReidJobInformer {
+	return &reidJobInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// VideoAnalyticsJobs returns a VideoAnalyticsJobInformer.
+func (v *version) VideoAnalyticsJobs() VideoAnalyticsJobInformer {
+	return &videoAnalyticsJobInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

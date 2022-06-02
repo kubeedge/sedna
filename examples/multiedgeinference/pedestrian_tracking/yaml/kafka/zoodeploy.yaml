@@ -1,0 +1,27 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: zoo1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zoo1
+  template:
+    metadata:
+      labels:
+        app: zoo1
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ''
+      containers:
+      - name: zoo1
+        image: digitalwonderland/zookeeper
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 2181
+        env:
+        - name: ZOOKEEPER_ID
+          value: "1"
+        - name: ZOOKEEPER_SERVER_1
+          value: zoo1

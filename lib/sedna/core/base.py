@@ -106,8 +106,6 @@ class ModelLoadingThread(threading.Thread):
 
 class JobBase:
     """ sedna feature base class """
-    parameters = Context
-
     def __init__(self, estimator, config=None):
         self.config = BaseConfig()
         if config:
@@ -119,6 +117,7 @@ class JobBase:
         self.worker_name = self.config.worker_name or self.job_name
         self.namespace = self.config.namespace or self.job_name
         self.lc_server = self.config.lc_server
+
         if str(
                 self.get_parameters("MODEL_HOT_UPDATE", "False")
         ).lower() == "true":
@@ -159,7 +158,7 @@ class JobBase:
         return callback_func(res) if callback_func else res
 
     def get_parameters(self, param, default=None):
-        return self.parameters.get_parameters(param=param, default=default)
+        return Context.get_parameters(param=param, default=default)
 
     def report_task_info(self, task_info, status, results=None, kind="train"):
         message = {

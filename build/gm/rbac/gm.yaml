@@ -11,11 +11,14 @@ rules:
     - datasets
     - models
     - jointinferenceservices
+    - featureextractionservices
     - federatedlearningjobs
     - incrementallearningjobs
     - lifelonglearningjobs
     - objectsearchservices
     - objecttrackingservices
+    - reidjobs
+    - videoanalyticsjobs
     verbs:
     - get
     - list
@@ -30,10 +33,13 @@ rules:
     - models/status
     - jointinferenceservices/status
     - federatedlearningjobs/status
+    - featureextractionservices/status
     - incrementallearningjobs/status
     - lifelonglearningjobs/status
     - objectsearchservices/status
     - objecttrackingservices/status
+    - reidjobs/status
+    - videoanalyticsjobs/status
     verbs:
     - get
     - update
@@ -41,13 +47,16 @@ rules:
   # current we implement ai features by k8s pods, services, deployments
   - apiGroups:
     - ""
+    - "apps"
     resources:
+    - deployments
     - pods
     verbs:
     - create
     - get
     - list
     - watch
+    - update
     - delete
   - apiGroups:
     - "apps"
@@ -78,6 +87,7 @@ rules:
     - nodes
     verbs:
     - get
+    - list
 
   - apiGroups:
     - ""
@@ -85,6 +95,9 @@ rules:
     - events
     verbs:
     - create
+    - patch
+    - watch
+    - delete
     - list
     - get
 ---

@@ -131,6 +131,7 @@ setup(
         "fl": _infos.feature_dependencies("federated_learning"),
         "il": _infos.feature_dependencies("incremental_learning"),
         "ji": _infos.feature_dependencies("joint_inference"),
-        "ll": _infos.feature_dependencies("lifelong_learning")
+        "ll": _infos.feature_dependencies("lifelong_learning"),
+        "me": _infos.feature_dependencies("multi_edge_tracking")
     },
 )

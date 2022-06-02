@@ -1,0 +1,8 @@
+apiVersion: sedna.io/v1alpha1
+kind: Model
+metadata:
+  name: detection-pedestrians-yolox
+  namespace: default
+spec:
+  url: "/data/ai_models/object_detection/pedestrians/yolox.pth"
+  format: "pth"

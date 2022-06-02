@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/kubeedge/sedna/pkg/apis/sedna"
+	sedna "github.com/kubeedge/sedna/pkg/apis/sedna"
 )
 
 // SchemeGroupVersion is group version used to register these objects
@@ -53,12 +53,18 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ModelList{},
 		&JointInferenceService{},
 		&JointInferenceServiceList{},
+		&FeatureExtractionService{},
+		&FeatureExtractionServiceList{},
 		&FederatedLearningJob{},
 		&FederatedLearningJobList{},
 		&IncrementalLearningJob{},
 		&IncrementalLearningJobList{},
 		&LifelongLearningJob{},
 		&LifelongLearningJobList{},
+		&ReidJob{},
+		&ReidJobList{},
+		&VideoAnalyticsJob{},
+		&VideoAnalyticsJobList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

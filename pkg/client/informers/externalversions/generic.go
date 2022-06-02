@@ -55,6 +55,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=sedna.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("datasets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().Datasets().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("featureextractionservices"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().FeatureExtractionServices().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("federatedlearningjobs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().FederatedLearningJobs().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("incrementallearningjobs"):
@@ -69,6 +71,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().ObjectSearchServices().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("objecttrackingservices"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().ObjectTrackingServices().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("reidjobs"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().ReidJobs().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("videoanalyticsjobs"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sedna().V1alpha1().VideoAnalyticsJobs().Informer()}, nil
 
 	}
 

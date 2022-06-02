@@ -1,0 +1,36 @@
+apiVersion: sedna.io/v1alpha1
+kind: ReidJob
+metadata:
+  name: reid
+spec:
+  backoffLimit: 5
+  kafkaSupport: false
+  template:
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ''
+      containers:
+        - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-inference-reid:v0.5.0
+          name:  reid
+          imagePullPolicy: Always
+          env:
+          - name: OBS_TOKEN
+            value: ""
+          - name: match_thresh # the matching threshold for the reid
+            value: "0.35"
+          - name: user_id # the user running the job
+            value: "synthetic"
+          - name: query_images # a list of images, separated by pipe (|)
+            value: "/data/network_shared/reid/query/1.jpg|/data/network_shared/reid/query/2.jpg|/data/network_shared/reid/query/3.jpg"
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 2000m
+          volumeMounts:
+          - name: vol1
+            mountPath: /data/network_shared/reid/
+      restartPolicy: Never
+      volumes:
+        - name: vol1
+          persistentVolumeClaim:
+            claimName: reid-pvc

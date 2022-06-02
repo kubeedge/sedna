@@ -272,6 +272,7 @@ class BaseConfig(ConfigSerializable):
     pretrained_model_url = os.getenv("PRETRAINED_MODEL_URL", "./")
     model_url = os.getenv("MODEL_URL")
     model_name = os.getenv("MODEL_NAME")
+    log_level = os.getenv("LOG_LEVEL", "INFO")
 
     transmitter = os.getenv("TRANSMITTER", "ws")
     agg_data_path = os.getenv("AGG_DATA_PATH", "./")
