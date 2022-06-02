@@ -45,7 +45,7 @@ const (
 	// CSVFormat is commas separated value format with a extra header.
 	// It can be used in structured data scenarios.
 	CSVFormat = "csv"
-	// FormatTXT is line separated format.
+	// TXTFormat is line separated format.
 	// It can be used in unstructured data scenarios.
 	TXTFormat = "txt"
 )

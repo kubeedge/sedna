@@ -215,11 +215,11 @@ spec:
           - name: localvideo
             hostPath:
               path: /incremental_learning/video/
-              type: DirectoryorCreate
+              type: DirectoryOrCreate
           - name: hedir
             hostPath:
               path:  /incremental_learning/he/
-              type: DirectoryorCreate
+              type: DirectoryOrCreate
   outputDir: "/output"
 EOF
 ```
