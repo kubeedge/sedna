@@ -83,6 +83,48 @@ func GenerateWorkerSelector(object CommonInterface, workerType string) (labels.S
 	return metav1.LabelSelectorAsSelector(ls)
 }
 
+// CreateKubernetesService creates a k8s service for an object given ip and port
+func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32, inputIP string) (int32, error) {
+	ctx := context.Background()
+	name := object.GetName()
+	namespace := object.GetNamespace()
+	kind := object.GroupVersionKind().Kind
+	targePort := intstr.IntOrString{
+		IntVal: inputPort,
+	}
+	serviceSpec := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: object.GetNamespace(),
+			Name:      strings.ToLower(name + "-" + workerType),
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+			},
+			Labels: generateLabels(object, workerType),
+		},
+		Spec: v1.ServiceSpec{
+			Selector: generateLabels(object, workerType),
+			ExternalIPs: []string{
+				inputIP,
+			},
+			Type: v1.ServiceTypeNodePort,
+			Ports: []v1.ServicePort{
+				{
+					Port:       inputPort,
+					TargetPort: targePort,
+				},
+			},
+		},
+	}
+	service, err := kubeClient.CoreV1().Services(namespace).Create(ctx, serviceSpec, metav1.CreateOptions{})
+	if err != nil {
+		klog.Warningf("failed to create service for %v %v/%v, err:%s", kind, namespace, name, err)
+		return 0, err
+	}
+
+	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
+	return service.Spec.Ports[0].NodePort, nil
+}
+
 // injectWorkerParam modifies pod in-place
 func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInterface) {
 	InjectStorageInitializer(pod, workerParam)
@@ -188,7 +230,9 @@ func CreateDeploymentWithTemplate(client kubernetes.Interface, object CommonInte
 	objectKind := object.GroupVersionKind()
 	objectName := object.GetNamespace() + "/" + object.GetName()
 	deployment := newDeployment(object, spec, workerParam)
+
 	injectDeploymentParam(deployment, workerParam, object, port)
+
 	createdDeployment, err := client.AppsV1().Deployments(object.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
 	if err != nil {
 		klog.Warningf("failed to create deployment for %s %s, err:%s", objectKind, objectName, err)
@@ -221,7 +265,16 @@ func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerPa
 }
 
 // injectDeploymentParam modifies deployment in-place
-func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, port int32) {
+func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, _port int32) {
+	var appLabelKey = "app.sedna.io"
+	var appLabelValue = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
+
+	// Injection of the storage variables must be done before loading
+	// the environment variables!
+	if workerParam.Mounts != nil {
+		InjectStorageInitializerDeployment(deployment, workerParam)
+	}
+
 	// inject our labels
 	if deployment.Labels == nil {
 		deployment.Labels = make(map[string]string)
@@ -229,17 +282,29 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 	if deployment.Spec.Template.Labels == nil {
 		deployment.Spec.Template.Labels = make(map[string]string)
 	}
+	if deployment.Spec.Selector.MatchLabels == nil {
+		deployment.Spec.Selector.MatchLabels = make(map[string]string)
+	}
 
 	for k, v := range generateLabels(object, workerParam.WorkerType) {
 		deployment.Labels[k] = v
 		deployment.Spec.Template.Labels[k] = v
 		deployment.Spec.Selector.MatchLabels[k] = v
 	}
-	deployment.Spec.Template.Spec.Containers[0].Ports = []v1.ContainerPort{
-		{
-			ContainerPort: port,
-		},
+
+	// Edgemesh part, useful for service mapping (not necessary!)
+	deployment.Labels[appLabelKey] = appLabelValue
+	deployment.Spec.Template.Labels[appLabelKey] = appLabelValue
+	deployment.Spec.Selector.MatchLabels[appLabelKey] = appLabelValue
+
+	// Env variables injection
+	envs := createEnvVars(workerParam.Env)
+	for idx := range deployment.Spec.Template.Spec.Containers {
+		deployment.Spec.Template.Spec.Containers[idx].Env = append(
+			deployment.Spec.Template.Spec.Containers[idx].Env, envs...,
+		)
 	}
+
 }
 
 // createEnvVars creates EnvMap for container
