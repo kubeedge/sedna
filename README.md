@@ -85,7 +85,8 @@ Example1：[Using Joint Inference Service in Helmet Detection Scenario](/example
 Example2：[Using Incremental Learning Job in Helmet Detection Scenario](/examples/incremental_learning/helmet_detection/README.md).  
 Example3：[Using Federated Learning Job in Surface Defect Detection Scenario](/examples/federated_learning/surface_defect_detection/README.md).  
 Example4：[Using Federated Learning Job in YoLov5-based Object Detection](/examples/federated_learning/yolov5_coco128_mistnet/README.md).  
-Example5：[Using Lifelong Learning Job in Thermal Comfort Prediction Scenario](/examples/lifelong_learning/atcii/README.md).
+Example5：[Using Lifelong Learning Job in Thermal Comfort Prediction Scenario](/examples/lifelong_learning/atcii/README.md).  
+Example6：[Using MultiEdge Inference Service to Track an Infected COVID-19 Carrier in Pandemic Scenarios](/examples/multiedgeinference/pedestrian_tracking/README.md).
 
 ## Roadmap
 
