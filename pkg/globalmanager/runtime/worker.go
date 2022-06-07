@@ -304,7 +304,6 @@ func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerPar
 			deployment.Spec.Template.Spec.Containers[idx].Env, envs...,
 		)
 	}
-
 }
 
 // createEnvVars creates EnvMap for container

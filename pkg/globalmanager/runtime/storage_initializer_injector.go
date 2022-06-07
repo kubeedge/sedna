@@ -371,7 +371,6 @@ func PrepareStorage(workerParam *WorkerParam) {
 			)
 		}
 	}
-
 	workerParam.Mounts = mounts
 }
 
@@ -387,7 +386,6 @@ func PrepareSecret(workerParam *WorkerParam) []v1.EnvVar {
 			}
 		}
 	}
-
 	return secretEnvs
 }
 
@@ -437,7 +435,6 @@ func PrepareHostPath(workerParam *WorkerParam) ([]v1.Volume, []v1.VolumeMount, [
 			}
 		}
 	}
-
 	return volumes, volumeMounts, initContainerVolumeMounts
 }
 
