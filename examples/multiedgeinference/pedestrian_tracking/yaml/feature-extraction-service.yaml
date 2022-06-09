@@ -18,7 +18,7 @@ spec:
       nodeSelector:
         node-role.kubernetes.io/master: ''
       containers:
-      - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-inference-feature-extraction:v0.5.0
+      - image: kubeedge/sedna-example-multi-edge-inference-pedestrian-tracking-feature-extraction:v0.5.0
         imagePullPolicy: Always
         name:  feature-extraction
         env:

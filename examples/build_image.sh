@@ -61,11 +61,11 @@ IMAGE_TAG=${IMAGE_TAG:-v0.5.0}
 EXAMPLE_REPO_PREFIX=${IMAGE_REPO}/sedna-example-
 
 dockerfiles_multiedgeinference=(
-multi-edge-inference-feature-extraction.Dockerfile
-# multi-edge-inference-gpu-feature-extraction.Dockerfile
-# multi-edge-inference-gpu-videoanalytics.Dockerfile
-multi-edge-inference-reid.Dockerfile
-multi-edge-inference-videoanalytics.Dockerfile
+multi-edge-inference-pedestrian-tracking-feature-extraction.Dockerfile
+# multi-edge-inference-pedestrian-tracking-gpu-feature-extraction.Dockerfile
+# multi-edge-inference-pedestrian-tracking-gpu-videoanalytics.Dockerfile
+multi-edge-inference-pedestrian-tracking-reid.Dockerfile
+multi-edge-inference-pedestrian-tracking-videoanalytics.Dockerfile
 )
 
 dockerfiles_federated_learning=(
