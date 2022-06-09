@@ -32,14 +32,14 @@ The image below shows the system architecture and its simplified workflow:
 - Available for CPU only.
 - Folder with specific implementation `examples/multiedgeinference/pedestrian_tracking/reid`.
 - Component specs in `lib/sedna/core/multi_edge_inference/components/reid.py`.
-- Defined by the Dockerfile `multi-edge-inference-reid.Dockerfile`.
+- Defined by the Dockerfile `multi-edge-inference-pedestrian-tracking-reid.Dockerfile`.
 
 **Feature Extraction Service**: it performs the extraction of the features necessary for the ReID step.
 
 - Available for CPU and GPU.
 - Folder with specific implementation details `examples/multiedgeinference/pedestrian_tracking/feature_extraction`.
 - Component specs in `lib/sedna/core/multi_edge_inference/components/feature_extraction.py`.
-- Defined by the Dockerfile `multi-edge-inference-feature-extraction.Dockerfile` or `multi-edge-inference-gpu-feature-extraction.Dockerfile`.
+- Defined by the Dockerfile `multi-edge-inference-pedestrian-tracking-feature-extraction.Dockerfile` or `multi-edge-inference-pedestrian-tracking-gpu-feature-extraction.Dockerfile`.
 - It loads the model defined by the CRD in the YAML file `yaml/models/model_m3l.yaml`.
 
 **VideoAnalytics Job**: it performs tracking of objects (pedestrians) in a video.
@@ -48,7 +48,7 @@ The image below shows the system architecture and its simplified workflow:
 - Folder with specific implementation details `examples/multiedgeinference/pedestrian_tracking/detection`.
 - AI model code in `examples/multiedgeinference/detection/estimator/bytetracker.py`.
 - Component specs in `lib/sedna/core/multi_edge_inference/components/detection.py`.
-- Defined by the Dockerfile `multi-edge-inference-videoanalytics.Dockerfile` or `multi-edge-inference-gpu-videoanalytics.Dockerfile`.
+- Defined by the Dockerfile `multi-edge-inference-pedestrian-tracking-videoanalytics.Dockerfile` or `multi-edge-inference-pedestrian-tracking-gpu-videoanalytics.Dockerfile`.
 - It loads the model defined by the CRD in the YAML file `yaml/models/model_detection.yaml`.
 
 # Build Phase
