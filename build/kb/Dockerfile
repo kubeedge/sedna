@@ -14,6 +14,9 @@
 
 FROM python:3.6-slim
 
+RUN apt update \
+  && apt install -y libgl1-mesa-glx libglib2.0-0
+
 RUN pip install colorlog~=4.7.2
 RUN pip install PyYAML~=5.4.1
 RUN pip install fastapi~=0.63.0
@@ -25,6 +28,7 @@ RUN pip install uvicorn~=0.14.0
 RUN pip install python-multipart~=0.0.5
 RUN pip install SQLAlchemy~=1.4.7
 RUN pip install aiofiles~=0.7.0
+RUN pip install opencv-python~=4.4.0.44
 
 RUN mkdir /code
 ENV PYTHONPATH "/code/lib"
