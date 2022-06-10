@@ -1,4 +1,4 @@
-apiVersion: sedna.io/v1alpha1
+    apiVersion: sedna.io/v1alpha1
 kind: ReidJob
 metadata:
   name: reid
@@ -10,7 +10,7 @@ spec:
       nodeSelector:
         node-role.kubernetes.io/master: ''
       containers:
-        - image: registry-cbu.huawei.com/kubeedge/sedna-example-multi-edge-inference-reid:v0.5.0
+        - image: kubeedge/sedna-example-multi-edge-inference-pedestrian-tracking-reid:v0.5.0
           name:  reid
           imagePullPolicy: Always
           env:
