@@ -15,9 +15,10 @@
 """Framework Backend class."""
 
 import os
+import tempfile
 import warnings
 
-from sedna.common.config import BaseConfig
+from sedna.common.config import BaseConfig, Context
 
 
 def set_backend(estimator=None, config=None):
@@ -26,6 +27,7 @@ def set_backend(estimator=None, config=None):
         return
     if config is None:
         config = BaseConfig()
+    parameters = Context
     use_cuda = False
     backend_type = os.getenv(
         'BACKEND_TYPE', config.get("backend_type", "UNKNOWN")
@@ -53,6 +55,12 @@ def set_backend(estimator=None, config=None):
     model_save_url = config.get("model_url")
     base_model_save = config.get("base_model_url") or model_save_url
     model_save_name = config.get("model_name")
+
+    local_test = False if str.lower(parameters.get_parameters("LOCAL_TEST", "TRUE")) != "true" else True
+    if local_test:
+        model_save_url = parameters.get_parameters("MODEL_URL")
+        base_model_save = tempfile.mkdtemp()
+        model_save_name = parameters.get_parameters("MODEL_NAME")
 
     return REGISTER(
         estimator=estimator, use_cuda=use_cuda,
