@@ -106,10 +106,13 @@ class ModelLoadingThread(threading.Thread):
 
 class JobBase:
     """ sedna feature base class """
+    parameters = Context
+
     def __init__(self, estimator, config=None):
         self.config = BaseConfig()
         if config:
             self.config.from_json(config)
+
         self.log = LOGGER
         self.estimator = set_backend(estimator=estimator, config=self.config)
         self.job_kind = K8sResourceKind.DEFAULT.value
@@ -126,7 +129,7 @@ class JobBase:
                 self.report_task_info
             ).start()
         # local test flag
-        self.local_test = False if str.lower(self.parameters.get_parameters("LOCAL_TEST", "TRUE")) != "true" else True
+        self.local_test = False if str.lower(self.get_parameters("LOCAL_TEST", "TRUE")) != "true" else True
 
     @property
     def model_path(self):
@@ -161,7 +164,7 @@ class JobBase:
         return callback_func(res) if callback_func else res
 
     def get_parameters(self, param, default=None):
-        return Context.get_parameters(param=param, default=default)
+        return  self.parameters.get_parameters(param=param, default=default)
 
     def report_task_info(self, task_info, status, results=None, kind="train"):
         message = {

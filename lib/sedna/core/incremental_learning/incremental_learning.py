@@ -18,6 +18,7 @@ from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
 from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.core.base import JobBase
+from sedna.common.config import Context
 
 __all__ = ("IncrementalLearning",)
 
