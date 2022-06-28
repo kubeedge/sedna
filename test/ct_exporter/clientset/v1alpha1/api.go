@@ -10,7 +10,6 @@ import (
 type ExampleV1Alpha1Interface interface {
 	Federated(namespace string) FederatedInterface
 	Dataset(namespace string) DatasetInterface
-
 }
 
 type ExampleV1Alpha1Client struct {

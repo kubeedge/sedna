@@ -85,6 +85,7 @@ type TrainingWorker struct {
 type TrainDataset struct {
 	Name string `json:"name"`
 }
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type TrainModel struct {
 	Name string `json:"name"`
@@ -142,6 +143,7 @@ type FLJobStatus struct {
 	// +optional
 	Phase FLJobPhase `json:"phase,omitempty"`
 }
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type FLJobConditionType string
 

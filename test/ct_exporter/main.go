@@ -2,51 +2,46 @@ package main
 
 import (
 	"context"
+	"ct_exporter/api/types/v1alpha1"
+	clientV1alpha1 "ct_exporter/clientset/v1alpha1"
 	"flag"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"ct_exporter/api/types/v1alpha1"
-	clientV1alpha1 "ct_exporter/clientset/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	//"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"log"
-	//"math/rand"
 	"net/http"
-	//"path/filepath"
-	//"strconv"
-	//"strings"
 )
 
 var condMap = map[string]int{
-	"Complete": 1,
-	"Failed": 2,
-	"Training": 3,
-	"Pending": 4,
-	"Running": 5,
+	"Complete":  1,
+	"Failed":    2,
+	"Training":  3,
+	"Pending":   4,
+	"Running":   5,
 	"Succeeded": 6,
 }
 
 var kubeconfig string
 
 var (
-	JobConditionType   		*prometheus.Desc
-	NumberOfSamples    		*prometheus.Desc
-	LastHeartBeatTime  		*prometheus.Desc
-	LastProbeTime  			*prometheus.Desc
-	StartTime       		*prometheus.Desc
-	CompletionTime  		*prometheus.Desc
-	ActivePodNumber  		*prometheus.Desc
-	FailedPodNumber       	*prometheus.Desc
-	SucceededPodNumber  	*prometheus.Desc
-	Phase			  		*prometheus.Desc
+	JobConditionType   *prometheus.Desc
+	NumberOfSamples    *prometheus.Desc
+	LastHeartBeatTime  *prometheus.Desc
+	LastProbeTime      *prometheus.Desc
+	StartTime          *prometheus.Desc
+	CompletionTime     *prometheus.Desc
+	ActivePodNumber    *prometheus.Desc
+	FailedPodNumber    *prometheus.Desc
+	SucceededPodNumber *prometheus.Desc
+	Phase              *prometheus.Desc
 )
 
-type  Exporter struct {
-	client    *clientV1alpha1.ExampleV1Alpha1Client
+type Exporter struct {
+	client *clientV1alpha1.ExampleV1Alpha1Client
 }
 
 func NewExporter() (*Exporter, error) {
@@ -241,7 +236,6 @@ func main() {
 		nil,
 		nil)
 
-
 	exporter, err := NewExporter()
 	if err != nil {
 		panic(err)
@@ -266,4 +260,3 @@ func main() {
 	}
 
 }
-
