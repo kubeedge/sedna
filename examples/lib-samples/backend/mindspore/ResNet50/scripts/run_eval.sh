@@ -61,11 +61,11 @@ then
     rm -rf ./eval
 fi
 mkdir ./eval
-cp ../*.py ./eval
-cp *.sh ./eval
-cp -r ../src ./eval
+cp *.py ./eval
+cp scripts/*.sh ./eval
+cp -r src ./eval
 cd ./eval || exit
 env > env.log
 echo "start evaluation for device $DEVICE_ID"
-python eval.py --dataset_path=$PATH1 --checkpoint_path=$PATH2 &> log &
+python3 eval.py --dataset_path=$PATH1 --checkpoint_path=$PATH2
 cd ..

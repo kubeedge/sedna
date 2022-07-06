@@ -52,11 +52,11 @@ then
     rm -rf ./train
 fi
 mkdir ./train
-cp ../*.py ./train
-cp *.sh ./train
-cp -r ../src ./train
+cp *.py ./train
+cp scripts/*.sh ./train
+cp -r src ./train
 cd ./train || exit
 echo "start training for CPU"
 env > env.log
-python train.py --device_target="CPU" --dataset_path=$PATH1 --model_save_path=$PATH2 &> log &
+python3 train.py --device_target="CPU" --dataset_path=$PATH1 --model_save_path=$PATH2
 cd ..

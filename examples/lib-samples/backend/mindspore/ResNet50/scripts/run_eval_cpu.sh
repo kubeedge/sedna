@@ -57,12 +57,11 @@ then
     rm -rf ./eval
 fi
 mkdir ./eval
-cp ../*.py ./eval
-cp *.sh ./eval
-cp -r ../src ./eval
-cp -r ../src ./eval
+cp *.py ./eval
+cp scripts/*.sh ./eval
+cp -r src ./eval
 cd ./eval || exit
 env > env.log
 echo "start evaluation for CPU"
-python eval.py --device_target="CPU" --dataset_path=$PATH1 --checkpoint_path=$PATH2 &> log &
+python3 eval.py --device_target="CPU" --dataset_path=$PATH1 --checkpoint_path=$PATH2
 cd ..

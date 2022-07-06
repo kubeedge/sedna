@@ -58,11 +58,11 @@ then
     rm -rf ./infer
 fi
 mkdir ./infer
-cp ../*.py ./infer
-cp *.sh ./infer
-cp -r ../src ./infer
+cp *.py ./infer
+cp scripts/*.sh ./infer
+cp -r src ./infer
 cd ./infer || exit
 env > env.log
 echo "start inference for device $DEVICE_ID"
-python inference.py --image_path=$PATH1 --checkpoint_path=$PATH2 &> log &
+python3 inference.py --image_path=$PATH1 --checkpoint_path=$PATH2
 cd ..
