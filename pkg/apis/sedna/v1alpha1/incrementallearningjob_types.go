@@ -57,7 +57,8 @@ type TrainSpec struct {
 
 // EvalSpec describes the data an eval worker should have
 type EvalSpec struct {
-	Template v1.PodTemplateSpec `json:"template"`
+	InitialModel *InitialEvalModel  `json:"initialEvalModel,omitempty"`
+	Template     v1.PodTemplateSpec `json:"template"`
 }
 
 // DeploySpec describes the deploy model to be updated
@@ -94,8 +95,21 @@ type InitialModel struct {
 	Name string `json:"name"`
 }
 
+type InitialEvalModel struct {
+	Name string `json:"name"`
+}
+
 type DeployModel struct {
 	Name string `json:"name"`
+	// HotUpdateEnabled will enable the model hot update feature if its value is true.
+	// Default value is false.
+	HotUpdateEnabled bool `json:"hotUpdateEnabled,omitempty"`
+	// PollPeriodSeconds is interval in seconds between echo poll of the deploy model config file.
+	// PollPeriodSeconds must be greater than zero and the default value is 60.
+	// It will be used only when HotUpdateEnabled is true.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:default:=60
+	PollPeriodSeconds int64 `json:"pollPeriodSeconds,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

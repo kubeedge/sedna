@@ -20,6 +20,8 @@ import colorlog
 
 from sedna.common.config import BaseConfig
 
+LOG_LEVEL = BaseConfig.log_level
+
 
 class Logger:
     """
@@ -40,7 +42,7 @@ class Logger:
 
         self.logger.addHandler(self.handler)
         self.logLevel = 'INFO'
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(level=LOG_LEVEL)
         self.logger.propagate = False
 
 

@@ -24,6 +24,23 @@ __all__ = ('BaseDataSource', 'TxtDataParse', 'CSVDataParse')
 
 
 class BaseDataSource:
+    """
+    An abstract class representing a :class:`BaseDataSource`.
+
+    All datasets that represent a map from keys to data samples should subclass
+    it. All subclasses should overwrite parse`, supporting get train/eval/infer
+    data by a function. Subclasses could also optionally overwrite `__len__`,
+    which is expected to return the size of the dataset.overwrite `x` for the
+    feature-embedding, `y` for the target label.
+
+    Parameters
+    ----------
+    data_type : str
+        define the datasource is train/eval/test
+    func: function
+        function use to parse an iter object batch by batch
+    """
+
     def __init__(self, data_type="train", func=None):
         self.data_type = data_type  # sample type: train/eval/test
         self.process_func = None
@@ -54,7 +71,9 @@ class BaseDataSource:
 
 
 class TxtDataParse(BaseDataSource, ABC):
-    """txt file which contain image list parser"""
+    """
+    txt file which contain image list parser
+    """
 
     def __init__(self, data_type, func=None):
         super(TxtDataParse, self).__init__(data_type=data_type, func=func)
@@ -89,7 +108,9 @@ class TxtDataParse(BaseDataSource, ABC):
 
 
 class CSVDataParse(BaseDataSource, ABC):
-    """csv file which contain Structured Data parser"""
+    """
+    csv file which contain Structured Data parser
+    """
 
     def __init__(self, data_type, func=None):
         super(CSVDataParse, self).__init__(data_type=data_type, func=func)

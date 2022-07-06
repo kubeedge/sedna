@@ -1,16 +1,25 @@
-FROM tensorflow/tensorflow:1.15.4
+FROM tensorflow/tensorflow:2.3.0
 
 RUN apt update \
-  && apt install -y libgl1-mesa-glx
+  && apt install -y libgl1-mesa-glx git
 
 COPY ./lib/requirements.txt /home
 
-RUN pip install -r /home/requirements.txt
+RUN python -m pip install --upgrade pip
 
-ENV PYTHONPATH "/home/lib"
+RUN pip install -r /home/requirements.txt
+RUN pip install keras
+RUN pip install tensorflow-datasets
+
+ENV PYTHONPATH "/home/lib:/home/plato"
 
 COPY ./lib /home/lib
-WORKDIR /home/work
-COPY examples/federated_learning/surface_defect_detection/aggregation_worker/  /home/work/
+RUN git clone https://github.com/TL-System/plato.git /home/plato
+RUN rm -rf /home/plato/.git
 
-ENTRYPOINT ["python", "aggregate.py"]
+RUN pip install -r /home/plato/requirements.txt
+
+WORKDIR /home/work
+COPY examples/federated_learning/surface_defect_detection_v2  /home/work/
+
+CMD ["/bin/sh", "-c", "ulimit -n 50000; python aggregate.py"]

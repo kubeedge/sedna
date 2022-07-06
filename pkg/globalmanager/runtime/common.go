@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -88,6 +89,22 @@ func CalcActivePodCount(pods []*v1.Pod) int32 {
 		if v1.PodSucceeded != p.Status.Phase &&
 			v1.PodFailed != p.Status.Phase &&
 			p.DeletionTimestamp == nil {
+			result++
+		}
+	}
+	return result
+}
+
+func CalcActiveDeploymentCount(deployments []*appsv1.Deployment) int32 {
+	var result int32 = 0
+	var latestConditionType appsv1.DeploymentConditionType
+	for _, d := range deployments {
+		dConditions := d.Status.Conditions
+		if len(dConditions) > 0 {
+			latestConditionType = (dConditions)[len(dConditions)-1].Type
+		}
+		if appsv1.DeploymentProgressing == latestConditionType &&
+			d.DeletionTimestamp == nil {
 			result++
 		}
 	}

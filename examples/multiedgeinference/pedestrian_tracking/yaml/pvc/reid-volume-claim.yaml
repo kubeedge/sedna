@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: reid-pvc
+  namespace: default
+spec:
+  storageClassName: ""
+  volumeName: reid-pv
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi

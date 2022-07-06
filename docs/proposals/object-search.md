@@ -15,6 +15,7 @@
     - [Details of api between GM(cloud) and LC(edge)](#details-of-api-between-gmcloud-and-lcedge)
     - [Flow of object search service creation](#flow-of-object-search-service-creation)
   - [Workers Communication](#workers-communication)
+  
 # Object Search Service
 ## Motivation
 Object search is an important technology in the field of computer vision, which is widely used in security monitoring, intelligent transportation, etc. Generally, online object search applications have stringent latency constraints, which cannot be met by cloud computing schemes. Object search schemes based on edge computing have the characteristics of low latency and data privacy security, and are the mainstream technology trend. 

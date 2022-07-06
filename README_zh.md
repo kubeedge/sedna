@@ -58,15 +58,19 @@ Sedna由以下组件构建：
 
 
 
-## 文档
+## 指南
+
+### 文档
+Sedna 在 [readthedoc.io](https://sedna.readthedocs.io/) 托管相关文档。 您可以根据这些文档更好地了解Sedna。
 ### 安装
 Sedna的安装文档请参考[这里](/docs/setup/install.md)。
 
 ### 样例
 样例1：[大小模型协同推理](/examples/joint_inference/helmet_detection_inference/README.md)   
 样例2：[边云协同增量学习](/examples/incremental_learning/helmet_detection/README.md)    
-样例3：[边云协同联邦学习](/examples/federated_learning/surface_defect_detection/README.md)    
-样例4：[边云协同终身学习](/examples/lifelong_learning/atcii/README.md)
+样例3：[边云协同联邦学习](/examples/federated_learning/surface_defect_detection/README.md)  
+样例4：[边云协同联邦学习: 基于YoLov5的目标识别](/examples/federated_learning/yolov5_coco128_mistnet/README.md).   
+样例5：[边云协同终身学习](/examples/lifelong_learning/atcii/README.md)
 ## 路标
 
 * [2021 Q1 Roadmap](./docs/roadmap.md#2021-q1-roadmap)
@@ -91,12 +95,12 @@ Sedna的安装文档请参考[这里](/docs/setup/install.md)。
 如果您有任何疑问，请以下方式与我们联系：
 - [slack channel](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
 
-<!--
+
 ## 贡献
 
 如果您有兴趣成为一个贡献者，也想参与到Sedna的代码开发中，
 请查看[CONTRIBUTING](CONTRIBUTING.md)获取更多关于如何提交Patch和贡献的流程。
--->
+
 
 ## 许可证
 

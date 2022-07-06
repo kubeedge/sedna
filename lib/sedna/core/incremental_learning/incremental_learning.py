@@ -24,17 +24,44 @@ __all__ = ("IncrementalLearning",)
 
 class IncrementalLearning(JobBase):
     """
-    Incremental learning
+    Incremental learning  is a method of machine learning in which input data
+    is continuously used to extend the existing model's knowledge i.e. to
+    further train the model. It represents a dynamic technique of supervised
+    learning and unsupervised learning that can be applied when training data
+    becomes available gradually over time.
+
+    Sedna provide the related interfaces for application development.
+
+    Parameters
+    ----------
+    estimator : Instance
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your model.
+    hard_example_mining : Dict
+        HEM algorithms with parameters which has registered to ClassFactory,
+        see `sedna.algorithms.hard_example_mining` for more detail.
+
+    Examples
+    --------
+    >>> Estimator = keras.models.Sequential()
+    >>> il_model = IncrementalLearning(
+            estimator=Estimator,
+            hard_example_mining={
+                "method": "IBT",
+                "param": {
+                    "threshold_img": 0.9
+                }
+            }
+        )
+
+    Notes
+    -----
+    Sedna provide an interface call `get_hem_algorithm_from_config` to build
+    the `hard_example_mining` parameter from CRD definition.
     """
 
     def __init__(self, estimator, hard_example_mining: dict = None):
-        """
-        Initial a IncrementalLearning job
-        :param estimator: Customize estimator
-        :param hard_example_mining: dict, hard example mining
-        algorithms with parameters
-        """
-
         super(IncrementalLearning, self).__init__(estimator=estimator)
 
         self.model_urls = self.get_parameters(
@@ -54,9 +81,24 @@ class IncrementalLearning(JobBase):
     @classmethod
     def get_hem_algorithm_from_config(cls, **param):
         """
-         get the `algorithm` name and `param` of hard_example_mining from crd
-        :param param: update value in parameters of hard_example_mining
-        :return: dict, e.g.: {"method": "IBT", "param": {"threshold_img": 0.5}}
+        get the `algorithm` name and `param` of hard_example_mining from crd
+
+        Parameters
+        ----------
+        param : Dict
+            update value in parameters of hard_example_mining
+
+        Returns
+        -------
+        dict
+            e.g.: {"method": "IBT", "param": {"threshold_img": 0.5}}
+
+        Examples
+        --------
+        >>> IncrementalLearning.get_hem_algorithm_from_config(
+                threshold_img=0.9
+            )
+        {"method": "IBT", "param": {"threshold_img": 0.9}}
         """
         return cls.parameters.get_algorithm_from_api(
             algorithm="HEM",
@@ -69,11 +111,24 @@ class IncrementalLearning(JobBase):
               **kwargs):
         """
         Training task for IncrementalLearning
-        :param train_data: datasource use for train
-        :param valid_data: datasource use for evaluation
-        :param post_process: post process
-        :param kwargs: params for training of customize estimator
-        :return: estimator
+
+        Parameters
+        ----------
+        train_data: BaseDataSource
+            datasource use for train, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        valid_data:  BaseDataSource
+            datasource use for evaluation, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` training.
+        kwargs: Dict
+            parameters for `estimator` training,
+            Like:  `early_stopping_rounds` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        estimator
         """
 
         callback_func = None
@@ -94,10 +149,23 @@ class IncrementalLearning(JobBase):
     def inference(self, data=None, post_process=None, **kwargs):
         """
         Inference task for IncrementalLearning
-        :param data: inference sample
-        :param post_process: post process
-        :param kwargs: params for inference of customize estimator
-        :return: inference result, result after post_process, if is hard sample
+
+        Parameters
+        ----------
+        data: BaseDataSource
+            datasource use for inference, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` inference.
+        kwargs: Dict
+            parameters for `estimator` inference,
+            Like:  `ntree_limit` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        inference result : object
+        result after post_process : object
+        if is hard sample : bool
         """
 
         if not self.estimator.has_load:
@@ -125,10 +193,21 @@ class IncrementalLearning(JobBase):
     def evaluate(self, data, post_process=None, **kwargs):
         """
         Evaluate task for IncrementalLearning
-        :param data: datasource use for evaluation
-        :param post_process: post process
-        :param kwargs: params for evaluate of customize estimator
-        :return: evaluate metrics
+
+        Parameters
+        ----------
+        data: BaseDataSource
+            datasource use for evaluation, see
+            `sedna.datasources.BaseDataSource` for more detail.
+        post_process: function or a registered method
+            effected after `estimator` evaluation.
+        kwargs: Dict
+            parameters for `estimator` evaluate,
+            Like:  `metric_name` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        evaluate metrics : List
         """
 
         callback_func = None

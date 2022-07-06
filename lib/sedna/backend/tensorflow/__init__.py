@@ -34,6 +34,7 @@ else:
 
 
 class TFBackend(BackendBase):
+    """Tensorflow Framework Backend base Class"""
 
     def __init__(self, estimator, fine_tune=True, **kwargs):
         super(TFBackend, self).__init__(
@@ -128,6 +129,8 @@ class TFBackend(BackendBase):
 
 
 class KerasBackend(TFBackend):
+    """Keras Framework Backend base Class"""
+
     def __init__(self, estimator, fine_tune=True, **kwargs):
         super(TFBackend, self).__init__(
             estimator=estimator, fine_tune=fine_tune, **kwargs)

@@ -2,8 +2,12 @@ package runtime
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
+	"strconv"
 	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -35,7 +39,14 @@ type WorkerParam struct {
 	// if true, force to use hostNetwork
 	HostNetwork bool
 
+	ModelHotUpdate ModelHotUpdate
+
 	RestartPolicy v1.RestartPolicy
+}
+
+type ModelHotUpdate struct {
+	Enable            bool
+	PollPeriodSeconds int64
 }
 
 // generateLabels generates labels for an object
@@ -63,6 +74,15 @@ func GenerateSelector(object CommonInterface) (labels.Selector, error) {
 	return metav1.LabelSelectorAsSelector(ls)
 }
 
+// GenerateWorkerSelector generates the selector of an object for specific worker type
+func GenerateWorkerSelector(object CommonInterface, workerType string) (labels.Selector, error) {
+	ls := &metav1.LabelSelector{
+		// select any type workers
+		MatchLabels: generateLabels(object, workerType),
+	}
+	return metav1.LabelSelectorAsSelector(ls)
+}
+
 // CreateKubernetesService creates a k8s service for an object given ip and port
 func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, inputPort int32, inputIP string) (int32, error) {
 	ctx := context.Background()
@@ -74,8 +94,8 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 	}
 	serviceSpec := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:    object.GetNamespace(),
-			GenerateName: name + "-" + "service" + "-",
+			Namespace: object.GetNamespace(),
+			Name:      strings.ToLower(name + "-" + workerType),
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, object.GroupVersionKind()),
 			},
@@ -108,6 +128,11 @@ func CreateKubernetesService(kubeClient kubernetes.Interface, object CommonInter
 // injectWorkerParam modifies pod in-place
 func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInterface) {
 	InjectStorageInitializer(pod, workerParam)
+
+	if workerParam.WorkerType == InferencePodType && workerParam.ModelHotUpdate.Enable {
+		injectModelHotUpdateMount(pod, object)
+		setModelHotUpdateEnv(workerParam)
+	}
 
 	envs := createEnvVars(workerParam.Env)
 	for idx := range pod.Spec.Containers {
@@ -156,6 +181,131 @@ func CreatePodWithTemplate(client kubernetes.Interface, object CommonInterface, 
 	return createdPod, nil
 }
 
+// CreateEdgeMeshService creates a kubeedge edgemesh service for an object, and returns an edgemesh service URL.
+// Since edgemesh can realize Cross-Edge-Cloud communication, the service can be created both on the cloud or edge side.
+func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterface, workerType string, servicePort int32) (string, error) {
+	ctx := context.Background()
+	name := object.GetName()
+	namespace := object.GetNamespace()
+	kind := object.GroupVersionKind().Kind
+	targetPort := intstr.IntOrString{
+		IntVal: servicePort,
+	}
+	serviceSpec := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      strings.ToLower(name + "-" + workerType),
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+			},
+			Labels: generateLabels(object, workerType),
+		},
+		Spec: v1.ServiceSpec{
+			Selector: generateLabels(object, workerType),
+			Ports: []v1.ServicePort{
+				{
+					// TODO: be clean, Port.Name is currently required by edgemesh(v1.8.0).
+					// and should be <protocol>-<suffix>
+					Name: "tcp-0",
+
+					Protocol:   "TCP",
+					Port:       servicePort,
+					TargetPort: targetPort,
+				},
+			},
+		},
+	}
+	service, err := kubeClient.CoreV1().Services(namespace).Create(ctx, serviceSpec, metav1.CreateOptions{})
+	if err != nil {
+		klog.Warningf("failed to create service for %v %v/%v, err:%s", kind, namespace, name, err)
+		return "", err
+	}
+
+	klog.V(2).Infof("Service %s is created successfully for %v %v/%v", service.Name, kind, namespace, name)
+	return fmt.Sprintf("%s.%s", service.Name, service.Namespace), nil
+}
+
+// CreateDeploymentWithTemplate creates and returns a deployment object given a crd object, deployment template
+func CreateDeploymentWithTemplate(client kubernetes.Interface, object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam, port int32) (*appsv1.Deployment, error) {
+	objectKind := object.GroupVersionKind()
+	objectName := object.GetNamespace() + "/" + object.GetName()
+	deployment := newDeployment(object, spec, workerParam)
+
+	injectDeploymentParam(deployment, workerParam, object, port)
+
+	createdDeployment, err := client.AppsV1().Deployments(object.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
+	if err != nil {
+		klog.Warningf("failed to create deployment for %s %s, err:%s", objectKind, objectName, err)
+		return nil, err
+	}
+	klog.V(2).Infof("deployment %s is created successfully for %s %s", createdDeployment.Name, objectKind, objectName)
+	return createdDeployment, nil
+}
+
+func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam) *appsv1.Deployment {
+	nameSpace := object.GetNamespace()
+	deploymentName := object.GetName() + "-" + "deployment" + "-" + strings.ToLower(workerParam.WorkerType) + "-"
+	matchLabel := make(map[string]string)
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: deploymentName,
+			Namespace:    nameSpace,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: (*spec).Replicas,
+			Template: (*spec).Template,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: matchLabel,
+			},
+		},
+	}
+}
+
+// injectDeploymentParam modifies deployment in-place
+func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, _port int32) {
+	var appLabelKey = "app.sedna.io"
+	var appLabelValue = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
+
+	// Injection of the storage variables must be done before loading
+	// the environment variables!
+	if workerParam.Mounts != nil {
+		InjectStorageInitializerDeployment(deployment, workerParam)
+	}
+
+	// inject our labels
+	if deployment.Labels == nil {
+		deployment.Labels = make(map[string]string)
+	}
+	if deployment.Spec.Template.Labels == nil {
+		deployment.Spec.Template.Labels = make(map[string]string)
+	}
+	if deployment.Spec.Selector.MatchLabels == nil {
+		deployment.Spec.Selector.MatchLabels = make(map[string]string)
+	}
+
+	for k, v := range generateLabels(object, workerParam.WorkerType) {
+		deployment.Labels[k] = v
+		deployment.Spec.Template.Labels[k] = v
+		deployment.Spec.Selector.MatchLabels[k] = v
+	}
+
+	// Edgemesh part, useful for service mapping (not necessary!)
+	deployment.Labels[appLabelKey] = appLabelValue
+	deployment.Spec.Template.Labels[appLabelKey] = appLabelValue
+	deployment.Spec.Selector.MatchLabels[appLabelKey] = appLabelValue
+
+	// Env variables injection
+	envs := createEnvVars(workerParam.Env)
+	for idx := range deployment.Spec.Template.Spec.Containers {
+		deployment.Spec.Template.Spec.Containers[idx].Env = append(
+			deployment.Spec.Template.Spec.Containers[idx].Env, envs...,
+		)
+	}
+}
+
 // createEnvVars creates EnvMap for container
 // include EnvName and EnvValue map for stage of creating a pod
 func createEnvVars(envMap map[string]string) []v1.EnvVar {
@@ -168,4 +318,43 @@ func createEnvVars(envMap map[string]string) []v1.EnvVar {
 		envVars = append(envVars, Env)
 	}
 	return envVars
+}
+
+// injectModelHotUpdateMount injects volume mounts when worker supports hot update of model
+func injectModelHotUpdateMount(pod *v1.Pod, object CommonInterface) {
+	hostPathType := v1.HostPathDirectoryOrCreate
+
+	var volumes []v1.Volume
+	var volumeMounts []v1.VolumeMount
+
+	modelHotUpdateHostDir, _ := filepath.Split(GetModelHotUpdateConfigFile(object, ModelHotUpdateHostPrefix))
+	volumeName := ConvertK8SValidName(ModelHotUpdateVolumeName)
+	volumes = append(volumes, v1.Volume{
+		Name: volumeName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{
+				Path: modelHotUpdateHostDir,
+				Type: &hostPathType,
+			},
+		},
+	})
+
+	volumeMounts = append(volumeMounts, v1.VolumeMount{
+		MountPath: ModelHotUpdateContainerPrefix,
+		Name:      volumeName,
+	})
+
+	injectVolume(pod, volumes, volumeMounts)
+}
+
+func GetModelHotUpdateConfigFile(object CommonInterface, prefix string) string {
+	return strings.ToLower(filepath.Join(prefix, object.GetNamespace(), object.GetObjectKind().GroupVersionKind().Kind,
+		object.GetName(), ModelHotUpdateConfigFile))
+}
+
+// setModelHotUpdateEnv sets envs of model hot update
+func setModelHotUpdateEnv(workerParam *WorkerParam) {
+	workerParam.Env["MODEL_HOT_UPDATE"] = "true"
+	workerParam.Env["MODEL_POLL_PERIOD_SECONDS"] = strconv.FormatInt(workerParam.ModelHotUpdate.PollPeriodSeconds, 10)
+	workerParam.Env["MODEL_HOT_UPDATE_CONFIG"] = filepath.Join(ModelHotUpdateContainerPrefix, ModelHotUpdateConfigFile)
 }

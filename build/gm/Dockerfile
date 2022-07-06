@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.14-alpine3.11 AS builder
+# Add cross buildx improvement
+# _speed_buildx_for_go_
+FROM golang:1.16-alpine3.15 AS builder
 LABEL stage=builder
 
 ARG GO_LDFLAGS

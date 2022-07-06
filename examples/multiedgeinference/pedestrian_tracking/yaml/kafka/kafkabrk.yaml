@@ -1,0 +1,47 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: kafka-broker0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+        app: kafka
+        id: "0"
+  template:
+    metadata:
+      labels:
+        app: kafka
+        id: "0"
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ''
+      containers:
+      - name: kafka
+        image: wurstmeister/kafka:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9092
+        env:
+        - name: KAFKA_ADVERTISED_PORT
+          value: "9092"
+        - name: KAFKA_ADVERTISED_HOST_NAME
+          value: MASTER_NODE_IP
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: zoo1:2181
+        - name: KAFKA_BROKER_ID
+          value: "0"
+        - name: KAFKA_CREATE_TOPICS
+          value: admintome-test:1:1
+        - name: KAFKA_MAX_PRODUCER_REQUEST_SIZE
+          value: "10000000"
+        - name: KAFKA_MAX_REQUEST_SIZE
+          value: "10000000"
+        - name: KAFKA_MESSAGE_MAX_BYTES
+          value: "10000000"
+        - name: KAFKA_FETCH_MESSAGE_MAX_BYTES
+          value: "10000000"
+        - name: KAFKA_REPLICA_FETCH_MAX_BYTES
+          value: "10000000"
+        - name: KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES
+          value: "10000000"

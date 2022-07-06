@@ -82,7 +82,7 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 
 	err = c.updateMetrics(name, namespace, metrics)
 	if err != nil {
-		return fmt.Errorf("failed to update metrics, err:%+w", err)
+		return fmt.Errorf("failed to update metrics, err:%w", err)
 	}
 	return nil
 }

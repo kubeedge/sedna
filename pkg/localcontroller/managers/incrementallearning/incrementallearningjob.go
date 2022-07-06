@@ -20,8 +20,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -52,26 +54,28 @@ type Job struct {
 
 // JobConfig defines config for incremental-learning-job
 type JobConfig struct {
-	UniqueIdentifier   string
-	Rounds             int
-	TrainTrigger       trigger.Base
-	DeployTrigger      trigger.Base
-	TriggerTime        time.Time
-	TrainTriggerStatus string
-	EvalTriggerStatus  string
-	TrainDataURL       string
-	EvalDataURL        string
-	OutputDir          string
-	OutputConfig       *OutputConfig
-	DataSamples        *DataSamples
-	TrainModel         *Model
-	DeployModel        *Model
-	EvalModels         []Model
-	EvalResult         []Model
-	Lock               sync.Mutex
-	Dataset            *dataset.Dataset
-	Storage            storage.Storage
-	Done               chan struct{}
+	UniqueIdentifier                  string
+	Rounds                            int
+	TrainTrigger                      trigger.Base
+	DeployTrigger                     trigger.Base
+	TriggerTime                       time.Time
+	TrainTriggerStatus                string
+	EvalTriggerStatus                 string
+	DeployTriggerStatus               string
+	HotModelUpdateDeployTriggerStatus string
+	TrainDataURL                      string
+	EvalDataURL                       string
+	OutputDir                         string
+	OutputConfig                      *OutputConfig
+	DataSamples                       *DataSamples
+	TrainModel                        *Model
+	DeployModel                       *Model
+	EvalModel                         *Model
+	EvalResult                        []Model
+	Lock                              sync.Mutex
+	Dataset                           *dataset.Dataset
+	Storage                           storage.Storage
+	Done                              chan struct{}
 }
 
 type Model = clienttypes.Model
@@ -231,7 +235,18 @@ func (im *Manager) evalTask(job *Job) error {
 			return fmt.Errorf("failed to sync deploy model, and waiting it: %w", err)
 		}
 
-		if jobConfig.TrainTriggerStatus == TriggerReadyStatus {
+		if job.Spec.EvalSpec.InitialModel != nil {
+			err = im.loadEvalModel(job)
+			if err != nil {
+				return fmt.Errorf("failed to sync initial eval model, and waiting it: %w", err)
+			}
+		} else {
+			if jobConfig.EvalModel == nil {
+				jobConfig.EvalModel = jobConfig.DeployModel
+			}
+		}
+
+		if jobConfig.EvalTriggerStatus == TriggerReadyStatus {
 			payload, err := im.triggerEvalTask(job)
 			if err != nil {
 				klog.Errorf("job(%s) completed the %sing phase triggering task failed: %v",
@@ -247,7 +262,7 @@ func (im *Manager) evalTask(job *Job) error {
 
 			forwardSamples(jobConfig, jobStage)
 
-			jobConfig.TrainTriggerStatus = TriggerCompletedStatus
+			jobConfig.EvalTriggerStatus = TriggerCompletedStatus
 			klog.Infof("job(%s) completed the %sing phase triggering task successfully",
 				jobConfig.UniqueIdentifier, jobStage)
 		}
@@ -256,48 +271,157 @@ func (im *Manager) evalTask(job *Job) error {
 	return nil
 }
 
-// deployTask starts deploy task
-func (im *Manager) deployTask(job *Job) {
-	jobConfig := job.JobConfig
-	var err error
-	var neededDeploy bool
-
-	neededDeploy, err = im.triggerDeployTask(job)
-	status := clienttypes.UpstreamMessage{Phase: string(sednav1.ILJobDeploy)}
-	models := im.getModelFromJobConditions(job, sednav1.ILJobDeploy)
-
-	if err == nil && neededDeploy && models != nil {
-		trainedModel := models[0]
-		deployModel := models[1]
-		err = im.updateDeployModelFile(job, trainedModel.URL, deployModel.URL)
-		if err != nil {
-			status.Status = string(sednav1.ILJobStageCondFailed)
-			klog.Errorf("job(%s) failed to update model: %v", jobConfig.UniqueIdentifier, err)
-		} else {
-			status.Status = string(sednav1.ILJobStageCondReady)
-			klog.Infof("job(%s) updated model successfully", jobConfig.UniqueIdentifier)
-		}
-
-		status.Input = &clienttypes.Input{
-			Models: models,
-		}
-
-		klog.Infof("job(%s) completed the %sing phase triggering task successfully",
-			jobConfig.UniqueIdentifier, sednav1.ILJobDeploy)
+// hotModelUpdateDeployTask starts deploy task when job supports hot model update
+func (im *Manager) hotModelUpdateDeployTask(job *Job) error {
+	var localModelConfigFile string
+	if v, ok := job.ObjectMeta.Annotations[runtime.ModelHotUpdateAnnotationsKey]; ok {
+		localModelConfigFile = v
 	} else {
-		// No need to deploy, just report completed status
-		// TODO: instead of reporting deploy-completed, another more reasonable status
-		klog.Infof("job(%s) isn't need to deploy model", jobConfig.UniqueIdentifier)
-		status.Status = string(sednav1.ILJobStageCondCompleted)
+		return nil
 	}
 
-	err = im.Client.WriteMessage(status, job.getHeader())
-	if err != nil {
-		klog.Errorf("job(%s) completed the %s task failed: %v",
-			jobConfig.UniqueIdentifier, sednav1.ILJobDeploy, err)
+	if job.JobConfig.HotModelUpdateDeployTriggerStatus == TriggerReadyStatus {
+		var err error
+		err = im.loadDeployModel(job)
+		if err != nil {
+			return fmt.Errorf("failed to sync deploy model, and waiting it: %w", err)
+		}
+
+		if job.Spec.EvalSpec.InitialModel != nil {
+			err = im.loadEvalModel(job)
+			if err != nil {
+				return fmt.Errorf("failed to sync initial eval model, and waiting it: %w", err)
+			}
+		}
+
+		trainedModel := im.getModelFromJobConditions(job, sednav1.ILJobDeploy)
+		deployModel := job.JobConfig.DeployModel
+
+		trainedModelURL := trainedModel.URL
+		modelName := filepath.Base(trainedModelURL)
+		localHostDir := filepath.Dir(localModelConfigFile)
+		localHostModelFile := filepath.Join(localHostDir, modelName)
+
+		modelFile := util.AddPrefixPath(im.VolumeMountPrefix, localHostModelFile)
+		if err := im.updateDeployModelFile(job, trainedModelURL, modelFile); err != nil {
+			return err
+		}
+
+		deployModelURL := deployModel.URL
+		if err := im.updateDeployModelFile(job, trainedModelURL, deployModelURL); err != nil {
+			return err
+		}
+
+		evalModel := job.JobConfig.EvalModel
+		if evalModel != nil {
+			newEvalModel := im.getModelFromJobConditions(job, sednav1.ILJobEval)
+			if err := im.updateDeployModelFile(job, newEvalModel.URL, evalModel.URL); err != nil {
+				return err
+			}
+		}
+
+		config := map[string]map[string]string{
+			"model_config": {
+				"model_path": strings.Replace(localHostModelFile, localHostDir,
+					runtime.ModelHotUpdateContainerPrefix, 1),
+				"model_update_time": time.Now().String(),
+			},
+		}
+
+		jsonConfig, err := json.MarshalIndent(config, "", " ")
+		if err != nil {
+			return err
+		}
+
+		modelConfigFile := util.AddPrefixPath(im.VolumeMountPrefix, localModelConfigFile)
+		// overwrite file
+		err = ioutil.WriteFile(modelConfigFile, jsonConfig, 0644)
+		if err != nil {
+			klog.Errorf("job(%s) write model config file(url=%s) failed in deploy phase: %v",
+				job.JobConfig.UniqueIdentifier, modelConfigFile, err)
+			return err
+		}
+
+		job.JobConfig.HotModelUpdateDeployTriggerStatus = TriggerCompletedStatus
+		klog.V(4).Infof("job(%s) write model config file(url=%s) successfully in deploy phase",
+			job.JobConfig.UniqueIdentifier, modelConfigFile)
+		klog.Infof("job(%s) completed the %s task successfully", job.JobConfig.UniqueIdentifier, sednav1.ILJobDeploy)
 	}
 
-	klog.Infof("job(%s) completed the %s task successfully", jobConfig.UniqueIdentifier, sednav1.ILJobDeploy)
+	return nil
+}
+
+// deployTask starts deploy task
+func (im *Manager) deployTask(job *Job) error {
+	if job.JobConfig.DeployTriggerStatus == TriggerReadyStatus {
+		if err := im.loadDeployModel(job); err != nil {
+			return fmt.Errorf("failed to sync deploy model, and waiting it: %w", err)
+		}
+
+		if !job.Spec.DeploySpec.Model.HotUpdateEnabled && job.Spec.EvalSpec.InitialModel != nil {
+			err := im.loadEvalModel(job)
+			if err != nil {
+				return fmt.Errorf("failed to sync initial eval model, and waiting it: %w", err)
+			}
+		}
+
+		jobConfig := job.JobConfig
+		var err error
+		var neededDeploy bool
+
+		neededDeploy, err = im.triggerDeployTask(job)
+		status := clienttypes.UpstreamMessage{Phase: string(sednav1.ILJobDeploy)}
+
+		if err == nil && neededDeploy {
+			var models []Model
+			trainedModel := im.getModelFromJobConditions(job, sednav1.ILJobDeploy)
+			deployModel := jobConfig.DeployModel
+			models = append(models, *trainedModel, *deployModel)
+
+			if !job.Spec.DeploySpec.Model.HotUpdateEnabled {
+				err = im.updateDeployModelFile(job, trainedModel.URL, deployModel.URL)
+				if err != nil {
+					status.Status = string(sednav1.ILJobStageCondFailed)
+					klog.Errorf("failed to update model for job(%s): %v", jobConfig.UniqueIdentifier, err)
+				} else {
+					status.Status = string(sednav1.ILJobStageCondReady)
+					klog.Infof("update model for job(%s) successfully", jobConfig.UniqueIdentifier)
+				}
+
+				evalModel := job.JobConfig.EvalModel
+				if evalModel != nil {
+					newEvalModel := im.getModelFromJobConditions(job, sednav1.ILJobEval)
+					if err := im.updateDeployModelFile(job, newEvalModel.URL, evalModel.URL); err != nil {
+						return err
+					}
+				}
+			} else {
+				status.Status = string(sednav1.ILJobStageCondReady)
+			}
+
+			status.Input = &clienttypes.Input{
+				Models: models,
+			}
+
+			klog.Infof("job(%s) completed the %sing phase triggering task successfully",
+				jobConfig.UniqueIdentifier, sednav1.ILJobDeploy)
+		} else {
+			// No need to deploy, just report completed status
+			// TODO: instead of reporting deploy-completed, another more reasonable status
+			klog.Infof("job(%s) isn't need to deploy model", jobConfig.UniqueIdentifier)
+			status.Status = string(sednav1.ILJobStageCondCompleted)
+		}
+
+		err = im.Client.WriteMessage(status, job.getHeader())
+		if err != nil {
+			klog.Errorf("job(%s) completed the %s task failed: %v",
+				jobConfig.UniqueIdentifier, sednav1.ILJobDeploy, err)
+		}
+
+		job.JobConfig.DeployTriggerStatus = TriggerCompletedStatus
+	}
+
+	return nil
 }
 
 // startJob starts a job
@@ -333,6 +457,12 @@ func (im *Manager) startJob(name string) {
 			err = im.trainTask(job)
 		case sednav1.ILJobEval:
 			err = im.evalTask(job)
+		case sednav1.ILJobDeploy:
+			if cond.Type == sednav1.ILJobStageCondWaiting {
+				err = im.deployTask(job)
+			} else if cond.Type == sednav1.ILJobStageCondRunning && job.Spec.DeploySpec.Model.HotUpdateEnabled {
+				err = im.hotModelUpdateDeployTask(job)
+			}
 		default:
 			klog.Errorf("invalid phase: %s", jobStage)
 			continue
@@ -362,12 +492,25 @@ func (im *Manager) Insert(message *clienttypes.Message) error {
 		return err
 	}
 
+	if err := db.SaveResource(name, job.TypeMeta, job.ObjectMeta, job.Spec); err != nil {
+		return err
+	}
+
 	if first {
 		go im.startJob(name)
 	}
 
-	if err := db.SaveResource(name, job.TypeMeta, job.ObjectMeta, job.Spec); err != nil {
-		return err
+	return nil
+}
+
+// deleteModelHotUpdateData deletes the local data of model hot update
+func (im *Manager) deleteModelHotUpdateData(job *Job) error {
+	if configFile, ok := job.ObjectMeta.Annotations[runtime.ModelHotUpdateAnnotationsKey]; ok {
+		localHostDir := filepath.Dir(configFile)
+		dir := util.AddPrefixPath(im.VolumeMountPrefix, localHostDir)
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("failed to delete the dir(%s): %w", dir, err)
+		}
 	}
 
 	return nil
@@ -379,6 +522,11 @@ func (im *Manager) Delete(message *clienttypes.Message) error {
 
 	if job, ok := im.IncrementalJobMap[name]; ok && job.JobConfig.Done != nil {
 		close(job.JobConfig.Done)
+
+		if err := im.deleteModelHotUpdateData(job); err != nil {
+			klog.Errorf("job(%s) failed to delete data of model hot update: %v", name, err)
+			// continue anyway
+		}
 	}
 
 	delete(im.IncrementalJobMap, name)
@@ -529,6 +677,8 @@ func (im *Manager) initJob(job *Job, name string) error {
 func initTriggerStatus(jobConfig *JobConfig) {
 	jobConfig.TrainTriggerStatus = TriggerReadyStatus
 	jobConfig.EvalTriggerStatus = TriggerReadyStatus
+	jobConfig.DeployTriggerStatus = TriggerReadyStatus
+	jobConfig.HotModelUpdateDeployTriggerStatus = TriggerReadyStatus
 }
 
 func newTrigger(t sednav1.Trigger) (trigger.Base, error) {
@@ -546,32 +696,75 @@ func newTrigger(t sednav1.Trigger) (trigger.Base, error) {
 	return trigger.NewTrigger(triggerMap)
 }
 
-// getModelFromJobConditions gets model from job conditions for train/eval/deploy
-func (im *Manager) getModelFromJobConditions(job *Job, jobStage sednav1.ILJobStage) []Model {
-	jobConditions := job.Status.Conditions
+// getModelsFromJobConditions gets models from job condition
+func (im *Manager) getModelsFromJobConditions(jobConditions []sednav1.ILJobCondition, stage sednav1.ILJobStage, currentType sednav1.ILJobStageConditionType, dataType string) []Model {
+	// TODO: runtime.type changes to common.type for gm and lc
+	for i := len(jobConditions) - 1; i >= 0; i-- {
+		var cond gmtypes.IncrementalCondData
+		jobCond := jobConditions[i]
+		if jobCond.Stage == stage && jobCond.Type == currentType {
+			if err := (&cond).Unmarshal([]byte(jobCond.Data)); err != nil {
+				continue
+			}
 
-	getModels := func(stage sednav1.ILJobStage, currentType sednav1.ILJobStageConditionType, dataType string) []runtime.Model {
-		// TODO: runtime.type changes to common.type for gm and lc
-		for i := len(jobConditions) - 1; i >= 0; i-- {
-			var cond gmtypes.IncrementalCondData
-			jobCond := jobConditions[i]
-			if jobCond.Stage == stage && jobCond.Type == currentType {
-				if err := (&cond).Unmarshal([]byte(jobCond.Data)); err != nil {
+			if dataType == "input" {
+				if cond.Input == nil {
 					continue
 				}
 
-				if dataType == "input" {
-					if cond.Input == nil {
-						continue
-					}
+				return cond.Input.Models
+			} else if dataType == "output" {
+				if cond.Output == nil {
+					continue
+				}
 
-					return cond.Input.Models
-				} else if dataType == "output" {
-					if cond.Output == nil {
-						continue
-					}
+				return cond.Output.Models
+			}
+		}
+	}
 
-					return cond.Output.Models
+	return nil
+}
+
+// getEvalResult gets eval result from job conditions
+func (im *Manager) getEvalResult(job *Job) ([]map[string][]float64, error) {
+	jobConditions := job.Status.Conditions
+	models := im.getModelsFromJobConditions(jobConditions, sednav1.ILJobEval, sednav1.ILJobStageCondCompleted, "output")
+
+	var result []map[string][]float64
+	var err error
+	for _, m := range models {
+		bytes, err := json.Marshal(m.Metrics)
+		if err != nil {
+			return nil, err
+		}
+
+		data := make(map[string][]float64)
+		if err = json.Unmarshal(bytes, &data); err != nil {
+			return nil, err
+		}
+
+		result = append(result, data)
+	}
+	return result, err
+}
+
+// getModelFromJobConditions gets model from job conditions for train/eval/deploy
+func (im *Manager) getModelFromJobConditions(job *Job, jobStage sednav1.ILJobStage) *Model {
+	jobConditions := job.Status.Conditions
+	jobConfig := job.JobConfig
+
+	getModel := func(initModel *Model, models []Model) *Model {
+		for _, m := range models {
+			if m.Format == initModel.Format {
+				if initModel.Devices != nil && len(m.Devices) == 1 {
+					for _, d := range initModel.Devices {
+						if m.Devices[0] == d {
+							return &m
+						}
+					}
+				} else {
+					return &m
 				}
 			}
 		}
@@ -579,33 +772,25 @@ func (im *Manager) getModelFromJobConditions(job *Job, jobStage sednav1.ILJobSta
 		return nil
 	}
 
-	switch jobStage {
-	case sednav1.ILJobTrain:
-		// the second model is the pre-trained model of train stage.
-		models := getModels(sednav1.ILJobTrain, sednav1.ILJobStageCondCompleted, "output")
-		if models != nil {
-			return []Model{{Format: models[1].Format, URL: models[1].URL}}
-		}
-	case sednav1.ILJobEval:
-		// the first model is the output model of train stage.
-		models := getModels(sednav1.ILJobTrain, sednav1.ILJobStageCondCompleted, "output")
-		if models != nil {
-			return []Model{{Format: models[0].Format, URL: models[0].URL}}
-		}
-	case sednav1.ILJobDeploy:
-		// two models for deploy stage:
-		// the first model is the output model of train stage, which was evaluated as better than the second model in eval stage.
-		// the second model is the serving model used in the inference worker.
-		var deployModels []Model
-		models := getModels(sednav1.ILJobEval, sednav1.ILJobStageCondReady, "input")
-		for _, m := range models {
-			deployModels = append(deployModels, Model{Format: m.Format, URL: m.URL})
-		}
-
-		return deployModels
+	models := im.getModelsFromJobConditions(jobConditions, sednav1.ILJobTrain, sednav1.ILJobStageCondCompleted, "output")
+	if models == nil {
+		return nil
 	}
 
-	return nil
+	var model *Model
+	switch jobStage {
+	case sednav1.ILJobTrain:
+		model = jobConfig.TrainModel
+	case sednav1.ILJobEval:
+		model = jobConfig.EvalModel
+	case sednav1.ILJobDeploy:
+		model = jobConfig.DeployModel
+	}
+	if model == nil {
+		return nil
+	}
+
+	return getModel(model, models)
 }
 
 // triggerTrainTask triggers the train task
@@ -627,16 +812,11 @@ func (im *Manager) triggerTrainTask(job *Job) (interface{}, bool, error) {
 	job.JobConfig.Rounds++
 
 	var m *Model
-
-	latestCondition := im.getLatestCondition(job)
 	rounds := jobConfig.Rounds
 	if rounds <= 1 {
 		m = jobConfig.TrainModel
 	} else {
-		models := im.getModelFromJobConditions(job, latestCondition.Stage)
-		if models != nil {
-			m = &models[0]
-		}
+		m = im.getModelFromJobConditions(job, sednav1.ILJobTrain)
 	}
 
 	var dataIndexURL string
@@ -678,19 +858,10 @@ func (im *Manager) triggerEvalTask(job *Job) (*clienttypes.UpstreamMessage, erro
 	jobConfig := job.JobConfig
 	var err error
 
-	latestCondition := im.getLatestCondition(job)
+	m := im.getModelFromJobConditions(job, sednav1.ILJobEval)
 
-	ms := im.getModelFromJobConditions(job, latestCondition.Stage)
-	if ms == nil {
-		return nil, err
-	}
-
-	models := []Model{ms[0], {
-		Format: jobConfig.DeployModel.Format,
-		URL:    jobConfig.DeployModel.URL,
-	}}
-	// EvalModels has two models, first is trained model, second is deployed model
-	jobConfig.EvalModels = models
+	var models []Model
+	models = append(models, *m, *jobConfig.EvalModel)
 
 	var dataIndexURL string
 	jobConfig.EvalDataURL, dataIndexURL, err = im.writeSamples(job, jobConfig.DataSamples.EvalSamples, jobConfig.OutputConfig.SamplesOutput["eval"],
@@ -700,6 +871,7 @@ func (im *Manager) triggerEvalTask(job *Job) (*clienttypes.UpstreamMessage, erro
 			jobConfig.UniqueIdentifier, jobConfig.EvalDataURL, err)
 		return nil, err
 	}
+	jobConfig.DataSamples.EvalSamples = []string{}
 
 	dataURL := jobConfig.EvalDataURL
 	if jobConfig.Storage.IsLocalStorage {
@@ -725,33 +897,14 @@ func (im *Manager) triggerEvalTask(job *Job) (*clienttypes.UpstreamMessage, erro
 func (im *Manager) triggerDeployTask(job *Job) (bool, error) {
 	jobConfig := job.JobConfig
 
+	evalResult, err := im.getEvalResult(job)
 	// EvalResult must has two models info, first is trained model, second is deployed model.
-	if len(jobConfig.EvalResult) != 2 {
+	if len(evalResult) != 2 {
 		return false, fmt.Errorf("expected 2 evaluation results, actual: %d", len(jobConfig.EvalResult))
 	}
 
-	getMetrics := func(metrics map[string]interface{}) (map[string][]float64, error) {
-		var err error
-		bytes, err := json.Marshal(metrics)
-		if err != nil {
-			return nil, err
-		}
-
-		data := make(map[string][]float64)
-		if err := json.Unmarshal(bytes, &data); err != nil {
-			return nil, err
-		}
-		return data, err
-	}
-
-	newMetrics, err := getMetrics(jobConfig.EvalResult[0].Metrics)
-	if err != nil {
-		return false, err
-	}
-	oldMetrics, err := getMetrics(jobConfig.EvalResult[1].Metrics)
-	if err != nil {
-		return false, err
-	}
+	newMetrics := evalResult[0]
+	oldMetrics := evalResult[1]
 	metricDelta := make(map[string]interface{})
 
 	for metric := range newMetrics {
@@ -860,10 +1013,27 @@ func (im *Manager) loadTrainModel(job *Job) error {
 		}
 
 		jobConfig.TrainModel = new(Model)
-		format := initialModel.Spec.Format
-		url := initialModel.Spec.URL
-		jobConfig.TrainModel.Format = format
-		jobConfig.TrainModel.URL = url
+		jobConfig.TrainModel.Format = initialModel.Spec.Format
+		jobConfig.TrainModel.URL = initialModel.Spec.URL
+		jobConfig.TrainModel.Devices = initialModel.Spec.Devices
+	}
+	return nil
+}
+
+// loadEvalModel loads initial model information for eval.
+func (im *Manager) loadEvalModel(job *Job) error {
+	jobConfig := job.JobConfig
+
+	if jobConfig.EvalModel == nil {
+		initialModel, err := im.getModel(job.Namespace, job.Spec.EvalSpec.InitialModel.Name)
+		if err != nil {
+			return err
+		}
+
+		jobConfig.EvalModel = new(Model)
+		jobConfig.EvalModel.Format = initialModel.Spec.Format
+		jobConfig.EvalModel.URL = initialModel.Spec.URL
+		jobConfig.EvalModel.Devices = initialModel.Spec.Devices
 	}
 	return nil
 }
@@ -873,14 +1043,15 @@ func (im *Manager) loadDeployModel(job *Job) error {
 	jobConfig := job.JobConfig
 
 	if jobConfig.DeployModel == nil {
-		evalModel, err := im.getModel(job.Namespace, job.Spec.DeploySpec.Model.Name)
+		deployModel, err := im.getModel(job.Namespace, job.Spec.DeploySpec.Model.Name)
 		if err != nil {
 			return err
 		}
 
 		jobConfig.DeployModel = new(Model)
-		jobConfig.DeployModel.Format = evalModel.Spec.Format
-		jobConfig.DeployModel.URL = evalModel.Spec.URL
+		jobConfig.DeployModel.Format = deployModel.Spec.Format
+		jobConfig.DeployModel.URL = deployModel.Spec.URL
+		jobConfig.DeployModel.Devices = deployModel.Spec.Devices
 	}
 	return nil
 }
@@ -937,18 +1108,17 @@ func (im *Manager) handleData(job *Job) {
 
 			jobConfig.Lock.Lock()
 			jobConfig.DataSamples.TrainSamples = append(jobConfig.DataSamples.TrainSamples,
-				samples[(previousNumberOfSamples+1):(previousNumberOfSamples+trainNum+1)]...)
+				samples[previousNumberOfSamples:previousNumberOfSamples+trainNum]...)
 			klog.Infof("job(%s)'s current train samples nums is %d", jobConfig.UniqueIdentifier, trainNum)
 
 			jobConfig.DataSamples.EvalVersionSamples = append(jobConfig.DataSamples.EvalVersionSamples,
-				samples[(previousNumberOfSamples+trainNum+1):])
+				samples[previousNumberOfSamples+trainNum:])
 			jobConfig.Lock.Unlock()
 
 			for _, v := range jobConfig.DataSamples.EvalVersionSamples {
 				jobConfig.DataSamples.EvalSamples = append(jobConfig.DataSamples.EvalSamples, v...)
 			}
-			evalNum := newNumberOfSamples - trainNum
-			klog.Infof("job(%s)'s current eval samples nums is %d", jobConfig.UniqueIdentifier, evalNum)
+			klog.Infof("job(%s)'s current eval samples nums is %d", jobConfig.UniqueIdentifier, len(jobConfig.DataSamples.EvalSamples))
 
 			jobConfig.DataSamples.PreviousNumbers = currentNumberOfSamples
 		}
@@ -1084,59 +1254,6 @@ func (im *Manager) monitorWorker() {
 		if err := im.Client.WriteMessage(msg, job.getHeader()); err != nil {
 			klog.Errorf("job(%s) failed to write message: %v", name, err)
 			continue
-		}
-
-		im.handleWorkerMessage(job, workerMessage)
-	}
-}
-
-// handleWorkerMessage handles message from worker
-func (im *Manager) handleWorkerMessage(job *Job, workerMessage workertypes.MessageContent) {
-	latestCond := im.getLatestCondition(job)
-	jobStage := strings.ToLower(string(latestCond.Stage))
-	workerKind := strings.ToLower(workerMessage.Kind)
-
-	if jobStage != workerKind {
-		klog.Warningf("job(%s)'s %s phase get worker(kind=%s)", job.JobConfig.UniqueIdentifier,
-			jobStage, workerKind)
-		return
-	}
-
-	var models []Model
-	for _, result := range workerMessage.Results {
-		metrics := make(map[string]interface{})
-		if m, ok := result["metrics"]; ok {
-			bytes, err := json.Marshal(m)
-			if err != nil {
-				return
-			}
-
-			err = json.Unmarshal(bytes, &metrics)
-			if err != nil {
-				klog.Warningf("failed to unmarshal the worker(name=%s) metrics %v, err: %v",
-					workerMessage.Name,
-					m,
-					err)
-			}
-		}
-
-		model := Model{
-			Format:  result["format"].(string),
-			URL:     result["url"].(string),
-			Metrics: metrics}
-		models = append(models, model)
-	}
-
-	workerStatus := workerMessage.Status
-	jobName := job.JobConfig.UniqueIdentifier
-
-	if workerStatus == workertypes.CompletedStatus {
-		klog.Infof("job(%s) completed the %s task successfully", jobName, jobStage)
-		switch latestCond.Stage {
-		case sednav1.ILJobEval:
-			job.JobConfig.EvalResult = models
-			// when eval worker is completed status, the deploy task will starts immediately without waiting for the notification of GM.
-			im.deployTask(job)
 		}
 	}
 }

@@ -14,21 +14,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Influential env vars:
+#
+# SEDNA_ACTION    | optional | 'create'/'clean', default is 'create'
+# SEDNA_VERSION   | optional | The Sedna version to be installed.
+#                              if not specified, it will get latest release version.
+# SEDNA_ROOT      | optional | The Sedna offline directory
+
 set -o errexit
 set -o nounset
 set -o pipefail
 
-SEDNA_VERSION=v0.3.0
-KB_VERSION=v0.3.0
-
 TMP_DIR=$(mktemp -d --suffix=.sedna)
 SEDNA_ROOT=${SEDNA_ROOT:-$TMP_DIR}
 
-GM_NODE_NAME=${SEDNA_GM_NODE:-}
-KB_NODE_NAME=${SEDNA_GM_NODE:-}
+DEFAULT_SEDNA_VERSION=v0.4.0
 
 
 trap "rm -rf '$TMP_DIR'" EXIT 
+
+get_latest_version() {
+  # get Sedna latest release version
+  local repo=kubeedge/sedna
+  # output of this latest page:
+  # ...
+  # "tag_name": "v1.0.0",
+  # ...
+  {
+    curl -s https://api.github.com/repos/$repo/releases/latest |
+    awk '/"tag_name":/&&$0=$2' |
+    sed 's/[",]//g'
+  } || echo $DEFAULT_SEDNA_VERSION # fallback
+}
+
+: ${SEDNA_VERSION:=$(get_latest_version)}
+SEDNA_VERSION=v${SEDNA_VERSION#v}
 
 _download_yamls() {
 
@@ -68,10 +88,8 @@ download_yamls() {
 }
 
 prepare_install(){
-  # need to create a namespace
+  # need to create the namespace first
   kubectl create ns sedna
-
-  kubectl label node/$GM_NODE_NAME sedna=control-plane --overwrite
 }
 
 prepare() {
@@ -83,7 +101,6 @@ prepare() {
 }
 
 cleanup(){
-  kubectl label node/$SEDNA_GM_NODE sedna- | sed 's/labeled$/un&/' || true
   kubectl delete ns sedna
 }
 
@@ -95,6 +112,14 @@ create_crds() {
 delete_crds() {
   cd ${SEDNA_ROOT}
   kubectl delete -f build/crds --timeout=90s
+}
+
+get_service_address() {
+  local service=$1
+  local port=$(kubectl -n sedna get svc $service -ojsonpath='{.spec.ports[0].port}')
+
+  # <service-name>.<namespace>:<port>
+  echo $service.sedna:$port
 }
 
 create_kb(){
@@ -109,11 +134,12 @@ metadata:
 spec:
   selector:
     sedna: kb
-  type: NodePort
+  type: ClusterIP
   ports:
     - protocol: TCP
       port: 9020
       targetPort: 9020
+      name: "tcp-0"  # required by edgemesh, to clean
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -132,13 +158,18 @@ spec:
       labels:
         sedna: kb
     spec:
-      nodeSelector:
-        sedna: control-plane
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/edge
+                operator: DoesNotExist
       serviceAccountName: sedna
       containers:
       - name: kb
         imagePullPolicy: IfNotPresent
-        image: kubeedge/sedna-kb:$KB_VERSION
+        image: kubeedge/sedna-kb:$SEDNA_VERSION
         env:
           - name: KB_URL
             value: "sqlite:///db/kb.sqlite3"
@@ -160,13 +191,8 @@ EOF
 }
 
 prepare_gm_config_map() {
-  kb_node_port=$(kubectl -n sedna get svc kb -ojsonpath='{.spec.ports[0].nodePort}')
 
-  # here try to get node ip by kubectl
-  kb_node_ip=$(kubectl get node $KB_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="ExternalIP")].address }')
-  kb_node_internal_ip=$(kubectl get node $KB_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="InternalIP")].address }')
-
-  KB_ADDRESS=${kb_node_ip:-$kb_node_internal_ip}:$kb_node_port
+  KB_ADDRESS=$(get_service_address kb)
 
   cm_name=${1:-gm-config}
   config_file=${TMP_DIR}/${2:-gm.yaml}
@@ -211,11 +237,12 @@ metadata:
 spec:
   selector:
     sedna: gm
-  type: NodePort
+  type: ClusterIP
   ports:
     - protocol: TCP
       port: 9000
       targetPort: 9000
+      name: "tcp-0"  # required by edgemesh, to clean
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -234,8 +261,13 @@ spec:
       labels:
         sedna: gm
     spec:
-      nodeSelector:
-        sedna: control-plane
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/edge
+                operator: DoesNotExist
       serviceAccountName: sedna
       containers:
       - name: gm
@@ -249,7 +281,7 @@ spec:
             memory: 32Mi
             cpu: 100m
           limits:
-            memory: 128Mi
+            memory: 256Mi
       volumes:
         - name: gm-config
           configMap:
@@ -262,18 +294,12 @@ delete_gm() {
 
   kubectl delete -f build/gm/rbac/
 
-
   # no need to clean gm deployment alone
 }
 
 create_lc() {
-  gm_node_port=$(kubectl -n sedna get svc gm -ojsonpath='{.spec.ports[0].nodePort}')
 
-  # here try to get node ip by kubectl
-  gm_node_ip=$(kubectl get node $GM_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="ExternalIP")].address }')
-  gm_node_internal_ip=$(kubectl get node $GM_NODE_NAME -o jsonpath='{ .status.addresses[?(@.type=="InternalIP")].address }')
-
-  GM_ADDRESS=${gm_node_ip:-$gm_node_internal_ip}:$gm_node_port
+  GM_ADDRESS=$(get_service_address gm)
 
   kubectl $action -f- <<EOF
 apiVersion: apps/v1
@@ -322,6 +348,7 @@ spec:
             path: /
       restartPolicy: Always
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
 EOF
 }
 
@@ -332,6 +359,7 @@ delete_lc() {
 }
 
 wait_ok() {
+  echo "Waiting control components to be ready..."
   kubectl -n sedna wait --for=condition=available --timeout=600s deployment/gm
   kubectl -n sedna wait pod --for=condition=Ready --selector=sedna
   kubectl -n sedna get pod
@@ -357,18 +385,9 @@ check_action() {
   
 }
 
-check_node() {
-  if [ -z "$GM_NODE_NAME" ] || ! kubectl get node $GM_NODE_NAME; then 
-    echo "ERROR: $(red_text GM node name \`$GM_NODE_NAME\` does not exist in k8s cluster)!" >&2
-    echo "You need to specify it by setting $(red_text SEDNA_GM_NODE) environment variable when running this script!" >&2
-    exit 1
-  fi
-}
-
 do_check() {
   check_kubectl
   check_action
-  check_node
 }
 
 show_debug_infos() {
@@ -396,6 +415,7 @@ do_check
 prepare
 case "$action" in
   create)
+    echo "Installing Sedna $SEDNA_VERSION..."
     prepare_install
     create_crds
     create_kb
@@ -406,6 +426,8 @@ case "$action" in
     ;;
 
   delete)
+    # no errexit when fail to clean
+    set +o errexit
     delete_pods
     delete_gm
     delete_lc

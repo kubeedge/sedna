@@ -134,7 +134,8 @@ def run():
 
         img_rgb = cv2.cvtColor(input_yuv, cv2.COLOR_BGR2RGB)
         nframe += 1
-        warnings.warn(f"camera is open, current frame index is {nframe}")
+        if nframe % 1000 == 1:  # logs every 1000 frames
+            warnings.warn(f"camera is open, current frame index is {nframe}")
         results, _, is_hard_example = incremental_instance.inference(
             img_rgb, post_process=deal_infer_rsl, input_shape=input_shape)
         output_deal(is_hard_example, results, nframe, img_rgb)

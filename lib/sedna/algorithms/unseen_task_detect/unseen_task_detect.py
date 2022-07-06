@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unseen task detection algorithms for Lifelong Learning"""
+"""
+Unseen task detection algorithms for Lifelong Learning
+"""
 
 import abc
 from typing import List
@@ -28,22 +30,46 @@ __all__ = ('ModelProbeFilter', 'TaskAttrFilter')
 class BaseFilter(metaclass=abc.ABCMeta):
     """The base class to define unified interface."""
 
-    def __call__(self, task: Task = None):
-        """predict function, and it must be implemented by
+    def __call__(self, tasks: Task = None):
+        """
+        predict function, and it must be implemented by
         different methods class.
 
-        :param task: inference task
-        :return: `True` means unseen task, `False` means not an unseen task.
+        Parameters
+        ----------
+        tasks : inference task
+
+        Returns
+        -------
+        is unseen task : bool
+            `True` means unseen task, `False` means not.
         """
         raise NotImplementedError
 
 
 @ClassFactory.register(ClassType.UTD)
 class ModelProbeFilter(BaseFilter, abc.ABC):
+    """
+    Judgment based on the confidence of the prediction result,
+    typically used for classification problems
+    """
+
     def __init__(self):
         pass
 
     def __call__(self, tasks: List[Task] = None, threshold=0.5, **kwargs):
+        """
+        Parameters
+        ----------
+        tasks : inference task
+        threshold : float
+            threshold considered credible
+
+        Returns
+        -------
+        is unseen task: bool
+            `True` means unseen task, `False` means not.
+        """
         all_proba = []
         for task in tasks:
             sample = task.samples
@@ -56,10 +82,23 @@ class ModelProbeFilter(BaseFilter, abc.ABC):
 
 @ClassFactory.register(ClassType.UTD)
 class TaskAttrFilter(BaseFilter, abc.ABC):
+    """
+    Judgment based on whether the metadata of the sample has been found in KB
+    """
     def __init__(self):
         pass
 
     def __call__(self, tasks: List[Task] = None, **kwargs):
+        """
+        Parameters
+        ----------
+        tasks : inference task
+
+        Returns
+        -------
+        is unseen task: bool
+            `True` means unseen task, `False` means not.
+        """
         for task in tasks:
             model_attr = list(map(list, task.model.meta_attr))
             sample_attr = list(map(list, task.samples.meta_attr))

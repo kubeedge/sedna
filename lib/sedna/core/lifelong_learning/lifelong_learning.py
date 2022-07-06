@@ -28,7 +28,68 @@ from sedna.service.client import KBClient
 
 class LifelongLearning(JobBase):
     """
-    Lifelong learning
+     Lifelong Learning (LL) is an advanced machine learning (ML) paradigm that
+     learns continuously, accumulates the knowledge learned in the past, and
+     uses/adapts it to help future learning and problem solving.
+
+     Sedna provide the related interfaces for application development.
+
+    Parameters
+    ----------
+    estimator : Instance
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your model.
+    task_definition : Dict
+        Divide multiple tasks based on data,
+        see `task_jobs.task_definition` for more detail.
+    task_relationship_discovery : Dict
+        Discover relationships between all tasks, see
+        `task_jobs.task_relationship_discovery` for more detail.
+    task_mining : Dict
+        Mining tasks of inference sample,
+        see `task_jobs.task_mining` for more detail.
+    task_remodeling : Dict
+        Remodeling tasks based on their relationships,
+        see `task_jobs.task_remodeling` for more detail.
+    inference_integrate : Dict
+        Integrate the inference results of all related
+        tasks, see `task_jobs.inference_integrate` for more detail.
+    unseen_task_detect: Dict
+        unseen task detect algorithms with parameters which has registered to
+        ClassFactory, see `sedna.algorithms.unseen_task_detect` for more detail
+
+
+    Examples
+    --------
+    >>> estimator = XGBClassifier(objective="binary:logistic")
+    >>> task_definition = {
+            "method": "TaskDefinitionByDataAttr",
+            "param": {"attribute": ["season", "city"]}
+        }
+    >>> task_relationship_discovery = {
+            "method": "DefaultTaskRelationDiscover", "param": {}
+        }
+    >>> task_mining = {
+            "method": "TaskMiningByDataAttr",
+            "param": {"attribute": ["season", "city"]}
+        }
+    >>> task_remodeling = None
+    >>> inference_integrate = {
+            "method": "DefaultInferenceIntegrate", "param": {}
+        }
+    >>> unseen_task_detect = {
+            "method": "TaskAttrFilter", "param": {}
+        }
+    >>> ll_jobs = LifelongLearning(
+            estimator=estimator,
+            task_definition=task_definition,
+            task_relationship_discovery=task_relationship_discovery,
+            task_mining=task_mining,
+            task_remodeling=task_remodeling,
+            inference_integrate=inference_integrate,
+            unseen_task_detect=unseen_task_detect
+        )
     """
 
     def __init__(self,
@@ -57,7 +118,7 @@ class LifelongLearning(JobBase):
             inference_integrate=inference_integrate)
         self.unseen_task_detect = unseen_task_detect.get("method",
                                                          "TaskAttrFilter")
-        self.unseen_task_detect_param = e.parse_param(
+        self.unseen_task_detect_param = e._parse_param(
             unseen_task_detect.get("param", {})
         )
         config = dict(
@@ -79,10 +140,25 @@ class LifelongLearning(JobBase):
               action="initial",
               **kwargs):
         """
-        :param train_data: data use to train model
-        :param valid_data: data use to valid model
-        :param post_process: callback function
-        :param action: initial - kb init, update - kb incremental update
+        fit for update the knowledge based on training data.
+
+        Parameters
+        ----------
+        train_data : BaseDataSource
+            Train data, see `sedna.datasources.BaseDataSource` for more detail.
+        valid_data : BaseDataSource
+            Valid data, BaseDataSource or None.
+        post_process : function
+            function or a registered method, callback after `estimator` train.
+        action : str
+            `update` or `initial` the knowledge base
+        kwargs : Dict
+            parameters for `estimator` training, Like:
+            `early_stopping_rounds` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        train_history : object
         """
 
         callback_func = None
@@ -180,6 +256,19 @@ class LifelongLearning(JobBase):
         )
 
     def evaluate(self, data, post_process=None, **kwargs):
+        """
+        evaluated the performance of each task from training, filter tasks
+        based on the defined rules.
+
+        Parameters
+        ----------
+        data : BaseDataSource
+            valid data, see `sedna.datasources.BaseDataSource` for more detail.
+        kwargs: Dict
+            parameters for `estimator` evaluate, Like:
+            `ntree_limit` in Xgboost.XGBClassifier
+        """
+
         callback_func = None
         if callable(post_process):
             callback_func = post_process
@@ -244,7 +333,30 @@ class LifelongLearning(JobBase):
         return callback_func(res) if callback_func else res
 
     def inference(self, data=None, post_process=None, **kwargs):
+        """
+        predict the result for input data based on training knowledge.
 
+        Parameters
+        ----------
+        data : BaseDataSource
+            inference sample, see `sedna.datasources.BaseDataSource` for
+            more detail.
+        post_process: function
+            function or a registered method,  effected after `estimator`
+            prediction, like: label transform.
+        kwargs: Dict
+            parameters for `estimator` predict, Like:
+            `ntree_limit` in Xgboost.XGBClassifier
+
+        Returns
+        -------
+        result : array_like
+            results array, contain all inference results in each sample.
+        is_unseen_task : bool
+            `true` means detect an unseen task, `false` means not
+        tasks : List
+            tasks assigned to each sample.
+        """
         task_index_url = self.get_parameters(
             "MODEL_URLS", self.config.task_index)
         index_url = self.estimator.estimator.task_index_url

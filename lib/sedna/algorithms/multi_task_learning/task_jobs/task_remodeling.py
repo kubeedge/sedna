@@ -12,6 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Remodeling tasks based on their relationships
+
+Parameters
+----------
+mappings ：all assigned tasks get from the `task_mining`
+samples : input samples
+
+Returns
+-------
+models : List of groups which including at least 1 task.
+"""
+
 from typing import List
 
 import numpy as np
@@ -25,10 +38,17 @@ __all__ = ('DefaultTaskRemodeling',)
 
 @ClassFactory.register(ClassType.MTL)
 class DefaultTaskRemodeling:
+    """
+    Assume that each task is independent of each other
+    """
+
     def __init__(self, models: list, **kwargs):
         self.models = models
 
     def __call__(self, samples: BaseDataSource, mappings: List):
+        """
+        Grouping based on assigned tasks
+        """
         mappings = np.array(mappings)
         data, models = [], []
         d_type = samples.data_type

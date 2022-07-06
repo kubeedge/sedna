@@ -73,7 +73,7 @@ The tables below summarize the group, kind and API version details for the CRDs.
 
 #### `Dataset` CRD
 
-[crd source](/build/crds/sedna/dataset_v1alpha1.yaml)
+[crd source](/build/crds/sedna.io_datasets.yaml)
 
 ```yaml
 apiVersion: apiextensions.k8s.io/v1
@@ -144,7 +144,7 @@ Current we support these below formats:
 
 #### `Model` CRD
 
-[crd source](/build/crds/sedna/model_v1alpha1.yaml)
+[crd source](/build/crds/sedna.io_models.yaml)
 ```yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -209,7 +209,7 @@ spec:
 ### CRD type definition
 - `Dataset`
 
-[go source](cloud/pkg/apis/sedna/v1alpha1/dataset_types.go)
+[go source](/pkg/apis/sedna/v1alpha1/dataset_types.go)
 
 ```go
 package v1alpha1
@@ -259,7 +259,7 @@ type DatasetList struct {
 
 - `Model`
 
-[go source](cloud/pkg/apis/sedna/v1alpha1/model_types.go)
+[go source](/pkg/apis/sedna/v1alpha1/model_types.go)
 ```go
 package v1alpha1
 

@@ -1,2 +1,2 @@
-include OWNERS requirements.txt sedna/VERSION README.md
+include OWNERS requirements.txt requirements.dev.txt sedna/VERSION sedna/README.md
 recursive-include examples *.txt *.py

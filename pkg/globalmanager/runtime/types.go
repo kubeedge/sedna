@@ -46,11 +46,18 @@ const (
 
 	// AnnotationsKeyPrefix defines prefix of key in annotations
 	AnnotationsKeyPrefix = "sedna.io/"
+
+	ModelHotUpdateHostPrefix      = "/var/lib/sedna/model-hot-update"
+	ModelHotUpdateContainerPrefix = "/model-hot-update"
+	ModelHotUpdateVolumeName      = "sedna-model-hot-update-volume"
+	ModelHotUpdateConfigFile      = "model_config.json"
+	ModelHotUpdateAnnotationsKey  = "sedna.io/model-hot-update-config"
 )
 
 type Model struct {
-	Format  string                 `json:"format,omitempty"`
-	URL     string                 `json:"url,omitempty"`
+	Format  string                 `json:"format"`
+	URL     string                 `json:"url"`
+	Devices []string               `json:"device_soc_versions,omitempty"`
 	Metrics map[string]interface{} `json:"metrics,omitempty"`
 }
 

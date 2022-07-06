@@ -115,7 +115,7 @@ const (
 	JointInferenceServiceCondPending JointInferenceServiceConditionType = "Pending"
 	// JointInferenceServiceCondFailed means the service has failed its execution.
 	JointInferenceServiceCondFailed JointInferenceServiceConditionType = "Failed"
-	// JointInferenceServiceReady means the service has been ready.
+	// JointInferenceServiceCondRunning means the service is running.
 	JointInferenceServiceCondRunning JointInferenceServiceConditionType = "Running"
 )
 

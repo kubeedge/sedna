@@ -32,6 +32,10 @@ func (c *FakeSednaV1alpha1) Datasets(namespace string) v1alpha1.DatasetInterface
 	return &FakeDatasets{c, namespace}
 }
 
+func (c *FakeSednaV1alpha1) FeatureExtractionServices(namespace string) v1alpha1.FeatureExtractionServiceInterface {
+	return &FakeFeatureExtractionServices{c, namespace}
+}
+
 func (c *FakeSednaV1alpha1) FederatedLearningJobs(namespace string) v1alpha1.FederatedLearningJobInterface {
 	return &FakeFederatedLearningJobs{c, namespace}
 }
@@ -58,6 +62,14 @@ func (c *FakeSednaV1alpha1) ObjectSearchServices(namespace string) v1alpha1.Obje
 
 func (c *FakeSednaV1alpha1) ObjectTrackingServices(namespace string) v1alpha1.ObjectTrackingServiceInterface {
 	return &FakeObjectTrackingServices{c, namespace}
+}
+
+func (c *FakeSednaV1alpha1) ReidJobs(namespace string) v1alpha1.ReidJobInterface {
+	return &FakeReidJobs{c, namespace}
+}
+
+func (c *FakeSednaV1alpha1) VideoAnalyticsJobs(namespace string) v1alpha1.VideoAnalyticsJobInterface {
+	return &FakeVideoAnalyticsJobs{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
