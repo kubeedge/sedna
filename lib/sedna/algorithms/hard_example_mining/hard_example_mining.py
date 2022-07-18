@@ -162,6 +162,12 @@ class IBTFilter(BaseFilter, abc.ABC):
             `True` means hard sample, `False` means not.
         """
 
+        if not infer_result:
+            return False
+
+        if isinstance(infer_result, "dict"):
+            infer_result.values()
+
         if not (infer_result
                 and all(map(lambda x: len(x) > 4, infer_result))):
             # if invalid input, return False

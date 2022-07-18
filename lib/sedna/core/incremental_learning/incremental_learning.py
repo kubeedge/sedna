@@ -14,11 +14,11 @@
 
 from copy import deepcopy
 
+import numpy as np
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
 from sedna.common.class_factory import ClassFactory, ClassType
 from sedna.core.base import JobBase
-from sedna.common.config import Context
 
 __all__ = ("IncrementalLearning",)
 
@@ -70,12 +70,16 @@ class IncrementalLearning(JobBase):
         self.hard_example_mining_algorithm = None
         if not hard_example_mining:
             hard_example_mining = self.get_hem_algorithm_from_config()
-        if hard_example_mining:
+
+        if hard_example_mining and not callable(hard_example_mining):
             hem = hard_example_mining.get("method", "IBT")
             hem_parameters = hard_example_mining.get("param", {})
             self.hard_example_mining_algorithm = ClassFactory.get_cls(
                 ClassType.HEM, hem
             )(**hem_parameters)
+
+        if callable(hard_example_mining):
+            self.hard_example_mining_algorithm = hard_example_mining
 
     @classmethod
     def get_hem_algorithm_from_config(cls, **param):
@@ -186,6 +190,7 @@ class IncrementalLearning(JobBase):
             )
         else:
             res = infer_res
+
         is_hard_example = False
 
         if self.hard_example_mining_algorithm:
