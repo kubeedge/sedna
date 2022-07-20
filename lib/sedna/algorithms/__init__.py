@@ -16,5 +16,4 @@ from . import aggregation
 from . import hard_example_mining
 from . import multi_task_learning
 from . import unseen_task_detect
-from . import optical_flow
 from . import reid
