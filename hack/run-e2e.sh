@@ -22,13 +22,19 @@ SEDNA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 cd "$SEDNA_ROOT"
 
-# source local-up script
+# Prepare all-in-one env
 {
   __WITH_SOURCE__=true
   # this will export KUBECONFIG
-  source hack/local-up.sh
-  trap cleanup EXIT
+  echo "Prepare all-in-one env" 
+  cat scripts/installation/all-in-one.sh | KUBEEDGE_VERSION=v1.8.0 NUM_EDGE_NODES=0 bash -
 }
 
+# Running e2e
 echo "Running e2e..."
 go test ./test/e2e -v
+
+
+# Clean all-in-one env
+echo "Chean all-in-one env"
+cat scripts/installation/all-in-one.sh | bash /dev/stdin clean
