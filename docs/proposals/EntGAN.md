@@ -1,9 +1,9 @@
 # EntGAN: A Distributed GAN Framework Based on Multi-task
 ## Motivation
 
-Generative adversarial networks (GAN) has been widely used to solve the challenges of small samples and heterogeneous data. In recent years, distributed GAN has expanded and accelerated the training of GAN. The existing distributed GANs aim to train a certain class of discriminators to generate a single class of fake data. However, in real life, there are applications that need to train many kinds of discriminators at the same time, such as image conversion and robot inspection.     
+Generative adversarial networks(GAN) has been widely used to solve the challenges of small samples and heterogeneous data. In recent years, distributed GAN has expanded and accelerated the training of GAN. The existing distributed GANs aim to train a certain class of discriminators to generate a single kind of fake data. However, in real life, there are applications that need to train many kinds of discriminators at the same time, such as image conversion and robot inspection.     
 
-Therefore, we propose a enhanced GAN framework to help sole **multi-task** and **memory usage** problem. We call the framework EntGAN.     
+Therefore, we propose an enhanced GAN framework to help sole **multi-task** and **memory usage** problem. We call the framework EntGAN.     
 
 
 
@@ -12,10 +12,11 @@ Therefore, we propose a enhanced GAN framework to help sole **multi-task** and *
 * The framework implement the configuration of global generator and global discriminator on the server side, and configure different local generators and local discriminators on different edge nodes
 * The framework can reduce the overall training time by at least 10% and the server memory occupation by at least 15% compared to the state-of-the-art distributed GAN.
 * The framework has a set of simple APIs convenient for users to use.
+* The framework will take adavantage of Sedna GAN framework or slightly modify it, whose generator will be trained with the data about robots.
 
 
 ## Proposal
-We propose a enhanced GAN framework to help sole **multi-task** and **memory usage** problem. We call the framework EntGAN.     
+We propose a enhanced GAN framework to help solve **multi-task** and **memory usage** problem. We call the framework EntGAN.     
 
 We will explain our ideas on system architecture and learning process.
 
