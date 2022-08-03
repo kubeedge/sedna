@@ -124,8 +124,12 @@ func ParsingDatasetIndex(samples []string, prefix string) []string {
 	var l []string
 	l = append(l, prefix)
 	for _, v := range samples {
-		absURL := strings.Split(v, " ")[0]
-		l = append(l, absURL)
+		tmp := strings.Split(v, " ")
+		for _, data := range tmp {
+			if path.Ext(data) != "" {
+				l = append(l, data)
+			}
+		}
 	}
 
 	return l
