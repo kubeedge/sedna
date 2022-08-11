@@ -34,6 +34,9 @@ sedna::buildx::prepare_env() {
     docker buildx create --use --name $builder_instance --driver docker-container
   fi
   docker buildx use $builder_instance
+
+  # go speed tag with CGO_ENABLED=1 and alpine image
+  _speed_buildx_for_cgo_alpine_
 }
 
 _speed_buildx_for_go_() {
@@ -101,8 +104,6 @@ sedna::buildx:generate-speed-dockerfile() {
     # go speed tag
     _speed_buildx_for_go_
 
-    # go speed tag with CGO_ENABLED=1 and alpine image
-    _speed_buildx_for_cgo_alpine_
   )
 
   local base_cmds='
