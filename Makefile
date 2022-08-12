@@ -119,6 +119,22 @@ lint:
 	hack/make-rules/lint.sh
 endif
 
+define PYLINT_HELP_INFO
+# run python lint check.
+#
+# Example:
+#   make pylint
+#   make pylint HELP=y
+endef
+.PHONY: pylint
+ifeq ($(HELP),y)
+pylint:
+	@echo "$$PYLINT_HELP_INFO"
+else
+pylint:
+	hack/make-rules/pylint.sh
+endif
+
 define CLEAN_HELP_INFO
 # Clean up the output of make.
 #
