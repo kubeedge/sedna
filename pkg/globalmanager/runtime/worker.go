@@ -42,6 +42,8 @@ type WorkerParam struct {
 	ModelHotUpdate ModelHotUpdate
 
 	RestartPolicy v1.RestartPolicy
+
+	DNSPolicy v1.DNSPolicy
 }
 
 type ModelHotUpdate struct {
@@ -162,6 +164,10 @@ func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInter
 
 	if pod.Spec.RestartPolicy == "" {
 		pod.Spec.RestartPolicy = workerParam.RestartPolicy
+	}
+
+	if workerParam.DNSPolicy != "" {
+		pod.Spec.DNSPolicy = workerParam.DNSPolicy
 	}
 }
 
