@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import aggregation
-from . import hard_example_mining
-from . import multi_task_learning
-from . import unseen_task_detect
-from . import reid
-from . import knowledge_management
-from . import seen_task_learning
-from . import unseen_task_detection
-from . import unseen_task_processing
+# train
+from . import task_definition
+from . import task_relation_discover
+
+# inference
+from . import task_remodeling
+from . import task_allocation
+
+# result integrate
+from . import inference_integrate
+
+from .seen_task_learning import SeenTaskLearning

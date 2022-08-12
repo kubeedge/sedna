@@ -54,6 +54,10 @@ class KBServer(BaseServer):
         self.save_dir = FileOps.clean_folder([save_dir], clean=False)[0]
         self.url = f"{self.url}/{servername}"
         self.kb_index = KBResourceConstant.KB_INDEX_NAME.value
+        self.seen_task_key = KBResourceConstant.SEEN_TASK.value
+        self.unseen_task_key = KBResourceConstant.UNSEEN_TASK.value
+        self.task_group_key = KBResourceConstant.TASK_GROUPS.value
+        self.extractor_key = KBResourceConstant.EXTRACTOR.value
         self.app = FastAPI(
             routes=[
                 APIRoute(
@@ -120,7 +124,7 @@ class KBServer(BaseServer):
         return f"/file/download?files={filename}&name={filename}"
 
     def update_status(self, data: KBUpdateResult = Body(...)):
-        deploy = True if data.status else False
+        deploy = bool(data.status)
         tasks = data.tasks.split(",") if data.tasks else []
         with Session(bind=engine) as session:
             session.query(TaskGrp).filter(
@@ -131,18 +135,24 @@ class KBServer(BaseServer):
 
         # todo: get from kb
         _index_path = FileOps.join_path(self.save_dir, self.kb_index)
-        task_info = joblib.load(_index_path)
+        try:
+            task_info = joblib.load(_index_path)
+        except Exception as err:
+            print(f"{err} And return None.")
+            return None
+
         new_task_group = []
 
-        default_task = task_info["task_groups"][0]
+        # TODO: to fit seen tasks and unseen tasks
+        default_task = task_info[self.seen_task_key][self.task_group_key][0]
         # todo: get from transfer learning
-        for task_group in task_info["task_groups"]:
+        for task_group in task_info[self.seen_task_key][self.task_group_key]:
             if not ((task_group.entry in tasks) == deploy):
                 new_task_group.append(default_task)
                 continue
             new_task_group.append(task_group)
-        task_info["task_groups"] = new_task_group
-        _index_path = FileOps.join_path(self.save_dir, self.kb_index)
+        task_info[self.seen_task_key][self.task_group_key] = new_task_group
+
         FileOps.dump(task_info, _index_path)
         return f"/file/download?files={self.kb_index}&name={self.kb_index}"
 
@@ -153,9 +163,14 @@ class KBServer(BaseServer):
             fout.write(tasks)
         os.close(fd)
         upload_info = joblib.load(name)
+        # TODO: to adapt unseen tasks
+        task_groups = upload_info[self.seen_task_key][self.task_group_key]
+        task_groups.extend(upload_info[self.unseen_task_key][self.task_group_key])
 
         with Session(bind=engine) as session:
-            for task_group in upload_info["task_groups"]:
+            # TODO: to adapt unseen tasks
+            # for task_group in upload_info["task_groups"]:
+            for task_group in task_groups:
                 grp, g_create = get_or_create(
                     session=session, model=TaskGrp, name=task_group.entry)
                 if g_create:
