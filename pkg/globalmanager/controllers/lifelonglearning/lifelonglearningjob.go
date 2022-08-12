@@ -701,6 +701,7 @@ func (c *Controller) createPod(job *sednav1.LifelongLearningJob, podtype sednav1
 	// set the default policy instead of Always policy
 	workerParam.RestartPolicy = v1.RestartPolicyOnFailure
 	workerParam.HostNetwork = true
+	workerParam.DNSPolicy = v1.DNSClusterFirstWithHostNet
 
 	// create pod based on podtype
 	_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, podTemplate, workerParam)
@@ -745,6 +746,7 @@ func (c *Controller) createInferPod(job *sednav1.LifelongLearningJob) error {
 
 	workerParam.WorkerType = runtime.InferencePodType
 	workerParam.HostNetwork = true
+	workerParam.DNSPolicy = v1.DNSClusterFirstWithHostNet
 
 	// create edge pod
 	_, err = runtime.CreatePodWithTemplate(c.kubeClient, job, &job.Spec.DeploySpec.Template, workerParam)
