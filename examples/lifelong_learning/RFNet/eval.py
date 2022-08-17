@@ -60,8 +60,7 @@ class Validator(object):
             if self.args.depth:
                 image, depth, target = sample['image'], sample['depth'], sample['label']
             else:
-                # spec = time.time()
-                image, target = sample['image'], sample['label']            
+                image, target = sample['image'], sample['label']
             
             if self.args.cuda:
                 image = image.cuda()
@@ -82,7 +81,7 @@ class Validator(object):
             pred = np.argmax(pred, axis=1)
             predictions.append(pred)
 
-            if not self.args.save_predicted_image:
+            if self.args.save_predicted_image != "true":
                 continue
             
             pre_colors = Colorize()(torch.max(output, 1)[1].detach().cpu().byte())

@@ -169,8 +169,7 @@ class IndexDataParse(BaseDataSource, ABC):
                 if self.process_func:
                     res = []
                     for line in fin.readlines():
-                        lines = line.strip().split()
-                        lines = [self.process_func(data) for data in lines]
+                        lines = list(map(self.process_func, line.strip().split()))
                         res.append(lines)
                 else:
                     res = [line.strip().split() for line in fin.readlines()]

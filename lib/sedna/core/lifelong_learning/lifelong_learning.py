@@ -294,8 +294,10 @@ class LifelongLearning(JobBase):
         # seen_samples.y = np.concatenate(
         #     (historical_data.y, seen_samples.y, unseen_samples.y), axis=0)
 
-        seen_samples.x = np.concatenate((seen_samples.x, unseen_samples.x), axis=0)
-        seen_samples.y = np.concatenate((seen_samples.y, unseen_samples.y), axis=0)
+        seen_samples.x = np.concatenate(
+            (seen_samples.x, unseen_samples.x), axis=0)
+        seen_samples.y = np.concatenate(
+            (seen_samples.y, unseen_samples.y), axis=0)
 
         task_update_decision = ClassFactory.get_cls(
             ClassType.KM, self.task_update_decision["method"])(
@@ -412,7 +414,8 @@ class LifelongLearning(JobBase):
             self.edge_knowledge_management.task_index,
             **self.unseen_sample_recognition_param)
 
-        seen_samples, unseen_samples = unseen_sample_recognition(data, **kwargs)
+        seen_samples, unseen_samples = unseen_sample_recognition(
+            data, **kwargs)
         if unseen_samples.x is not None and len(unseen_samples.x) > 0:
             self.edge_knowledge_management.log.info(
                 f"Unseen task is detected.")

@@ -276,12 +276,14 @@ class SeenTaskLearning:
                 if callback:
                     res = callback(model_obj, res)
                 if isinstance(res, str):
-                    model_path = res
+                    model_path = model_obj.save(model_name=f"{task.entry}.pth")
+                    model = Model(index=i, entry=task.entry,
+                                  model=model_path, result={})
                 else:
                     model_path = model_obj.save(
                         model_name=f"{task.entry}.model")
-                model = Model(index=i, entry=task.entry,
-                              model=model_path, result=res)
+                    model = Model(index=i, entry=task.entry,
+                                  model=model_path, result=res)
 
                 model.meta_attr = [t.meta_attr for t in task.tasks]
             task.model = model
@@ -388,18 +390,18 @@ class SeenTaskLearning:
             LOGGER.info(f"MTL Train start {i} : {task.entry}")
             for _task in task.tasks:
                 model_obj = set_backend(estimator=self.base_model)
-                model_obj.load(_task.model, phase="train")
+                model_obj.load(_task.model)
                 res = model_obj.train(train_data=task.samples)
                 if isinstance(res, str):
-                    model_path = res
+                    model_path = model_obj.save(
+                        model_name=f"{task.entry}.pth")
                     model = Model(index=i, entry=task.entry,
                                   model=model_path, result={})
                 else:
                     model_path = model_obj.save(
-                        model_name=f"{task.entry}_{time.time()}.model")
+                        model_name=f"{task.entry}.model")
                     model = Model(index=i, entry=task.entry,
                                   model=model_path, result=res)
-
                 break
 
             model.meta_attr = [t.meta_attr for t in task.tasks]

@@ -28,6 +28,7 @@ from starlette.responses import JSONResponse
 from sedna.service.server.base import BaseServer
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import KBResourceConstant
+from sedna.common.config import Context
 
 from .model import *
 
@@ -135,12 +136,7 @@ class KBServer(BaseServer):
 
         # todo: get from kb
         _index_path = FileOps.join_path(self.save_dir, self.kb_index)
-        try:
-            task_info = joblib.load(_index_path)
-        except Exception as err:
-            print(f"{err} And return None.")
-            return None
-
+        task_info = FileOps.load(_index_path)
         new_task_group = []
 
         # TODO: to fit seen tasks and unseen tasks
@@ -153,6 +149,7 @@ class KBServer(BaseServer):
             new_task_group.append(task_group)
         task_info[self.seen_task_key][self.task_group_key] = new_task_group
 
+        _index_path = FileOps.join_path(self.save_dir, self.kb_index)
         FileOps.dump(task_info, _index_path)
         return f"/file/download?files={self.kb_index}&name={self.kb_index}"
 
