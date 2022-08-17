@@ -4,6 +4,11 @@
   * [Proposal](#proposal)
   * [Design Details](#design-details)
     * [Monitoring Metrics](#monitoring-metrics)
+      * [Common System Metrics](#common-system-metrics)
+      * [Algorithm Metrics (Designed Individually For Each Task)](#algorithm-metrics-designed-individually-for-each-task)
+        * [Joint Inference](#joint-inference)
+        * [Incremental Learning](#incremental-learning)
+        * [Federated Learning](#federated-learning)
     * [Collecting Logs](#collecting-logs)
     * [Display](#display)
   * [Key Deliverable](#key-deliverable)
@@ -76,14 +81,14 @@ For edge-cloud synergy AI tasks, we create customized exporters to collect the m
 | IterationNo               | The current iteration No. of incremental learning                                             |
 | IterationInferenceCount   | The count of inference at current iteration                                                   |
 | IterationHardSampleNum    | The number of hard samples at current iteration                                               |
-| EvalNewModelPath          | The path of new model at eval stage                                                           |
+| EvalNewModelUrl           | The url of new model at eval stage                                                            |
 | AccuracyMetricForNewModel | mAP / Precision / Recall / F1-score for new model                                             |
 | AccuracyMetricForOldModel | mAP / Precision / Recall / F1-score for old model                                             |
-| TrainOutputModelPath      | The output path for model after training                                                      |
-| DeployModelPath           | The path for deploying model                                                                  |
+| TrainOutputModelUrl       | The output url for model after training                                                       |
+| DeployModelUrl            | The url for deploying model                                                                   |
 | DeployStatus              | Waiting / OK / Not OK                                                                         |
 | TrainRemainingTime        | The remaining time at train stage                                                             |
-| TrainLoss                 | loss at train stage                                                                           |
+| TrainLoss                 | Loss at train stage                                                                           |
 | EvalRemainingTime         | The remaining time at eval stage                                                              |
 
 ##### Federated Learning
@@ -110,7 +115,7 @@ For logs, querying can be performed to show all logs matched and the number of m
 * Code and configuration files
   * Code of edge-cloud synergy AI task exporters
   * Component configuration files for Prometheus, Loki and Grafana
-  * Exporter configuration files for node-exporter and kube-state-metrics
+  * Exporter configuration files for kube-state-metrics
   * JSON configuration files for easy-to-use and good-looking panels on Grafana
 * End-to-end test cases
 
