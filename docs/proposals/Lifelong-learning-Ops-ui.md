@@ -58,7 +58,7 @@ There are two types of Promtail collection modes. The following table shows the 
 
 1. LLJob Status
 
-| **Metric**           | **Description**                                                                  |
+| **Metric**           | **Description**                                                            |
 |----------------------|----------------------------------------------------------------------------|
 | JobStatus            | Status of each job,Enum(True, False, Unknown)                              |  
 | StageConditionStatus | Status of each stage,Enum(Waiting,Ready,Starting,Running,Completed,Failed) |  
@@ -66,7 +66,7 @@ There are two types of Promtail collection modes. The following table shows the 
 
 2. Dataset status
 
-| **Metric**       | **Description**                           |
+| **Metric**       | **Description**                     |
 |------------------|-------------------------------------|
 | NumberOfSamples  | The number of samples               |
 | StageTrainNumber | The number of samples used by train |
@@ -74,13 +74,13 @@ There are two types of Promtail collection modes. The following table shows the 
 
 3. Model
 
-| **Metric** | **Description**                                 |
+| **Metric** | **Description**                           |
 |------------|-------------------------------------------|
 | Key        | The value corresponding to the custom Key |
 
 4. Task
 
-| **Metric**        | **Description**                                                                                                                                                                                             |
+| **Metric**        | **Description**                                                                                                                                                                                       |
 |-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | ActiveTasksNumber | The number of running tasks                                                                                                                                                                           |
 | TotalTasksNumber  | The number of total tasks                                                                                                                                                                             |
@@ -88,7 +88,7 @@ There are two types of Promtail collection modes. The following table shows the 
 
 5. Worker
 
-| **Metric**          | **Description**                                                                                                 |
+| **Metric**          | **Description**                                                                                           |
 |---------------------|-----------------------------------------------------------------------------------------------------------|
 | ActiveWorkersNumber | The number of running worker                                                                              |
 | TotalWorkerNumber   | The number of total worker                                                                                |
@@ -96,47 +96,54 @@ There are two types of Promtail collection modes. The following table shows the 
 
 6. Number of samples for inference (known tasks, unknown tasks)
 
-| **Metric**           | **Description**                                              |
+| **Metric**           | **Description**                                        |
 |----------------------|--------------------------------------------------------|
 | InferenceDoneNumber  | The number of samples for which inference is completed |
 | InferenceReadyNumber | The number of samples ready for inference              |
 | InferenceErrorNumber | The number of samples with inference errors            |
 | InferenceRate        | Inference completion percentage：0-100（%）               |
 
-7. Knowledge Base server
+7. Knowledge base
 
-| **Metric** | **Description**                     |
-|------------|-------------------------------|
-| KBServer   | Address of the knowledge base |
+| **Metric** | **Description**                                                      |
+|------------|----------------------------------------------------------------------|
+| KBServerIP | The server IP where the knowledge base is located                    |
+| KBNodeType | The type of the node where the knowledge base is located(Cloud,Edge) |
+| KBNodeName | The name of the node where the knowledge base is located             |
 
 8. Training stage
 
-| **Metric**          | **Description**                                   |
-|---------------------|---------------------------------------------|
-| LearningRate        | The learning rate at training stage         |
-| EpochNum            | The number of epochs at training stage      |
-| BatchSize           | The batch size at training stage            |
-| TrainSampleNum      | The number of samples used at training stage |
-| TrainOutputModelUrl | The output url for model after training     |
+| **Metric**             | **Description**                                           |
+|------------------------|-----------------------------------------------------------|
+| KnowTaskNum            | Number of known tasks in the knowledge base               |
+| TaskGroupModelFile     | The model file that Task needs to load                    |
+| TaskSampleNum          | The number of samples used at training stage              |
+| TaskSampleDir          | The path to the sample for the subtask                    |
+| TaskModelSavePath      | The path where the task model is saved                    |
+| TaskModelBaseModelPath | The path where the base task model is saved               |
+| TaskRelationship       | Migration relationship between tasks                      |
+| TaskProperties         | Basic properties of subtasks                              |
+| KnowledgeBase          | For indicators related to the knowledge base, see Table 7 |
+
 
 9. Evaluation stage  
 
-| **Metric**          | **Description**                                                 |
-|---------------------|-----------------------------------------------------------|
-| EvalSampleNum       | The number of samples used at eval stage                  |
-| Score               | Score for the task to be eval                             |
-| ModelFilterOperator | Type of operator for threshold judgment,Enum(>,<,=,>=,<=) |
-| Threshold           | Threshold for judging whether to deploy the model         |
-| EvalModelUrl        | The url of model at eval stage                            |
+| **Metric**     | **Description**                                           |
+|----------------|-----------------------------------------------------------|
+| EvalSampleNum  | The number of samples used at eval stage                  |
+| EvalModelUrl   | The url of model at eval stage                            |
+| TaskScore      | Score for the task to be eval                             |
+| TaskEvalResult | Results of Model Evaluation                               |
+| TaskStatus     | Whether the Task can be deployed                          |
+| KnowledgeBase  | For indicators related to the knowledge base, see Table 7 |
 
-10 Deploy stage
+10. Deploy stage
 
-| **Metric**     | **Description**                   |
+| **Metric**     | **Description**             |
 |----------------|-----------------------------|
 | DeployStatus   | Enum(Waiting,Ok,NotOk)      |
 | DeployModelUrl | The url for deploying model |
 
-10. Evaluation stage
 #### Example
 
 ```
