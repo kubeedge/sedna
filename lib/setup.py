@@ -28,7 +28,6 @@ class InstallPrepare:
     def __init__(self):
         self.project = os.path.join(os.path.dirname(__file__), "sedna")
         self._long_desc = os.path.join(self.project, "README.md")
-        self._version = os.path.join(self.project, "VERSION")
         self._owner = os.path.join(self.project, "..", "OWNERS")
         self._requirements = os.path.join(self.project, "..",
                                           "requirements.txt")
@@ -45,12 +44,8 @@ class InstallPrepare:
 
     @property
     def version(self):
-        default_version = "999.dev"
-        if not os.path.isfile(self._version):
-            return default_version
-        with open(self._version, "r", encoding="utf-8") as fh:
-            __version__ = fh.read().strip()
-        return __version__ or default_version
+        default_version = "0.4.5"
+        return default_version
 
     @property
     def owners(self):

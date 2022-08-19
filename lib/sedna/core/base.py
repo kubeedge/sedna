@@ -112,6 +112,7 @@ class JobBase:
         self.config = BaseConfig()
         if config:
             self.config.from_json(config)
+
         self.log = LOGGER
         self.estimator = set_backend(estimator=estimator, config=self.config)
         self.job_kind = K8sResourceKind.DEFAULT.value
@@ -127,13 +128,16 @@ class JobBase:
                 self.estimator,
                 self.report_task_info
             ).start()
+        # local test flag
+        self.local_test = False if str.lower(self.get_parameters("LOCAL_TEST", "TRUE")) != "true" else True
 
     @property
     def model_path(self):
-        if os.path.isfile(self.config.model_url):
-            return self.config.model_url
+        model_url = self.config.model_url or self.get_parameters("MODEL_URL")
+        if isinstance(model_url, str) and os.path.isfile(model_url):
+            return model_url
         return self.get_parameters('model_path') or FileOps.join_path(
-            self.config.model_url, self.estimator.model_name)
+            model_url, self.estimator.model_name)
 
     def train(self, **kwargs):
         raise NotImplementedError

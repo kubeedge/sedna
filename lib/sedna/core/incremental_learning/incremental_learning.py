@@ -14,6 +14,7 @@
 
 from copy import deepcopy
 
+import numpy as np
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
 from sedna.common.class_factory import ClassFactory, ClassType
@@ -64,19 +65,21 @@ class IncrementalLearning(JobBase):
     def __init__(self, estimator, hard_example_mining: dict = None):
         super(IncrementalLearning, self).__init__(estimator=estimator)
 
-        self.model_urls = self.get_parameters(
-            "MODEL_URLS")  # use in evaluation
         self.job_kind = K8sResourceKind.INCREMENTAL_JOB.value
         FileOps.clean_folder([self.config.model_url], clean=False)
         self.hard_example_mining_algorithm = None
         if not hard_example_mining:
             hard_example_mining = self.get_hem_algorithm_from_config()
-        if hard_example_mining:
+
+        if hard_example_mining and not callable(hard_example_mining):
             hem = hard_example_mining.get("method", "IBT")
             hem_parameters = hard_example_mining.get("param", {})
             self.hard_example_mining_algorithm = ClassFactory.get_cls(
                 ClassType.HEM, hem
             )(**hem_parameters)
+
+        if callable(hard_example_mining):
+            self.hard_example_mining_algorithm = hard_example_mining
 
     @classmethod
     def get_hem_algorithm_from_config(cls, **param):
@@ -139,6 +142,9 @@ class IncrementalLearning(JobBase):
         res = self.estimator.train(
             train_data=train_data, valid_data=valid_data, **kwargs)
         model_paths = self.estimator.save(self.model_path)
+        if self.local_test:
+            return model_paths
+
         task_info_res = self.estimator.model_info(
             model_paths, result=res, relpath=self.config.data_path_prefix)
         self.report_task_info(
@@ -184,6 +190,7 @@ class IncrementalLearning(JobBase):
             )
         else:
             res = infer_res
+
         is_hard_example = False
 
         if self.hard_example_mining_algorithm:
@@ -218,6 +225,8 @@ class IncrementalLearning(JobBase):
                 ClassType.CALLBACK, post_process)
         final_res = []
         all_models = []
+
+        self.model_urls = self.get_parameters("MODEL_URLS")
         if self.model_urls:
             all_models = self.model_urls.split(";")
         elif self.config.model_url:
@@ -239,7 +248,8 @@ class IncrementalLearning(JobBase):
             ) and len(task_info_res):
                 task_info_res = list(task_info_res)[0]
             final_res.append(task_info_res)
-        self.report_task_info(None, K8sResourceKindStatus.COMPLETED.value,
-                              final_res, kind="eval")
+        if not self.local_test:
+            self.report_task_info(None, K8sResourceKindStatus.COMPLETED.value,
+                                  final_res, kind="eval")
 
         return final_res
