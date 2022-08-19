@@ -25,7 +25,7 @@ def decode_segmap(label_mask, dataset, plot=False):
         n_classes = 21
         label_colours = get_pascal_labels()
     elif dataset == 'cityscapes':
-        n_classes = 19
+        n_classes = 24
         label_colours = get_cityscapes_labels()
     elif dataset == 'target':
         n_classes = 24

@@ -1,12 +1,5 @@
 import os
-os.environ['BACKEND_TYPE'] = 'PYTORCH'
-os.environ["OUTPUT_URL"] = "./cloud_kb/"
-# os.environ['CLOUD_KB_INDEX'] = "./cloud_kb/index.pkl"
-os.environ["TRAIN_DATASET_URL"] = "./data_txt/sedna_data.txt"
-os.environ["KB_SERVER"] = "http://0.0.0.0:9020"
-os.environ["HAS_COMPLETED_INITIAL_TRAINING"] = "false"
 
-from sedna.common.file_ops import FileOps
 from sedna.datasources import IndexDataParse
 from sedna.common.config import Context, BaseConfig
 from sedna.core.lifelong_learning import LifelongLearning
@@ -20,17 +13,11 @@ def _load_txt_dataset(dataset_url):
 
 def train(estimator, train_data):
     task_definition = {
-        "method": "TaskDefinitionByOrigin",
-        "param": {
-            "origins": ["real", "sim"]
-        }
+        "method": "TaskDefinitionByOrigin"
     }
 
     task_allocation = {
-        "method": "TaskAllocationByOrigin",
-        "param": {
-            "origins": ["real", "sim"]
-        }
+        "method": "TaskAllocationByOrigin"
     }
 
     ll_job = LifelongLearning(estimator,
@@ -65,7 +52,7 @@ def update(estimator, train_data):
 def run():
     estimator = Model()
     train_dataset_url = BaseConfig.train_dataset_url
-    train_data = IndexDataParse(data_type="train")
+    train_data = IndexDataParse(data_type="train", func=_load_txt_dataset)
     train_data.parse(train_dataset_url, use_raw=False)
 
     is_completed_initilization = str(Context.get_parameters("HAS_COMPLETED_INITIAL_TRAINING", "false")).lower()

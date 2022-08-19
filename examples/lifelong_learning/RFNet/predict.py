@@ -1,30 +1,15 @@
-import os
-os.environ['BACKEND_TYPE'] = 'PYTORCH'
-# set at yaml
-# os.environ["PREDICT_RESULT_DIR"] = "./inference_results"
-# os.environ["EDGE_OUTPUT_URL"] = "./edge_kb"
-# os.environ["video_url"] = "./video/radio.mp4"
-# os.environ["MODEL_URLS"] = "./cloud_next_kb/index.pkl"
-
-
 import cv2
 import time
-import torch
 import numpy as np
 from PIL import Image
-import base64
-import tempfile
 import warnings
-from io import BytesIO
 
 from sedna.datasources import BaseDataSource
 from sedna.core.lifelong_learning import LifelongLearning
 from sedna.common.config import Context
-
-from dataloaders import custom_transforms as tr
 from torchvision import transforms
 
-from accuracy import accuracy
+from dataloaders import custom_transforms as tr
 from basemodel import preprocess, val_args, Model
 
 def preprocess(samples):
@@ -42,7 +27,6 @@ def init_ll_job():
     task_allocation = {
         "method": "TaskAllocationByOrigin",
         "param": {
-            "origins": ["real", "sim"],
             "default": "real"
         }
     }

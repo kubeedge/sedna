@@ -1,13 +1,5 @@
 import os
 
-os.environ['BACKEND_TYPE'] = 'PYTORCH'
-# os.environ["UNSEEN_SAVE_URL"] = "s3://kubeedge/sedna-robo/unseen_samples/"
-# set at yaml
-# os.environ["PREDICT_RESULT_DIR"] = "./inference_results"
-os.environ["TEST_DATASET_URL"] = "./data_txt/door_test.txt"
-os.environ["EDGE_OUTPUT_URL"] = "./edge_kb"
-os.environ["ORIGINAL_DATASET_URL"] = "/tmp"
-
 import torch
 import numpy as np
 from PIL import Image
@@ -30,8 +22,7 @@ from dataloaders import custom_transforms as tr
 from dataloaders.datasets.cityscapes import CityscapesSegmentation
 
 def _load_txt_dataset(dataset_url):
-    # use original dataset url,
-    # see https://github.com/kubeedge/sedna/issues/35
+    # use original dataset url
     original_dataset_url = Context.get_parameters('original_dataset_url')
     return os.path.join(os.path.dirname(original_dataset_url), dataset_url)
 

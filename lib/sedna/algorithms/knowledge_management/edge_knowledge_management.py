@@ -40,7 +40,7 @@ class EdgeKnowledgeManagement:
         self.task_group_key = KBResourceConstant.TASK_GROUPS.value
         self.extractor_key = KBResourceConstant.EXTRACTOR.value
 
-        ModelLoadingThread(self.task_index).start()
+        ModelLoadingThread(self, self.task_index).start()
 
     def update_kb(self, task_index_url):
         if isinstance(task_index_url, str):
@@ -131,11 +131,13 @@ class EdgeKnowledgeManagement:
             f"unseen_samples_{time.time()}.pkl")
         return FileOps.upload(name, unseen_save_url)
 
+
 class ModelLoadingThread(threading.Thread):
     """Hot task index loading with multithread support"""
     MODEL_MANIPULATION_SEM = threading.Semaphore(1)
 
     def __init__(self,
+                 edge_knowledge_management,
                  task_index,
                  callback=None
                  ):
@@ -148,12 +150,14 @@ class ModelLoadingThread(threading.Thread):
             LOGGER.error("As local task index has not been loaded, skipped")
             self.run_flag = False
         model_check_time = int(Context.get_parameters(
-            "MODEL_POLL_PERIOD_SECONDS", "60")
+            "MODEL_POLL_PERIOD_SECONDS", "30")
         )
         if model_check_time < 1:
             LOGGER.warning("Catch an abnormal value in "
                            "`MODEL_POLL_PERIOD_SECONDS`, fallback with 60")
-            model_check_time = 60
+            model_check_time = 30
+
+        self.edge_knowledge_management = edge_knowledge_management
         self.hot_update_task_index = hot_update_task_index
         self.check_time = model_check_time
         self.task_index = task_index
@@ -170,9 +174,13 @@ class ModelLoadingThread(threading.Thread):
                 continue
             current_version = latest_version
             with self.MODEL_MANIPULATION_SEM:
-                LOGGER.info(f"Update model start with version {current_version}")
+                LOGGER.info(
+                    f"Update model start with version {current_version}")
                 try:
                     FileOps.dump(tmp_task_index, self.task_index)
+                    # TODO: update local kb with the latest index.pkl
+                    self.edge_knowledge_management.update_kb(self.task_index)
+
                     status = K8sResourceKindStatus.COMPLETED.value
                     LOGGER.info(f"Update task index complete "
                                 f"with version {self.version}")

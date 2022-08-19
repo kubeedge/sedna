@@ -1,10 +1,4 @@
 import os
-os.environ['BACKEND_TYPE'] = 'PYTORCH'
-# os.environ["KB_SERVER"] = "http://0.0.0.0:9020"
-# os.environ["test_dataset_url"] = "./data_txt/sedna_data.txt"
-# os.environ["MODEL_URLS"] = "./cloud_next_kb/index.pkl"
-# os.environ["operator"] = "<"
-# os.environ["model_threshold"] = "0"
 
 from sedna.core.lifelong_learning import LifelongLearning
 from sedna.datasources import IndexDataParse
@@ -25,10 +19,7 @@ def eval():
     eval_data.parse(eval_dataset_url, use_raw=False)
 
     task_allocation = {
-        "method": "TaskAllocationByOrigin",
-        "param": {
-            "origins": ["real", "sim"]
-        }
+        "method": "TaskAllocationByOrigin"
     }
 
     ll_job = LifelongLearning(estimator,
