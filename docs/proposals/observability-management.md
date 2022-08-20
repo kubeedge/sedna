@@ -71,12 +71,8 @@ For edge-cloud synergy AI tasks, we create customized exporters to collect the m
 
 | **Metric**                | **Description**                                                                               |
 |---------------------------|-----------------------------------------------------------------------------------------------|
-| LearningRate              | The learning rate at training stage                                                           |
-| EpochNum                  | The number of epochs at training stage                                                        |
-| BatchSize                 | The batch size at training stage                                                              |
 | TrainSampleNum            | The number of samples used at training stage                                                  |
 | EvalSampleNum             | The number of samples used at eval stage                                                      |
-| TaskStage                 | Training Stage / Eval Stage / Deploying Stage                                                 | 
 | CurrentStatus             | The status of current stage like running and waiting (only for training stage and eval stage) |
 | IterationNo               | The current iteration No. of incremental learning                                             |
 | IterationInferenceCount   | The count of inference at current iteration                                                   |
@@ -90,6 +86,12 @@ For edge-cloud synergy AI tasks, we create customized exporters to collect the m
 | TrainRemainingTime        | The remaining time at train stage                                                             |
 | TrainLoss                 | Loss at train stage                                                                           |
 | EvalRemainingTime         | The remaining time at eval stage                                                              |
+
+- Incremental Learning Task Basic Metrics
+
+| **Metric**           | **Description**                                           |
+|----------------------|-----------------------------------------------------------|
+| TaskStage            | Training Stage / Eval Stage / Deploying Stage             |
 
 ##### Federated Learning
 
