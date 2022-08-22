@@ -53,9 +53,9 @@ SEDNA_VERSION=v${SEDNA_VERSION#v}
 _download_yamls() {
 
   yaml_dir=$1
-  mkdir -p ${SEDNA_ROOT}/$yaml_dir
-  cd ${SEDNA_ROOT}/$yaml_dir
-  for yaml in ${yaml_files[@]}; do
+  mkdir -p "${SEDNA_ROOT}/$yaml_dir"
+  cd "${SEDNA_ROOT}/$yaml_dir"
+  for yaml in "${yaml_files[@]}"; do
     # the yaml file already exists, no need to download
     [ -e "$yaml" ] && continue
 
@@ -93,7 +93,7 @@ prepare_install(){
 }
 
 prepare() {
-  mkdir -p ${SEDNA_ROOT}
+  mkdir -p "${SEDNA_ROOT}"
   
   # we only need build directory
   # here don't use git clone because of large vendor directory
@@ -105,12 +105,12 @@ cleanup(){
 }
 
 create_crds() {
-  cd ${SEDNA_ROOT}
+  cd "${SEDNA_ROOT}"
   kubectl create -f build/crds
 }
 
 delete_crds() {
-  cd ${SEDNA_ROOT}
+  cd "${SEDNA_ROOT}"
   kubectl delete -f build/crds --timeout=90s
 }
 
@@ -123,7 +123,7 @@ get_service_address() {
 }
 
 create_kb(){
-  cd ${SEDNA_ROOT}
+  cd "${SEDNA_ROOT}"
 
   kubectl $action -f - <<EOF
 apiVersion: v1
@@ -198,9 +198,9 @@ prepare_gm_config_map() {
   config_file=${TMP_DIR}/${2:-gm.yaml}
 
   if [ -n "${SEDNA_GM_CONFIG:-}" ] && [ -f "${SEDNA_GM_CONFIG}" ] ; then
-    cp "$SEDNA_GM_CONFIG" $config_file
+    cp "$SEDNA_GM_CONFIG" "$config_file"
   else
-    cat > $config_file << EOF
+    cat > "$config_file" << EOF
 kubeConfig: ""
 master: ""
 namespace: ""
@@ -214,12 +214,12 @@ knowledgeBaseServer:
 EOF
   fi
 
-  kubectl $action -n sedna configmap $cm_name --from-file=$config_file
+  kubectl $action -n sedna configmap $cm_name --from-file="$config_file"
 }
 
 create_gm() {
 
-  cd ${SEDNA_ROOT}
+  cd "${SEDNA_ROOT}"
 
   kubectl create -f build/gm/rbac/
 
@@ -290,7 +290,7 @@ EOF
 }
 
 delete_gm() {
-  cd ${SEDNA_ROOT}
+  cd "${SEDNA_ROOT}"
 
   kubectl delete -f build/gm/rbac/
 
@@ -433,6 +433,6 @@ case "$action" in
     delete_lc
     delete_crds
     cleanup
-    echo "$(green_text Sedna is uninstalled successfully)"
+    green_text Sedna is uninstalled successfully
     ;;
 esac
