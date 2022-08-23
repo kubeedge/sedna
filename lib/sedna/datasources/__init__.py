@@ -97,10 +97,13 @@ class TxtDataParse(BaseDataSource, ABC):
                 if use_raw:
                     x_data.append(tup)
                 else:
-                    x_data.append(tup[0])
+                    if len(tup) > 1:
+                        x_data.append(tup[:-1])
+                    else:
+                        x_data.append(tup[0])
                     if not self.is_test_data:
                         if len(tup) > 1:
-                            y_data.append(tup[1])
+                            y_data.append(tup[-1])
                         else:
                             y_data.append(0)
         self.x = np.array(x_data)
