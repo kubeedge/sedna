@@ -9,7 +9,7 @@ from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import KBResourceConstant, K8sResourceKindStatus
 
-__all__ = ('EdgeKnowledgeManagement', )
+__all__ = ('EdgeKnowledgeManagement',)
 
 
 @ClassFactory.register(ClassType.KM)
@@ -40,7 +40,7 @@ class EdgeKnowledgeManagement:
         self.task_group_key = KBResourceConstant.TASK_GROUPS.value
         self.extractor_key = KBResourceConstant.EXTRACTOR.value
 
-        ModelLoadingThread(self.task_index).start()
+        ModelLoadingThread(self).start()
 
     def update_kb(self, task_index_url):
         if isinstance(task_index_url, str):
@@ -131,53 +131,49 @@ class EdgeKnowledgeManagement:
             f"unseen_samples_{time.time()}.pkl")
         return FileOps.upload(name, unseen_save_url)
 
+
 class ModelLoadingThread(threading.Thread):
     """Hot task index loading with multithread support"""
     MODEL_MANIPULATION_SEM = threading.Semaphore(1)
 
     def __init__(self,
-                 task_index,
+                 edge_knowledge_management,
                  callback=None
                  ):
-        self.run_flag = True
-        hot_update_task_index = Context.get_parameters("MODEL_URLS")
-        if not hot_update_task_index:
-            LOGGER.error("As `MODEL_URLS` unset a value, skipped")
-            self.run_flag = False
-        if not FileOps.exists(task_index):
-            LOGGER.error("As local task index has not been loaded, skipped")
-            self.run_flag = False
         model_check_time = int(Context.get_parameters(
-            "MODEL_POLL_PERIOD_SECONDS", "60")
+            "MODEL_POLL_PERIOD_SECONDS", "30")
         )
         if model_check_time < 1:
             LOGGER.warning("Catch an abnormal value in "
                            "`MODEL_POLL_PERIOD_SECONDS`, fallback with 60")
             model_check_time = 60
-        self.hot_update_task_index = hot_update_task_index
+
+        self.edge_knowledge_management = edge_knowledge_management
         self.check_time = model_check_time
-        self.task_index = task_index
         self.callback = callback
+        self.version = str(time.time())
         super(ModelLoadingThread, self).__init__()
 
     def run(self):
-        while self.run_flag:
+        while True:
             time.sleep(self.check_time)
-            tmp_task_index = FileOps.load(self.hot_update_task_index)
-            latest_version = tmp_task_index.get("create_time")
-            current_version = FileOps.load(self.task_index).get("create_time")
-            if latest_version == current_version:
+            latest_task_index = Context.get_parameters("MODEL_URLS", None)
+            if not latest_task_index:
                 continue
-            current_version = latest_version
+            latest_task_index = FileOps.load(latest_task_index)
+            latest_version = str(latest_task_index.get("create_time"))
+
+            if latest_version == self.version:
+                continue
+            self.version = latest_version
             with self.MODEL_MANIPULATION_SEM:
-                LOGGER.info(f"Update model start with version {current_version}")
                 try:
-                    FileOps.dump(tmp_task_index, self.task_index)
+                    FileOps.dump(latest_task_index, self.task_index)
+                    # TODO: update local kb with the latest index.pkl
+                    self.edge_knowledge_management.update_kb(self.task_index)
+
                     status = K8sResourceKindStatus.COMPLETED.value
-                    LOGGER.info(f"Update task index complete "
-                                f"with version {self.version}")
                 except Exception as e:
-                    LOGGER.error(f"fail to update task index: {e}")
                     status = K8sResourceKindStatus.FAILED.value
                 if self.callback:
                     self.callback(

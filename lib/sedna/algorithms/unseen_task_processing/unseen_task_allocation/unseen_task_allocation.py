@@ -2,7 +2,7 @@ from sedna.common.log import LOGGER
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassFactory, ClassType
 
-__all__ = ('UnseenTaskAllocationDefault', )
+__all__ = ('UnseenTaskAllocationDefault',)
 
 
 @ClassFactory.register(ClassType.UTP)
@@ -38,7 +38,7 @@ class UnseenTaskAllocationDefault:
             allocations = [self.task_extractor.fit(
                 sample) for sample in samples.x]
         except Exception as err:
-            self.log.exception(err)
+            self.log.warning("not found task extractor")
 
             allocations = [0] * len(samples)
             self.log.info("Use the first task to inference all the samples.")

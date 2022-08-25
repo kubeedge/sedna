@@ -4,6 +4,7 @@ from sedna.backend import set_backend
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import KBResourceConstant
 from sedna.common.class_factory import ClassFactory, ClassType
+from sedna.algorithms.seen_task_learning.artifact import Task
 
 __all__ = ('UnseenTaskProcessing', )
 
@@ -24,13 +25,13 @@ class UnseenTaskProcessing:
     '''
 
     def __init__(self, estimator, config,
-                 cloud_knowledge_management,
-                 edge_knowledge_management,
+                 # cloud_knowledge_management,
+                 # edge_knowledge_management,
                  unseen_task_allocation,
                  **kwargs):
         self.estimator = set_backend(estimator=estimator, config=config)
-        self.cloud_knowledge_management = cloud_knowledge_management
-        self.edge_knowledge_management = edge_knowledge_management
+        # self.cloud_knowledge_management = cloud_knowledge_management
+        # self.edge_knowledge_management = edge_knowledge_management
 
         self.unseen_task_allocation = unseen_task_allocation or {
             "method": "UnseenTaskAllocationDefault"
@@ -107,7 +108,7 @@ class UnseenTaskProcessing:
 
         return task_index
 
-    def predict(self, data, post_process=None, **kwargs):
+    def predict(self, edge_knowledge_management, data, post_process=None, **kwargs):
         """
         Predict the result for unseen data.
 
@@ -128,13 +129,17 @@ class UnseenTaskProcessing:
             tasks assigned to each sample.
         """
         if not self.unseen_task_groups and not self.unseen_models:
-            self.load(self.edge_knowledge_management.task_index)
+            self.load(edge_knowledge_management.task_index)
 
-        samples, mappings = self._unseen_task_allocation(data)
-        result = {}
         tasks = []
-
-        return result, tasks
+        res = []
+        for inx, df in enumerate(data.x):
+            pred = self.estimator.predict([df])
+            task = Task(entry=inx, samples=df)
+            task.result = pred
+            tasks.append(task)
+            res.append(pred[0])
+        return res, tasks
 
     def load(self, task_index):
         """

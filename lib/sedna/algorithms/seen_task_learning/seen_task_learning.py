@@ -161,14 +161,19 @@ class SeenTaskLearning:
         """
         Task attribute extractor and multi-task definition
         """
-        method_name = self.task_definition.get(
-            "method", "TaskDefinitionByDataAttr"
-        )
-        extend_param = self._parse_param(
-            self.task_definition.get("param")
-        )
-        method_cls = ClassFactory.get_cls(
-            ClassType.STP, method_name)(**extend_param)
+
+        if callable(self.task_definition):
+            method_cls = self.task_definition
+        else:
+            method_name = self.task_definition.get(
+                "method", "TaskDefinitionByDataAttr"
+            )
+            extend_param = self._parse_param(
+                self.task_definition.get("param")
+            )
+            method_cls = ClassFactory.get_cls(
+                ClassType.STP, method_name)(**extend_param)
+
         return method_cls(samples, **kwargs)
 
     def _task_relationship_discovery(self, tasks):
@@ -187,24 +192,28 @@ class SeenTaskLearning:
         """
         Mining tasks of inference sample base on task attribute extractor
         """
-        method_name = self.seen_task_allocation.get("method")
-        extend_param = self._parse_param(
-            self.seen_task_allocation.get("param")
-        )
-
-        if not method_name:
-            task_definition = self.task_definition.get(
-                "method", "TaskDefinitionByDataAttr"
-            )
-            method_name = self._method_pair.get(task_definition,
-                                                'TaskAllocationByDataAttr')
+        if callable(self.seen_task_allocation):
+            method_cls = self.seen_task_allocation
+        else:
+            method_name = self.seen_task_allocation.get("method")
             extend_param = self._parse_param(
-                self.task_definition.get("param"))
+                self.seen_task_allocation.get("param")
+            )
 
-        method_cls = ClassFactory.get_cls(ClassType.STP, method_name)(
-            task_extractor=self.seen_extractor, **extend_param
-        )
-        return method_cls(samples=samples)
+            if not method_name:
+                task_definition = self.task_definition.get(
+                    "method", "TaskDefinitionByDataAttr"
+                )
+                method_name = self._method_pair.get(task_definition,
+                                                    'TaskAllocationByDataAttr')
+                extend_param = self._parse_param(
+                    self.task_definition.get("param"))
+
+            method_cls = ClassFactory.get_cls(ClassType.STP, method_name)(
+                **extend_param
+            )
+
+        return method_cls(task_extractor=self.seen_extractor, samples=samples)
 
     def _task_remodeling(self, samples, mappings):
         """
@@ -213,6 +222,7 @@ class SeenTaskLearning:
         method_name = self.task_remodeling.get("method")
         extend_param = self._parse_param(
             self.task_remodeling.get("param"))
+
         method_cls = ClassFactory.get_cls(ClassType.STP, method_name)(
             models=self.seen_models, **extend_param)
         return method_cls(samples=samples, mappings=mappings)
@@ -276,12 +286,14 @@ class SeenTaskLearning:
                 if callback:
                     res = callback(model_obj, res)
                 if isinstance(res, str):
-                    model_path = res
+                    model_path = model_obj.save(model_name=f"{task.entry}.pth")
+                    model = Model(index=i, entry=task.entry,
+                                  model=model_path, result={})
                 else:
                     model_path = model_obj.save(
                         model_name=f"{task.entry}.model")
-                model = Model(index=i, entry=task.entry,
-                              model=model_path, result=res)
+                    model = Model(index=i, entry=task.entry,
+                                  model=model_path, result=res)
 
                 model.meta_attr = [t.meta_attr for t in task.tasks]
             task.model = model
@@ -385,21 +397,24 @@ class SeenTaskLearning:
 
         feedback = {}
         for i, task in enumerate(task_groups):
+            # todo:
+            if not task.samples:
+                continue
             LOGGER.info(f"MTL Train start {i} : {task.entry}")
             for _task in task.tasks:
                 model_obj = set_backend(estimator=self.base_model)
-                model_obj.load(_task.model, phase="train")
+                model_obj.load(_task.model)
                 res = model_obj.train(train_data=task.samples)
                 if isinstance(res, str):
-                    model_path = res
+                    model_path = model_obj.save(
+                        model_name=f"{task.entry}.pth")
                     model = Model(index=i, entry=task.entry,
                                   model=model_path, result={})
                 else:
                     model_path = model_obj.save(
-                        model_name=f"{task.entry}_{time.time()}.model")
+                        model_name=f"{task.entry}.model")
                     model = Model(index=i, entry=task.entry,
                                   model=model_path, result=res)
-
                 break
 
             model.meta_attr = [t.meta_attr for t in task.tasks]
@@ -562,6 +577,7 @@ class SeenTaskLearning:
         elif isinstance(metrics_param, str):
             metrics_param = self._parse_param(metrics_param)
         tasks_detail = []
+
         for task in tasks:
             sample = task.samples
             pred = task.result

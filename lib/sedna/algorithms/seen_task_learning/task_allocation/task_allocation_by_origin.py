@@ -1,6 +1,7 @@
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassFactory, ClassType
 
+
 @ClassFactory.register(ClassType.STP)
 class TaskAllocationByOrigin:
     """
@@ -15,21 +16,49 @@ class TaskAllocationByOrigin:
         label with a finite values.
     """
 
-    def __init__(self, task_extractor, **kwargs):
-        self.task_extractor = task_extractor
-        self.origins = kwargs.get("origins", [])
+    def __init__(self, **kwargs):
         self.default_origin = kwargs.get("default", None)
 
-    def __call__(self, samples: BaseDataSource):
+    def __call__(self, task_extractor, samples: BaseDataSource):
+        self.task_extractor = task_extractor
+
         if self.default_origin:
-            return samples, [int(self.task_extractor.get(self.default_origin))] * len(samples.x)
+            return samples, [int(self.task_extractor.get(
+                self.default_origin))] * len(samples.x)
+
+        cities = [
+            "aachen",
+            "berlin",
+            "bochum",
+            "bremen",
+            "cologne",
+            "darmstadt",
+            "dusseldorf",
+            "erfurt",
+            "hamburg",
+            "hanover",
+            "jena",
+            "krefeld",
+            "monchengladbach",
+            "strasbourg",
+            "stuttgart",
+            "tubingen",
+            "ulm",
+            "weimar",
+            "zurich"]
 
         sample_origins = []
         for _x in samples.x:
-            for origin in self.origins:
-                if origin in _x[0]:
-                    sample_origins.append(origin)
+            is_real = False
+            for city in cities:
+                if city in _x[0]:
+                    is_real = True
+                    sample_origins.append("real")
+                    break
+            if not is_real:
+                sample_origins.append("sim")
 
-        allocations = [int(self.task_extractor.get(sample_origin)) for sample_origin in sample_origins]
+        allocations = [int(self.task_extractor.get(sample_origin))
+                       for sample_origin in sample_origins]
 
         return samples, allocations

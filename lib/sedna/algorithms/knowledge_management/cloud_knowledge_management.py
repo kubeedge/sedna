@@ -7,7 +7,7 @@ from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import KBResourceConstant
 
-__all__ = ('CloudKnowledgeManagement', )
+__all__ = ('CloudKnowledgeManagement',)
 
 
 @ClassFactory.register(ClassType.KM)
@@ -42,7 +42,37 @@ class CloudKnowledgeManagement:
         self.task_group_key = KBResourceConstant.TASK_GROUPS.value
         self.extractor_key = KBResourceConstant.EXTRACTOR.value
 
-    def update_kb(self, task_index, kb_server):
+    def update_local_kb(self, task_index, local_test=True):
+        if isinstance(task_index, str):
+            task_index = FileOps.load(task_index)
+
+        seen_task_index = task_index.get(self.seen_task_key)
+        unseen_task_index = task_index.get(self.unseen_task_key)
+
+        seen_extractor, seen_task_groups = self._save_task_index(
+            seen_task_index, None, task_type=self.seen_task_key)
+        unseen_extractor, unseen_task_groups = self._save_task_index(
+            unseen_task_index, None, task_type=self.unseen_task_key)
+
+        task_info = {
+            self.seen_task_key: {
+                self.task_group_key: seen_task_groups,
+                self.extractor_key: seen_extractor
+            },
+            self.unseen_task_key: {
+                self.task_group_key: unseen_task_groups,
+                self.extractor_key: unseen_extractor
+            },
+            "create_time": str(time.time())
+        }
+
+        fd, name = tempfile.mkstemp()
+        FileOps.dump(task_info, name)
+        index_file = name
+
+        return FileOps.upload(index_file, self.task_index)
+
+    def update_kb(self, task_index, kb_server, local_test=False):
         if isinstance(task_index, str):
             task_index = FileOps.load(task_index)
 
@@ -68,6 +98,9 @@ class CloudKnowledgeManagement:
 
         fd, name = tempfile.mkstemp()
         FileOps.dump(task_info, name)
+
+        if local_test:
+            return FileOps.upload(name, self.task_index)
 
         index_file = kb_server.update_db(name)
         if not index_file:
@@ -95,18 +128,15 @@ class CloudKnowledgeManagement:
 
             model_file = model_upload_key[model_file]
 
-            try:
-                model = kb_server.upload_file(save_model)
-            except Exception as err:
-                self.log.error(
-                    f"Upload task model of {model_file} fail: {err}"
-                )
-                model = FileOps.join_path(
-                    self.cloud_output_url,
-                    task_type,
-                    os.path.basename(model_file))
+            if kb_server:
+                try:
+                    save_model = kb_server.upload_file(save_model)
+                except Exception as err:
+                    self.log.error(
+                        f"Upload task model of {model_file} fail: {err}"
+                    )
 
-            task_group.model.model = model
+            task_group.model.model = save_model
 
             for _task in task_group.tasks:
                 _task.model = FileOps.join_path(
@@ -116,11 +146,12 @@ class CloudKnowledgeManagement:
                     f"{_task.samples.data_type}_{_task.entry}.sample")
                 task_group.samples.save(sample_dir)
 
-                try:
-                    sample_dir = kb_server.upload_file(sample_dir)
-                except Exception as err:
-                    self.log.error(
-                        f"Upload task samples of {_task.entry} fail: {err}")
+                if kb_server:
+                    try:
+                        sample_dir = kb_server.upload_file(sample_dir)
+                    except Exception as err:
+                        self.log.error(
+                            f"Upload task samples of {_task.entry} fail: {err}")
                 _task.samples.data_url = sample_dir
 
         save_extractor = FileOps.join_path(
@@ -128,10 +159,11 @@ class CloudKnowledgeManagement:
             f"{task_type}_{KBResourceConstant.TASK_EXTRACTOR_NAME.value}"
         )
         extractor = FileOps.dump(extractor, save_extractor)
-        try:
-            extractor = kb_server.upload_file(extractor)
-        except Exception as err:
-            self.log.error(f"Upload task extractor fail: {err}")
+        if kb_server:
+            try:
+                extractor = kb_server.upload_file(extractor)
+            except Exception as err:
+                self.log.error(f"Upload task extractor fail: {err}")
 
         return extractor, task_groups
 
