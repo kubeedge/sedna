@@ -23,7 +23,7 @@ The process is illustrated as below:
 3. A well trained classifier is output.
 
 ### GAN Design
-We use the networks design by [TOWARDS FASTER AND STABILIZED GAN TRAINING FOR HIGH-FIDELITY FEW-SHOT IMAGE SYNTHESIS](https://openreview.net/forum?id=1Fqg133qRaI). The design is aimed for small training data and pour computing devices. Therefore, it is perfectly suitable for handling unkwnon tasks of Sedna lifelong learning. The networks is shown below.    
+We use the networks design by [TOWARDS FASTER AND STABILIZED GAN TRAINING FOR HIGH-FIDELITY FEW-SHOT IMAGE SYNTHESIS](https://openreview.net/forum?id=1Fqg133qRaI). The design is aimed for small training data and pour computing devices. Therefore, it is perfectly suitable for handling unkwnon tasks of Sedna lifelong learning. The network is shown below [GAN Desin](images/EntGAN%20GAN.png).    
 
 ![](images/EntGAN%20GAN.png)
 
