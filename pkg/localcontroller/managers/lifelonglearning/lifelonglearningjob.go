@@ -62,6 +62,9 @@ const (
 	AnnotationsRoundsKey          = "sedna.io/rounds"
 	AnnotationsNumberOfSamplesKey = "sedna.io/number-of-samples"
 	AnnotationsDataFileOfEvalKey  = "sedna.io/data-file-of-eval"
+	DataTypeInput                 = "input"
+	DataTypeOutput                = "output"
+	NumOfSamples                  = "num_of_samples"
 )
 
 // LifelongLearningJobManager defines lifelong-learning-job Manager
@@ -347,9 +350,8 @@ func (lm *Manager) triggerTrainTask(job *Job) (interface{}, bool, error) {
 	var err error
 	jobConfig := job.JobConfig
 
-	const numOfSamples = "num_of_samples"
 	samples := map[string]interface{}{
-		numOfSamples: len(jobConfig.DataSamples.TrainSamples),
+		NumOfSamples: len(jobConfig.DataSamples.TrainSamples),
 	}
 
 	isTrigger := jobConfig.TrainTrigger.Trigger(samples)
@@ -772,13 +774,13 @@ func (lm *Manager) getModelsFromJobConditions(jobConditions []sednav1.LLJobCondi
 				continue
 			}
 
-			if dataType == "input" {
+			if dataType == DataTypeInput {
 				if cond.Input == nil {
 					continue
 				}
 
 				return cond.Input.Models
-			} else if dataType == "output" {
+			} else if dataType == DataTypeOutput {
 				if cond.Output == nil {
 					continue
 				}
