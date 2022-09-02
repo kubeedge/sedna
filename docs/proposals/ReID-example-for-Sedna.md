@@ -33,7 +33,6 @@ Human flow statistics are calculated at the edge side, and the data of the human
 
   <img src=".\images\ReID-example-for-Sedna-scenario1.png" style="zoom:40%;" />
 
-     
     - Count the human flow data using only `Dectection/Tracking Pods` at the edge side.
     - Human flow statistics will send to the cloud side. 
 
