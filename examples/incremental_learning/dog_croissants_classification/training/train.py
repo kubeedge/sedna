@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import os
 
 from sedna.common.config import Context, BaseConfig
@@ -44,7 +45,6 @@ def main():
     else:
         print("valid_dataset_url : NULL")
 
-
     train_data = ImgDataset(data_type="train").parse(path=train_dataset_url,
                                                      train=True,
                                                      image_shape=input_shape,
@@ -61,6 +61,7 @@ def main():
                                       trained_ckpt_url=trained_ckpt_url,
                                       valid_data=valid_data,
                                       epochs=1)
+
 
 if __name__ == "__main__":
     main()

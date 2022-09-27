@@ -26,11 +26,14 @@ class MSBackend(BackendBase):
                                         **kwargs)
         self.framework = "mindspore"
         if self.use_npu:
-            context.set_context(mode=context.GRAPH_MODE, device_target="Ascend")
+            context.set_context(mode=context.GRAPH_MODE,
+                                device_target="Ascend")
         elif self.use_cuda:
-            context.set_context(mode=context.GRAPH_MODE, device_target="GPU")
+            context.set_context(mode=context.GRAPH_MODE,
+                                device_target="GPU")
         else:
-            context.set_context(mode=context.GRAPH_MODE, device_target="CPU")
+            context.set_context(mode=context.GRAPH_MODE,
+                                device_target="CPU")
 
         if callable(self.estimator):
             self.estimator = self.estimator()

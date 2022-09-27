@@ -47,12 +47,3 @@ class ImgDataset(BaseDataSource):
                               num_parallel_workers=num_parallel_workers)
         dataset = dataset.batch(batch_size, drop_remainder=True)
         return dataset
-
-    '''
-    def download_dataset(self):
-        dataset_url = "https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/beginner/DogCroissants.zip"
-        path = "./datasets"
-        dl = DownLoad()
-        dl.download_and_extract_archive(dataset_url, path)
-    '''
-
