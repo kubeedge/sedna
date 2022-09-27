@@ -178,6 +178,7 @@ class IBTFilter(BaseFilter, abc.ABC):
         return (len(confidence_score_list) / len(infer_result)
                 >= (1 - self.threshold_img))
 
+
 @ClassFactory.register(ClassType.HEM, alias="Random")
 class RandomFilter(BaseFilter):
     """judge a image is hard example or not randomly
@@ -197,9 +198,9 @@ class RandomFilter(BaseFilter):
                 `True` means hard sample, `False` means not.
             """
     def __init__(self, random_ratio=0.3, **kwargs):
-        self.random_ratio=random_ratio
+        self.random_ratio = random_ratio
 
     def __call__(self, *args, **kwargs):
-        if random.uniform(0,1) < self.random_ratio:
+        if random.uniform(0, 1) < self.random_ratio:
             return True
         return False

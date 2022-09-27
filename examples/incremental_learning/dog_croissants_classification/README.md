@@ -1,5 +1,4 @@
-
-
+# Dog-Croissants-classification Demo
 ## Prepare Model
 auto-download
 
@@ -11,7 +10,7 @@ mkdir -p /data/dog_croissants/
 mkdir /output
 ```
 
-TODO:download dataset
+TODO:download dataset. I have no idea where I should put dataset 
 ```shell
 
 
@@ -24,7 +23,10 @@ download checkpoint
 mkdir -p /models/base_model
 mkdir -p /models/deploy_model
 cd /models/base_model
-#wget https://download.mindspore.cn/vision/classification/mobilenet_v2_1.0_224.ckpt
+curl https://download.mindspore.cn/vision/classification/mobilenet_v2_1.0_224.ckpt -o base_model.ckpt
+cd ../deploy_model
+curl https://download.mindspore.cn/vision/classification/mobilenet_v2_1.0_224.ckpt -o deploy_model.ckpt
+
 ```
 ## build docker file
 ```shell
@@ -196,9 +198,4 @@ kubectl delete dataset incremental-dataset
 kubectl delete model initial-model
 kubectl delete model deploy-model
 kubectl delete IncrementalLearningJob dog-croissants-classification-demo
-```
-```shell
-ctr -n k8s.io image pull registry.aliyuncs.com/google_containers/pause:3.5
-ctr -n k8s.io image tag registry.aliyuncs.com/google_containers/pause:3.5 k8s.gcr.io/pause:3.5
-
 ```

@@ -11,10 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import glob
-import os
-
-
 from PIL import Image
 from sedna.common.config import Context
 from sedna.core.incremental_learning import IncrementalLearning
@@ -23,14 +21,15 @@ import shutil
 import mindspore as ms
 from mobilenet_v2 import mobilenet_v2_fine_tune
 
-
 he_saved_url = Context.get_parameters("HE_SAVED_URL", './tmp')
+
 
 def output_deal(is_hard_example, infer_image_path):
     img_name=infer_image_path.split(r"/")[-1]
     img_category = infer_image_path.split(r"/")[-2]
     if is_hard_example:
         shutil.copy(infer_image_path,f"{he_saved_url}/{img_category}_{img_name}")
+
 
 def main():
 
@@ -64,6 +63,6 @@ def main():
             print(f"{each_img}--->{results}-->{hard_example}")
             output_deal(is_hard_example, each_img)
 
+
 if __name__ == "__main__":
     main()
-
