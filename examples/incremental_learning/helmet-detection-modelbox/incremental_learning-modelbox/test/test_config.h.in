@@ -1,0 +1,54 @@
+/*
+ * Copyright 2021 The Modelbox Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef MODELBOX_TEST_CONFIG_H_
+#define MODELBOX_TEST_CONFIG_H_
+
+namespace modelbox {
+
+// test working dir
+#define TEST_WORKING_DIR "@TEST_WORKING_DIR@"
+
+// test lib dir
+#define TEST_LIB_DIR "@TEST_WORKING_LIB_DIR@"
+
+// test bin dir
+#define TEST_BIN_DIR "@TEST_WORKING_BIN_DIR@"
+
+// test data dir
+#define TEST_DATA_DIR "@TEST_WORKING_DATA_DIR@"
+
+// test driver dir
+#define TEST_DRIVER_DIR "@TEST_WORKING_DRIVERS_DIR@"
+
+// test asserts file
+#define TEST_ASSETS "@TEST_ASSETS@"
+
+// test source code dir
+#define TEST_SOURCE_DIR "@TEST_SOURCE_DIR@"
+
+// python flow unit so path
+#define PYTHON_PATH "@LIBMODELBOX_FLOWUNIT_PYTHON_SO_PATH@"
+#define DEVICE_CPU_SO_PATH "@LIBMODELBOX_DEVICE_CPU_SO_PATH@"
+#define DEVICE_CUDA_SO_PATH "@LIBMODELBOX_DEVICE_CUDA_SO_PATH@"
+#define DEVICE_ASCEND_SO_PATH "@LIBMODELBOX_DEVICE_ASCEND_SO_PATH@"
+#define INFERENCE_PATH "@LIBMODELBOX_FLOWUNIT_INFERENCE_SO_PATH@"
+#define VIRTUAL_PYTHON_PATH "@LIBMODELBOX_VIRTUALDRIVER_PYTHON_SO_PATH@"
+#define VIRTUAL_INFERENCE_PATH "@LIBMODELBOX_VIRTUALDRIVER_INFERENCE_SO_PATH@"
+
+}  // namespace modelbox
+
+#endif  // MODELBOX_TEST_CONFIG_H_
