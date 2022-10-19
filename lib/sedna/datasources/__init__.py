@@ -106,7 +106,6 @@ class TxtDataParse(BaseDataSource, ABC):
         self.x = np.array(x_data)
         self.y = np.array(y_data)
 
-
 class CSVDataParse(BaseDataSource, ABC):
     """
     csv file which contain Structured Data parser

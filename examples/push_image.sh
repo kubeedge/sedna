@@ -17,7 +17,7 @@
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 export IMAGE_REPO=${IMAGE_REPO:-kubeedge}
-export IMAGE_TAG=${IMAGE_TAG:-v0.3.0}
+export IMAGE_TAG=${IMAGE_TAG:-v0.5.0}
 
 bash build_image.sh
 
