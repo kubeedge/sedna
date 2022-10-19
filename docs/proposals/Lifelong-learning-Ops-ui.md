@@ -144,6 +144,20 @@ There are two types of Promtail collection modes. The following table shows the 
 | DeployStatus   | Enum(Waiting,Ok,NotOk)      |
 | DeployModelUrl | The url for deploying model |
 
+
+#### Custom metric
+Now, the metrics that come with lifelonglearning may not meet your needs, so here is a way for users to expand metrics.  
+You can register your own indicators in the Metic table,as shown in the table below:
+![img.png](images/lifelong-learning-ops-custom-metrics.png)
+I added precision and recall to the table,Of course, you can also add any other metrics you want.
+
+After this, when you want to add an metric of the same id to the Metric_value table, multiple metrics will be generated according to the different labels.
+![img.png](images/lifelong-learning-ops-custom-metrics-values.png)
+
+And, both Metric and Metric_value tables are located in the KB database.  
+Therefore, you can manipulate these two tables just like any other table in the KB.
+
+
 #### Example
 
 ```
