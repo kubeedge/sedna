@@ -17,3 +17,7 @@ from . import hard_example_mining
 from . import multi_task_learning
 from . import unseen_task_detect
 from . import reid
+from . import knowledge_management
+from . import seen_task_learning
+from . import unseen_task_detection
+from . import unseen_task_processing

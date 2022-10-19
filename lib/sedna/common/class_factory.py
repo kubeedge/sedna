@@ -37,6 +37,11 @@ class ClassType:
     DATASET = 'data_process'
     CALLBACK = 'post_process_callback'
 
+    # TODO
+    UTP = 'unseen_task_processing'
+    KM = 'knowledge_management'
+    STP = 'seen_task_processing'
+
 
 class ClassFactory(object):
     """

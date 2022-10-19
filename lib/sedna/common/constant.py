@@ -48,3 +48,8 @@ class KBResourceConstant(Enum):
     MIN_TRAIN_SAMPLE = 10
     KB_INDEX_NAME = "index.pkl"
     TASK_EXTRACTOR_NAME = "task_attr_extractor.pkl"
+    SEEN_TASK = "seen_task"
+    UNSEEN_TASK = "unseen_task"
+    TASK_GROUPS = "task_groups"
+    EXTRACTOR = "extractor"
+    EDGE_KB_DIR = "/var/lib/sedna/kb"
