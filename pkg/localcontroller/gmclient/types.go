@@ -57,8 +57,10 @@ type Input struct {
 }
 
 type Output struct {
-	Models    []map[string]interface{} `json:"models"`
-	OwnerInfo map[string]interface{}   `json:"ownerInfo"`
+	Models []map[string]interface{} `json:"models"`
+	//TODO: 当前结构体只定义了模型，没有定义任务的信息。而这个结构体所有特性都在使用，所以暂时将任务相关信息写入到“Model”对象中。
+	//TaskInfo  map[string]interface{}   `json:"taskInfo"`
+	OwnerInfo map[string]interface{} `json:"ownerInfo"`
 }
 
 type MessageResourceHandler interface {

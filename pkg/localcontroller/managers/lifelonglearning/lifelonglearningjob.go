@@ -947,6 +947,7 @@ func (lm *Manager) monitorWorker() {
 			break
 		}
 		klog.V(4).Infof("handling worker message %+v", workerMessage)
+		klog.Infof("================ workerMessage is: %s", workerMessage)
 
 		name := util.GetUniqueIdentifier(workerMessage.Namespace, workerMessage.OwnerName, workerMessage.OwnerKind)
 

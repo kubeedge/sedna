@@ -101,10 +101,14 @@ class BackendBase:
             _url = FileOps.remove_path_prefix(model, relpath)
         else:
             _url = model
+
+        metric_value = None if result is None else list(result.values())[0]
         results = [{
             "format": _type.lstrip("."),
             "url": _url,
-            "metrics": result
+            "metrics": result,
+            "history_metric": metric_value,
+            "current_metric": metric_value
         }]
         return results
 

@@ -123,6 +123,7 @@ func (c *wsClient) handleReceivedMessage(stop chan struct{}) {
 // WriteMessage saves message in a queue
 func (c *wsClient) WriteMessage(messageBody interface{}, messageHeader MessageHeader) error {
 	content, err := json.Marshal(&messageBody)
+	klog.Infof("========== content is %s: ", content)
 	if err != nil {
 		return err
 	}

@@ -12,23 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 import time
 
-from sedna.core.base import JobBase
-from sedna.common.file_ops import FileOps
-from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
-from sedna.common.constant import KBResourceConstant
-from sedna.common.config import Context
-from sedna.datasources import BaseDataSource
-from sedna.common.class_factory import ClassType, ClassFactory
-from sedna.algorithms.seen_task_learning.seen_task_learning import SeenTaskLearning
-from sedna.algorithms.unseen_task_processing import UnseenTaskProcessing
-from sedna.service.client import KBClient
+import numpy as np
+
 from sedna.algorithms.knowledge_management.cloud_knowledge_management \
     import CloudKnowledgeManagement
 from sedna.algorithms.knowledge_management.edge_knowledge_management \
     import EdgeKnowledgeManagement
+from sedna.algorithms.seen_task_learning.seen_task_learning import SeenTaskLearning
+from sedna.algorithms.unseen_task_processing import UnseenTaskProcessing
+from sedna.common.class_factory import ClassType, ClassFactory
+from sedna.common.config import Context
+from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
+from sedna.common.constant import KBResourceConstant
+from sedna.common.file_ops import FileOps
+from sedna.core.base import JobBase
+from sedna.datasources import BaseDataSource
+from sedna.service.client import KBClient
 
 
 class LifelongLearning(JobBase):
@@ -241,9 +242,20 @@ class LifelongLearning(JobBase):
         task_index = self.cloud_knowledge_management.update_kb(task_index_url)
         res.update(unseen_res)
 
-        task_info_res = self.cloud_knowledge_management.seen_estimator.model_info(
-            task_index,
+        model_infos = self.estimator.model_info(
+            self.config.task_index,
             relpath=self.config.data_path_prefix)
+
+        def append_task_info(info_dict):
+            info_dict["number_of_model"] = len(model_infos)
+            info_dict["number_of_unseen_sample"] = 0
+            info_dict["number_of_labeled_unseen_sample"] = len(train_data)
+            # info_dict["history_metric"] = None
+            # info_dict["current_metric"] = None
+            return info_dict
+
+        task_info_res = [append_task_info(info) for info in model_infos]
+        # task_info_res = model_infos
         self.report_task_info(
             None, K8sResourceKindStatus.COMPLETED.value, task_info_res)
         self.log.info(f"Lifelong learning Train task Finished, "
@@ -366,9 +378,19 @@ class LifelongLearning(JobBase):
         FileOps.upload(index_file, self.cloud_knowledge_management.task_index)
         self.log.info(
             f"upload kb index from {index_file} to {self.cloud_knowledge_management.task_index}")
-        task_info_res = self.estimator.model_info(
-            self.cloud_knowledge_management.task_index, result=res,
+        model_infos = self.estimator.model_info(
+            self.config.task_index, result=res,
             relpath=self.config.data_path_prefix)
+
+        # def append_task_info(info_dict):
+        # info_dict["number_of_model"] = len(model_infos)
+        # info_dict["number_of_unseen_sample"] = 88
+        # info_dict["number_of_labeled_unseen_sample"] = 100
+        # info_dict["history_metric"] = res
+        # info_dict["current_metric"] = res
+
+        # task_info_res = [append_task_info(info) for info in model_infos]
+        task_info_res = model_infos
         self.report_task_info(
             None,
             K8sResourceKindStatus.COMPLETED.value,

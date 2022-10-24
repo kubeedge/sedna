@@ -55,10 +55,17 @@ const (
 )
 
 type Model struct {
-	Format  string                 `json:"format"`
-	URL     string                 `json:"url"`
-	Devices []string               `json:"device_soc_versions,omitempty"`
-	Metrics map[string]interface{} `json:"metrics,omitempty"`
+	Format        string                 `json:"format"`
+	URL           string                 `json:"url"`
+	Devices       []string               `json:"device_soc_versions,omitempty"`
+	Metrics       map[string]interface{} `json:"metrics,omitempty"`
+	HistoryMetric float32                `json:"history_metric,omitempty"`
+	CurrentMetric float32                `json:"current_metric,omitempty"`
+
+	//TODO:这些应该被挪到Model对象外面。
+	NumberOfLabeledUnseenSample int `json:"number_of_labeled_unseen_sample,omitempty"`
+	NumberOfModel               int `json:"number_of_model,omitempty"`
+	NumberOfUnseenSample        int `json:"number_of_unseen_sample,omitempty"`
 }
 
 func (m *Model) GetURL() string {
