@@ -1,0 +1,79 @@
+apiVersion: sedna.io/v1alpha1
+kind: LifelongLearningJob
+metadata:
+  name: atcii-classifier-demo
+spec:
+  dataset:
+    name: "lifelong-dataset"
+    trainProb: 0.8
+  trainSpec:
+    template:
+      spec:
+        nodeName: 192.168.1.10
+        containers:
+          - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.x.x
+            name:  train-worker
+            imagePullPolicy: IfNotPresent
+            args: ["train.py"]  # training script
+            env:  # Hyperparameters required for training
+              - name: "early_stopping_rounds"
+                value: "100"
+              - name: "metric_name"
+                value: "mlogloss"
+    trigger:
+      checkPeriodSeconds: 60
+      timer:
+        start: 02:00
+        end: 24:00
+      condition:
+        operator: ">"
+        threshold: 500
+        metric: num_of_samples
+  evalSpec:
+    template:
+      spec:
+        nodeName: 192.168.1.10
+        containers:
+          - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.x.x
+            name:  eval-worker
+            imagePullPolicy: IfNotPresent
+            args: ["eval.py"]
+            env:
+              - name: "metrics"
+                value: "precision_score"
+              - name: "metric_param"
+                value: "{'average': 'micro'}"
+              - name: "model_threshold"  # Threshold for filtering deploy models
+                value: "0.5"
+  deploySpec:
+    template:
+      spec:
+        nodeName: 192.168.1.10
+        containers:
+          - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.x.x
+            name:  infer-worker
+            imagePullPolicy: IfNotPresent
+            args: ["inference.py"]
+            env:
+              - name: "UT_SAVED_URL"  # unseen tasks save path
+                value: "/ut_saved_url"
+              - name: "infer_dataset_url"  # simulation of the inference samples
+                value: "/data/testData.csv"
+            volumeMounts:
+              - name: utdir
+                mountPath: /ut_saved_url
+              - name: inferdata
+                mountPath: /data/
+            resources:  # user defined resources
+              limits:
+                memory: 2Gi
+        volumes:   # user defined volumes
+          - name: utdir
+            hostPath:
+              path: /lifelong/unseen_task/
+              type: DirectoryOrCreate
+          - name: inferdata
+            hostPath:
+              path:  /data/
+              type: DirectoryOrCreate
+  outputDir: "/output"

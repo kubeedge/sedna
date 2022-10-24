@@ -1,0 +1,8 @@
+apiVersion: sedna.io/v1alpha1
+kind: Dataset
+metadata:
+  name: lifelong-dataset
+spec:
+  url: "/data/trainData.csv"
+  format: "csv"
+  nodeName: 192.168.1.10
