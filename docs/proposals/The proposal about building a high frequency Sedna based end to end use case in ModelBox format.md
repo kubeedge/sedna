@@ -8,11 +8,11 @@
     - [Developer Components](#Developer Components)
   - [Road Map](#Road Map)
 
-## 1. Background
+## Background
 
 > Sedna is an edge cloud collaborative AI project at KubeEdge SIG AI. Benefiting from the edge-cloud collaboration capabilities provided by KubeEdge, Sedna can realize cross-edge-cloud collaborative training and collaborative reasoning capabilities, and Sedna supports a variety of popular AI frameworks. **Sedna can simply enable edge-cloud synergy for existing training and inference scripts**, bringing the benefits of lower costs, improved model performance, and data privacy. **The goal of ModelBox is to solve the programming complexity of AI developers when developing AI applications**, reduce the development difficulty of AI applications, and hand over complex data processing to ModelBox. Developers mainly focus on the business logic itself, not the software details. While improving the efficiency of AI inference development, it ensures the performance, reliability, security and other attributes of the software, **so as to better enable Sedna developers to manage and use the Sedna framework**.
 
-## 2. Motivation
+## Motivation
 
 ### Goals
 
@@ -20,7 +20,7 @@
 - Sedna supports multiple hardware devices and software frameworks, and shields hardware and software heterogeneity.
 - Sedna supports a higher performance scheduling engine to help developers solve the commercial performance problems of AI applications.
 
-## 3. Proposal
+## Proposal
 
 - Make use of the extensible function of ModelBox, use Python to develop functional units, and package Sedna library and related codes in ModelBox. Use the visual layout function of ModelBox container to call Sedna API to realize the collaborative application development of edge cloud.![ModelBox_Development_Application](./images/ModelBox_Development_Application.png)
 
@@ -34,7 +34,7 @@
 
   ![Helmet_detection_case](./images/Helmet_detection_case.png)
 
-## 4. Design Details
+## Design Details
 
 ### Flow chart of ModelBox integrated Sedna edge-cloud collaboration function
 
@@ -86,7 +86,7 @@ Use **ModelBox** visual development function to integrate **Sedna** related func
 
 
 
-## 5. Road Map
+## Road Map
 
 **2022.07.01 - 2022.08.15**
 
