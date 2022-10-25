@@ -1,4 +1,4 @@
-- [The proposal about building a high frequency Sedna based end to end use case in ModelBox format](#The proposal about building a high frequency Sedna based end to end use case in ModelBox format)
+- [The proposal about building a high frequency Sedna based end to end use case in ModelBox format](#The-proposal-about-building-a-high-frequency-Sedna-based-end-to-end-use-case-in-ModelBox-format)
   - [Background](#Background)
   - [Motivation](#Motivation)
     - [Goals](#Goals)
