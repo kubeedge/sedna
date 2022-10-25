@@ -3,10 +3,12 @@
   - [Motivation](#Motivation)
     - [Goals](#Goals)
   - [Proposal](#Proposal)
-  - [Design Details](#Design Details)
-    - [Flow chart of ModelBox integrated Sedna edge-cloud collaboration function](#Flow chart of ModelBox integrated Sedna edge-cloud collaboration function)
-    - [Developer Components](#Developer Components)
-  - [Road Map](#Road Map)
+  - [Design Details](#Design-Details)
+    - [Flow chart of ModelBox integrated Sedna edge-cloud collaboration function](#Flow-chart-of-ModelBox-integrated-Sedna-edge-cloud-collaboration-function)
+    - [Developer Components](#Developer-Components)
+  - [Road Map](#Road-Map)
+
+# The proposal about building a high frequency Sedna based end to end use case in ModelBox format
 
 ## Background
 
