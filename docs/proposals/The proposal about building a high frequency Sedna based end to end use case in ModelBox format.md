@@ -40,7 +40,11 @@
 
 ### Flow chart of ModelBox integrated Sedna edge-cloud collaboration function
 
+<<<<<<< HEAD
 Use **ModelBox** visual development function to integrate **Sedna** related functional units. Use the **k8s** service to schedule and manage end-to-end cloud clusters. First start the **ModelBox side ** inference container. The side **Sedna LC** controls the acquisition of data, and upload the cloud to enable the side **Sedna worker **to create inference services. After normal sample inference, output the results. After encountering difficult cases, the **LC trigger** monitors that the incremental samples meet the retraining requirements, and automatically triggers the training container to start and complete the model training. After training, the model is placed in the **Evaluation container** for evaluation. Finally, after the evaluation pod is finished, the reasoning container of the side **ModelBox** is started, and then the reasoning result is output.
+=======
+Use **ModelBox** visual development function to integrate **Sedna** related functional units. Use the **k8s** service to schedule and manage end-to-end cloud clusters. First start the **ModelBox side** inference container. The side **Sedna LC** controls the acquisition of data, and upload the cloud to enable the side **Sedna worker** to create inference services. After normal sample inference, output the results. After encountering difficult cases, the **LC trigger** monitors that the incremental samples meet the retraining requirements, and automatically triggers the training container to start and complete the model training. After training, the model is placed in the **Evaluation container** for evaluation. Finally, after the evaluation pod is finished, the reasoning container of the side **ModelBox** is started, and then the reasoning result is output.
+>>>>>>> 61fe4aea922794131d53633e69bf21ee21eb0b03
 
 ![ModelBox_intergrated_Sedna_flow_chart](./images/ModelBox_intergrated_Sedna_flow_chart.png)
 
@@ -102,4 +106,8 @@ Use **ModelBox** visual development function to integrate **Sedna** related func
 
 ​	**2. Complete helmet detection incremental training application case**
 
+<<<<<<< HEAD
 ​	**3. Topic summary and document arrangement**
+=======
+​	**3. Topic summary and document arrangement**
+>>>>>>> 61fe4aea922794131d53633e69bf21ee21eb0b03
