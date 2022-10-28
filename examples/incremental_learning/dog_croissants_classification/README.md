@@ -1,44 +1,30 @@
 # Dog-Croissants-classification Demo
 ## Prepare Model
-auto-download
+```shell
+cd /
+#download ckpt file here:https://drive.google.com/file/d/1DdIFn1uz9Z4cwvbcf4QFRoxvhqcrPWpo/view?usp=sharing
+tar -xvf models.tar.gz
+```
 
 ## Prepare for inference worker
 ```shell
-mkdir -p /incremental_learning/infer/
-mkdir -p /incremental_learning/he/
-mkdir -p /data/dog_croissants/
+cd /
+#download dataset here: https://drive.google.com/file/d/1zGrQ8Qr3qCT01PXINdm2PxN2C-x0qvmy/view?usp=sharing
 mkdir /output
 ```
+We provide images to inference, train, evaluate in this dataset
 
-TODO:download dataset. I have no idea where I should put dataset 
-```shell
-
-
-
-```
-
-download checkpoint
-```shell
-# need ckpt file under both two dir
-mkdir -p /models/base_model
-mkdir -p /models/deploy_model
-cd /models/base_model
-curl https://download.mindspore.cn/vision/classification/mobilenet_v2_1.0_224.ckpt -o base_model.ckpt
-cd ../deploy_model
-curl https://download.mindspore.cn/vision/classification/mobilenet_v2_1.0_224.ckpt -o deploy_model.ckpt
-
-```
-## build docker file
+## build docker image
 ```shell
 $  docker build -f incremental-learning-dog-croissants-classification.Dockerfile -t test/dog:v0.1 .
-
 ```
+You can build your own image by referring to this dockerfile. 
 
 ## Create Incremental Job
 ```shell
 WORKER_NODE="edge-node" 
 ```
-Create Dataset
+Create Dataset CRD
 ```shell
 kubectl create -f - <<EOF
 apiVersion: sedna.io/v1alpha1
@@ -51,7 +37,7 @@ spec:
   nodeName: $WORKER_NODE
 EOF
 ```
-Create initial Model to simulate the inital model in incremental learning scenoario
+Create initial Model to simulate the initial model in incremental learning scenario.
 ```shell
 kubectl create -f - <<EOF
 apiVersion: sedna.io/v1alpha1
@@ -63,7 +49,7 @@ spec:
   format: "ckpt"
 EOF
 ```
-Create Deploy Model
+Create Deploy Model CRD
 ```shell
 kubectl create -f - <<EOF
 apiVersion: sedna.io/v1alpha1
@@ -75,7 +61,7 @@ spec:
   format: "ckpt"
 EOF
 ```
-create the job
+Create the job CRD
 ```shell
 IMAGE=lj1ang/dog:v0.40
 kubectl create -f - <<EOF
@@ -186,16 +172,14 @@ spec:
   outputDir: "/output"
 EOF
 ```
+Here we use Random as hard example algorithm, which will select infer images randomly as hard example. 
+This is used in models with very high accuracy, but we need hard examples from edge node in real scenario. 
+
 ## trigger
 ```shell
-cd /data/helmet_detection
-wget  https://kubeedge.obs.cn-north-1.myhuaweicloud.com/examples/helmet-detection/dataset.tar.gz
-tar -zxvf dataset.tar.gz
+cd /data/dog_croissants
+mv train_data.txt.full train_data.txt
 ```
-## delete
-```shell
-kubectl delete dataset incremental-dataset
-kubectl delete model initial-model
-kubectl delete model deploy-model
-kubectl delete IncrementalLearningJob dog-croissants-classification-demo
-```
+Then we will get into train stage. After that, evaluate stage is the next.
+For more information, you can see what happened by check the logs of lc in your `$WORKER_NODE` and gm in your cloud node.
+Also, you can find more information by reading this doc:https://sedna.readthedocs.io/en/latest/proposals/incremental-learning.html
