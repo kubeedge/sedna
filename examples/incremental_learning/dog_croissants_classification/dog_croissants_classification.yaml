@@ -1,0 +1,99 @@
+apiVersion: sedna.io/v1alpha1
+kind: IncrementalLearningJob
+metadata:
+  name: dog-croissants-classification-demo
+spec:
+  initialModel:
+    name: "initial-model"
+  dataset:
+    name: "incremental-dataset"
+    trainProb: 0.8
+  trainSpec:
+    template:
+      spec:
+        nodeName: $WORKER_NODE
+        containers:
+          - image: $IMAGE
+            name: train-worker
+            imagePullPolicy: IfNotPresent
+            args: [ "train.py" ]
+            env:
+              - name: "batch_size"
+                value: "8"
+              - name: "epochs"
+                value: "10"
+              - name: "input_shape"
+                value: "224"
+              - name: "class_names"
+                value: "Croissants, Dog"
+    trigger:
+      checkPeriodSeconds: 60
+      timer:
+        start: 02:00
+        end: 20:00
+      condition:
+        operator: ">"
+        threshold: 30
+        metric: num_of_samples
+  evalSpec:
+    template:
+      spec:
+        nodeName: $WORKER_NODE
+        containers:
+          - image: $IMAGE
+            name: eval-worker
+            imagePullPolicy: IfNotPresent
+            args: [ "eval.py" ]
+            env:
+              - name: "input_shape"
+                value: "224"
+              - name: "class_names"
+                value: "Croissants, Dog"
+  deploySpec:
+    model:
+      name: "deploy-model"
+      hotUpdateEnabled: true
+      pollPeriodSeconds: 60
+    trigger:
+      condition:
+        operator: ">"
+        threshold: 0.1
+        metric: precision_delta
+    hardExampleMining:
+      name: "Random"
+      parameters:
+        - key: "random_ratio"
+          value: "0.3"
+    template:
+      spec:
+        nodeName: $WORKER_NODE
+        containers:
+          - image: $IMAGE
+            name: infer-worker
+            imagePullPolicy: IfNotPresent
+            args: [ "inference.py" ]
+            env:
+              - name: "input_shape"
+                value: "224"
+              - name: "infer_url"
+                value: ""
+              - name: "HE_SAVED_URL"
+                value: "/he_saved_url"
+            volumeMounts:
+              - name: localinferdir
+                mountPath: /data/DogCroissants/infer
+              - name: hedir
+                mountPath: /he_saved_url
+            resources: # user defined resources
+              limits:
+                memory: 2Gi
+        volumes: # user defined volumes
+          - name: localinferdir
+            hostPath:
+              path: /incremental_learning/data/DogCroissants/infer
+              type: DirectoryOrCreate
+          - name: hedir
+            hostPath:
+              path: /incremental_learning/he/
+              type: DirectoryOrCreate
+  outputDir: "/output"

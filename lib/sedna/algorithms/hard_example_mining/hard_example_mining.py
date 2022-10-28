@@ -16,7 +16,7 @@
 
 import abc
 import math
-
+import random
 from sedna.common.class_factory import ClassFactory, ClassType
 
 __all__ = ('ThresholdFilter', 'CrossEntropyFilter', 'IBTFilter')
@@ -177,3 +177,29 @@ class IBTFilter(BaseFilter, abc.ABC):
             if float(box_score) <= self.threshold_box]
         return (len(confidence_score_list) / len(infer_result)
                 >= (1 - self.threshold_img))
+
+@ClassFactory.register(ClassType.HEM, alias="Random")
+class RandomFilter(BaseFilter):
+    """judge a image is hard example or not randomly
+
+            Parameters
+            ----------
+            random_ratio: int
+                value: between 0 and 1
+                with a model having very high accuracy like 98%, use this
+                function to define an input is hard example or not. just
+                a meaningless but needed function in sedna incremental learning
+                inference
+
+            Returns
+            -------
+            is hard sample: bool
+                `True` means hard sample, `False` means not.
+            """
+    def __init__(self, random_ratio=0.3, **kwargs):
+        self.random_ratio=random_ratio
+
+    def __call__(self, *args, **kwargs):
+        if random.uniform(0,1) < self.random_ratio:
+            return True
+        return False
