@@ -1,0 +1,419 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 5,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 24,
+      "panels": [],
+      "title": "Algorithm Metrics (Federated Learning)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "name": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "namespace"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 94
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 20,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.0.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_FederatedLearningJob_TrainNodesInfo{name=\"$AI_task_name\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Train Nodes",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "app_kubernetes_io_component": true,
+              "app_kubernetes_io_instance": true,
+              "app_kubernetes_io_managed_by": true,
+              "app_kubernetes_io_name": true,
+              "app_kubernetes_io_part_of": true,
+              "app_kubernetes_io_version": true,
+              "datasetName": true,
+              "datasetUrl": true,
+              "helm_sh_chart": true,
+              "instance": true,
+              "job": true,
+              "node": true,
+              "service": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "name": "task name"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "name": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "nodeName"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 98
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "url"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 99
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 19,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.0.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_FederatedLearningJob_TrainNodesInfo{name=\"$AI_task_name\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_Dataset_numberOfSamples",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "B"
+        }
+      ],
+      "title": "Node Sample Num",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "datasetName"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Value": true,
+              "Value #A": true,
+              "Value #B": false,
+              "__name__": true,
+              "__name__ 1": true,
+              "__name__ 2": true,
+              "app_kubernetes_io_component": true,
+              "app_kubernetes_io_component 1": true,
+              "app_kubernetes_io_component 2": true,
+              "app_kubernetes_io_instance": true,
+              "app_kubernetes_io_instance 1": true,
+              "app_kubernetes_io_instance 2": true,
+              "app_kubernetes_io_managed_by": true,
+              "app_kubernetes_io_managed_by 1": true,
+              "app_kubernetes_io_managed_by 2": true,
+              "app_kubernetes_io_name": true,
+              "app_kubernetes_io_name 1": true,
+              "app_kubernetes_io_name 2": true,
+              "app_kubernetes_io_part_of": true,
+              "app_kubernetes_io_part_of 1": true,
+              "app_kubernetes_io_part_of 2": true,
+              "app_kubernetes_io_version": true,
+              "app_kubernetes_io_version 2": true,
+              "crd_type": true,
+              "crd_type 1": true,
+              "crd_type 2": true,
+              "datasetUrl": false,
+              "helm_sh_chart": true,
+              "helm_sh_chart 1": true,
+              "helm_sh_chart 2": true,
+              "instance": true,
+              "instance 1": true,
+              "instance 2": true,
+              "job": true,
+              "job 1": true,
+              "job 2": true,
+              "namespace 1": true,
+              "namespace 2": true,
+              "node": true,
+              "node 1": true,
+              "node 2": true,
+              "service": true,
+              "service 1": true,
+              "service 2": true
+            },
+            "indexByName": {
+              "Time": 3,
+              "Value": 18,
+              "__name__": 4,
+              "app_kubernetes_io_component": 5,
+              "app_kubernetes_io_instance": 6,
+              "app_kubernetes_io_managed_by": 7,
+              "app_kubernetes_io_name": 8,
+              "app_kubernetes_io_part_of": 9,
+              "app_kubernetes_io_version": 10,
+              "crd_type": 11,
+              "datasetUrl": 12,
+              "helm_sh_chart": 13,
+              "instance": 14,
+              "job": 15,
+              "name": 1,
+              "namespace": 0,
+              "node": 16,
+              "nodeName": 2,
+              "service": 17
+            },
+            "renameByName": {
+              "Value #B": "NumberOfSamples",
+              "name": "task name",
+              "name 2": "name",
+              "service": "",
+              "url": ""
+            }
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNotNull",
+                  "options": {}
+                },
+                "fieldName": "task name"
+              }
+            ],
+            "match": "any",
+            "type": "include"
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "surface-defect-detection",
+          "value": "surface-defect-detection"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "name": "Prometheus"
+        },
+        "definition": "label_values(kube_sedna_io_v1alpha1_FederatedLearningJob_StageConditionStatus, name)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "AI Task Name",
+        "multi": false,
+        "name": "AI_task_name",
+        "options": [],
+        "query": {
+          "query": "label_values(kube_sedna_io_v1alpha1_FederatedLearningJob_StageConditionStatus, name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Algorithm Metrics(Federated Learning)",
+  "uid": "fzfVlS74z",
+  "version": 4,
+  "weekStart": ""
+}

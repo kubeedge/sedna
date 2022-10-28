@@ -1,0 +1,1316 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 4,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 14,
+      "panels": [],
+      "title": "Algorithm Metrics (Incremental Learning)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "name": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 16,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "9.0.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_IncrementalLearningJob_TaskStage{name=\"$AI_task_name\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageConditionStatus{name=\"$AI_task_name\"}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "B"
+        }
+      ],
+      "title": "Current Task Stage\t",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "name"
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "greater",
+                  "options": {
+                    "value": 0
+                  }
+                },
+                "fieldName": "Value #A"
+              }
+            ],
+            "match": "any",
+            "type": "include"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Value": true,
+              "Value #A": true,
+              "Value #B": true,
+              "__name__": true,
+              "__name__ 1": true,
+              "__name__ 2": true,
+              "app_kubernetes_io_component": true,
+              "app_kubernetes_io_component 1": true,
+              "app_kubernetes_io_component 2": true,
+              "app_kubernetes_io_instance": true,
+              "app_kubernetes_io_instance 1": true,
+              "app_kubernetes_io_instance 2": true,
+              "app_kubernetes_io_managed_by": true,
+              "app_kubernetes_io_managed_by 1": true,
+              "app_kubernetes_io_managed_by 2": true,
+              "app_kubernetes_io_name": true,
+              "app_kubernetes_io_name 1": true,
+              "app_kubernetes_io_name 2": true,
+              "app_kubernetes_io_part_of": true,
+              "app_kubernetes_io_part_of 1": true,
+              "app_kubernetes_io_part_of 2": true,
+              "app_kubernetes_io_version": true,
+              "app_kubernetes_io_version 1": true,
+              "app_kubernetes_io_version 2": true,
+              "crd_type 1": true,
+              "crd_type 2": true,
+              "helm_sh_chart": true,
+              "helm_sh_chart 1": true,
+              "helm_sh_chart 2": true,
+              "instance": true,
+              "instance 1": true,
+              "instance 2": true,
+              "job": true,
+              "job 1": true,
+              "job 2": true,
+              "name": true,
+              "namespace 1": true,
+              "namespace 2": true,
+              "node": true,
+              "node 1": true,
+              "node 2": true,
+              "phase": false,
+              "service": true,
+              "service 1": true,
+              "service 2": true,
+              "stage": false
+            },
+            "indexByName": {},
+            "renameByName": {
+              "name": "Task name",
+              "phase": ""
+            }
+          }
+        }
+      ],
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "name": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 31,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.0.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "count by(name) (kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{stage=\"Train\", type=\"Waiting\", name=\"$AI_task_name\"})",
+          "format": "time_series",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "IterationNo",
+      "transformations": [],
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "name": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 18,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.0.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_IncrementalLearningJob_DatasetInfo{name=\"$AI_task_name\"}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_Dataset_numberOfSamples",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "B"
+        }
+      ],
+      "title": "Number Of Samples",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "datasetName"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "__name__ 1": true,
+              "__name__ 2": true,
+              "app_kubernetes_io_component 1": true,
+              "app_kubernetes_io_component 2": true,
+              "app_kubernetes_io_instance 1": true,
+              "app_kubernetes_io_instance 2": true,
+              "app_kubernetes_io_managed_by 1": true,
+              "app_kubernetes_io_managed_by 2": true,
+              "app_kubernetes_io_name 1": true,
+              "app_kubernetes_io_name 2": true,
+              "app_kubernetes_io_part_of 1": true,
+              "app_kubernetes_io_part_of 2": true,
+              "app_kubernetes_io_version 1": true,
+              "app_kubernetes_io_version 2": true,
+              "crd_type 1": true,
+              "crd_type 2": true,
+              "helm_sh_chart 1": true,
+              "helm_sh_chart 2": true,
+              "instance 1": true,
+              "instance 2": true,
+              "job 1": true,
+              "job 2": true,
+              "namespace 1": true,
+              "namespace 2": true,
+              "node 1": true,
+              "node 2": true,
+              "service 1": true,
+              "service 2": true
+            },
+            "indexByName": {
+              "Time 1": 1,
+              "Time 2": 17,
+              "Value #A": 33,
+              "Value #B": 34,
+              "__name__ 1": 2,
+              "__name__ 2": 18,
+              "app_kubernetes_io_component 1": 3,
+              "app_kubernetes_io_component 2": 19,
+              "app_kubernetes_io_instance 1": 4,
+              "app_kubernetes_io_instance 2": 20,
+              "app_kubernetes_io_managed_by 1": 5,
+              "app_kubernetes_io_managed_by 2": 21,
+              "app_kubernetes_io_name 1": 6,
+              "app_kubernetes_io_name 2": 22,
+              "app_kubernetes_io_part_of 1": 7,
+              "app_kubernetes_io_part_of 2": 23,
+              "app_kubernetes_io_version 1": 8,
+              "app_kubernetes_io_version 2": 24,
+              "crd_type 1": 9,
+              "crd_type 2": 25,
+              "datasetName": 0,
+              "helm_sh_chart 1": 10,
+              "helm_sh_chart 2": 26,
+              "instance 1": 11,
+              "instance 2": 27,
+              "job 1": 12,
+              "job 2": 28,
+              "name": 13,
+              "namespace 1": 14,
+              "namespace 2": 29,
+              "node 1": 15,
+              "node 2": 30,
+              "service 1": 16,
+              "service 2": 31,
+              "url": 32
+            },
+            "renameByName": {
+              "Value #A": "train prob",
+              "Value #B": "total number of samples",
+              "name": "task name"
+            }
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNotNull",
+                  "options": {}
+                },
+                "fieldName": "task name"
+              }
+            ],
+            "match": "any",
+            "type": "include"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "TrainSampleNum",
+            "binary": {
+              "left": "train prob",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "total number of samples"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "EvalSampleNum",
+            "binary": {
+              "left": "total number of samples",
+              "operator": "-",
+              "reducer": "sum",
+              "right": "TrainSampleNum"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "name": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "id": 26,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "9.0.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{stage=\"Train\", type=\"Ready\", name=\"$AI_task_name\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "TrainOutputModelUrl",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "replace": false,
+            "source": "data"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "input"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "app_kubernetes_io_component": true,
+              "app_kubernetes_io_instance": true,
+              "app_kubernetes_io_managed_by": true,
+              "app_kubernetes_io_name": true,
+              "app_kubernetes_io_part_of": true,
+              "app_kubernetes_io_version": true,
+              "crd_type": true,
+              "data": true,
+              "helm_sh_chart": true,
+              "input": true,
+              "instance": true,
+              "job": true,
+              "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{app_kubernetes_io_component=\"metrics\", app_kubernetes_io_instance=\"kube-state-metrics\", app_kubernetes_io_managed_by=\"Helm\", app_kubernetes_io_name=\"kube-state-metrics\", app_kubernetes_io_part_of=\"kube-state-metrics\", app_kubernetes_io_version=\"2.5.0\", crd_type=\"IncrementalLearningJob\", data=\"{\\\"output\\\":{\\\"models\\\":[{\\\"format\\\":\\\"pb\\\",\\\"url\\\":\\\"/output/train/1/model_finetune_tensorflow.pb\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}},{\\\"format\\\":\\\"ckpt\\\",\\\"url\\\":\\\"/output/train/1\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}}]}}\", helm_sh_chart=\"kube-state-metrics-4.16.0\", instance=\"10.244.0.120:8080\", job=\"kubernetes-service-endpoints\", name=\"helmet-detection-demo\", namespace=\"default\", node=\"k8s-master\", service=\"kube-state-metrics\", stage=\"Train\", type=\"Completed\"}": false,
+              "lastHeartbeatTime": false,
+              "models": true,
+              "namespace": true,
+              "node": true,
+              "output": false,
+              "service": true,
+              "stage": true,
+              "type": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{app_kubernetes_io_component=\"metrics\", app_kubernetes_io_instance=\"kube-state-metrics\", app_kubernetes_io_managed_by=\"Helm\", app_kubernetes_io_name=\"kube-state-metrics\", app_kubernetes_io_part_of=\"kube-state-metrics\", app_kubernetes_io_version=\"2.5.0\", crd_type=\"IncrementalLearningJob\", data=\"{\\\"output\\\":{\\\"models\\\":[{\\\"format\\\":\\\"pb\\\",\\\"url\\\":\\\"/output/train/1/model_finetune_tensorflow.pb\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}},{\\\"format\\\":\\\"ckpt\\\",\\\"url\\\":\\\"/output/train/1\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}}]}}\", helm_sh_chart=\"kube-state-metrics-4.16.0\", instance=\"10.244.0.120:8080\", job=\"kubernetes-service-endpoints\", name=\"helmet-detection-demo\", namespace=\"default\", node=\"k8s-master\", service=\"kube-state-metrics\", stage=\"Train\", type=\"Completed\"}": "",
+              "name": "Task name"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "name": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 211
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "id": 28,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.0.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{stage=\"Train\", type=\"Completed\", name=\"$AI_task_name\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "TrainLoss",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "data"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "output"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "models"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "1"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "metrics"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "0": true,
+              "1": true,
+              "Time": true,
+              "Time 2": true,
+              "Value": true,
+              "Value #A": true,
+              "Value #B": true,
+              "__name__": true,
+              "__name__ 2": true,
+              "app_kubernetes_io_component": true,
+              "app_kubernetes_io_component 2": true,
+              "app_kubernetes_io_instance": true,
+              "app_kubernetes_io_instance 2": true,
+              "app_kubernetes_io_managed_by": true,
+              "app_kubernetes_io_managed_by 2": true,
+              "app_kubernetes_io_name": true,
+              "app_kubernetes_io_name 2": true,
+              "app_kubernetes_io_part_of": true,
+              "app_kubernetes_io_part_of 2": true,
+              "app_kubernetes_io_version": true,
+              "app_kubernetes_io_version 2": true,
+              "crd_type": true,
+              "crd_type 2": true,
+              "data": true,
+              "format": true,
+              "helm_sh_chart": true,
+              "helm_sh_chart 2": true,
+              "instance": true,
+              "instance 2": true,
+              "job": true,
+              "job 2": true,
+              "loss": false,
+              "metrics": true,
+              "models": true,
+              "namespace": true,
+              "namespace 2": true,
+              "node": true,
+              "node 2": true,
+              "output": true,
+              "service": true,
+              "service 2": true,
+              "stage": true,
+              "type": true,
+              "url": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "name": "Task name "
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "name": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "id": 29,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.0.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{stage=\"Eval\", type=\"Ready\", name=\"$AI_task_name\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "EvalNewModelUrl",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "replace": false,
+            "source": "data"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "input"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "app_kubernetes_io_component": true,
+              "app_kubernetes_io_instance": true,
+              "app_kubernetes_io_managed_by": true,
+              "app_kubernetes_io_name": true,
+              "app_kubernetes_io_part_of": true,
+              "app_kubernetes_io_version": true,
+              "crd_type": true,
+              "data": true,
+              "helm_sh_chart": true,
+              "input": true,
+              "instance": true,
+              "job": true,
+              "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{app_kubernetes_io_component=\"metrics\", app_kubernetes_io_instance=\"kube-state-metrics\", app_kubernetes_io_managed_by=\"Helm\", app_kubernetes_io_name=\"kube-state-metrics\", app_kubernetes_io_part_of=\"kube-state-metrics\", app_kubernetes_io_version=\"2.5.0\", crd_type=\"IncrementalLearningJob\", data=\"{\\\"output\\\":{\\\"models\\\":[{\\\"format\\\":\\\"pb\\\",\\\"url\\\":\\\"/output/train/1/model_finetune_tensorflow.pb\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}},{\\\"format\\\":\\\"ckpt\\\",\\\"url\\\":\\\"/output/train/1\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}}]}}\", helm_sh_chart=\"kube-state-metrics-4.16.0\", instance=\"10.244.0.120:8080\", job=\"kubernetes-service-endpoints\", name=\"helmet-detection-demo\", namespace=\"default\", node=\"k8s-master\", service=\"kube-state-metrics\", stage=\"Train\", type=\"Completed\"}": false,
+              "models": true,
+              "namespace": true,
+              "node": true,
+              "output": false,
+              "service": true,
+              "stage": true,
+              "type": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{app_kubernetes_io_component=\"metrics\", app_kubernetes_io_instance=\"kube-state-metrics\", app_kubernetes_io_managed_by=\"Helm\", app_kubernetes_io_name=\"kube-state-metrics\", app_kubernetes_io_part_of=\"kube-state-metrics\", app_kubernetes_io_version=\"2.5.0\", crd_type=\"IncrementalLearningJob\", data=\"{\\\"output\\\":{\\\"models\\\":[{\\\"format\\\":\\\"pb\\\",\\\"url\\\":\\\"/output/train/1/model_finetune_tensorflow.pb\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}},{\\\"format\\\":\\\"ckpt\\\",\\\"url\\\":\\\"/output/train/1\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}}]}}\", helm_sh_chart=\"kube-state-metrics-4.16.0\", instance=\"10.244.0.120:8080\", job=\"kubernetes-service-endpoints\", name=\"helmet-detection-demo\", namespace=\"default\", node=\"k8s-master\", service=\"kube-state-metrics\", stage=\"Train\", type=\"Completed\"}": "",
+              "name": "Task name "
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "name": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "id": 30,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.0.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "Incremental_HardSamples{hardSample=\"True\"}",
+          "format": "time_series",
+          "hide": false,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "IterationHardSampleNum",
+      "transformations": [],
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "name": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "new model recall"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 826
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "new model precision "
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 819
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "old model precision"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 800
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "old model recall"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 800
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "id": 27,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.0.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "name": "Prometheus"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{stage=\"Eval\", type=\"Completed\", name=\"$AI_task_name\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "AccuracyMetricForModels",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "replace": false,
+            "source": "data"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "output"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "models"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "app_kubernetes_io_component": true,
+              "app_kubernetes_io_instance": true,
+              "app_kubernetes_io_managed_by": true,
+              "app_kubernetes_io_name": true,
+              "app_kubernetes_io_part_of": true,
+              "app_kubernetes_io_version": true,
+              "data": true,
+              "helm_sh_chart": true,
+              "input": true,
+              "instance": true,
+              "job": true,
+              "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{app_kubernetes_io_component=\"metrics\", app_kubernetes_io_instance=\"kube-state-metrics\", app_kubernetes_io_managed_by=\"Helm\", app_kubernetes_io_name=\"kube-state-metrics\", app_kubernetes_io_part_of=\"kube-state-metrics\", app_kubernetes_io_version=\"2.5.0\", crd_type=\"IncrementalLearningJob\", data=\"{\\\"output\\\":{\\\"models\\\":[{\\\"format\\\":\\\"pb\\\",\\\"url\\\":\\\"/output/train/1/model_finetune_tensorflow.pb\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}},{\\\"format\\\":\\\"ckpt\\\",\\\"url\\\":\\\"/output/train/1\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}}]}}\", helm_sh_chart=\"kube-state-metrics-4.16.0\", instance=\"10.244.0.120:8080\", job=\"kubernetes-service-endpoints\", name=\"helmet-detection-demo\", namespace=\"default\", node=\"k8s-master\", service=\"kube-state-metrics\", stage=\"Train\", type=\"Completed\"}": false,
+              "models": true,
+              "namespace": true,
+              "node": true,
+              "output": false,
+              "service": true,
+              "stage": true,
+              "type": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "0": "new model",
+              "1": "old model",
+              "kube_sedna_io_v1alpha1_IncrementalLearningJob_StageDetails{app_kubernetes_io_component=\"metrics\", app_kubernetes_io_instance=\"kube-state-metrics\", app_kubernetes_io_managed_by=\"Helm\", app_kubernetes_io_name=\"kube-state-metrics\", app_kubernetes_io_part_of=\"kube-state-metrics\", app_kubernetes_io_version=\"2.5.0\", crd_type=\"IncrementalLearningJob\", data=\"{\\\"output\\\":{\\\"models\\\":[{\\\"format\\\":\\\"pb\\\",\\\"url\\\":\\\"/output/train/1/model_finetune_tensorflow.pb\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}},{\\\"format\\\":\\\"ckpt\\\",\\\"url\\\":\\\"/output/train/1\\\",\\\"metrics\\\":{\\\"loss\\\":1964.1080322265625}}]}}\", helm_sh_chart=\"kube-state-metrics-4.16.0\", instance=\"10.244.0.120:8080\", job=\"kubernetes-service-endpoints\", name=\"helmet-detection-demo\", namespace=\"default\", node=\"k8s-master\", service=\"kube-state-metrics\", stage=\"Train\", type=\"Completed\"}": "",
+              "name": "Task name "
+            }
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "new model"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "old model"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "metrics 1"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "metrics 2"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "crd_type": true,
+              "format 1": true,
+              "format 2": true,
+              "metrics 1": true,
+              "metrics 2": true,
+              "new model": true,
+              "old model": true,
+              "output": true,
+              "url 1": true,
+              "url 2": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "precision 1": "new model precision ",
+              "precision 2": "old model precision",
+              "recall 1": "new model recall",
+              "recall 2": "old model recall"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "helmet-detection-demo",
+          "value": "helmet-detection-demo"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "name": "Prometheus"
+        },
+        "definition": "label_values(kube_sedna_io_v1alpha1_IncrementalLearningJob_StageConditionStatus, name)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "AI Task Name",
+        "multi": false,
+        "name": "AI_task_name",
+        "options": [],
+        "query": {
+          "query": "label_values(kube_sedna_io_v1alpha1_IncrementalLearningJob_StageConditionStatus, name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Algorithm Metrics(Incremental Learning)",
+  "uid": "Xgc7lS74z",
+  "version": 3,
+  "weekStart": ""
+}
