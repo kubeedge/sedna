@@ -23,10 +23,11 @@ from sedna.common.config import BaseConfig
 def set_backend(estimator=None, config=None):
     """Create Trainer class"""
     if estimator is None:
-        return
+        return None
     if config is None:
         config = BaseConfig()
     use_cuda = False
+    use_npu = False
     backend_type = os.getenv(
         'BACKEND_TYPE', config.get("backend_type", "UNKNOWN")
     )
@@ -34,7 +35,12 @@ def set_backend(estimator=None, config=None):
     device_category = os.getenv(
         'DEVICE_CATEGORY', config.get("device_category", "CPU")
     )
-    if 'CUDA_VISIBLE_DEVICES' in os.environ:
+
+    # NPU>GPU>CPU
+    if device_category == "NPU":
+        use_npu = True
+        os.environ['DEVICE_CATEGORY'] = "NPU"
+    elif 'CUDA_VISIBLE_DEVICES' in os.environ:
         os.environ['DEVICE_CATEGORY'] = 'GPU'
         use_cuda = True
     else:
@@ -44,6 +50,8 @@ def set_backend(estimator=None, config=None):
         from sedna.backend.tensorflow import TFBackend as REGISTER
     elif backend_type == "KERAS":
         from sedna.backend.tensorflow import KerasBackend as REGISTER
+    elif backend_type == "MINDSPORE":
+        from sedna.backend.mindspore import MSBackend as REGISTER
     elif backend_type == "TORCH":
         from sedna.backend.torch import TorchBackend as REGISTER
     else:
@@ -56,6 +64,7 @@ def set_backend(estimator=None, config=None):
 
     return REGISTER(
         estimator=estimator, use_cuda=use_cuda,
+        use_npu=use_npu,
         model_save_path=base_model_save,
         model_name=model_save_name,
         model_save_url=model_save_url
