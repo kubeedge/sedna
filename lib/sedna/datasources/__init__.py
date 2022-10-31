@@ -13,14 +13,16 @@
 # limitations under the License.
 
 from abc import ABC
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from pycocotools.coco import COCO
 
 from sedna.common.file_ops import FileOps
 from sedna.common.class_factory import ClassFactory, ClassType
 
-__all__ = ('BaseDataSource', 'TxtDataParse', 'CSVDataParse')
+__all__ = ('BaseDataSource', 'TxtDataParse', 'CSVDataParse', 'JSONDataParse')
 
 
 class BaseDataSource:
@@ -150,3 +152,68 @@ class CSVDataParse(BaseDataSource, ABC):
             return
         self.x = pd.concat(x_data)
         self.y = pd.concat(y_data)
+
+
+class JSONDataParse(BaseDataSource, ABC):
+    """
+    json file which contain Structured Data parser
+    """
+
+    def __init__(self, data_type, func=None):
+        super(JSONDataParse, self).__init__(data_type=data_type, func=func)
+        self.data_dir = None
+        self.coco = None
+        self.ids = None
+        self.class_ids = None
+        self.annotations = None
+
+    def parse(self, *args, **kwargs):
+        DIRECTORY = "train"
+        LABEL_PATH = "*/gt/gt_val_half.txt"
+        filepath = Path(*args)
+        self.data_dir = Path(Path(filepath).parents[1], DIRECTORY)
+        self.coco = COCO(filepath)
+        self.ids = self.coco.getImgIds()
+        self.class_ids = sorted(self.coco.getCatIds())
+        self.annotations = [self.load_anno_from_ids(_ids) for _ids in self.ids]
+        self.x = {
+            "data_dir": self.data_dir,
+            "coco": self.coco,
+            "ids": self.ids,
+            "class_ids": self.class_ids,
+            "annotations": self.annotations,
+        }
+        self.y = list(self.data_dir.glob(LABEL_PATH))
+
+    def load_anno_from_ids(self, id_):
+        im_ann = self.coco.loadImgs(id_)[0]
+        width = im_ann["width"]
+        height = im_ann["height"]
+        frame_id = im_ann["frame_id"]
+        video_id = im_ann["video_id"]
+        anno_ids = self.coco.getAnnIds(imgIds=[int(id_)], iscrowd=False)
+        annotations = self.coco.loadAnns(anno_ids)
+        objs = []
+        for obj in annotations:
+            if obj["area"] > 0 and obj["bbox"][2] >= 0 and obj["bbox"][3] >= 0:
+                obj["clean_bbox"] = [
+                        obj["bbox"][0], obj["bbox"][1],
+                        obj["bbox"][0] + obj["bbox"][2],
+                        obj["bbox"][1] + obj["bbox"][3]]
+                objs.append(obj)
+
+        res = np.zeros((len(objs), 6))
+
+        for i, obj in enumerate(objs):
+            res[i, 0:4] = obj["clean_bbox"]
+            res[i, 4] = self.class_ids.index(obj["category_id"])
+            res[i, 5] = obj["track_id"]
+
+        file_name = (
+            im_ann["file_name"] if "file_name" in im_ann
+            else f"{id_:012}.jpg")
+        img_info = (height, width, frame_id, video_id, file_name)
+
+        del im_ann, annotations
+
+        return (res, img_info, file_name)
