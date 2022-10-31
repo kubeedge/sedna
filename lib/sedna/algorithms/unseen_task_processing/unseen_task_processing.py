@@ -4,6 +4,10 @@ from sedna.backend import set_backend
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import KBResourceConstant
 from sedna.common.class_factory import ClassFactory, ClassType
+from sedna.common.log import LOGGER
+from sedna.algorithms.unseen_task_processing.GANwithSelfTaughtLearning.deeplabv3.train import train_deepblabv3
+from sedna.algorithms.unseen_task_processing.GANwithSelfTaughtLearning.GAN.train import train as trainGAN
+from sedna.algorithms.unseen_task_processing.GANwithSelfTaughtLearning.selftaughtlearning.train import train as trainAutoEncoder
 
 __all__ = ('UnseenTaskProcessing', )
 
@@ -104,6 +108,27 @@ class UnseenTaskProcessing:
             self.extractor_key: None,
             self.task_group_key: []
         }
+
+        unseen_samples = kwargs['unseen_samples']
+        is_autoencoder_trained = kwargs['is_autoencoder_trained']
+        self.log.info(self.TAG + 'start processing unseen task')
+        # If this unseen task has no corresponding model, then we need to use GAN plus self-taught learning to train a encoder model.
+        # Here, I use `IS_AUTOENCODER_TRAINED` to let developer himself/herself decide whether to train an encoder model from scrach.
+        if not is_autoencoder_trained:
+            self.log.info(
+                self.TAG + 'No autoencoder model is found. So starting training...')
+            self.log.info(self.TAG + 'firstly, process training GAN')
+            # use GAN model to train GAN for generating more samples
+            trainGAN(unseen_samples)
+            self.log.info(self.TAG + 'secondly, process self-taught module')
+            # train aotuencoder in self-taught learning module
+            trainAutoEncoder(unseen_samples)
+        self.log.info(
+            'load trained autoencoder model from self-taught learning module')
+        self.log.info('encoder unseen samples')
+        #
+        # start training
+        train_deepblabv3(unseen_samples)
 
         return task_index
 

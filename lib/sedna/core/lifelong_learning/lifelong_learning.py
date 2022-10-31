@@ -311,7 +311,7 @@ class LifelongLearning(JobBase):
         tasks, task_update_strategies = task_update_decision(
             unseen_samples, task_type="unseen_task")
         unseen_task_index = self.unseen_task_processing.update(
-            tasks, task_update_strategies, task_index=index_url)
+            tasks, task_update_strategies, task_index=index_url, unseen_samples=unseen_samples, is_autoencoder_trained=True)
 
         task_index = {
             "seen_task": seen_task_index,

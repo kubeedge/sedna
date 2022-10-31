@@ -1,0 +1,26 @@
+dataset_path: '../data/img'
+
+# GAN config
+GAN:
+  - iter: 50000
+  - batch_size: 8
+  - im_size: 1024
+  - name: 'test2'
+
+# Self-taught Learning config
+STL:
+  - iter: 100
+  - lr: 1.0e-3
+  - batch_size: 30
+  - name: 'encoder_models'
+
+# model to be trained config
+# here we take deeplabv3 as example
+deeplabv3:
+  - iter: 1000
+  - batch_size: 3
+  - lr: 1.0e-4
+  - name: "1"
+  - cityscapes_data_path: "" # developer needs to specify
+  - cityscapes_meta_path: "" # developer needs to specify
+  - class_weights: "" # developer needs to specify
