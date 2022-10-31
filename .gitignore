@@ -28,3 +28,6 @@ __pycache__/
 
 # go build output
 /_output
+
+# macOS
+*/.DS_Store 
