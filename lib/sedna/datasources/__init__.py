@@ -106,7 +106,6 @@ class TxtDataParse(BaseDataSource, ABC):
         self.x = np.array(x_data)
         self.y = np.array(y_data)
 
-
 class CSVDataParse(BaseDataSource, ABC):
     """
     csv file which contain Structured Data parser
@@ -150,3 +149,41 @@ class CSVDataParse(BaseDataSource, ABC):
             return
         self.x = pd.concat(x_data)
         self.y = pd.concat(y_data)
+
+class IndexDataParse(BaseDataSource, ABC):
+    """
+    txt file which contain image list parser
+    """
+
+    def __init__(self, data_type, func=None):
+        super(IndexDataParse, self).__init__(data_type=data_type, func=func)
+
+    def parse(self, *args, **kwargs):
+        x_data = []
+        y_data = []
+        use_raw = kwargs.get("use_raw")
+        for f in args:
+            if not (f and FileOps.exists(f)):
+                continue
+            with open(f) as fin:
+                if self.process_func:
+                    res = []
+                    for line in fin.readlines():
+                        lines = list(map(self.process_func, line.strip().split()))
+                        res.append(lines)
+                else:
+                    res = [line.strip().split() for line in fin.readlines()]
+            for tup in res:
+                if not len(tup):
+                    continue
+                if use_raw:
+                    x_data.append(tup)
+                else:
+                    x_data.append(tup[:-1])
+                    if not self.is_test_data:
+                        if len(tup) > 1:
+                            y_data.append(tup[1])
+                        else:
+                            y_data.append(0)
+        self.x = np.array(x_data)
+        self.y = np.array(y_data)

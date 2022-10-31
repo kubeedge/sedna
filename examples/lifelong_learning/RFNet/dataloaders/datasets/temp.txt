@@ -1,0 +1,38 @@
+for i in range(len(nam_label)):
+        img_label = cv2.imread(label_ori_path+nam_label[i], -1)[:,:,2]
+        img_label_temp = img_label.copy()
+        img_label_temp[img_label == 0] = 22
+        img_label_temp[img_label == 1] = 10
+        img_label_temp[img_label == 2] = 2
+        img_label_temp[img_label == 3] = 0
+        img_label_temp[img_label == 4] = 1
+        img_label_temp[img_label == 5] = 4
+        img_label_temp[img_label == 6] = 8
+        img_label_temp[img_label == 7] = 5
+        img_label_temp[img_label == 8] = 13
+        img_label_temp[img_label == 9] = 7
+        img_label_temp[img_label == 10] = 11
+        img_label_temp[img_label == 11] = 18
+        img_label_temp[img_label == 12] = 17
+        img_label_temp[img_label == 13] = 21
+        img_label_temp[img_label == 14] = 20
+        img_label_temp[img_label == 15] = 6
+        img_label_temp[img_label == 16] = 9
+        img_label_temp[img_label == 17] = 12
+        img_label_temp[img_label == 18] = 14
+        img_label_temp[img_label == 19] = 15
+        img_label_temp[img_label == 20] = 16
+        img_label_temp[img_label == 21] = 3
+        img_label_temp[img_label == 22] = 19
+        #print(img_label)
+        #img_label[img_label == 0] = 10
+        #img_label[img_label == 6] = 0
+        #img_label[img_label == 5] = 11
+        #img_label[img_label == 1] = 5
+        #img_label[img_label == 2] = 1
+        #img_label[img_label == 4] = 9
+        #img_label[img_label == 3] = 4
+        #img_label[img_label == 7] = 8
+        #img_label[img_label == 11] = 2
+        img_resize_lab = cv2.resize(img_label_temp, (2048,1024), interpolation=cv2.INTER_NEAREST)
+        cv2.imwrite(label_save_path+str(i)+'TrainIds.png', img_resize_lab.astype(np.uint16))

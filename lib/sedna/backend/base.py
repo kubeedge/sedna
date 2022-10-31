@@ -61,6 +61,15 @@ class BackendBase:
         varkw = self.parse_kwargs(fit_method, **kwargs)
         return fit_method(*args, **varkw)
 
+    def update(self, *args, **kwargs):
+        """update model by training."""
+        if callable(self.estimator):
+            varkw = self.parse_kwargs(self.estimator, **kwargs)
+            self.estimator = self.estimator(**varkw)
+        fit_method = getattr(self.estimator, "fit", self.estimator.update)
+        varkw = self.parse_kwargs(fit_method, **kwargs)
+        return fit_method(*args, **varkw)
+
     def predict(self, *args, **kwargs):
         """Inference model."""
         varkw = self.parse_kwargs(self.estimator.predict, **kwargs)
