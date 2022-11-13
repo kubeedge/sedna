@@ -46,6 +46,8 @@ def set_backend(estimator=None, config=None):
         from sedna.backend.tensorflow import KerasBackend as REGISTER
     elif backend_type == "TORCH":
         from sedna.backend.torch import TorchBackend as REGISTER
+    elif backend_type == "MINDSPORE":
+        from sedna.backend.mindspore import MSBackend as REGISTER
     else:
         warnings.warn(f"{backend_type} Not Support yet, use itself")
         from sedna.backend.base import BackendBase as REGISTER
