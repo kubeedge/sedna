@@ -1,0 +1,3 @@
+string  robot_id
+---
+cloud_msgs/RobotAction robot_action

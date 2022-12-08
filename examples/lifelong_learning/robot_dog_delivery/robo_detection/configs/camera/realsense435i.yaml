@@ -1,0 +1,42 @@
+name: "d435i"
+manufacturer: "intel"
+series: "stereo depth"
+description: ""
+driver:
+  version: "ros1"
+  type: "ros"
+  name: "ros_rgbd_camera_driver"
+rgb:
+  support: true
+  encoding: "bgr8"
+  target: "/camera/color/image_raw" # Topic in ros or function in class
+  width: 320
+  height: 240
+  actual_hz: 30
+  origin_hz: 30
+  pan: # pan value allowed for the camera platform
+    min: -2.7
+    max: 2.6
+  tilt:
+    min: -1.4
+    max: 1.75
+depth:
+  support: true
+  encoding: "passthrough"
+  map_factor: 0  # Factor to scale depth image by to convert it into meters
+  target: "/camera/depth/image_rect_raw"
+  aligned_depth_to_color: "/camera/aligned_depth_to_color/image_raw"
+  width: 320
+  height: 240
+  actual_hz: 30
+  origin_hz: 30
+info:
+  target: "/camera/color/camera_info"
+  actual_hz: 30
+  origin_hz: 30
+pcd:
+  support: false
+requirement:  # Used to generate roslaunch files.
+  - cv_bridge
+  - std_msgs
+  - sensor_msgs

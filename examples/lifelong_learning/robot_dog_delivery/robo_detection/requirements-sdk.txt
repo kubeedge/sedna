@@ -1,0 +1,8 @@
+loguru~=0.6.0     # MIT
+minio~=7.0.3      # Apache-2.0
+numpy>=1.13.3     # BSD
+requests~=2.27.1  # MIT
+Pillow~=9.0.1
+pydantic~=1.9.0   # MIT
+websockets~=9.1   # BSD
+tenacity~=8.0.1   # Apache-2.0
