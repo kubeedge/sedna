@@ -1,0 +1,6 @@
+pytest~=4.6.9
+setuptools~=58.3.0
+numpy~=1.21.5
+Pillow~=9.0.1
+requests==2.24.0
+tenacity

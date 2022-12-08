@@ -1,0 +1,13 @@
+name: "ysc_control"
+description: ""
+driver:
+  version: "0.0.1"
+  type: "ros"
+  name: "ysc_control"
+parameter:
+  local_port: 20002
+  ctrl_ip: '192.168.1.120'
+  ctrl_port: 43893
+  gait_topic: "/robot_gait_state"
+requirement:  # Used to generate roslaunch files.
+  - deep_msgs

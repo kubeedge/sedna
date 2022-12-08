@@ -1,0 +1,21 @@
+name: "task_agent"
+description: ""
+driver:
+  version: "ros1"
+  type: "ros"
+  name: "RosActionService"
+service:
+  namespace: "/tasks"
+  url:
+    info: "/info"
+    list: "/list"
+    create: "/create"
+    state: "/state"
+    delete: "/delete"
+limited:
+  exec_time: 0
+requirement:  # Used to generate roslaunch files.
+  - actionlib
+  - actionlib_msgs
+  - move_base_msgs
+  - cloud_msgs
