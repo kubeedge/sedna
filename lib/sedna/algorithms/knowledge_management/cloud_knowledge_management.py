@@ -4,6 +4,7 @@ import tempfile
 
 from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.common.file_ops import FileOps
+from sedna.common.config import Context
 from sedna.common.constant import KBResourceConstant
 
 from .base_knowledge_management import BaseKnowledgeManagement
@@ -30,11 +31,6 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
         self.task_index = FileOps.join_path(
             self.cloud_output_url, config["task_index"])
         self.local_task_index_url = KBResourceConstant.KB_INDEX_NAME.value
-
-        task_evaluation = kwargs.get("task_evaluation") or {}
-        self.task_evaluation = task_evaluation.get(
-            "method", "TaskEvaluationDefault")
-        self.task_evaluation_param = task_evaluation.get("param", {})
 
     def update_kb(self, task_index):
         if isinstance(task_index, str):
@@ -63,7 +59,7 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
         fd, name = tempfile.mkstemp()
         FileOps.dump(task_info, name)
 
-        index_file = self.kb_server.update_db(name)
+        index_file = self.kb_client.update_db(name)
         if not index_file:
             self.log.error("KB update Fail !")
             index_file = name
@@ -90,7 +86,7 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
             model_file = model_upload_key[model_file]
 
             try:
-                model = self.kb_server.upload_file(save_model)
+                model = self.kb_client.upload_file(save_model)
                 self.log.info(
                     f"Upload task model to {model} successfully."
                 )
@@ -114,7 +110,7 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
                 task_group.samples.save(sample_dir)
 
                 try:
-                    sample_dir = self.kb_server.upload_file(sample_dir)
+                    sample_dir = self.kb_client.upload_file(sample_dir)
                     self.log.info(f"Upload task sample to {sample_dir} successfully.")
                 except Exception as err:
                     self.log.error(
@@ -127,7 +123,7 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
         )
         extractor = FileOps.dump(extractor, save_extractor)
         try:
-            extractor = self.kb_server.upload_file(extractor)
+            extractor = self.kb_client.upload_file(extractor)
             self.log.info(f"Upload task extractor to {extractor} successfully.")
         except Exception as err:
             self.log.error(f"Upload task extractor fail: {err}")
@@ -135,6 +131,52 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
         return extractor, task_groups
 
     def evaluate_tasks(self, tasks_detail, **kwargs):
-        method_cls = ClassFactory.get_cls(
-            ClassType.KM, self.task_evaluation)(**self.task_evaluation_param)
-        return method_cls(tasks_detail, **kwargs)
+        """
+        Parameters
+        ----------
+        tasks_detail: List[Task]
+            output of module task_update_decision, consisting of results of evaluation.
+
+        Returns
+        -------
+        drop_task: List[str]
+            names of the tasks which will not to be deployed to the edge.
+        """
+
+        self.model_filter_operator = Context.get_parameters("operator", ">")
+        self.model_threshold = float(
+            Context.get_parameters(
+                "model_threshold", 0.1))
+
+        drop_tasks = []
+
+        operator_map = {
+            ">": lambda x, y: x > y,
+            "<": lambda x, y: x < y,
+            "=": lambda x, y: x == y,
+            ">=": lambda x, y: x >= y,
+            "<=": lambda x, y: x <= y,
+        }
+        if self.model_filter_operator not in operator_map:
+            self.log.warn(
+                f"operator {self.model_filter_operator} use to "
+                f"compare is not allow, set to <"
+            )
+            self.model_filter_operator = "<"
+        operator_func = operator_map[self.model_filter_operator]
+
+        for detail in tasks_detail:
+            scores = detail.scores
+            entry = detail.entry
+            self.log.info(f"{entry} scores: {scores}")
+            if any(map(lambda x: operator_func(float(x),
+                                               self.model_threshold),
+                       scores.values())):
+                self.log.warn(
+                    f"{entry} will not be deploy because all "
+                    f"scores {self.model_filter_operator} {self.model_threshold}")
+                drop_tasks.append(entry)
+                continue
+        drop_task = ",".join(drop_tasks)
+
+        return drop_task

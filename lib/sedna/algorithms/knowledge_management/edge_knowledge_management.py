@@ -43,6 +43,7 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
             self.edge_output_url, "unseen_samples")
         os.makedirs(self.local_unseen_save_url, exist_ok=True)
 
+        self.pinned_service_start = False
         self.unseen_sample_observer = None
 
     def update_kb(self, task_index):
@@ -137,14 +138,15 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
 
         LOGGER.info(f"Unseen sample uploading completes.")
 
-    def start_observer(self):
+    def start_services(self):
         self.unseen_sample_observer = Observer()
         self.unseen_sample_observer.schedule(
             UnseenSampleUploadingHandler(), self.local_unseen_save_url, True)
         self.unseen_sample_observer.start()
 
+        ModelHotUpdateThread(self).start()
 
-class ModelLoadingThread(threading.Thread):
+class ModelHotUpdateThread(threading.Thread):
     """Hot task index loading with multithread support"""
     MODEL_MANIPULATION_SEM = threading.Semaphore(1)
 
@@ -158,25 +160,26 @@ class ModelLoadingThread(threading.Thread):
         if model_check_time < 1:
             LOGGER.warning("Catch an abnormal value in "
                            "`MODEL_POLL_PERIOD_SECONDS`, fallback with 60")
-            model_check_time = 60
+            model_check_time = 30
         self.version = None
         self.edge_knowledge_management = edge_knowledge_management
         self.check_time = model_check_time
         self.callback = callback
         task_index = edge_knowledge_management.task_index
         if FileOps.exists(task_index):
-            self.version = FileOps.load(task_index).get("create_time")
+            self.version = str(FileOps.load(task_index).get("create_time"))
 
-        super(ModelLoadingThread, self).__init__()
+        super(ModelHotUpdateThread, self).__init__()
+
+        LOGGER.info(f"Model hot update service starts.")
 
     def run(self):
         while True:
             time.sleep(self.check_time)
             latest_task_index = Context.get_parameters("MODEL_URLS", None)
-            if not self.version:
-                continue
             if not latest_task_index:
                 continue
+           
             latest_task_index = FileOps.load(latest_task_index)
             latest_version = str(latest_task_index.get("create_time"))
 
@@ -213,7 +216,10 @@ class UnseenSampleUploadingHandler(FileSystemEventHandler):
         if not FileOps.is_remote(self.unseen_save_url):
             os.makedirs(self.unseen_save_url, exist_ok=True)
 
+        LOGGER.info(f"Unseen sample uploading service starts.")
+
     def on_created(self, event):
+        time.sleep(2.0)
         sample_name = os.path.basename(event.src_path)
         FileOps.upload(event.src_path, FileOps.join_path(
             self.unseen_save_url, sample_name))

@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 import torch
 from PIL import Image
-
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -101,10 +100,10 @@ class Model:
         self.val_args.weight_path = kwargs.get("weight_path")
         self.validator = Validator(self.val_args)
 
-        self.ramp_val_args = EvaluationArguments()
-        self.ramp_val_args.weight_path = "/home/lsq/RFNet/models/ramp_train1_200.pth"
-        self.ramp_val_args.merge = False
-        self.validator_ramp = Validator(self.ramp_val_args)
+        # self.ramp_val_args = EvaluationArguments()
+        # self.ramp_val_args.weight_path = "/home/lsq/RFNet/models/ramp_train1_200.pth"
+        # self.ramp_val_args.merge = False
+        # self.validator_ramp = Validator(self.ramp_val_args)
 
     def train(self, train_data, valid_data=None, **kwargs):
         self.trainer = Trainer(self.train_args, train_data=train_data)
@@ -139,49 +138,50 @@ class Model:
         self.train_model_url = train_model_url
         return self.train_model_url
 
-    # def predict(self, data, **kwargs):
-    #     prediction = kwargs.get('prediction')
-    #     if isinstance(data[0], dict):
-    #         data = preprocess_frames(data)
-    #
-    #     if isinstance(data[0], np.ndarray):
-    #         data = preprocess_url(data)
-    #
-    #     self.validator.test_loader = DataLoader(
-    #         data,
-    #         batch_size=self.val_args.test_batch_size,
-    #         shuffle=False,
-    #         pin_memory=False)
-    #     if not prediction:
-    #         return self.validator.validate()
-    #     else:
-    #         return prediction
-
     def predict(self, data, **kwargs):
-        if isinstance(data[0], np.ndarray):
-            data = preprocess_url(data)
-
+        prediction = kwargs.get('prediction')
         if isinstance(data[0], dict):
             data = preprocess_frames(data)
-
+    
+        if isinstance(data[0], np.ndarray):
+            data = preprocess_url(data)
+    
         self.validator.test_loader = DataLoader(
             data,
             batch_size=self.val_args.test_batch_size,
             shuffle=False,
             pin_memory=False)
 
-        # TODO: predict ramp using specific model
-        self.validator_ramp.test_loader = DataLoader(
-            data,
-            batch_size=self.val_args.test_batch_size,
-            shuffle=False,
-            pin_memory=False)
-
-        prediction = kwargs.get('prediction')
         if not prediction:
-            return (self.validator.validate(), self.validator_ramp.validate())
+            return self.validator.validate()
         else:
-            return (prediction, self.validator_ramp.validate())
+            return prediction
+
+    # def predict(self, data, **kwargs):
+    #     if isinstance(data[0], np.ndarray):
+    #         data = preprocess_url(data)
+
+    #     if isinstance(data[0], dict):
+    #         data = preprocess_frames(data)
+
+    #     self.validator.test_loader = DataLoader(
+    #         data,
+    #         batch_size=self.val_args.test_batch_size,
+    #         shuffle=False,
+    #         pin_memory=False)
+
+    #     # TODO: predict ramp using specific model
+    #     self.validator_ramp.test_loader = DataLoader(
+    #         data,
+    #         batch_size=self.val_args.test_batch_size,
+    #         shuffle=False,
+    #         pin_memory=False)
+
+    #     prediction = kwargs.get('prediction')
+    #     if not prediction:
+    #         return (self.validator.validate(), self.validator_ramp.validate())
+    #     else:
+    #         return (prediction, self.validator_ramp.validate())
 
     def evaluate(self, data, **kwargs):
         predictions = self.predict(data.x)

@@ -17,8 +17,7 @@ import os
 
 from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
-from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus
-from sedna.common.constant import KBResourceConstant
+from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus, KBResourceConstant
 from sedna.common.config import Context
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassType, ClassFactory
@@ -321,8 +320,7 @@ class LifelongLearning(JobBase):
             "unseen_task": unseen_task_index,
         }
 
-        task_index = self.cloud_knowledge_management.update_kb(
-            task_index, self.kb_server)
+        task_index = self.cloud_knowledge_management.update_kb(task_index)
 
         task_info_res = self.cloud_knowledge_management.seen_estimator.model_info(
             task_index,
@@ -406,7 +404,7 @@ class LifelongLearning(JobBase):
             self._start_inference_service()
             self.start_inference_service = True
 
-        seen_samples, unseen_samples, prediction = self.recognize_unseen_samples(data, **kwargs)
+        seen_samples, unseen_samples, prediction, allocated_seen_tasks = self.recognize_unseen_samples(data, **kwargs)
         if unseen_samples.x is not None and unseen_samples.num_examples() > 0:
             self.edge_knowledge_management.log.info(
                 f"Unseen task is detected.")
@@ -423,12 +421,13 @@ class LifelongLearning(JobBase):
                 image_names = list(map(lambda x: x[0], unseen_samples.x))
                 is_unseen_task = dict(zip(image_names, [True] * unseen_samples.num_examples()))
 
-        if seen_samples.x:
+        if seen_samples.x is not None and seen_samples.num_examples() > 0:
             seen_res, seen_tasks = self.edge_knowledge_management.seen_estimator.predict(
                 data=seen_samples, post_process=post_process,
                 task_index=self.edge_knowledge_management.task_index,
                 task_type="seen_task",
                 prediction=prediction,
+                tasks=allocated_seen_tasks,
                 **kwargs
             )
             res = np.concatenate((res, seen_res)) if res else seen_res
@@ -470,8 +469,8 @@ class LifelongLearning(JobBase):
                 estimator=self.edge_knowledge_management.seen_estimator.estimator.base_model,
                 **self.unseen_sample_recognition_param)
 
-        if not self.edge_knowledge_management.unseen_sample_observer:
-            self.edge_knowledge_management.start_observer()
+        if not self.edge_knowledge_management.pinned_service_start:
+            self.edge_knowledge_management.start_services()
 
     def _task_evaluation(self, data, **kwargs):
         res, tasks_detail = self.cloud_knowledge_management.seen_estimator.evaluate(

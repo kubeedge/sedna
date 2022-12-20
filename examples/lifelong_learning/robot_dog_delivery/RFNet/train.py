@@ -1,9 +1,8 @@
 import os
 os.environ["TRAIN_DATASET_URL"] = "/home/lsq/RFNet/data_index/train.txt"
 os.environ["OUTPUT_URL"] = "s3://kubeedge/sedna-robo/kb/"
-os.environ["S3_ENDPOINT_URL"] = "https://obs.cn-north-1.myhuaweicloud.com"
-os.environ["SECRET_ACCESS_KEY"] = "OYPxi4uD9k5E90z0Od3Ug99symbJZ0AfyB4oveQc"
-os.environ["ACCESS_KEY_ID"] = "EMPTKHQUGPO2CDUFD2YR"
+# os.environ["CLOUD_KB_INDEX"] = "s3://kubeedge/sedna-robo/kb/index.pkl"
+os.environ["HAS_COMPLETED_INITIAL_TRAINING"] = "false"
 os.environ["KB_SERVER"] = "http://0.0.0.0:9020"
 
 from sedna.core.lifelong_learning import LifelongLearning
