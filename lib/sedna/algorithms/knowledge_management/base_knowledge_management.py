@@ -19,7 +19,7 @@ class BaseKnowledgeManagement:
         self.task_group_key = KBResourceConstant.TASK_GROUPS.value
         self.extractor_key = KBResourceConstant.EXTRACTOR.value
 
-        self.kb_server = KBClient(kbserver=self.config.ll_kb_server)
+        self.kb_client = KBClient(kbserver=self.config.ll_kb_server)
 
     def update_kb(self, task_index):
         raise NotImplementedError

@@ -14,13 +14,13 @@
 
 # train
 from . import task_definition
-from . import task_relation_discover
+from . import task_relation_discovery
 
 # inference
 from . import task_remodeling
 from . import task_allocation
 
 # result integrate
-from . import inference_integrate
+from . import inference_integration
 
 from .seen_task_learning import SeenTaskLearning

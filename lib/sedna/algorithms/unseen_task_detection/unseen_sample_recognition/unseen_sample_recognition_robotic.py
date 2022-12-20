@@ -36,4 +36,4 @@ class SampleRegonitionRobotic:
         unseen_task_samples = BaseDataSource(data_type=samples.data_type)
         # unseen_task_samples.x = samples.x
 
-        return seen_task_samples, unseen_task_samples, None
+        return seen_task_samples, unseen_task_samples, None, None

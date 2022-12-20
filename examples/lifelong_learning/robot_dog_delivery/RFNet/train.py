@@ -1,5 +1,11 @@
 import os
 
+os.environ["TRAIN_DATASET_URL"] = "/home/lsq/RFNet/data_index/train.txt"
+os.environ["OUTPUT_URL"] = "s3://kubeedge/sedna-robo/kb/"
+# os.environ["CLOUD_KB_INDEX"] = "s3://kubeedge/sedna-robo/kb/index.pkl"
+os.environ["HAS_COMPLETED_INITIAL_TRAINING"] = "false"
+os.environ["KB_SERVER"] = "http://0.0.0.0:9020"
+
 from sedna.core.lifelong_learning import LifelongLearning
 from sedna.common.config import Context, BaseConfig
 from sedna.datasources import TxtDataParse
