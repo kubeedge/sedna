@@ -19,15 +19,14 @@ from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus, KBResourceConstant
 from sedna.common.config import Context
-from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.algorithms.seen_task_learning.seen_task_learning import SeenTaskLearning
 from sedna.algorithms.unseen_task_processing import UnseenTaskProcessing
 from sedna.algorithms.unseen_task_detection.unseen_sample_recognition.unseen_sample_detection import UnseenSampleDetection
 from sedna.service.client import KBClient
-from sedna.algorithms.knowledge_management.cloud_knowledge_management \
+from sedna.core.lifelong_learning.knowledge_management.cloud_knowledge_management \
     import CloudKnowledgeManagement
-from sedna.algorithms.knowledge_management.edge_knowledge_management \
+from sedna.core.lifelong_learning.knowledge_management.edge_knowledge_management \
     import EdgeKnowledgeManagement
 
 
@@ -289,13 +288,6 @@ class LifelongLearning(JobBase):
 
         seen_samples, unseen_samples = unseen_sample_re_recognition(train_data)
 
-        # TODO: retrain temporarily
-        # historical_data = self._fetch_historical_data(index_url)
-        # seen_samples.x = np.concatenate(
-        #     (historical_data.x, seen_samples.x, unseen_samples.x), axis=0)
-        # seen_samples.y = np.concatenate(
-        #     (historical_data.y, seen_samples.y, unseen_samples.y), axis=0)
-
         seen_samples.x = np.concatenate(
             (seen_samples.x, unseen_samples.x), axis=0)
         seen_samples.y = np.concatenate(
@@ -488,22 +480,3 @@ class LifelongLearning(JobBase):
             self.log.info(f"Deploy {index_file} to the edge.")
 
         return res, index_file
-
-    def _fetch_historical_data(self, task_index):
-        if isinstance(task_index, str):
-            task_index = FileOps.load(task_index)
-
-        samples = BaseDataSource(data_type="train")
-
-        for task_group in task_index["seen_task"]["task_groups"]:
-            if isinstance(task_group.samples, BaseDataSource):
-                _samples = task_group.samples
-            else:
-                _samples = FileOps.load(task_group.samples.data_url)
-
-            samples.x = _samples.x if samples.x is None else np.concatenate(
-                (samples.x, _samples.x), axis=0)
-            samples.y = _samples.y if samples.y is None else np.concatenate(
-                (samples.y, _samples.y), axis=0)
-
-        return samples
