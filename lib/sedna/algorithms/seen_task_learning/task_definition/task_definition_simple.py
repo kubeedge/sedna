@@ -8,7 +8,7 @@ from ..artifact import Task
 @ClassFactory.register(ClassType.STP)
 class TaskDefinitionSimple:
     """
-    Dividing datasets based on the their origins.
+    Dividing datasets based on the their original sites.
 
     Parameters
     ----------

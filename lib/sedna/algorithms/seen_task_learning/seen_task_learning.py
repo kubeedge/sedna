@@ -377,14 +377,14 @@ class SeenTaskLearning:
 
         feedback = {}
         for i, task in enumerate(task_groups):
-            LOGGER.info(f"MTL Train start {i} : {task.entry}")
+            LOGGER.info(f"MTL update start {i} : {task.entry}")
             for _task in task.tasks:
                 model_obj = set_backend(estimator=self.base_model)
                 model_obj.load(_task.model)
-                res = model_obj.train(train_data=task.samples)
+                model_obj.train(train_data=task.samples)
                 model_path = model_obj.save(model_name=f"{task.entry}.model")
                 model = Model(index=i, entry=task.entry,
-                              model=model_path, result=res)
+                              model=model_path, result={})
                 break
 
             model.meta_attr = [t.meta_attr for t in task.tasks]
@@ -411,7 +411,7 @@ class SeenTaskLearning:
             task index file path, default self.task_index_url.
         """
         if not task_index:
-            raise Exception("Task index does not exist.")
+            raise Exception("Task index does not exist!")
 
         if isinstance(task_index, str):
             task_index = FileOps.load(task_index)
@@ -457,6 +457,11 @@ class SeenTaskLearning:
         callback = None
         if post_process:
             callback = ClassFactory.get_cls(ClassType.CALLBACK, post_process)()
+
+        res = kwargs.get("prediction")
+        tasks = kwargs.get("tasks")
+        if res and tasks:
+            return res, tasks
 
         tasks = []
         for inx, df in enumerate(samples):

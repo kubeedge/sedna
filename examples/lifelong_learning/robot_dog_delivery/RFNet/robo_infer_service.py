@@ -28,6 +28,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from sedna.common.utils import get_host_ip
 from sedna.common.config import BaseConfig
+from sedna.common.config import Context
 
 from predict import init_ll_job, preprocess
 from ramp_postprocess import get_ramp
@@ -125,12 +126,7 @@ class InferenceServer(BaseServer):  # pylint: disable=too-many-arguments
             http_port=http_port,
             workers=workers)
 
-        params = {"OOD_backup_model": "/home/lsq/RFNet/models/epoch35.pth",
-                  "OOD_model": "/home/lsq/RFNet/models/lr_model35.model",
-                  "OOD_thresh": 0.45
-                  }
-        params = dict(params)
-        self.ll_job = init_ll_job(**params)
+        self.ll_job = init_ll_job()
 
         self.inference_image_dir = os.environ.get("IMAGE_TOPIC_URL", os.path.join(
             BaseConfig.data_path_prefix, "inference_images"))
@@ -177,7 +173,6 @@ class InferenceServer(BaseServer):  # pylint: disable=too-many-arguments
 
         self.index_frame = self.index_frame + 1
 
-        # img_rgb = cv2.resize(np.array(self.image), (2048, 1024), interpolation=cv2.INTER_CUBIC)
         img_rgb = Image.fromarray(np.array(self.image))
         if depth:
             depth_contents = await depth.read()
@@ -194,7 +189,7 @@ class InferenceServer(BaseServer):  # pylint: disable=too-many-arguments
         print("preprocess time:", end_time1 - start_time)
 
         end_time2 = time.time()
-        results, is_unseen_task, _ = self.ll_job.inference(predict_data)
+        prediction, is_unseen_task, _ = self.ll_job.inference(predict_data)
         end_time3 = time.time()
         print("inference time: ", end_time3 - end_time2)
         if is_unseen_task:
@@ -211,24 +206,21 @@ class InferenceServer(BaseServer):  # pylint: disable=too-many-arguments
                 "code": 0
             }
 
-        curb_results, ramp_results = results
-
-        # self.model.validator.test_loader = DataLoader(
-        #     predict_data.x,
-        #     batch_size=self.model.val_args.test_batch_size,
-        #     shuffle=False,
-        #     pin_memory=True)
-        # results = self.model.validator.validate()
+        # curb_results, ramp_results = results
 
         img_rgb = cv2.resize(np.array(self.image),
                              (2048, 1024), interpolation=cv2.INTER_CUBIC)
         img_rgb = Image.fromarray(np.array(img_rgb))
-        results = post_process(curb_results)
+        
+        results = post_process(prediction)
         curr, future = get_curb(results["result"]["box"], img_rgb)
         results["result"]["curr"] = curr
         results["result"]["future"] = future
         results["result"]["box"] = None
-        results["result"]["ramp"] = get_ramp(ramp_results[0].tolist(), img_rgb)
+        if Context.get_parameters("robo_skill") == "ramp_detection":
+            results["result"]["ramp"] = get_ramp(prediction[0].tolist(), img_rgb)
+        else:
+            results["result"]["ramp"] = "no_ramp"
 
         end_time4 = time.time()
         print("total time:", end_time4 - start_time)

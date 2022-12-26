@@ -20,7 +20,6 @@ class UnseenSampleDetection(threading.Thread):
     task_index: str or dict
         knowledge base index which includes indexes of tasks, samples and etc.
     '''
-    # MODEL_MANIPULATION_SEM = threading.Semaphore(1)
 
     def __init__(self, edge_knowledge_management, **kwargs):
         self.get_environ_varia()

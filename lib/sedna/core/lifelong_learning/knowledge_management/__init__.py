@@ -12,15 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# train
-from . import task_definition
-from . import task_relation_discovery
-
-# inference
-from . import task_remodeling
-from . import task_allocation
-
-# result integrate
-from . import inference_integration
-
-from .seen_task_learning import SeenTaskLearning
+from .base_knowledge_management import BaseKnowledgeManagement
+from .cloud_knowledge_management import CloudKnowledgeManagement
+from .edge_knowledge_management import EdgeKnowledgeManagement
+from . import task_update_decision
