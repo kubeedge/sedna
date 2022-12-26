@@ -8,6 +8,10 @@ os.environ["KB_SERVER"] = "http://0.0.0.0:9020"
 os.environ["operator"] = "<"
 os.environ["model_threshold"] = "0.01"
 
+os.environ["S3_ENDPOINT_URL"] = "https://obs.cn-north-1.myhuaweicloud.com"
+os.environ["SECRET_ACCESS_KEY"] = "OYPxi4uD9k5E90z0Od3Ug99symbJZ0AfyB4oveQc"
+os.environ["ACCESS_KEY_ID"] = "EMPTKHQUGPO2CDUFD2YR"
+
 from sedna.core.lifelong_learning import LifelongLearning
 from sedna.datasources import TxtDataParse
 from sedna.common.config import Context

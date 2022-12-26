@@ -12,25 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Divide multiple tasks based on data
-
-Parameters
-----------
-samples： Train data, see `sedna.datasources.BaseDataSource` for more detail.
-
-Returns
--------
-tasks: All tasks based on training data.
-task_extractor: Model with a method to predicting target tasks
-"""
-
-import time
-
 from sedna.common.file_ops import FileOps
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassType, ClassFactory
-from sedna.algorithms.seen_task_learning.artifact import Task
 
 __all__ = ('UpdateStrategyDefault', )
 
@@ -38,7 +22,8 @@ __all__ = ('UpdateStrategyDefault', )
 @ClassFactory.register(ClassType.KM)
 class UpdateStrategyDefault:
     """
-    Decide processing strategies for different tasks
+    Decide processing strategies for different tasks with labeled unseen samples.
+    Turn unseen samples to be seen.
 
     Parameters
     ----------

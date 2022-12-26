@@ -173,7 +173,6 @@ class InferenceServer(BaseServer):  # pylint: disable=too-many-arguments
 
         self.index_frame = self.index_frame + 1
 
-        # img_rgb = cv2.resize(np.array(self.image), (2048, 1024), interpolation=cv2.INTER_CUBIC)
         img_rgb = Image.fromarray(np.array(self.image))
         if depth:
             depth_contents = await depth.read()
