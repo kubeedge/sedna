@@ -41,7 +41,7 @@ class UnseenSampleDetection(threading.Thread):
                 if status_dict["if_fall"] == "False":
                     continue
                 elif status_dict["if_fall"] == "True" and \
-                    self.current_status == "False":
+                        self.current_status == "False":
                     self.current_status = "True"
                     samples = os.listdir(self.local_image_url)
                     samples.sort(reverse=True)
