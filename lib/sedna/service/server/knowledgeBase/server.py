@@ -46,6 +46,10 @@ class TaskItem(BaseModel):  # pylint: disable=too-few-public-methods
 
 
 class KBServer(BaseServer):
+    """
+    As knowledge base stored in sqlite, this class realized creation,
+    update and query of sqlite.
+    """
     def __init__(self, host: str, http_port: int = 8080,
                  workers: int = 1, save_dir=""):
         servername = "knowledgebase"
@@ -167,7 +171,6 @@ class KBServer(BaseServer):
 
         with Session(bind=engine) as session:
             # TODO: to adapt unseen tasks
-            # for task_group in upload_info["task_groups"]:
             for task_group in task_groups:
                 grp, g_create = get_or_create(
                     session=session, model=TaskGrp, name=task_group.entry)
