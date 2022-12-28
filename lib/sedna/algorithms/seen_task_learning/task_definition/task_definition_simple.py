@@ -5,6 +5,7 @@ from sedna.common.class_factory import ClassType, ClassFactory
 
 from ..artifact import Task
 
+
 @ClassFactory.register(ClassType.STP)
 class TaskDefinitionSimple:
     """
@@ -45,11 +46,13 @@ class TaskDefinitionSimple:
                 garden_data.y.append(y_data[i])
 
         g_attr_front = "front_semantic_segamentation_model"
-        front_task = Task(entry=g_attr_front, samples=front_data, meta_attr="front")
+        front_task = Task(entry=g_attr_front,
+                          samples=front_data, meta_attr="front")
         tasks.append(front_task)
 
         g_attr_garden = "garden_semantic_segamentation_model"
-        garden_task = Task(entry=g_attr_garden, samples=garden_data, meta_attr="garden")
+        garden_task = Task(entry=g_attr_garden,
+                           samples=garden_data, meta_attr="garden")
         tasks.append(garden_task)
 
         return tasks, task_index, samples

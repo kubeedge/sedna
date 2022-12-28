@@ -5,6 +5,7 @@ from sedna.common.class_factory import ClassType, ClassFactory
 
 from ..artifact import Task
 
+
 @ClassFactory.register(ClassType.STP)
 class TaskDefinitionByOrigin:
     """

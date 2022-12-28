@@ -146,6 +146,7 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
 
         ModelHotUpdateThread(self).start()
 
+
 class ModelHotUpdateThread(threading.Thread):
     """Hot task index loading with multithread support"""
     MODEL_MANIPULATION_SEM = threading.Semaphore(1)
@@ -179,7 +180,7 @@ class ModelHotUpdateThread(threading.Thread):
             latest_task_index = Context.get_parameters("MODEL_URLS", None)
             if not latest_task_index:
                 continue
-           
+
             latest_task_index = FileOps.load(latest_task_index)
             latest_version = str(latest_task_index.get("create_time"))
 

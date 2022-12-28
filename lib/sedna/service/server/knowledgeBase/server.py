@@ -162,7 +162,8 @@ class KBServer(BaseServer):
         upload_info = joblib.load(name)
         # TODO: to adapt unseen tasks
         task_groups = upload_info[self.seen_task_key][self.task_group_key]
-        task_groups.extend(upload_info[self.unseen_task_key][self.task_group_key])
+        task_groups.extend(
+            upload_info[self.unseen_task_key][self.task_group_key])
 
         with Session(bind=engine) as session:
             # TODO: to adapt unseen tasks

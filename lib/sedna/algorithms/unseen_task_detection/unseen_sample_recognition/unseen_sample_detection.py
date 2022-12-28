@@ -25,7 +25,7 @@ class UnseenSampleDetection(threading.Thread):
         self.get_environ_varia()
         self.unseen_save_url = edge_knowledge_management.local_unseen_save_url
         self.check_time = 1
-        self.current_status = "False" # 默认机器狗从未跌倒状态开始
+        self.current_status = "False"
         self.current_sample_num = 0
         super(UnseenSampleDetection, self).__init__()
 
@@ -41,27 +41,27 @@ class UnseenSampleDetection(threading.Thread):
                 if status_dict["if_fall"] == "False":
                     continue
                 elif status_dict["if_fall"] == "True" and self.current_status == "False":
-                    self.current_status = "True" # 修改机器狗目前状态为摔倒
+                    self.current_status = "True"  
                     samples = os.listdir(self.local_image_url)
                     samples.sort(reverse=True)
-                    # start_idx = status_dict["time_stamp"]
-                    # # 这里缺少原时间戳到目标图片名称的映射，以及到目标图片的idx的映射
-                    # end_idx = 10
+                   
                     if len(samples) > 0:
-                        start_idx, end_idx = self.get_index(samples, status_dict["time_stamp"])
-                        
+                        start_idx, end_idx = self.get_index(
+                            samples, status_dict["time_stamp"])
+
                         for sample in samples[start_idx:end_idx]:
-                            local_sample_url = FileOps.join_path(self.local_image_url, sample)
-                            dest_sample_url = FileOps.join_path(self.unseen_save_url, sample)
-                            FileOps.upload(local_sample_url, dest_sample_url, clean=False)
+                            local_sample_url = FileOps.join_path(
+                                self.local_image_url, sample)
+                            dest_sample_url = FileOps.join_path(
+                                self.unseen_save_url, sample)
+                            FileOps.upload(local_sample_url,
+                                           dest_sample_url, clean=False)
                 else:
                     continue
             except Exception as e:
                 continue
 
     def get_index(self, samples, timestamp):
-        # 在该函数中根据状态服务返回的时间戳判断摔倒时的时间戳，并返回
-        # status_dict["time_stamp"]的格式： 16XXXXX.XX
         time_stamp = int(timestamp)
         for i in range(len(samples)):
             if int(samples[i].split(".")[0]) <= time_stamp:
@@ -82,5 +82,3 @@ class UnseenSampleDetection(threading.Thread):
             self.local_image_url = os.environ["IMAGE_TOPIC_URL"]
         except:
             self.local_image_url = "/tmp/"
-
-
