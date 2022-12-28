@@ -176,20 +176,6 @@ class TaskDefinitionByCluster:
         partition_length = int(len(samples.x) / self.n_class)
 
         for i in range(self.n_class):
-            # sample = BaseDataSource()
-            # sample.x = samples.x[i * partition_length: (i + 1) * partition_length]
-            # sample.y = samples.y[i * partition_length: (i + 1) * partition_length]
-            #
-            # train_num = int(len(sample.x) * train_ratio)
-            #
-            # train_samples = BaseDataSource(data_type="train")
-            # train_samples.x = sample.x[:train_num]
-            # train_samples.y = sample.y[:train_num]
-            #
-            # test_samples = BaseDataSource(data_type="eval")
-            # test_samples.x = sample.x[train_num:]
-            # test_samples.y = sample.y[train_num:]
-
             train_num = int(len(samples.x) * self.train_ratio)
             train_samples = BaseDataSource(data_type="train")
             train_samples.x = samples.x[:train_num]

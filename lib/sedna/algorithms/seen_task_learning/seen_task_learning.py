@@ -416,10 +416,12 @@ class SeenTaskLearning:
         if isinstance(task_index, str):
             task_index = FileOps.load(task_index)
 
-        self.seen_extractor = task_index[self.seen_task_key][self.extractor_key]
+        self.seen_extractor = \
+            task_index[self.seen_task_key][self.extractor_key]
         if isinstance(self.seen_extractor, str):
             self.seen_extractor = FileOps.load(self.seen_extractor)
-        self.seen_task_groups = task_index[self.seen_task_key][self.task_group_key]
+        self.seen_task_groups = \
+            task_index[self.seen_task_key][self.task_group_key]
         self.seen_models = [task.model for task in self.seen_task_groups]
 
     def predict(self, data: BaseDataSource,
