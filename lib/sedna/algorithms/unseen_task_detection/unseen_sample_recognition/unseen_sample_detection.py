@@ -40,8 +40,8 @@ class UnseenSampleDetection(threading.Thread):
                 status_dict = json.loads(check_request.text)
                 if status_dict["if_fall"] == "False":
                     continue
-                elif status_dict["if_fall"] == "True" \
-                    and self.current_status == "False":
+                elif status_dict["if_fall"] == "True" and \
+                    self.current_status == "False":
                     self.current_status = "True"
                     samples = os.listdir(self.local_image_url)
                     samples.sort(reverse=True)
@@ -76,11 +76,11 @@ class UnseenSampleDetection(threading.Thread):
     def get_environ_varia(self):
         try:
             self.status_service_ip = os.environ["STATUS_IP"]
-        except:
+        except Exception:
             self.status_service_ip = "127.0.0.1"
         self.query_url = "http://" + self.status_service_ip + \
             ":8000/robot_status/query/"
         try:
             self.local_image_url = os.environ["IMAGE_TOPIC_URL"]
-        except:
+        except Exception:
             self.local_image_url = "/tmp/"

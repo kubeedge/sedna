@@ -141,7 +141,7 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
         Parameters
         ----------
         tasks_detail: List[Task]
-            output of module task_update_decision, 
+            output of module task_update_decision,
             consisting of results of evaluation.
 
         Returns

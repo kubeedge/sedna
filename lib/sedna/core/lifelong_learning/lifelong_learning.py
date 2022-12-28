@@ -24,13 +24,13 @@ from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.algorithms.seen_task_learning.seen_task_learning \
     import SeenTaskLearning
 from sedna.algorithms.unseen_task_processing import UnseenTaskProcessing
-from sedna.algorithms.unseen_task_detection.unseen_sample_recognition.unseen_sample_detection \
-    import UnseenSampleDetection
+from sedna.algorithms.unseen_task_detection.unseen_sample_recognition.\
+    unseen_sample_detection import UnseenSampleDetection
 from sedna.service.client import KBClient
-from sedna.core.lifelong_learning.knowledge_management.cloud_knowledge_management \
-    import CloudKnowledgeManagement
-from sedna.core.lifelong_learning.knowledge_management.edge_knowledge_management \
-    import EdgeKnowledgeManagement
+from sedna.core.lifelong_learning.knowledge_management.\
+    cloud_knowledge_management import CloudKnowledgeManagement
+from sedna.core.lifelong_learning.knowledge_management.\
+    edge_knowledge_management import EdgeKnowledgeManagement
 
 
 class LifelongLearning(JobBase):
@@ -56,7 +56,7 @@ class LifelongLearning(JobBase):
         see `task_definition.task_definition` for more detail.
     task_relationship_discovery : Dict
         Discover relationships between all tasks, see
-        `task_relationship_discovery.task_relationship_discovery` 
+        `task_relationship_discovery.task_relationship_discovery`
         for more detail.
     task_allocation : Dict
         Mining seen tasks of inference sample,
@@ -69,7 +69,7 @@ class LifelongLearning(JobBase):
         tasks, see `inference_integrate.inference_integrate` for more detail.
     task_update_decision: Dict
         Task update strategy making algorithms,
-        see 'knowledge_management.task_update_decision.task_update_decision' 
+        see 'knowledge_management.task_update_decision.task_update_decision'
         for more detail.
     unseen_task_allocation: Dict
         Mining unseen tasks of inference sample,
@@ -224,7 +224,7 @@ class LifelongLearning(JobBase):
         Parameters
         ----------
         train_data : BaseDataSource
-            Train data, see `sedna.datasources.BaseDataSource` 
+            Train data, see `sedna.datasources.BaseDataSource`
             for more detail.
         valid_data : BaseDataSource
             Valid data, BaseDataSource or None.
@@ -288,7 +288,7 @@ class LifelongLearning(JobBase):
         Parameters
         ----------
         train_data : BaseDataSource
-            Train data, see `sedna.datasources.BaseDataSource` 
+            Train data, see `sedna.datasources.BaseDataSource`
             for more detail.
         valid_data : BaseDataSource
             Valid data, BaseDataSource or None.
@@ -367,7 +367,7 @@ class LifelongLearning(JobBase):
         Parameters
         ----------
         data : BaseDataSource
-            valid data, see `sedna.datasources.BaseDataSource` 
+            valid data, see `sedna.datasources.BaseDataSource`
             for more detail.
         kwargs: Dict
             parameters for `estimator` evaluate, Like:
