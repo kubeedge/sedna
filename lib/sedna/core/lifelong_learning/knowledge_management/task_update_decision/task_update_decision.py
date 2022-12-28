@@ -22,7 +22,7 @@ __all__ = ('UpdateStrategyDefault', )
 @ClassFactory.register(ClassType.KM)
 class UpdateStrategyDefault:
     """
-    Decide processing strategies for different tasks 
+    Decide processing strategies for different tasks
     with labeled unseen samples.
     Turn unseen samples to be seen.
 

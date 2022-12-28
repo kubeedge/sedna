@@ -53,7 +53,7 @@ class UnseenTaskProcessing:
 
     def _unseen_task_allocation(self, samples):
         """
-        Mining unseen tasks of inference sample 
+        Mining unseen tasks of inference sample
         base on task attribute extractor
         """
         method_name = self.unseen_task_allocation.get("method")
@@ -74,7 +74,7 @@ class UnseenTaskProcessing:
         res: Dict
             evaluation result.
         task_index: Dict or str
-            unseen task index which includes models, samples, extractor 
+            unseen task index which includes models, samples, extractor
             and etc.
         """
         task_index = {
