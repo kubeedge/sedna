@@ -22,8 +22,8 @@ class TaskAllocationSimple:
 
     def __call__(self, samples: BaseDataSource):
         allocations = np.zeros(samples.num_examples(), dtype=np.int8)
-        for (i, data) in enumerate(samples.x): 
+        for (i, data) in enumerate(samples.x):
             if "garden" in data[0]:
                 allocations[i] = 1
-       
+
         return samples, allocations

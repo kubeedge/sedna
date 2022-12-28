@@ -22,6 +22,7 @@ class TaskAllocationDefault:
 
     def __call__(self, samples: BaseDataSource):
         import numpy.random as rand
-        allocations = [rand.randint(0, 2) for _ in range(samples.num_examples())]
-       
+        allocations = [rand.randint(0, 2)
+                       for _ in range(samples.num_examples())]
+
         return samples, allocations

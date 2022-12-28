@@ -4,6 +4,7 @@ from sedna.common.constant import KBResourceConstant
 from sedna.common.config import BaseConfig
 from sedna.service.client import KBClient
 
+
 class BaseKnowledgeManagement:
 
     def __init__(self, config, seen_estimator, unseen_estimator):
@@ -11,8 +12,10 @@ class BaseKnowledgeManagement:
         if config:
             self.config.from_json(config)
 
-        self.seen_estimator = set_backend(estimator=seen_estimator, config=self.config)
-        self.unseen_estimator = set_backend(estimator=unseen_estimator, config=self.config)
+        self.seen_estimator = set_backend(
+            estimator=seen_estimator, config=self.config)
+        self.unseen_estimator = set_backend(
+            estimator=unseen_estimator, config=self.config)
         self.log = LOGGER
         self.seen_task_key = KBResourceConstant.SEEN_TASK.value
         self.unseen_task_key = KBResourceConstant.UNSEEN_TASK.value

@@ -211,14 +211,15 @@ class InferenceServer(BaseServer):  # pylint: disable=too-many-arguments
         img_rgb = cv2.resize(np.array(self.image),
                              (2048, 1024), interpolation=cv2.INTER_CUBIC)
         img_rgb = Image.fromarray(np.array(img_rgb))
-        
+
         results = post_process(prediction)
         curr, future = get_curb(results["result"]["box"], img_rgb)
         results["result"]["curr"] = curr
         results["result"]["future"] = future
         results["result"]["box"] = None
         if Context.get_parameters("robo_skill") == "ramp_detection":
-            results["result"]["ramp"] = get_ramp(prediction[0].tolist(), img_rgb)
+            results["result"]["ramp"] = get_ramp(
+                prediction[0].tolist(), img_rgb)
         else:
             results["result"]["ramp"] = "no_ramp"
 

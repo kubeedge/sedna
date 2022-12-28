@@ -11,6 +11,7 @@ from .base_knowledge_management import BaseKnowledgeManagement
 
 __all__ = ('CloudKnowledgeManagement', )
 
+
 @ClassFactory.register(ClassType.KM)
 class CloudKnowledgeManagement(BaseKnowledgeManagement):
     """
@@ -23,7 +24,8 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
     """
 
     def __init__(self, config, seen_estimator, unseen_estimator, **kwargs):
-        super(CloudKnowledgeManagement, self).__init__(config, seen_estimator, unseen_estimator)
+        super(CloudKnowledgeManagement, self).__init__(
+            config, seen_estimator, unseen_estimator)
 
         self.last_task_index = kwargs.get("last_task_index", None)
         self.cloud_output_url = config.get(
@@ -111,7 +113,8 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
 
                 try:
                     sample_dir = self.kb_client.upload_file(sample_dir)
-                    self.log.info(f"Upload task sample to {sample_dir} successfully.")
+                    self.log.info(
+                        f"Upload task sample to {sample_dir} successfully.")
                 except Exception as err:
                     self.log.error(
                         f"Upload task samples of {_task.entry} fail: {err}")
@@ -124,7 +127,8 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
         extractor = FileOps.dump(extractor, save_extractor)
         try:
             extractor = self.kb_client.upload_file(extractor)
-            self.log.info(f"Upload task extractor to {extractor} successfully.")
+            self.log.info(
+                f"Upload task extractor to {extractor} successfully.")
         except Exception as err:
             self.log.error(f"Upload task extractor fail: {err}")
 

@@ -17,12 +17,14 @@ import os
 
 from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
-from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus, KBResourceConstant
+from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus, \
+    KBResourceConstant
 from sedna.common.config import Context
 from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.algorithms.seen_task_learning.seen_task_learning import SeenTaskLearning
 from sedna.algorithms.unseen_task_processing import UnseenTaskProcessing
-from sedna.algorithms.unseen_task_detection.unseen_sample_recognition.unseen_sample_detection import UnseenSampleDetection
+from sedna.algorithms.unseen_task_detection.unseen_sample_recognition.unseen_sample_detection \
+    import UnseenSampleDetection
 from sedna.service.client import KBClient
 from sedna.core.lifelong_learning.knowledge_management.cloud_knowledge_management \
     import CloudKnowledgeManagement
@@ -44,6 +46,10 @@ class LifelongLearning(JobBase):
         An instance with the high-level API that greatly simplifies
         machine learning programming. Estimators encapsulate training,
         evaluation, prediction, and exporting for your model.
+    unseen_estimator : Instance
+        An instance with the high-level API that greatly simplifies mechanism
+        model learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for your mechanism model.
     task_definition : Dict
         Divide multiple tasks based on data,
         see `task_definition.task_definition` for more detail.
@@ -75,6 +81,7 @@ class LifelongLearning(JobBase):
     Examples
     --------
     >>> estimator = XGBClassifier(objective="binary:logistic")
+    >>> unseen_estimator = None
     >>> task_definition = {
             "method": "TaskDefinitionByDataAttr",
             "param": {"attribute": ["season", "city"]}
@@ -104,6 +111,7 @@ class LifelongLearning(JobBase):
         }
     >>> ll_jobs = LifelongLearning(
             estimator,
+            unseen_estimator=None,
             task_definition=None,
             task_relationship_discovery=None,
             task_allocation=None,
@@ -186,7 +194,8 @@ class LifelongLearning(JobBase):
         self.unseen_sample_recognition = unseen_sample_recognition or {
             "method": "SampleRegonitionDefault"
         }
-        self.unseen_sample_recognition_param = e._parse_param(self.unseen_sample_recognition.get("param", {}))
+        self.unseen_sample_recognition_param = e._parse_param(
+            self.unseen_sample_recognition.get("param", {}))
         self.recognize_unseen_samples = None
 
         self.unseen_sample_detection = None
@@ -396,14 +405,16 @@ class LifelongLearning(JobBase):
             self._start_inference_service()
             self.start_inference_service = True
 
-        seen_samples, unseen_samples, prediction, allocated_seen_tasks = self.recognize_unseen_samples(data, **kwargs)
+        seen_samples, unseen_samples, prediction, allocated_seen_tasks = self.recognize_unseen_samples(
+            data, **kwargs)
         if unseen_samples.x is not None and unseen_samples.num_examples() > 0:
             self.edge_knowledge_management.log.info(
                 f"Unseen task is detected.")
             unseen_res, unseen_tasks = self.edge_knowledge_management.unseen_estimator.predict(
                 unseen_samples, task_index=self.edge_knowledge_management.task_index)
 
-            self.edge_knowledge_management.save_unseen_samples(unseen_samples, post_process)
+            self.edge_knowledge_management.save_unseen_samples(
+                unseen_samples, post_process)
 
             res = unseen_res
             tasks.extend(unseen_tasks)
@@ -411,7 +422,8 @@ class LifelongLearning(JobBase):
                 is_unseen_task = True
             else:
                 image_names = list(map(lambda x: x[0], unseen_samples.x))
-                is_unseen_task = dict(zip(image_names, [True] * unseen_samples.num_examples()))
+                is_unseen_task = dict(
+                    zip(image_names, [True] * unseen_samples.num_examples()))
 
         if seen_samples.x is not None and seen_samples.num_examples() > 0:
             seen_res, seen_tasks = self.edge_knowledge_management.seen_estimator.predict(
@@ -427,7 +439,8 @@ class LifelongLearning(JobBase):
 
             if data.num_examples() > 1:
                 image_names = list(map(lambda x: x[0], seen_samples.x))
-                is_unseen_dict = dict(zip(image_names, [False] * seen_samples.num_examples()))
+                is_unseen_dict = dict(
+                    zip(image_names, [False] * seen_samples.num_examples()))
                 if isinstance(is_unseen_task, bool):
                     is_unseen_task = is_unseen_dict
                 else:

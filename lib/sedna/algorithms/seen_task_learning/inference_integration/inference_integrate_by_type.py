@@ -54,8 +54,9 @@ class InferenceIntegrateByType:
         curb_results, ramp_results = [], []
         for task in tasks:
             curb_result, ramp_result = task.result
-            curb_results = curb_result if not curb_results else np.concatenate((curb_results, curb_result))
-            ramp_results = ramp_result if not ramp_results else np.concatenate((ramp_results, ramp_result))
+            curb_results = curb_result if not curb_results else np.concatenate(
+                (curb_results, curb_result))
+            ramp_results = ramp_result if not ramp_results else np.concatenate(
+                (ramp_results, ramp_result))
 
         return curb_results, ramp_results
-
