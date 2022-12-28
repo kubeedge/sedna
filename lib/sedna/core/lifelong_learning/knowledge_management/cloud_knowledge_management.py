@@ -105,7 +105,9 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
 
             for _task in task_group.tasks:
                 _task.model = FileOps.join_path(
-                    self.cloud_output_url, task_type, os.path.basename(model_file))
+                    self.cloud_output_url,
+                    task_type,
+                    os.path.basename(model_file))
                 sample_dir = FileOps.join_path(
                     self.cloud_output_url, task_type,
                     f"{_task.samples.data_type}_{_task.entry}.sample")
@@ -139,7 +141,8 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
         Parameters
         ----------
         tasks_detail: List[Task]
-            output of module task_update_decision, consisting of results of evaluation.
+            output of module task_update_decision, 
+            consisting of results of evaluation.
 
         Returns
         -------
@@ -178,7 +181,8 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
                        scores.values())):
                 self.log.warn(
                     f"{entry} will not be deploy because all "
-                    f"scores {self.model_filter_operator} {self.model_threshold}")
+                    f"scores {self.model_filter_operator} "
+                    f"{self.model_threshold}")
                 drop_tasks.append(entry)
                 continue
         drop_task = ",".join(drop_tasks)

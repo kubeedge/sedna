@@ -53,7 +53,8 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
             except Exception as err:
                 self.log.error(f"{err}")
                 self.log.error(
-                    "Load task index failed. KB deployment to the edge failed.")
+                    "Load task index failed. "
+                    "KB deployment to the edge failed.")
                 return None
 
         seen_task_index = task_index.get(self.seen_task_key)
@@ -102,7 +103,9 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
 
             for _task in task.tasks:
                 _task.model = FileOps.join_path(
-                    self.edge_output_url, task_type, os.path.basename(model_file))
+                    self.edge_output_url,
+                    task_type,
+                    os.path.basename(model_file))
                 sample_dir = FileOps.join_path(
                     self.edge_output_url, task_type,
                     f"{_task.samples.data_type}_{_task.entry}.sample")
@@ -191,9 +194,9 @@ class ModelHotUpdateThread(threading.Thread):
                 LOGGER.info(
                     f"Update model start with version {self.version}")
                 try:
+                    task_index = self.edge_knowledge_management.task_index
                     task_index_url = \
-                        FileOps.dump(latest_task_index,
-                                     self.edge_knowledge_management.task_index)
+                        FileOps.dump(latest_task_index, task_index)
                     # TODO: update local kb with the latest index.pkl
                     self.edge_knowledge_management.update_kb(task_index_url)
 
@@ -213,7 +216,9 @@ class UnseenSampleUploadingHandler(FileSystemEventHandler):
     def __init__(self):
         FileSystemEventHandler.__init__(self)
         self.unseen_save_url = Context.get_parameters(
-            "unseen_save_url", os.path.join(BaseConfig.data_path_prefix, "unseen_samples"))
+            "unseen_save_url", os.path.join(
+                BaseConfig.data_path_prefix,
+                "unseen_samples"))
         if not FileOps.is_remote(self.unseen_save_url):
             os.makedirs(self.unseen_save_url, exist_ok=True)
 

@@ -53,7 +53,8 @@ class UnseenTaskProcessing:
 
     def _unseen_task_allocation(self, samples):
         """
-        Mining unseen tasks of inference sample base on task attribute extractor
+        Mining unseen tasks of inference sample 
+        base on task attribute extractor
         """
         method_name = self.unseen_task_allocation.get("method")
         extend_param = self._parse_param(
@@ -73,7 +74,8 @@ class UnseenTaskProcessing:
         res: Dict
             evaluation result.
         task_index: Dict or str
-            unseen task index which includes models, samples, extractor and etc.
+            unseen task index which includes models, samples, extractor 
+            and etc.
         """
         task_index = {
             self.extractor_key: None,
@@ -154,11 +156,14 @@ class UnseenTaskProcessing:
         if isinstance(task_index, str):
             task_index = FileOps.load(task_index)
 
-        self.unseen_extractor = task_index[self.unseen_task_key][self.extractor_key]
+        self.unseen_extractor = \
+            task_index[self.unseen_task_key][self.extractor_key]
         if isinstance(self.unseen_extractor, str):
             self.unseen_extractor = FileOps.load(self.unseen_extractor)
-        self.unseen_task_groups = task_index[self.unseen_task_key][self.task_group_key]
-        self.unseen_models = [task.model for task in self.unseen_task_groups]
+        self.unseen_task_groups = \
+            task_index[self.unseen_task_key][self.task_group_key]
+        self.unseen_models = \
+            [task.model for task in self.unseen_task_groups]
 
     def _inference_integrate(self, tasks):
         """
