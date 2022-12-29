@@ -1,0 +1,80 @@
+name: "绝影x20"
+manufacturer: "ysc"
+series: "x20"
+description: "quadruped robot dog"
+environment:
+  backend: "ros"  # ros / ros2 / harmony
+  requirement:
+    - rospy
+    - rostopic
+    - roslib
+sensors:
+  camera:
+    - name: "camera_front_up"
+      config: "realsense435i"
+      rgb:
+        target: "/camera_front_up/color/image_raw" # Topic in ros or function in class
+        actual_hz: 10
+        origin_hz: 30
+      depth:
+        target: "/camera_front_up/depth/image_rect_raw"
+        aligned_depth_to_color: "/camera_front_up/aligned_depth_to_color/image_raw"
+      info:
+        target: "/camera_front_up/color/camera_info"
+    - name: "camera_front_down"
+      config: "realsense435i"
+      rgb:
+        target: "/camera_front_down/color/image_raw"
+        actual_hz: 10
+        origin_hz: 30
+      depth:
+        target: "/camera_front_down/depth/image_rect_raw"
+        aligned_depth_to_color: "/camera_front_down/aligned_depth_to_color/image_raw"
+      info:
+        target: "/camera_front_up/color/camera_info"
+  imu:
+    - name: "simple_imu"
+      config: "simpleimu"
+      data:
+        target: "/imu"
+        actual_hz: 10
+        origin_hz: 199
+  battery:
+    - name: "battery"
+      config: "simplebattery"
+      data:
+        target: "/battery_level"
+        actual_hz: 1
+        origin_hz: 10
+  odom:
+    - name: "odom"
+      config: "simpleodom"
+      data:
+        target: "/odom"
+        actual_hz: 10
+        origin_hz: 200
+navigation:
+  name: "base_planner"
+  config: "movebase"
+  target:
+    goal: "/move_base_simple/goal"  # get goal
+    status: "/move_base/status"  # execution status is available
+    cancel: "/move_base/cancel"  # cancel the goal sent to movebase
+    action: "/move_base"  # base action command
+    planner: "/move_base/GlobalPlanner/make_plan"
+    move: "/cmd_vel"
+    laserscan: "/scan"
+    mapframe: "map"  # world frame name
+  localizer:
+    algorithm: "odom"
+    parameter:
+      - key: "mapframe"
+        value: "map"
+      - key: "topic"
+        value: "/odom"
+      - key: "pose_pub"
+        value: "/initialpose"
+control:
+  - legged:
+      name: "ysc_control"  # control method supported by vendor
+      config: "x20control"

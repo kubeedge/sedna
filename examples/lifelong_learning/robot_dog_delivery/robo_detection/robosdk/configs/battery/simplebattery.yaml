@@ -1,0 +1,15 @@
+name: "battery"
+manufacturer: ""
+series: ""
+description: ""
+driver:
+  version: "ros1"
+  type: "ros"
+  name: "ros_common_driver"
+data:
+  support: true
+  target: "/battery_level"
+  actual_hz: 1
+  origin_hz: 10
+requirement:  # Used to generate roslaunch files.
+  - deep_msgs

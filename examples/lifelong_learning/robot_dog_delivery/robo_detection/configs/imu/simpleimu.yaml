@@ -1,0 +1,15 @@
+name: "imu"
+manufacturer: ""
+series: ""
+description: ""
+driver:
+  version: "ros1"
+  type: "ros"
+  name: "ros_imu_driver"
+data:
+  support: true
+  target: "/imu"
+  actual_hz: 10
+  origin_hz: 200
+requirement:  # Used to generate roslaunch files.
+  - sensor_msgs

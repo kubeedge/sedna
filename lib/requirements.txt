@@ -2,7 +2,7 @@ numpy>=1.13.3  # BSD
 colorlog~=4.7.2  # MIT
 websockets~=9.1  # BSD
 requests>=2.24.0  # Apache-2.0
-PyYAML~=5.4.1  # MIT
+PyYAML  # MIT
 setuptools~=54.2.0
 fastapi~=0.68.1  # MIT
 pydantic>=1.8.1  # MIT
@@ -12,3 +12,4 @@ pandas~=1.1.5  # BSD
 six~=1.15.0  # MIT
 minio~=7.0.3  # Apache-2.0
 uvicorn~=0.14.0  # BSD
+pycocotools
