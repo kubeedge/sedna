@@ -90,8 +90,10 @@ class Model:
         self.trainer = None
         self.train_model_url = None
 
-        label_save_dir = Context.get_parameters("INFERENCE_RESULT_DIR", os.path.join(
-            BaseConfig.data_path_prefix, "inference_results"))
+        label_save_dir = Context.get_parameters(
+            "INFERENCE_RESULT_DIR",
+            os.path.join(BaseConfig.data_path_prefix,
+                         "inference_results"))
         self.val_args.color_label_save_path = os.path.join(
             label_save_dir, "color")
         self.val_args.merge_label_save_path = os.path.join(
@@ -99,11 +101,6 @@ class Model:
         self.val_args.label_save_path = os.path.join(label_save_dir, "label")
         self.val_args.weight_path = kwargs.get("weight_path")
         self.validator = Validator(self.val_args)
-
-        # self.ramp_val_args = EvaluationArguments()
-        # self.ramp_val_args.weight_path = "/home/lsq/RFNet/models/ramp_train1_200.pth"
-        # self.ramp_val_args.merge = False
-        # self.validator_ramp = Validator(self.ramp_val_args)
 
     def train(self, train_data, valid_data=None, **kwargs):
         self.trainer = Trainer(self.train_args, train_data=train_data)
@@ -115,10 +112,10 @@ class Model:
                 self.trainer.validation(epoch)
             self.trainer.training(epoch)
 
-            if self.trainer.args.no_val and (epoch %
-                                             self.trainer.args.eval_interval == (
-                                                 self.trainer.args.eval_interval -
-                                                 1) or epoch == self.trainer.args.epochs - 1):
+            if self.trainer.args.no_val and \
+                (epoch % self.trainer.args.eval_interval ==
+                    (self.trainer.args.eval_interval - 1) or
+                 epoch == self.trainer.args.epochs - 1):
                 # save checkpoint when it meets eval_interval or the training finishes
                 is_best = False
                 train_model_url = self.trainer.saver.save_checkpoint({
@@ -127,11 +124,6 @@ class Model:
                     'optimizer': self.trainer.optimizer.state_dict(),
                     'best_pred': self.trainer.best_pred,
                 }, is_best)
-
-            # if not self.trainer.args.no_val and \
-            #         epoch % self.train_args.eval_interval == (self.train_args.eval_interval - 1) \
-            #         and self.trainer.val_loader:
-            #     self.trainer.validation(epoch)
 
         self.trainer.writer.close()
 
@@ -142,10 +134,10 @@ class Model:
         prediction = kwargs.get('prediction')
         if isinstance(data[0], dict):
             data = preprocess_frames(data)
-    
+
         if isinstance(data[0], np.ndarray):
             data = preprocess_url(data)
-    
+
         self.validator.test_loader = DataLoader(
             data,
             batch_size=self.val_args.test_batch_size,
@@ -156,32 +148,6 @@ class Model:
             return self.validator.validate()
         else:
             return prediction
-
-    # def predict(self, data, **kwargs):
-    #     if isinstance(data[0], np.ndarray):
-    #         data = preprocess_url(data)
-
-    #     if isinstance(data[0], dict):
-    #         data = preprocess_frames(data)
-
-    #     self.validator.test_loader = DataLoader(
-    #         data,
-    #         batch_size=self.val_args.test_batch_size,
-    #         shuffle=False,
-    #         pin_memory=False)
-
-    #     # TODO: predict ramp using specific model
-    #     self.validator_ramp.test_loader = DataLoader(
-    #         data,
-    #         batch_size=self.val_args.test_batch_size,
-    #         shuffle=False,
-    #         pin_memory=False)
-
-    #     prediction = kwargs.get('prediction')
-    #     if not prediction:
-    #         return (self.validator.validate(), self.validator_ramp.validate())
-    #     else:
-    #         return (prediction, self.validator_ramp.validate())
 
     def evaluate(self, data, **kwargs):
         predictions = self.predict(data.x)

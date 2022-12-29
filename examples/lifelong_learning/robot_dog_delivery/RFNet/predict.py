@@ -31,6 +31,7 @@ def preprocess(samples):
     data.x = [samples]
     return data
 
+
 def postprocess(samples):
     image_names, imgs = [], []
     for sample in samples:
@@ -39,6 +40,7 @@ def postprocess(samples):
         imgs.append(img)
 
     return image_names, imgs
+
 
 def init_ll_job():
     estimator = Model(num_class=31,
@@ -51,7 +53,7 @@ def init_ll_job():
     unseen_task_allocation = {
         "method": "UnseenTaskAllocationDefault"
     }
-   
+
     ll_job = LifelongLearning(
         estimator,
         unseen_estimator=unseen_task_processing,
