@@ -1,6 +1,3 @@
-import os
-import time
-
 import cv2
 import numpy as np
 
@@ -83,7 +80,10 @@ def get_ramp(results, img_rgb):
         [488, 1024]
     ])
 
-    # _draw_closest_and_future((big_closest, big_future), (small_closest, small_future), img_rgb)
+    # _draw_closest_and_future(
+    #     (big_closest, big_future),
+    #     (small_closest, small_future),
+    #     img_rgb)
 
     ramp_location = locate_ramp(small_closest, small_future,
                                 upper_left, bottom_left,
