@@ -432,9 +432,8 @@ class LifelongLearning(JobBase):
             self._start_inference_service()
             self.start_inference_service = True
 
-        seen_samples, unseen_samples, prediction, allocated_seen_tasks = \
-            self.recognize_unseen_samples(
-                data, **kwargs)
+        seen_samples, unseen_samples = self.recognize_unseen_samples(
+            data, **kwargs)
         if unseen_samples.x is not None and unseen_samples.num_examples() > 0:
             self.edge_knowledge_management.log.info(
                 f"Unseen task is detected.")
@@ -461,8 +460,6 @@ class LifelongLearning(JobBase):
                     data=seen_samples, post_process=post_process,
                     task_index=self.edge_knowledge_management.task_index,
                     task_type="seen_task",
-                    prediction=prediction,
-                    tasks=allocated_seen_tasks,
                     **kwargs
                 )
             res = np.concatenate((res, seen_res)) if res else seen_res

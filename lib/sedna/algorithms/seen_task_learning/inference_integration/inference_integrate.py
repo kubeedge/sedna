@@ -22,13 +22,14 @@ import numpy as np
 
 from sedna.common.class_factory import ClassFactory, ClassType
 
+from .base_inference_integrate import BaseInferenceIntegrate
 from ..artifact import Task
 
 __all__ = ('DefaultInferenceIntegrate', )
 
 
 @ClassFactory.register(ClassType.STP)
-class DefaultInferenceIntegrate:
+class DefaultInferenceIntegrate(BaseInferenceIntegrate):
     """
     Default calculation algorithm for inference integration
 
@@ -38,7 +39,7 @@ class DefaultInferenceIntegrate:
     """
 
     def __init__(self, models: list, **kwargs):
-        self.models = models
+        super(DefaultInferenceIntegrate, self).__init__(models)
 
     def __call__(self, tasks: List[Task]):
         """

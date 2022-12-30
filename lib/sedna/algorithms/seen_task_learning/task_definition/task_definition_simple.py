@@ -4,10 +4,11 @@ from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassType, ClassFactory
 
 from ..artifact import Task
+from .base_task_definition import BaseTaskDefinition
 
 
 @ClassFactory.register(ClassType.STP)
-class TaskDefinitionSimple:
+class TaskDefinitionSimple(BaseTaskDefinition):
     """
     Dividing datasets based on the their original sites.
 
@@ -18,6 +19,7 @@ class TaskDefinitionSimple:
     """
 
     def __init__(self, **kwargs):
+        super(TaskDefinitionSimple, self).__init__()
         self.origins = ["front", "garden"]
 
     def __call__(self,
