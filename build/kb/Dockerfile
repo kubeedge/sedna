@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM python:3.6-slim
+FROM python:3.9-slim
 
 RUN pip install colorlog~=4.7.2
 RUN pip install PyYAML~=5.4.1
 RUN pip install fastapi~=0.63.0
 RUN pip install starlette~=0.13.6
 RUN pip install pydantic~=1.8.1
-RUN pip install joblib~=1.0.1
-RUN pip install pandas~=1.1.5
+RUN pip install joblib~=1.2.0
+RUN pip install pandas
 RUN pip install uvicorn~=0.14.0
 RUN pip install python-multipart~=0.0.5
 RUN pip install SQLAlchemy~=1.4.7

@@ -17,7 +17,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from pycocotools.coco import COCO
 
 from sedna.common.file_ops import FileOps
 from sedna.common.class_factory import ClassFactory, ClassType
@@ -122,6 +121,8 @@ class CSVDataParse(BaseDataSource, ABC):
         return pd.DataFrame.from_dict([lines], **kwargs)
 
     def parse(self, *args, **kwargs):
+        from pycocotools.coco import COCO
+
         x_data = []
         y_data = []
         label = kwargs.pop("label") if "label" in kwargs else ""

@@ -1,3 +1,17 @@
+# Copyright 2023 The KubeEdge Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from typing import List, Any, Tuple
 
 from sedna.datasources import BaseDataSource
@@ -14,69 +28,46 @@ class TaskDefinitionByOrigin(BaseTaskDefinition):
 
     Parameters
     ----------
-    origins： List[Metadata]
+    attr_filed Tuple[Metadata]
         metadata is usually a class feature label with a finite values.
     """
 
     def __init__(self, **kwargs):
         super(TaskDefinitionByOrigin, self).__init__()
-        self.origins = kwargs.get("origins", ["real", "sim"])
+        self.attribute = kwargs.get("attribute").split(", ")
+        self.city = kwargs.get("city")
 
     def __call__(self,
                  samples: BaseDataSource, **kwargs) -> Tuple[List[Task],
                                                              Any,
                                                              BaseDataSource]:
-        cities = [
-            "aachen",
-            "berlin",
-            "bochum",
-            "bremen",
-            "cologne",
-            "darmstadt",
-            "dusseldorf",
-            "erfurt",
-            "hamburg",
-            "hanover",
-            "jena",
-            "krefeld",
-            "monchengladbach",
-            "strasbourg",
-            "stuttgart",
-            "tubingen",
-            "ulm",
-            "weimar",
-            "zurich"]
 
         tasks = []
         d_type = samples.data_type
-        x_data = samples.x
-        y_data = samples.y
 
-        task_index = dict(zip(self.origins, range(len(self.origins))))
+        task_index = dict(zip(self.attribute, range(len(self.attribute))))
+        sample_index = range(samples.num_examples())
 
-        real_df = BaseDataSource(data_type=d_type)
-        real_df.x, real_df.y = [], []
-        sim_df = BaseDataSource(data_type=d_type)
-        sim_df.x, sim_df.y = [], []
+        _idx = [i for i in sample_index if self.city in samples.y[i]]
+        _y = samples.y[_idx]
+        _x = samples.x[_idx]
+        _sample = BaseDataSource(data_type=d_type)
+        _sample.x, _sample.y = _x, _y
 
-        for i in range(samples.num_examples()):
-            is_real = False
-            for city in cities:
-                if city in x_data[i][0]:
-                    is_real = True
-                    real_df.x.append(x_data[i])
-                    real_df.y.append(y_data[i])
-                    break
-            if not is_real:
-                sim_df.x.append(x_data[i])
-                sim_df.y.append(y_data[i])
-
-        g_attr = "real_semantic_segamentation_model"
-        task_obj = Task(entry=g_attr, samples=real_df, meta_attr="real")
+        g_attr = f"{self.attribute[0]}.model"
+        task_obj = Task(entry=g_attr, samples=_sample,
+                        meta_attr=self.attribute[0])
         tasks.append(task_obj)
 
-        g_attr = "sim_semantic_segamentation_model"
-        task_obj = Task(entry=g_attr, samples=sim_df, meta_attr="sim")
+        _idx = list(set(sample_index) - set(_idx))
+        _y = samples.y[_idx]
+        _x = samples.x[_idx]
+        _sample = BaseDataSource(data_type=d_type)
+        _sample.x, _sample.y = _x, _y
+
+        g_attr = f"{self.attribute[-1]}.model"
+        task_obj = Task(entry=g_attr, samples=_sample,
+                        meta_attr=self.attribute[-1])
         tasks.append(task_obj)
 
         return tasks, task_index, samples
