@@ -1,23 +1,24 @@
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassFactory, ClassType
 
+from .base_task_allocation import BaseTaskAllocation
 
 @ClassFactory.register(ClassType.STP)
-class TaskAllocationByOrigin:
+class TaskAllocationByOrigin(BaseTaskAllocation):
     """
     Corresponding to `TaskDefinitionByOrigin`
 
     Parameters
     ----------
     task_extractor : Dict
-        used to match target tasks
+        used to predict target tasks for each inference samples
     origins: List[Metadata]
         metadata is usually a class feature
         label with a finite values.
     """
 
     def __init__(self, task_extractor, **kwargs):
-        self.task_extractor = task_extractor
+        super(TaskAllocationByOrigin, self).__init__(task_extractor)
         self.default_origin = kwargs.get("default", None)
 
     def __call__(self, samples: BaseDataSource):

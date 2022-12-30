@@ -1,22 +1,25 @@
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassFactory, ClassType
 
+from .base_unseen_sample_re_recognition import BaseSampleReRegonition
+
 __all__ = ('SampleReRegonitionDefault', )
 
 
 @ClassFactory.register(ClassType.UTD)
-class SampleReRegonitionDefault:
+class SampleReRegonitionDefault(BaseSampleReRegonition):
     # TODO: to be completed
     '''
-    Divide inference samples into seen tasks and unseen tasks.
+    Divide labeled unseen samples into seen tasks and unseen tasks.
 
     Parameters
     ----------
     task_index: str or Dict
+        knowledge base index which includes indexes of tasks, samples, models, etc.
     '''
 
     def __init__(self, task_index, **kwargs):
-        pass
+        super(SampleReRegonitionDefault, self).__init__(task_index)
 
     def __call__(self, samples: BaseDataSource):
         '''

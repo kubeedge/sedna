@@ -2,11 +2,13 @@ from sedna.common.log import LOGGER
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassFactory, ClassType
 
+from .base_unseen_task_allocation import BaseUnseenTaskAllocation
+
 __all__ = ('UnseenTaskAllocationDefault', )
 
 
 @ClassFactory.register(ClassType.UTP)
-class UnseenTaskAllocationDefault:
+class UnseenTaskAllocationDefault(BaseUnseenTaskAllocation):
     # TODO: to be completed
     """
     Task allocation for unseen data
@@ -18,7 +20,7 @@ class UnseenTaskAllocationDefault:
     """
 
     def __init__(self, task_extractor, **kwargs):
-        self.task_extractor = task_extractor
+        super(UnseenTaskAllocationDefault, self).__init__(task_extractor)
         self.log = LOGGER
 
     def __call__(self, samples: BaseDataSource):
