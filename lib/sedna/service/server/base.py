@@ -96,7 +96,7 @@ class BaseServer:
         """wait the stop flag to shutdown the server"""
         while 1:
             time.sleep(self.WAIT_TIME)
-            if not current.isAlive():
+            if not current.is_alive():
                 return
             if getattr(self.app, "shutdown", False):
                 return

@@ -1,4 +1,4 @@
-# Copyright 2021 The KubeEdge Authors.
+# Copyright 2023 The KubeEdge Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Mining tasks of inference sample base on task attribute extractor
+Mining tasks of inference sample based on task attribute extractor
 
 Parameters
 ----------

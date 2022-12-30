@@ -1,0 +1,119 @@
+apiVersion: sedna.io/v1alpha1
+kind: LifelongLearningJob
+metadata:
+  name: $job_name
+spec:
+  dataset:
+    name: "lifelong-robo-dataset"
+    trainProb: 0.8
+  trainSpec:
+    template:
+      spec:
+        nodeName: $TRAIN_NODE
+        dnsPolicy: ClusterFirstWithHostNet
+        containers:
+          - image: $cloud_image
+            name:  train-worker
+            imagePullPolicy: IfNotPresent         
+            args: ["train.py"]
+            env:
+              - name: "num_class"
+                value: "24"
+              - name: "epoches"
+                value: "1"
+            resources:
+              limits:
+                cpu: 6
+                memory: 12Gi
+              requests:
+                cpu: 4
+                memory: 10Gi
+            volumeMounts:
+            - mountPath: /dev/shm
+              name: cache-volume
+        volumes:
+        - emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
+          name: cache-volume
+    trigger:
+      checkPeriodSeconds: 30
+      timer:
+        start: 00:00
+        end: 24:00
+      condition:
+        operator: ">"
+        threshold: 100
+        metric: num_of_samples
+  evalSpec:
+    template:
+      spec:
+        nodeName: $EVAL_NODE
+        dnsPolicy: ClusterFirstWithHostNet
+        containers:
+          - image: $cloud_image
+            name:  eval-worker
+            imagePullPolicy: IfNotPresent
+            args: ["evaluate.py"]
+            env:
+              - name: "operator"
+                value: "<"
+              - name: "model_threshold"
+                value: "0"
+              - name: "num_class"
+                value: "24"
+            resources:
+              limits:
+                cpu: 6
+                memory: 6Gi
+              requests:
+                cpu: 4
+                memory: 5Gi
+  deploySpec:
+    template:
+      spec:
+        nodeName: $INFER_NODE
+        dnsPolicy: ClusterFirstWithHostNet
+        hostNetwork: true
+        containers:
+        - image: $edge_image
+          name:  infer-worker
+          imagePullPolicy: IfNotPresent
+          args: ["predict.py"]
+          env:
+            - name: "test_data"
+              value: "/data/test_data"
+            - name: "num_class"
+              value: "24"
+            - name: "unseen_save_url"
+              value: "/data/unseen_samples"
+            - name: "INFERENCE_RESULT_DIR"
+              value: "/data/infer_results"
+          volumeMounts:
+          - name: unseenurl
+            mountPath: /data/unseen_samples
+          - name: inferdata
+            mountPath: /data/infer_results
+          - name: testdata
+            mountPath: /data/test_data
+          resources:
+            limits:
+              cpu: 6
+              memory: 6Gi
+            requests:
+              cpu: 4
+              memory: 3Gi
+        volumes:
+          - name: unseenurl
+            hostPath:
+              path: /data/unseen_samples
+              type: DirectoryOrCreate
+          - name: inferdata
+            hostPath:
+              path: /data/infer_results
+              type: DirectoryOrCreate
+          - name: testdata
+            hostPath:
+              path: /data/test_data
+              type: DirectoryOrCreate
+  outputDir: $OUTPUT/$job_name
