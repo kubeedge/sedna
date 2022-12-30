@@ -1,4 +1,4 @@
-# Copyright 2021 The KubeEdge Authors.
+# Copyright 2023 The KubeEdge Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -147,53 +147,3 @@ class TaskDefinitionByDataAttr:
         samples.x = x_data
         samples.y = y_data
         return tasks, task_index, samples
-
-
-@ClassFactory.register(ClassType.STP)
-class TaskDefinitionByCluster:
-    """
-    Dividing datasets with all sorts of clustering methods.
-
-    Parameters
-    ----------
-    n_class： int or None
-        The number of clusters to find, default=1.
-    """
-
-    def __init__(self, **kwargs):
-        self.n_class = int(kwargs.get("n_class", 1))
-        self.train_ratio = float(kwargs.get("train_ratio", 0.8))
-
-    def __call__(self,
-                 samples: BaseDataSource, **kwargs) -> Tuple[List[Task],
-                                                             Any,
-                                                             BaseDataSource]:
-        from sklearn.svm import SVC
-        model = kwargs.get("model")
-
-        tasks = []
-        c2 = SVC(gamma=0.01)
-        partition_length = int(len(samples.x) / self.n_class)
-
-        for i in range(self.n_class):
-            train_num = int(len(samples.x) * self.train_ratio)
-            train_samples = BaseDataSource(data_type="train")
-            train_samples.x = samples.x[:train_num]
-            train_samples.y = samples.y[:train_num]
-
-            test_samples = BaseDataSource(data_type="eval")
-            test_samples.x = samples.x[train_num:]
-            test_samples.y = samples.y[train_num:]
-
-            model_url = model.train(train_samples, test_samples)
-            model.load(model_url)
-            result = model.evaluate(test_samples, checkpoint_path=model_url)
-
-            g_attr = f"svc_{i}_{time.time()}"
-            task_obj = Task(entry=g_attr, samples=train_samples)
-            task_obj.test_samples = test_samples
-            task_obj.model = model_url
-            task_obj.result = result
-            tasks.append(task_obj)
-
-        return tasks, c2, samples

@@ -1,3 +1,17 @@
+# Copyright 2023 The KubeEdge Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import time
 import tempfile
@@ -20,15 +34,6 @@ __all__ = ('EdgeKnowledgeManagement', )
 class EdgeKnowledgeManagement(BaseKnowledgeManagement):
     """
     Manage inference, knowledge base update, etc., at the edge.
-
-    Parameters:
-        ----------
-    config: Dict
-        parameters to initialize an object
-    estimator: Instance
-        An instance with the high-level API that greatly simplifies
-        machine learning programming. Estimators encapsulate training,
-        evaluation, prediction, and exporting for your model.
     """
 
     def __init__(self, config, seen_estimator, unseen_estimator, **kwargs):
@@ -45,6 +50,8 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
 
         self.pinned_service_start = False
         self.unseen_sample_observer = None
+        self.current_index_version = None
+        self.lastest_index_version = None
 
     def update_kb(self, task_index):
         if isinstance(task_index, str):
@@ -74,8 +81,11 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
                 self.task_group_key: unseen_task_groups,
                 self.extractor_key: unseen_extractor
             },
-            "created_time": task_index.get("created_time", str(time.time()))
+            "create_time": task_index.get("create_time", str(time.time()))
         }
+
+        self.current_index_version = str(task_info.get("create_time"))
+        self.lastest_index_version = self.current_index_version
 
         fd, name = tempfile.mkstemp()
         FileOps.dump(task_info, name)
@@ -112,6 +122,8 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
                 _task.samples.data_url = FileOps.download(
                     _task.samples.data_url, sample_dir)
 
+                self.log.info(f"Download {_task.entry} to the edge.")
+
         save_extractor = FileOps.join_path(
             self.edge_output_url, task_type,
             KBResourceConstant.TASK_EXTRACTOR_NAME.value
@@ -121,12 +133,12 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
         return extractor, task_groups
 
     def save_unseen_samples(self, samples, post_process):
-        if callable(post_process):
-            # customized sample saving function
-            post_process(samples.x, self.local_unseen_save_url)
-            return
-
         for sample in samples.x:
+            if callable(post_process):
+                # customized sample saving function
+                post_process(sample, self.local_unseen_save_url)
+                continue
+
             if isinstance(sample, dict):
                 img = sample.get("image")
                 image_name = "{}.png".format(str(time.time()))
@@ -163,15 +175,11 @@ class ModelHotUpdateThread(threading.Thread):
         )
         if model_check_time < 1:
             LOGGER.warning("Catch an abnormal value in "
-                           "`MODEL_POLL_PERIOD_SECONDS`, fallback with 60")
+                           "`MODEL_POLL_PERIOD_SECONDS`, fallback with 30")
             model_check_time = 30
-        self.version = None
         self.edge_knowledge_management = edge_knowledge_management
         self.check_time = model_check_time
         self.callback = callback
-        task_index = edge_knowledge_management.task_index
-        if FileOps.exists(task_index):
-            self.version = str(FileOps.load(task_index).get("create_time"))
 
         super(ModelHotUpdateThread, self).__init__()
 
@@ -180,36 +188,15 @@ class ModelHotUpdateThread(threading.Thread):
     def run(self):
         while True:
             time.sleep(self.check_time)
-            latest_task_index = Context.get_parameters("MODEL_URLS", None)
+            if not self.edge_knowledge_management.current_index_version:
+                continue
+
+            latest_task_index = Context.get_parameters("MODEL_URLS")
             if not latest_task_index:
                 continue
-
             latest_task_index = FileOps.load(latest_task_index)
-            latest_version = str(latest_task_index.get("create_time"))
-
-            if latest_version == self.version:
-                continue
-            self.version = latest_version
-            with self.MODEL_MANIPULATION_SEM:
-                LOGGER.info(
-                    f"Update model start with version {self.version}")
-                try:
-                    task_index = self.edge_knowledge_management.task_index
-                    task_index_url = \
-                        FileOps.dump(latest_task_index, task_index)
-                    # TODO: update local kb with the latest index.pkl
-                    self.edge_knowledge_management.update_kb(task_index_url)
-
-                    status = K8sResourceKindStatus.COMPLETED.value
-                    LOGGER.info(f"Update task index complete "
-                                f"with version {self.version}")
-                except Exception as e:
-                    LOGGER.error(f"fail to update task index: {e}")
-                    status = K8sResourceKindStatus.FAILED.value
-                if self.callback:
-                    self.callback(
-                        task_info=None, status=status, kind="deploy"
-                    )
+            self.edge_knowledge_management.lastest_index_version = str(
+                latest_task_index.get("create_time"))
 
 
 class UnseenSampleUploadingHandler(FileSystemEventHandler):
@@ -225,7 +212,7 @@ class UnseenSampleUploadingHandler(FileSystemEventHandler):
         LOGGER.info(f"Unseen sample uploading service starts.")
 
     def on_created(self, event):
-        time.sleep(2.0)
+        time.sleep(1.0)
         sample_name = os.path.basename(event.src_path)
         FileOps.upload(event.src_path, FileOps.join_path(
             self.unseen_save_url, sample_name))
