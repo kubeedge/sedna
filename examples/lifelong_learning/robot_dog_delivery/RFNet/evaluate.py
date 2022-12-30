@@ -1,4 +1,15 @@
 import os
+os.environ["TEST_DATASET_URL"] = "/home/lsq/RFNet/data_index/test.txt"
+os.environ["MODEL_URLS"] = "s3://kubeedge/sedna-robo/kb/index.pkl"
+os.environ["OUTPUT_URL"] = "s3://kubeedge/sedna-robo/kb_next/"
+
+os.environ["KB_SERVER"] = "http://0.0.0.0:9020"
+os.environ["operator"] = "<"
+os.environ["model_threshold"] = "0.01"
+
+os.environ["S3_ENDPOINT_URL"] = "https://obs.cn-north-1.myhuaweicloud.com"
+os.environ["SECRET_ACCESS_KEY"] = "OYPxi4uD9k5E90z0Od3Ug99symbJZ0AfyB4oveQc"
+os.environ["ACCESS_KEY_ID"] = "EMPTKHQUGPO2CDUFD2YR"
 
 os.environ["TEST_DATASET_URL"] = "/home/lsq/RFNet/data_index/test.txt"
 os.environ["MODEL_URLS"] = "s3://kubeedge/sedna-robo/kb/index.pkl"

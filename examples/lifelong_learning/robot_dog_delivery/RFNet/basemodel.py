@@ -39,8 +39,6 @@ def preprocess_url(image_urls):
 
         sample = {'image': _img, 'depth': _depth, 'label': _img}
         composed_transforms = transforms.Compose([
-            # tr.CropBlackArea(),
-            # tr.FixedResize(size=self.args.crop_size),
             tr.Normalize(
                 mean=(
                     0.485, 0.456, 0.406), std=(

@@ -460,11 +460,6 @@ class SeenTaskLearning:
         if post_process:
             callback = ClassFactory.get_cls(ClassType.CALLBACK, post_process)()
 
-        res = kwargs.get("prediction")
-        tasks = kwargs.get("tasks")
-        if res and tasks:
-            return res, tasks
-
         tasks = []
         for inx, df in enumerate(samples):
             m = models[inx]

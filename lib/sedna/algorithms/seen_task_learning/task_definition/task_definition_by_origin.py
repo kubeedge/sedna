@@ -4,10 +4,11 @@ from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassType, ClassFactory
 
 from ..artifact import Task
+from .base_task_definition import BaseTaskDefinition
 
 
 @ClassFactory.register(ClassType.STP)
-class TaskDefinitionByOrigin:
+class TaskDefinitionByOrigin(BaseTaskDefinition):
     """
     Dividing datasets based on the their origins.
 
@@ -18,6 +19,7 @@ class TaskDefinitionByOrigin:
     """
 
     def __init__(self, **kwargs):
+        super(TaskDefinitionByOrigin, self).__init__()
         self.origins = kwargs.get("origins", ["real", "sim"])
 
     def __call__(self,
