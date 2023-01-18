@@ -64,6 +64,8 @@ Each stage contains these below states:
 
 * Inference stage: at this stage, we design unseen task detection and unseen task inference to cope with heterogeneous data which are creatively proposed. With real-time unseen task processing, economic loss can be saved in certain industrial scenarios such as quality inspection.
 
+* Update: after enough unseen samples are collected and labeled, knowledge base update is carried out via designed unseen sample training.
+
 ### CRD API Group and Version
 The `LifelongLearningJob` CRD will be namespace-scoped.
 The tables below summarize the group, kind and API version details for the CRD.
