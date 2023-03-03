@@ -78,7 +78,7 @@ Documentation is located on [readthedoc.io](https://sedna.readthedocs.io/). Thes
 
 
 ### Installation
-Follow the [Sedna installation document](docs/setup/quick-start.md) to install Sedna.
+Follow the [Sedna installation document](docs/setup/install.md) to install Sedna.
 
 ### Examples
 Example1：[Using Joint Inference Service in Helmet Detection Scenario](/examples/joint_inference/helmet_detection_inference/README.md).  
