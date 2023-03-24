@@ -22,8 +22,8 @@ Data will be automatically downloaded from where the index file indicates to the
 |----------|----------|-------------|
 |name|yes|Dataset name defined in metadata|
 |url|yes|Url of dataset index file, which is generally stored in data node|
-|format|yes|The format of dataset index file|
-|nodeName|yes|The name of data node that stores data and dataset index file for running|
+|format|yes|Format of dataset index file|
+|nodeName|yes|Name of data node that stores data and dataset index file|
 
 ```
 DATA_NODE = "cloud-node" 
@@ -46,15 +46,15 @@ To run lifelong learning jobs, users need to configure their own lifelong learni
 
 | Property | Required | Description |
 |----------|----------|-------------|
-|nodeName|yes|The name of the node where worker runs|
-|dnsPolicy|yes|Kubernetes can set DNS policy at pod level|
-|imagePullPolicy|yes|The image pulling policy when local image does not exist|
-|args|yes|The arguments to run images. In this example, it is the startup file of each stage| 
-|env|no|The environment variables passed to each stage |
+|nodeName|yes|Name of the node where worker runs|
+|dnsPolicy|yes|DNS policy set at pod level|
+|imagePullPolicy|yes|Image pulling policy when local image does not exist|
+|args|yes|Arguments to run images. In this example, it is the startup file of each stage| 
+|env|no|Environment variables passed to each stage |
 |trigger|yes|Configuration for when training begins|
-|resourcs|yes|Limited and required resources of CPU and memory|
+|resourcs|yes|Limited or required resources of CPU and memory|
 |volumeMounts|no|Specified path to be mounted to the host|
-|volumes|no|The directory in the node which file systems in a worker are mounted to|
+|volumes|no|Directory in the node which file systems in a worker are mounted to|
 
 ```
 TRAIN_NODE = "cloud-node" 
