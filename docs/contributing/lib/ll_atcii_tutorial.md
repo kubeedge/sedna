@@ -1,4 +1,4 @@
-This tutorial targets at lifelong learning job in thermal comfort prediction scenario, and includes how to run the default example with customized configurations, as well as how to develop and integrate user-defined modules.
+This tutorial targets at [lifelong learning job in thermal comfort prediction scenario](https://github.com/kubeedge/sedna/blob/main/examples/lifelong_learning/atcii/README.md), and includes how to run the default example with customized configurations, as well as how to develop and integrate user-defined modules.
 # 1 Configure Default Example
 With Custom Resource Definitions (CRDs) of Kubernetes, developers are able to configure the default lifelong process using the following configurations.
 ## 1.1 Install Sedna
