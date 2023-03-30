@@ -364,7 +364,7 @@ Estimator is a high-level API that greatly simplifies machine learning programmi
 
 **(1). Define an Estimator**
 
-In lifelong learning robotics case, Estimator is defined in basemodel.py, and users can replace the existing base model with the models that best suits their purposes.
+In lifelong learning robotics case, Estimator is defined in interface.py, and users can replace the existing base model with the models that best suits their purposes.
 
  ```python
 class Estimator:
@@ -539,7 +539,7 @@ class TaskDefinitionByOrigin(BaseTaskDefinition):
 
 In this step, you have customized an **task definition algorithm**, and the line of `ClassFactory.register(ClassType.STP)` is to complete the registration.
 
-**(2). Configure CRD yaml**
+**(2). Configure algorithm module in Sedna**
 
 After registration, you only need to configure task definition algorithim in corresponding script. Take the following codes in `train.py` as an example.
 
