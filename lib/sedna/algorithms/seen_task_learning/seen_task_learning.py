@@ -1,4 +1,4 @@
-# Copyright 2021 The KubeEdge Authors.
+# Copyright 2023 The KubeEdge Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,10 +15,6 @@
 """Multiple task transfer learning algorithms"""
 
 import json
-import time
-
-import pandas as pd
-from sklearn import metrics as sk_metrics
 
 from sedna.datasources import BaseDataSource
 from sedna.backend import set_backend
@@ -394,7 +390,7 @@ class SeenTaskLearning:
             self.seen_task_groups.append(task)
 
         task_index = {
-            self.extractor_key: {"front": 0, "garden": 1},
+            self.extractor_key: self.seen_extractor,
             self.task_group_key: self.seen_task_groups
         }
 
@@ -460,11 +456,6 @@ class SeenTaskLearning:
         if post_process:
             callback = ClassFactory.get_cls(ClassType.CALLBACK, post_process)()
 
-        res = kwargs.get("prediction")
-        tasks = kwargs.get("tasks")
-        if res and tasks:
-            return res, tasks
-
         tasks = []
         for inx, df in enumerate(samples):
             m = models[inx]
@@ -512,6 +503,10 @@ class SeenTaskLearning:
         tasks_detail : List[Object]
             all metric results in each task.
         """
+
+        import pandas as pd
+        from sklearn import metrics as sk_metrics
+
         result, tasks = self.predict(data, **kwargs)
         m_dict = {}
 

@@ -1,0 +1,8 @@
+apiVersion: sedna.io/v1alpha1
+kind: Dataset
+metadata:
+  name: lifelong-robo-dataset
+spec:
+  url: "$data_url"
+  format: "txt"
+  nodeName: "$DATA_NODE"
