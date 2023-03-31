@@ -248,7 +248,6 @@ class TxtDataParse(BaseDataSource, ABC):
 
     def parse(self, *args, **kwargs):
         pass
-    
 ```
 
 **(2). Define dataset parse function**
