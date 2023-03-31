@@ -1,4 +1,4 @@
-# Copyright 2021 The KubeEdge Authors.
+# Copyright 2023 The KubeEdge Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,17 +33,19 @@ import pandas as pd
 from sedna.datasources import BaseDataSource
 from sedna.common.class_factory import ClassFactory, ClassType
 
+from .base_task_remodeling import BaseTaskRemodeling
+
 __all__ = ('DefaultTaskRemodeling',)
 
 
 @ClassFactory.register(ClassType.STP)
-class DefaultTaskRemodeling:
+class DefaultTaskRemodeling(BaseTaskRemodeling):
     """
     Assume that each task is independent of each other
     """
 
     def __init__(self, models: list, **kwargs):
-        self.models = models
+        super(DefaultTaskRemodeling, self).__init__(models)
 
     def __call__(self, samples: BaseDataSource, mappings: List):
         """

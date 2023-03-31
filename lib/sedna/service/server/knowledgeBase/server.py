@@ -47,8 +47,8 @@ class TaskItem(BaseModel):  # pylint: disable=too-few-public-methods
 
 class KBServer(BaseServer):
     """
-    As knowledge base stored in sqlite, this class realized creation,
-    update and query of sqlite.
+    As knowledge base stored in sqlite, this class realizes creation,
+    update and query of the sqlite.
     """
     def __init__(self, host: str, http_port: int = 8080,
                  workers: int = 1, save_dir=""):

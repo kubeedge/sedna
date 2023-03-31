@@ -1,3 +1,17 @@
+# Copyright 2023 The KubeEdge Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from sedna.backend import set_backend
 from sedna.common.log import LOGGER
 from sedna.common.constant import KBResourceConstant
@@ -6,6 +20,22 @@ from sedna.service.client import KBClient
 
 
 class BaseKnowledgeManagement:
+    """
+    Base class of knowledge management.
+    It includes model and sample update to knowledge base server.
+
+    Parameters:
+    config: BaseConfig, see 'sedna.common.config.BaseConfig' for more details.
+        It sets basic configs for knowledge management.
+    seen_estimator: Instance
+        An instance with the high-level API that greatly simplifies
+        machine learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for a model.
+    unseen_estimator: Instance
+        An instance with the high-level API that greatly simplifies mechanism
+        model learning programming. Estimators encapsulate training,
+        evaluation, prediction, and exporting for a mechanism model.
+    """
 
     def __init__(self, config, seen_estimator, unseen_estimator):
         self.config = BaseConfig()

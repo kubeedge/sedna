@@ -1,4 +1,4 @@
-# Copyright 2021 The KubeEdge Authors.
+# Copyright 2023 The KubeEdge Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
 from sedna.common.constant import K8sResourceKind, K8sResourceKindStatus, \
     KBResourceConstant
-from sedna.common.config import Context
+from sedna.common.config import Context, BaseConfig
 from sedna.common.class_factory import ClassType, ClassFactory
 from sedna.algorithms.seen_task_learning.seen_task_learning \
     import SeenTaskLearning
@@ -307,10 +307,14 @@ class LifelongLearning(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        task_index_url = self.get_parameters(
+        task_index_url = Context.get_parameters(
             "CLOUD_KB_INDEX", self.cloud_knowledge_management.task_index)
+        task_index_url = FileOps.join_path(
+            BaseConfig.data_path_prefix, task_index_url)
         index_url = self.cloud_knowledge_management.local_task_index_url
         FileOps.download(task_index_url, index_url)
+        self.log.info(
+            f"Download last task index from {task_index_url} to {index_url}")
 
         unseen_sample_re_recognition = ClassFactory.get_cls(
             ClassType.UTD, self.unseen_sample_re_recognition["method"])(
@@ -407,7 +411,11 @@ class LifelongLearning(JobBase):
             kind="eval")
         return callback_func(res) if callback_func else res
 
-    def inference(self, data=None, post_process=None, **kwargs):
+    def inference(self,
+                  data=None,
+                  post_process=None,
+                  unseen_sample_postprocess=None,
+                  **kwargs):
         """
         predict the result for input data based on training knowledge.
 
@@ -419,6 +427,9 @@ class LifelongLearning(JobBase):
         post_process: function
             function or a registered method,  effected after `estimator`
             prediction, like: label transform.
+        unseen_sample_postprocess: function
+            function or a registered method, effected when unseen samples
+            need to be saved
         kwargs: Dict
             parameters for `estimator` predict, Like:
             `ntree_limit` in Xgboost.XGBClassifier
@@ -428,13 +439,29 @@ class LifelongLearning(JobBase):
         """
         res, tasks, is_unseen_task = None, [], False
 
+        index_url = self.edge_knowledge_management.task_index
+        current_version = self.edge_knowledge_management.current_index_version
+        lastest_version = self.edge_knowledge_management.lastest_index_version
+
+        if not FileOps.exists(index_url) or (current_version and
+                                             lastest_version and
+                                             current_version !=
+                                             lastest_version):
+            task_index_url = Context.get_parameters(
+                "MODEL_URLS", self.cloud_knowledge_management.task_index)
+            self.log.info(
+                f"Download kb index from {task_index_url} to {index_url}")
+            FileOps.download(task_index_url, index_url)
+
+            self.log.info(f"Deploying tasks to the edge.")
+            self.edge_knowledge_management.update_kb(index_url)
+
         if not self.start_inference_service:
             self._start_inference_service()
             self.start_inference_service = True
 
-        seen_samples, unseen_samples, prediction, allocated_seen_tasks = \
-            self.recognize_unseen_samples(
-                data, **kwargs)
+        seen_samples, unseen_samples = self.recognize_unseen_samples(
+            data, **kwargs)
         if unseen_samples.x is not None and unseen_samples.num_examples() > 0:
             self.edge_knowledge_management.log.info(
                 f"Unseen task is detected.")
@@ -444,7 +471,7 @@ class LifelongLearning(JobBase):
                     task_index=self.edge_knowledge_management.task_index)
 
             self.edge_knowledge_management.save_unseen_samples(
-                unseen_samples, post_process)
+                unseen_samples, post_process=unseen_sample_postprocess)
 
             res = unseen_res
             tasks.extend(unseen_tasks)
@@ -461,8 +488,6 @@ class LifelongLearning(JobBase):
                     data=seen_samples, post_process=post_process,
                     task_index=self.edge_knowledge_management.task_index,
                     task_type="seen_task",
-                    prediction=prediction,
-                    tasks=allocated_seen_tasks,
                     **kwargs
                 )
             res = np.concatenate((res, seen_res)) if res else seen_res
@@ -485,17 +510,6 @@ class LifelongLearning(JobBase):
                 self.edge_knowledge_management
             )
             self.unseen_sample_detection.start()
-
-        task_index_url = Context.get_parameters(
-            "MODEL_URLS", self.cloud_knowledge_management.task_index)
-        index_url = self.edge_knowledge_management.task_index
-        if not FileOps.exists(index_url):
-            self.log.info(
-                f"Download kb index from {task_index_url} to {index_url}")
-            FileOps.download(task_index_url, index_url)
-
-            self.log.info(f"Deploying tasks to the edge.")
-            self.edge_knowledge_management.update_kb(index_url)
 
         if not callable(self.recognize_unseen_samples):
             self.recognize_unseen_samples = \
