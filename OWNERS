@@ -3,10 +3,10 @@ approvers:
   - fisherxu
   - jaypume
   - kevin-wangzefeng
-  - llhuii
   - sids-b
   - ugvddm
-reviewers:
-  - JimmyYang20
-  - TymonXie
+  - sig-ai-co-chairs
+  - sig-ai-tech-leads
 
+reviewers:
+  - sig-ai-project-maintainers
