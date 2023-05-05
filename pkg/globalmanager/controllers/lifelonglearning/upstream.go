@@ -25,6 +25,7 @@ import (
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
@@ -98,6 +99,70 @@ func (c *Controller) appendStatusCondition(name, namespace string, cond sednav1.
 	})
 }
 
+func (c *Controller) updateStatusKnowledgeBase(name, namespace string, cd ConditionData) error {
+	client := c.client.LifelongLearningJobs(namespace)
+	return runtime.RetryUpdateStatus(name, namespace, func() error {
+
+		// check if models field exits
+		if cd.Output == nil || cd.Output.Models == nil || len(cd.Output.Models) == 0 {
+			klog.V(4).Infof("output models is nil, name is %s", name)
+			return nil
+		}
+
+		numberOfSamples := 0
+		aiModels := sednav1.AIModels{}
+		aiclasses := sednav1.AIClasses{}
+		aiclasses.ListOfAIClasses = cd.Output.Models[0].Classes
+		aiclasses.NumberOfAIClasses = len(aiclasses.ListOfAIClasses)
+
+		for _, m := range cd.Output.Models {
+			for modelName, metrics := range m.CurrentMetric {
+				am := sednav1.AIModel{}
+				am.ModelID = modelName
+				// TODO: current only support showing sample number of one task instead of one model
+				// consider to support showing sample number of one model based on the requirement.
+				am.NumberOfTrainSamples = m.NumberOfLabeledUnseenSample
+
+				for _, v := range metrics {
+					// TODO: current only support one metric, consider to support multiple metrics.
+					am.AveragePrecision = v
+					break
+				}
+				aiModels.ListOfAIModels = append(aiModels.ListOfAIModels, am)
+			}
+			numberOfSamples += m.NumberOfLabeledUnseenSample
+		}
+		aiModels.NumberOfAIModels = len(aiModels.ListOfAIModels)
+
+		samples := sednav1.Samples{
+			NumberOfLabeledUnseenSample: numberOfSamples,
+			NumberOfUnseenSample:        0,
+		}
+
+		kb := sednav1.KnowledgeBase{
+			AIModels:  aiModels,
+			AIClasses: aiclasses,
+			Samples:   samples,
+		}
+
+		job, err := client.Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			klog.Errorf("client get name error, name is %s, error is %s", name, err)
+			return err
+		}
+
+		job.Status.KnowledgeBase = kb
+		_, err = client.UpdateStatus(context.TODO(), job, metav1.UpdateOptions{})
+
+		if err != nil {
+			klog.Errorf("update status error, err msg is %v", err)
+			return err
+		}
+
+		return nil
+	})
+}
+
 // updateFromEdge syncs the edge updates to k8s
 func (c *Controller) updateFromEdge(name, namespace, operation string, content []byte) error {
 	var jobStatus struct {
@@ -107,6 +172,7 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 
 	err := json.Unmarshal(content, &jobStatus)
 	if err != nil {
+		klog.Errorf("json unmarshal error, content is %s, err is %v", content, err)
 		return err
 	}
 
@@ -115,6 +181,7 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 	var condData ConditionData
 	err = json.Unmarshal(content, &condData)
 	if err != nil {
+		klog.Errorf("json unmarshal error, content is %s, err is %v", content, err)
 		return err
 	}
 
@@ -152,9 +219,16 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 		return fmt.Errorf("invalid condition type: %v", jobStatus.Status)
 	}
 
+	err = c.updateStatusKnowledgeBase(name, namespace, condData)
+	if err != nil {
+		klog.Errorf("failed to update KnowledgeBase, err:%w", err)
+		return err
+	}
+
 	err = c.appendStatusCondition(name, namespace, cond)
 	if err != nil {
-		return fmt.Errorf("failed to append condition, err:%w", err)
+		klog.Errorf("failed to append condition, err:%w", err)
+		return err
 	}
 	return nil
 }

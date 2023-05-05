@@ -31,6 +31,7 @@ import (
 func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) error {
 	job, ok := obj.(*sednav1.LifelongLearningJob)
 	if !ok {
+		klog.V(4).Infof("get job %s failed, stop to sync to edge", job.Name)
 		return nil
 	}
 
@@ -54,6 +55,7 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 	var deployNodeName string
 
 	getAnnotationsNodeName := func(nodeName sednav1.LLJobStage) string {
+		klog.V(4).Infof("getAnnotationsNodeName return %s", job.Name)
 		return runtime.AnnotationsKeyPrefix + string(nodeName)
 	}
 	ann := job.GetAnnotations()
@@ -88,6 +90,7 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 	jobStage := latestCondition.Stage
 
 	syncJobWithNodeName := func(nodeName string) {
+		klog.V(4).Infof("syncJobWithNodeName nodeName is %s, job name is %s ", nodeName, job.Name)
 		if err := c.sendToEdgeFunc(nodeName, eventType, job); err != nil {
 			klog.Warningf("Error to sync lifelong learning job %s to node %s in stage %s: %v",
 				job.Name, nodeName, jobStage, err)
@@ -108,10 +111,13 @@ func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) erro
 	doJobStageEvent := func(nodeName string) {
 		switch currentType {
 		case sednav1.LLJobStageCondWaiting:
+			klog.V(4).Infof("LLJobStageCondWaiting, dataset nodeName is %s", nodeName)
 			syncJobWithNodeName(dsNodeName)
 		case sednav1.LLJobStageCondRunning:
+			klog.V(4).Infof("LLJobStageCondRunning, nodeName is %s", nodeName)
 			syncJobWithNodeName(nodeName)
 		case sednav1.LLJobStageCondCompleted, sednav1.LLJobStageCondFailed:
+			klog.V(4).Infof("LLJobStageCondCompleted, nodeName is %s", nodeName)
 			if !isJobResidentNode(nodeName) {
 				// delete LC's job from nodeName that's different from dataset node when worker's status
 				// is completed or failed.
