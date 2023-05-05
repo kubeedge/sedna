@@ -21187,6 +21187,56 @@ spec:
                   - type
                   type: object
                 type: array
+              knowledgeBase:
+                properties:
+                  AIClasses:
+                    properties:
+                      listOfAIClasses:
+                        items:
+                          type: string
+                        type: array
+                      numberOfAIClasses:
+                        type: integer
+                    required:
+                    - numberOfAIClasses
+                    type: object
+                  AIModels:
+                    properties:
+                      listOfAIModels:
+                        items:
+                          properties:
+                            averagePrecision:
+                              type: number
+                            modelID:
+                              type: string
+                            numberOfTrainSamples:
+                              type: integer
+                          required:
+                          - averagePrecision
+                          - modelID
+                          - numberOfTrainSamples
+                          type: object
+                        type: array
+                      numberOfAIModels:
+                        type: integer
+                    required:
+                    - numberOfAIModels
+                    type: object
+                  samples:
+                    properties:
+                      numberOfLabeledUnseenSample:
+                        type: integer
+                      numberOfUnseenSample:
+                        type: integer
+                    required:
+                    - numberOfLabeledUnseenSample
+                    - numberOfUnseenSample
+                    type: object
+                required:
+                - AIClasses
+                - AIModels
+                - samples
+                type: object
               startTime:
                 description: Represents time when the job was acknowledged by the
                   job controller. It is not guaranteed to be set in happens-before
