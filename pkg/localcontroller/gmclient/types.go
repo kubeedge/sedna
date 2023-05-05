@@ -57,6 +57,7 @@ type Input struct {
 }
 
 type Output struct {
+	// All the TaskInfo has been writen to "Model"
 	Models    []map[string]interface{} `json:"models"`
 	OwnerInfo map[string]interface{}   `json:"ownerInfo"`
 }
