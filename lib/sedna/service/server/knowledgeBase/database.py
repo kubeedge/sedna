@@ -19,10 +19,8 @@ from sqlalchemy.orm import sessionmaker
 from sedna.common.config import Context
 
 
-# SQLALCHEMY_DATABASE_URL = Context.get_parameters(
-#     "KB_URL", "sqlite:///lifelong_kb.sqlite3")
-
-SQLALCHEMY_DATABASE_URL = "sqlite:///lifelong_kb.sqlite3"
+SQLALCHEMY_DATABASE_URL = Context.get_parameters(
+    "KB_URL", "sqlite:///lifelong_kb.sqlite3")
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, encoding='utf-8',

@@ -58,10 +58,8 @@ unzip test_data.zip
 After finishing the above preparations, execute the following commands to config.
 ```
 local_prefix=/data
-# cloud_image=kubeedge/sedna-example-lifelong-learning-cityscapes-segmentation:v0.6.0
-# edge_image=kubeedge/sedna-example-lifelong-learning-cityscapes-segmentation:v0.6.0
-cloud_image=docker.io/luosiqi/sedna-robo:v0.1.2
-edge_image=docker.io/luosiqi/sedna-robo:v0.1.2
+cloud_image=kubeedge/sedna-example-lifelong-learning-cityscapes-segmentation:v0.6.0
+edge_image=kubeedge/sedna-example-lifelong-learning-cityscapes-segmentation:v0.6.0
 data_url=$local_prefix/segmentation_data/data.txt
 OUTPUT=$local_prefix/lifelonglearningjob/output
 job_name=robo-demo
