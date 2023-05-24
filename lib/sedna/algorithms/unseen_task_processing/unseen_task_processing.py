@@ -40,7 +40,7 @@ class UnseenTaskProcessing:
     '''
 
     def __init__(self, estimator, unseen_task_allocation=None, **kwargs):
-        self.estimator = estimator
+        self.base_model = estimator
         self.unseen_task_allocation = unseen_task_allocation or {
             "method": "UnseenTaskAllocationDefault"
         }
@@ -140,8 +140,8 @@ class UnseenTaskProcessing:
         tasks : List
             tasks assigned to each sample.
         """
-        if callable(self.estimator):
-            return self.estimator(), []
+        if callable(self.base_model):
+            return self.base_model(), []
 
         if not self.unseen_task_groups and not self.unseen_models:
             self.load(kwargs.get("task_index"))
@@ -149,7 +149,7 @@ class UnseenTaskProcessing:
         tasks = []
         res = []
         for inx, df in enumerate(data.x):
-            pred = self.estimator.predict([df])
+            pred = self.base_model.predict([df])
             task = Task(entry=inx, samples=df)
             task.result = pred
             tasks.append(task)
