@@ -54,7 +54,7 @@ class TaskDefinitionByOrigin(BaseTaskDefinition):
         _sample = BaseDataSource(data_type=d_type)
         _sample.x, _sample.y = _x, _y
 
-        g_attr = f"{self.attribute[0]}.model"
+        g_attr = f"{self.attribute[0]}"
         task_obj = Task(entry=g_attr, samples=_sample,
                         meta_attr=self.attribute[0])
         tasks.append(task_obj)
@@ -65,7 +65,7 @@ class TaskDefinitionByOrigin(BaseTaskDefinition):
         _sample = BaseDataSource(data_type=d_type)
         _sample.x, _sample.y = _x, _y
 
-        g_attr = f"{self.attribute[-1]}.model"
+        g_attr = f"{self.attribute[-1]}"
         task_obj = Task(entry=g_attr, samples=_sample,
                         meta_attr=self.attribute[-1])
         tasks.append(task_obj)

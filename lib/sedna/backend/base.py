@@ -30,6 +30,10 @@ class BackendBase:
         self.model_save_path = kwargs.get("model_save_path") or "/tmp"
         self.default_name = kwargs.get("model_name")
         self.has_load = False
+        try:
+            self.classes = estimator.base_model.classes
+        except AttributeError:
+            self.classes = ""
 
     @property
     def model_name(self):
