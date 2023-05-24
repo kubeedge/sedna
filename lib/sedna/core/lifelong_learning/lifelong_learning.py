@@ -356,6 +356,8 @@ class LifelongLearning(JobBase):
                 task_index,
                 relpath=self.config.data_path_prefix)
 
+        task_info_res = self._generate_taskgrp_info(task_info_res, task_index)
+
         self.report_task_info(
             None, K8sResourceKindStatus.COMPLETED.value, task_info_res)
         self.log.info(f"Lifelong learning Update task Finished, "
@@ -393,7 +395,7 @@ class LifelongLearning(JobBase):
                 f"Download kb index from {task_index_url} to {index_url}")
             FileOps.download(task_index_url, index_url)
 
-        res, index_file = self._task_evaluation(
+        res, index_file, task_details = self._task_evaluation(
             data, task_index=index_url, **kwargs)
         self.log.info("Task evaluation finishes.")
 
@@ -404,6 +406,10 @@ class LifelongLearning(JobBase):
         task_info_res = self.estimator.model_info(
             self.cloud_knowledge_management.task_index, result=res,
             relpath=self.config.data_path_prefix)
+        task_info_res = self._generate_taskgrp_info(
+            task_info_res,
+            self.cloud_knowledge_management.task_index,
+            task_details=task_details)
         self.report_task_info(
             None,
             K8sResourceKindStatus.COMPLETED.value,
@@ -542,4 +548,35 @@ class LifelongLearning(JobBase):
         else:
             self.log.info(f"Deploy {index_file} to the edge.")
 
-        return res, index_file
+        return res, index_file, tasks_detail
+
+    def _generate_taskgrp_info(self, task_info_res, task_index, **kwargs):
+        if isinstance(task_index, str):
+            task_index = FileOps.load(task_index)
+
+        for task_info_dict in task_info_res:
+            task_grps = task_index["seen_task"]["task_groups"]
+            task_info_dict["number_of_model"] = len(task_grps)
+
+            # TODO: obtain unseen samples from storage space,
+            # not from lib
+            task_info_dict["number_of_unseen_sample"] = 0
+            # TODO: obtain labeled unseen samples from storage space,
+            # not from lib
+            task_info_dict["number_of_labeled_unseen_sample"] = \
+                sum(task_grp.samples.num_examples(
+                ) for task_grp in task_grps)
+
+            current_metric = {}
+            tasks_detail = kwargs.get("tasks_detail", None)
+            if tasks_detail:
+                for task in tasks_detail:
+                    current_metric[task.entry] = task.scores
+            else:
+                for task_grp in task_grps:
+                    current_metric[task_grp.model.entry] = \
+                        task_grp.model.result
+            task_info_dict["current_metric"] = current_metric
+
+            task_info_dict["classes"] = self.estimator.classes
+        return task_info_res
