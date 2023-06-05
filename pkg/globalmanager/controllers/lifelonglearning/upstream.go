@@ -102,7 +102,6 @@ func (c *Controller) appendStatusCondition(name, namespace string, cond sednav1.
 func (c *Controller) updateStatusKnowledgeBase(name, namespace string, cd ConditionData) error {
 	client := c.client.LifelongLearningJobs(namespace)
 	return runtime.RetryUpdateStatus(name, namespace, func() error {
-
 		// check if models field exits
 		if cd.Output == nil || cd.Output.Models == nil || len(cd.Output.Models) == 0 {
 			klog.V(4).Infof("output models is nil, name is %s", name)
@@ -111,9 +110,11 @@ func (c *Controller) updateStatusKnowledgeBase(name, namespace string, cd Condit
 
 		numberOfSamples := 0
 		aiModels := sednav1.AIModels{}
-		aiclasses := sednav1.AIClasses{}
-		aiclasses.ListOfAIClasses = cd.Output.Models[0].Classes
-		aiclasses.NumberOfAIClasses = len(aiclasses.ListOfAIClasses)
+		aiModels.ListOfAIModels = make([]sednav1.AIModel, 0, len(cd.Output.Models))
+
+		aiClasses := sednav1.AIClasses{}
+		aiClasses.ListOfAIClasses = cd.Output.Models[0].Classes
+		aiClasses.NumberOfAIClasses = len(aiClasses.ListOfAIClasses)
 
 		for _, m := range cd.Output.Models {
 			for modelName, metrics := range m.CurrentMetric {
@@ -141,7 +142,7 @@ func (c *Controller) updateStatusKnowledgeBase(name, namespace string, cd Condit
 
 		kb := sednav1.KnowledgeBase{
 			AIModels:  aiModels,
-			AIClasses: aiclasses,
+			AIClasses: aiClasses,
 			Samples:   samples,
 		}
 

@@ -281,9 +281,9 @@ func (lm *Manager) evalTask(job *Job) error {
 				jobConfig.UniqueIdentifier, err)
 		}
 
-		// 这个触发器是指，LC已经告诉GM可以触发Eval worker了，
-		// 边侧在重启之后会ready，后续将会变成completed
-		// 这里的ready和completed状态不要和整体状态变迁图中的状态弄混淆。
+		// This trigger indicate that LC has told GM to trigger Eval worker,
+		// And the state of worker on the edge will be 'ready', then to 'completed'.
+		// Please don't confuse the two concepts with the state in the state transition diagram.
 		// https://github.com/kubeedge/sedna/blob/main/docs/proposals/images/incremental-learning-state-machine.png
 		if jobConfig.EvalTriggerStatus == TriggerReadyStatus {
 			payload, err := lm.triggerEvalTask(job)
