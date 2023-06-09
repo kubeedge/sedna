@@ -111,12 +111,11 @@ jobs:
 
       - name: Install dependences
         run: |
-          # since this ubuntu-latest os has already kind/kubectl/jq(see https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md),
-          # this just makes it sure
-          type kind || {
-            sudo apt-get install -y jq
-            go get sigs.k8s.io/kind@$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/latest | jq -r .tag_name)
-          }
+          # since this ubuntu-latest os has already kind/kubectl/jq(see https://github.com/actions/runner-images/blob/main/images/linux/Ubuntu2004-Readme.md),
+          # but kind v0.19.0 has different api with v0.18.0, so here to reinstall kind v0.18.0
+          sudo apt-get install -y jq
+          go get sigs.k8s.io/kind@$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/97518847 | jq -r .tag_name)
+          kind version
           type kubectl || {
             curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
             chmod +x ./kubectl
