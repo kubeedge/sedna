@@ -60,7 +60,7 @@ def train(estimator, train_data):
     ll_job.train(train_data)
 
 
-def run():
+def main():
     estimator = Estimator(num_class=int(Context.get_parameters("num_class", 24)),
                           epochs=int(Context.get_parameters("epoches", 1)))
     train_dataset_url = BaseConfig.train_dataset_url
@@ -71,4 +71,4 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    main()
