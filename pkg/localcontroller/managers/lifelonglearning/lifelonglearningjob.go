@@ -168,7 +168,7 @@ func (lm *Manager) startJob(name string) {
 	}
 
 	if err = lm.initJob(job, name); err != nil {
-		klog.Errorf("failed to init job(%s): %+v", name)
+		klog.Errorf("failed to init job(%s): %+v", name, err)
 		return
 	}
 
@@ -281,6 +281,10 @@ func (lm *Manager) evalTask(job *Job) error {
 				jobConfig.UniqueIdentifier, err)
 		}
 
+		// This trigger indicate that LC has told GM to trigger Eval worker,
+		// And the state of worker on the edge will be 'ready', then to 'completed'.
+		// Please don't confuse the two concepts with the state in the state transition diagram.
+		// https://github.com/kubeedge/sedna/blob/main/docs/proposals/images/incremental-learning-state-machine.png
 		if jobConfig.EvalTriggerStatus == TriggerReadyStatus {
 			payload, err := lm.triggerEvalTask(job)
 			if err != nil {
@@ -352,6 +356,7 @@ func (lm *Manager) triggerTrainTask(job *Job) (interface{}, bool, error) {
 		numOfSamples: len(jobConfig.DataSamples.TrainSamples),
 	}
 
+	// the condition to trigger training worker.
 	isTrigger := jobConfig.TrainTrigger.Trigger(samples)
 
 	if !isTrigger {
@@ -384,6 +389,8 @@ func (lm *Manager) triggerTrainTask(job *Job) (interface{}, bool, error) {
 		DataIndexURL: dataIndexURL,
 		OutputDir:    outputDir,
 	}
+
+	// the message sent to GM, then create training worker.
 	msg := clienttypes.UpstreamMessage{
 		Phase:  string(sednav1.LLJobTrain),
 		Status: string(sednav1.LLJobStageCondReady),
@@ -403,6 +410,7 @@ func (lm *Manager) triggerEvalTask(job *Job) (*clienttypes.UpstreamMessage, erro
 
 	ms := lm.getJobStageModel(job, latestCondition.Stage)
 	if ms == nil {
+		klog.Errorf("job %s stage %s model is nil", job.Name, latestCondition)
 		return nil, err
 	}
 

@@ -283,6 +283,7 @@ func (c *Controller) sync(key string) (bool, error) {
 
 	if needUpdated {
 		if err := c.updateJobStatus(&job); err != nil {
+			klog.V(4).Infof("the job needUpdated, err is %s", err)
 			return forget, err
 		}
 
@@ -293,13 +294,13 @@ func (c *Controller) sync(key string) (bool, error) {
 
 		forget = true
 	}
-
 	return forget, err
 }
 
 // setWorkerNodeNameOfJob sets the worker nodeName of the specified job
 // which is used for downstream to sync job info to the specified LC located in nodeName.
 func (c *Controller) setWorkerNodeNameOfJob(job *sednav1.LifelongLearningJob, jobStage string, nodeName string) error {
+	klog.V(4).Infof("setWorkerNodeNameOfJob job name is %s, job Stage is %s, nodeName is %s", job.Name, jobStage, nodeName)
 	key := runtime.AnnotationsKeyPrefix + jobStage
 
 	return c.addJobAnnotations(job, key, nodeName)
@@ -367,6 +368,8 @@ func (c *Controller) transitJobState(job *sednav1.LifelongLearningJob) (bool, er
 	jobStage := latestCondition.Stage
 	currentType := latestCondition.Type
 	newConditionType = currentType
+
+	//klog.Infof("==== stage is %s, type is %s, name is %s", jobStage, currentType, job.Name)
 
 	switch currentType {
 	case initialType:
@@ -780,8 +783,8 @@ func (c *Controller) createInferPod(job *sednav1.LifelongLearningJob) error {
 		"NAMESPACE":   job.Namespace,
 		"JOB_NAME":    job.Name,
 		"WORKER_NAME": "inferworker-" + utilrand.String(5),
-
-		"LC_SERVER": c.cfg.LC.Server,
+		"LC_SERVER":   c.cfg.LC.Server,
+		"OUTPUT_URL":  job.Spec.OutputDir,
 	}
 
 	workerParam.WorkerType = runtime.InferencePodType
