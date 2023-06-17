@@ -37,8 +37,7 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
             config, seen_estimator, unseen_estimator)
 
         self.last_task_index = kwargs.get("last_task_index", None)
-        self.cloud_output_url = config.get(
-            "cloud_output_url", "/tmp")
+        self.cloud_output_url = config.get("cloud_output_url")
         self.task_index = FileOps.join_path(
             self.cloud_output_url, config["task_index"])
         self.local_task_index_url = KBResourceConstant.KB_INDEX_NAME.value
