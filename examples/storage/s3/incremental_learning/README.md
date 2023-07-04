@@ -119,6 +119,7 @@ spec:
     template:
       spec:
         nodeName: cloud-node1
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: $IMAGE
             name:  train-worker
@@ -150,6 +151,7 @@ spec:
     template:
       spec:
         nodeName: cloud-node2
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: $IMAGE
             name:  eval-worker
@@ -178,6 +180,7 @@ spec:
     template:
       spec:
         nodeName: edge-node
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: $IMAGE
             name:  infer-worker

@@ -95,6 +95,7 @@ spec:
     template:
       spec:
         nodeName: edge-node
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: $LITTLE_MODEL_IMAGE
             imagePullPolicy: IfNotPresent
@@ -132,6 +133,7 @@ spec:
     template:
       spec:
         nodeName: cloud-node
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: $BIG_MODEL_IMAGE
             name:  big-model

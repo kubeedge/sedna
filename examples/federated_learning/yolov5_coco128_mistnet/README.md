@@ -174,6 +174,7 @@ spec:
     template:
       spec:
         nodeName: $CLOUD_NODE
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: kubeedge/sedna-example-federated-learning-mistnet-yolo-aggregator:v0.4.0
             name: agg-worker
@@ -198,6 +199,7 @@ spec:
       template:
         spec:
           nodeName: $EDGE1_NODE
+          dnsPolicy: ClusterFirstWithHostNet
           containers:
             - image: kubeedge/sedna-example-federated-learning-mistnet-yolo-client:v0.4.0
               name: train-worker
@@ -224,6 +226,7 @@ spec:
       template:
         spec:
           nodeName: $EDGE2_NODE
+          dnsPolicy: ClusterFirstWithHostNet
           containers:
             - image: kubeedge/sedna-example-federated-learning-mistnet-yolo-client:v0.4.0
               name: train-worker
