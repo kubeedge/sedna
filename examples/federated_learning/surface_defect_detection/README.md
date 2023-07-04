@@ -115,6 +115,7 @@ spec:
     template:
       spec:
         nodeName: $CLOUD_NODE
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-aggregation:v0.3.0
             name:  agg-worker
@@ -131,6 +132,7 @@ spec:
       template:
         spec:
           nodeName: $EDGE1_NODE
+          dnsPolicy: ClusterFirstWithHostNet
           containers:
             - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-train:v0.3.0
               name:  train-worker
@@ -150,6 +152,7 @@ spec:
       template:
         spec:
           nodeName: $EDGE2_NODE
+          dnsPolicy: ClusterFirstWithHostNet
           containers:
             - image: kubeedge/sedna-example-federated-learning-surface-defect-detection-train:v0.3.0
               name:  train-worker

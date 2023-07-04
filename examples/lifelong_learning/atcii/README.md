@@ -64,6 +64,7 @@ spec:
     template:
       spec:
         nodeName: $WORKER_NODE
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.3.0
             name:  train-worker
@@ -87,6 +88,7 @@ spec:
     template:
       spec:
         nodeName: $WORKER_NODE
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.3.0
             name:  eval-worker
@@ -103,6 +105,7 @@ spec:
     template:
       spec:
         nodeName: $WORKER_NODE
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
         - image: kubeedge/sedna-example-lifelong-learning-atcii-classifier:v0.3.0
           name:  infer-worker
