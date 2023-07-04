@@ -111,7 +111,6 @@ spec:
     template:
       spec:
         nodeName: $EDGE_NODE
-        dnsPolicy: ClusterFirstWithHostNet
         containers:
         - image: kubeedge/sedna-example-joint-inference-helmet-detection-little:v0.3.0
           imagePullPolicy: IfNotPresent
