@@ -29,9 +29,9 @@ Docker version 19.03.6, build 369ce74a3c
 #### 1. Deploy Sedna
 Sedna provides three deployment methods, which can be selected according to your actual situation:
 
-- [Install Sedna AllinOne](setup/all-in-one.md). (used for development, here we use it)
-- [Install Sedna local up](setup/local-up.md).  
-- [Install Sedna on a cluster](setup/install.md).
+- [Install Sedna AllinOne](../setup/all-in-one.md). (used for development, here we use it)
+- [Install Sedna local up](../setup/local-up.md).  
+- [Install Sedna on a cluster](../setup/install.md).
 
 The [all-in-one script](/scripts/installation/all-in-one.sh) is used to install Sedna along with a mini Kubernetes environment locally, including:
   - A Kubernetes v1.21 cluster with multi worker nodes, default zero worker node.

@@ -86,9 +86,47 @@ type LLDeploySpec struct {
 
 // LifelongLearningJobList is a list of LifelongLearningJobs.
 type LifelongLearningJobList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata"`
-	Items           []LifelongLearningJob `json:"items"`
+	metav1.TypeMeta  `json:",inline"`
+	metav1.ListMeta  `json:"metadata"`
+	Items            []LifelongLearningJob `json:"items"`
+	OverallKBStatus  OverallStatus         `json:"overallStatus"`
+	OverallKBDetails KnowledgeBase         `json:"overallKBStatus"`
+}
+
+type OverallStatus struct {
+	NumberOfUnseenSample    int     `json:"numberOfUnseenSample"`
+	NumberOfNewUnseenSample int     `json:"numberOfNewUnseenSample"`
+	NumberOfAIModels        int     `json:"numberOfAIModels"`
+	PercentOfNewAIModels    float32 `json:"percentOfNewAIModels"`
+	NumberOfClasses         int     `json:"numberOfClasses"`
+	PercentOfNewClasses     float32 `json:"percentOfNewClasses"`
+}
+
+type KnowledgeBase struct {
+	AIModels  AIModels  `json:"AIModels"`
+	AIClasses AIClasses `json:"AIClasses"`
+	Samples   Samples   `json:"samples"`
+}
+
+type AIModels struct {
+	NumberOfAIModels int       `json:"numberOfAIModels"`
+	ListOfAIModels   []AIModel `json:"listOfAIModels,omitempty"`
+}
+
+type AIModel struct {
+	ModelID              string  `json:"modelID"`
+	AveragePrecision     float32 `json:"averagePrecision"`
+	NumberOfTrainSamples int     `json:"numberOfTrainSamples"`
+}
+
+type AIClasses struct {
+	NumberOfAIClasses int      `json:"numberOfAIClasses"`
+	ListOfAIClasses   []string `json:"listOfAIClasses,omitempty"`
+}
+
+type Samples struct {
+	NumberOfLabeledUnseenSample int `json:"numberOfLabeledUnseenSample"`
+	NumberOfUnseenSample        int `json:"numberOfUnseenSample"`
 }
 
 // LLJobStatus represents the current state of a lifelonglearning job
@@ -96,6 +134,8 @@ type LLJobStatus struct {
 	// The latest available observations of a lifelonglearning job's current state.
 	// +optional
 	Conditions []LLJobCondition `json:"conditions,omitempty"`
+
+	KnowledgeBase KnowledgeBase `json:"knowledgeBase,omitempty"`
 
 	// Represents time when the job was acknowledged by the job controller.
 	// It is not guaranteed to be set in happens-before order across separate operations.

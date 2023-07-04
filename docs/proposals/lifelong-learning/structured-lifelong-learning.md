@@ -1,7 +1,5 @@
 * [Lifelong Learning](#lifelong-learning)
-   * [Motivation](#motivation)
-     * [Goals](#goals)
-     * [Non\-goals](#non-goals)
+   * [Goals](#goals)
    * [Proposal](#proposal)
      * [Use Cases](#use-cases)
    * [Design Details](#design-details)
@@ -18,12 +16,8 @@
    * [Workers Communication](#workers-communication)
 
 # Lifelong Learning
-## Motivation
-
-
-At present, edge-cloud synergy machine learning is confronted with the challenge of heterogeneous data distributions in complex scenarios and small samples on the edge. The edge-cloud synergy lifelong learning is accordingly proposed: 1) In order to learn with shared knowledge between historical scenarios, the scheme is essentially the combination of another two learning schemes, i.e., multi-task learning and incremental learning; 2) The cloud knowledge base in lifelong learning empowers the scheme with memory ability, which helps to adapt historical knowledge to new and unseen situations on the edge. Joining the forces of multi-task learning, incremental learning and the knowledge base, the lifelong learning scheme seeks to fundamentally overcome the above challenges of edge-cloud synergy machine learning.
-### Goals
-
+## Goals
+In this version of Sedna lifelong learning framework, we realize the following features:
 
 * edge-cloud collaborative continuous learning.
 * Knowledge sharing across the edge of the cloud.
@@ -33,7 +27,7 @@ At present, edge-cloud synergy machine learning is confronted with the challenge
 We propose using Kubernetes Custom Resource Definitions (CRDs) to describe 
 the lifelong learning specification/status and a controller to synchronize these updates between edge and cloud.
 
-![](./images/lifelong-learning-job-crd.png)
+![](../images/lifelong-learning-job-crd.png)
 
 ### Use Cases
 
@@ -91,7 +85,7 @@ These are not separate controllers as such but named here for clarity.
 - upstream: synchronize the lifelong-learning-job updates from the edge to the cloud node.
 
 ### Lifelong Learning Controller
-![](./images/lifelong-learning-controller.png)
+![](../images/lifelong-learning-controller.png)
 
 The lifelong-learning controller watches for the updates of lifelong-learning jobs and the corresponding pods against the K8S API server.<br/>
 Updates are categorized below along with the possible actions:
@@ -104,7 +98,7 @@ Updates are categorized below along with the possible actions:
 |The corresponding pod created/running/completed/failed                 | Update the status of lifelong-learning job.|
 
 ### Downstream Controller
-![](./images/lifelong-learning-downstream-controller.png)
+![](../images/lifelong-learning-downstream-controller.png)
 
 The downstream controller watches for the lifelong-learning job updates against the K8S API server.<br/>
 Updates are categorized below along with the possible actions that the downstream controller can take:
@@ -115,7 +109,7 @@ Updates are categorized below along with the possible actions that the downstrea
 |Lifelong-learning-job Deleted                 | The controller sends the delete event to LCs.|
 
 ### Upstream Controller
-![](./images/lifelong-learning-upstream-controller.png)
+![](../images/lifelong-learning-upstream-controller.png)
 
 The upstream controller watches for the lifelong-learning job updates from the edge node and applies these updates against the API server in the cloud.<br/>
 Updates are categorized below along with the possible actions that the upstream controller can take:
@@ -130,19 +124,19 @@ Updates are categorized below along with the possible actions that the upstream 
 ### The flows of lifelong learning job
 - Flow of the job creation:
 
-![](./images/lifelong-learning-flow-creation.png)
+![](../images/lifelong-learning-flow-creation.png)
 
 - Flow of the `train` stage:
 
-![](./images/lifelong-learning-flow-train-stage.png)
+![](../images/lifelong-learning-flow-train-stage.png)
 
 - Flow of the `eval` stage:
 
-![](./images/lifelong-learning-flow-eval-stage.png)
+![](../images/lifelong-learning-flow-eval-stage.png)
 
 - Flow of the `deploy` stage:
 
-![](./images/lifelong-learning-flow-deploy-stage.png)
+![](../images/lifelong-learning-flow-deploy-stage.png)
 
 ## Workers Communication
 No need to communicate between workers.

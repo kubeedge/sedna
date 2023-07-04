@@ -28,3 +28,8 @@ __pycache__/
 
 # go build output
 /_output
+
+# AI model files
+*.pth
+*.model
+*.pkl

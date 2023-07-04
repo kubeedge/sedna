@@ -55,11 +55,22 @@ const (
 )
 
 type Model struct {
-	Format  string                 `json:"format"`
-	URL     string                 `json:"url"`
-	Devices []string               `json:"device_soc_versions,omitempty"`
-	Metrics map[string]interface{} `json:"metrics,omitempty"`
+	Format                      string                 `json:"format"`
+	URL                         string                 `json:"url"`
+	Devices                     []string               `json:"device_soc_versions,omitempty"`
+	Metrics                     map[string]interface{} `json:"metrics,omitempty"`
+	HistoryMetric               float32                `json:"history_metric,omitempty"`
+	CurrentMetric               map[string]ModelMetric `json:"current_metric,omitempty"`
+	Classes                     []string               `json:"classes"`
+	NumberOfLabeledUnseenSample int                    `json:"number_of_labeled_unseen_sample,omitempty"`
+	NumberOfModel               int                    `json:"number_of_model,omitempty"`
+	NumberOfUnseenSample        int                    `json:"number_of_unseen_sample,omitempty"`
 }
+
+// ModelMetric map of "metric_name": "metric_value"
+// example:
+// {"mIoU": 0.2222, "acc", 0.1111}
+type ModelMetric map[string]float32
 
 func (m *Model) GetURL() string {
 	return m.URL
