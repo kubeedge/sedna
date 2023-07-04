@@ -114,6 +114,7 @@ spec:
     template:
       spec:
         nodeName: $WORKER_NODE
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: $IMAGE
             name:  train-worker
@@ -132,6 +133,7 @@ spec:
     template:
       spec:
         nodeName: $WORKER_NODE
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
           - image: $IMAGE
             name:  eval-worker
@@ -157,6 +159,7 @@ spec:
     template:
       spec:
         nodeName: $INFER_NODE
+        dnsPolicy: ClusterFirstWithHostNet
         containers:
         - image: $IMAGE
           name:  infer-worker

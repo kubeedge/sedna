@@ -1,9 +1,7 @@
-<<<<<<< HEAD
 import os
 
 import cv2
-=======
->>>>>>> 8f1f777b (Code check and fix)
+
 import time
 os.environ["MODEL_URLS"] = "s3://kubeedge/sedna-robo/kb_next/index.pkl"
 
