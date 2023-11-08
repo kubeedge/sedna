@@ -1,4 +1,4 @@
-image: kubeedge/sedna-kb:v0.4.3
+image: kubeedge/sedna-kb:v0.6.0
 resources:
   requests:
     memory: 256Mi

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: lc
-          image: kubeedge/sedna-lc:v0.4.3
+          image: {{ .Values.image }}
           env:
             - name: GM_ADDRESS
               value: gm.sedna:9000
