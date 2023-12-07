@@ -93,7 +93,7 @@ Sedna的安装文档请参考[这里](/docs/setup/install.md)。
 -->
 
 如果您有任何疑问，请以下方式与我们联系：
-- [slack channel](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
+- [slack channel](https://kubeedge.io/docs/community/slack/)
 
 
 ## 贡献

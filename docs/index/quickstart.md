@@ -179,5 +179,5 @@ Sedna is an open source project and in the spirit of openness and freedom, we we
 You can get in touch with the community according to the ways:
 * [Github Issues](https://github.com/kubeedge/sedna/issues)
 * [Regular Community Meeting](https://zoom.us/j/4167237304)
-* [slack channel](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
+* [slack channel](https://kubeedge.io/docs/community/slack/)
 

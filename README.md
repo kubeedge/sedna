@@ -111,7 +111,7 @@ If you need support, start with the [troubleshooting guide](./docs/troubleshooti
 -->
 
 If you have questions, feel free to reach out to us in the following ways:
-- [slack channel](https://app.slack.com/client/TDZ5TGXQW/C01EG84REVB/details)
+- [slack channel](https://kubeedge.io/docs/community/slack/)
 
 ## Contributing
 
