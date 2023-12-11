@@ -7,13 +7,14 @@ Visit https://github.com/kubeedge/sedna for more information.
 ```
 $ git clone https://github.com/kubeedge/sedna.git
 $ cd sedna
-$ helm install sedna ./build/helm/sedna
+$ kubectl create namespace sedna
+$ helm install sedna --namespace sedna ./build/helm/sedna
 ```
 
 ## Uninstall
 
 ```
-$ helm uninstall sedna
+$ helm uninstall sedna -n sedna
 ```
 
 ## Update CRDs

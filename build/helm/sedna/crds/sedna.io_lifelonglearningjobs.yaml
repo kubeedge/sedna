@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.6.2
   creationTimestamp: null
   name: lifelonglearningjobs.sedna.io
 spec:
@@ -8889,6 +8889,56 @@ spec:
                   - type
                   type: object
                 type: array
+              knowledgeBase:
+                properties:
+                  AIClasses:
+                    properties:
+                      listOfAIClasses:
+                        items:
+                          type: string
+                        type: array
+                      numberOfAIClasses:
+                        type: integer
+                    required:
+                    - numberOfAIClasses
+                    type: object
+                  AIModels:
+                    properties:
+                      listOfAIModels:
+                        items:
+                          properties:
+                            averagePrecision:
+                              type: number
+                            modelID:
+                              type: string
+                            numberOfTrainSamples:
+                              type: integer
+                          required:
+                          - averagePrecision
+                          - modelID
+                          - numberOfTrainSamples
+                          type: object
+                        type: array
+                      numberOfAIModels:
+                        type: integer
+                    required:
+                    - numberOfAIModels
+                    type: object
+                  samples:
+                    properties:
+                      numberOfLabeledUnseenSample:
+                        type: integer
+                      numberOfUnseenSample:
+                        type: integer
+                    required:
+                    - numberOfLabeledUnseenSample
+                    - numberOfUnseenSample
+                    type: object
+                required:
+                - AIClasses
+                - AIModels
+                - samples
+                type: object
               startTime:
                 format: date-time
                 type: string

@@ -16,6 +16,9 @@ rules:
     - lifelonglearningjobs
     - objectsearchservices
     - objecttrackingservices
+    - reidjobs
+    - videoanalyticsjobs
+    - featureextractionservices
     verbs:
     - get
     - list
@@ -34,6 +37,9 @@ rules:
     - lifelonglearningjobs/status
     - objectsearchservices/status
     - objecttrackingservices/status
+    - reidjobs/status
+    - videoanalyticsjobs/status
+    - featureextractionservices/status
     verbs:
     - get
     - update

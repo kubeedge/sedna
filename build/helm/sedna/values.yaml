@@ -1,5 +1,5 @@
 kb:
-  image: kubeedge/sedna-kb:v0.4.3
+  image: kubeedge/sedna-kb:v0.6.0
   resources:
     requests:
       memory: 256Mi
@@ -8,7 +8,7 @@ kb:
       memory: 512Mi
 
 gm:
-  image: kubeedge/sedna-gm:v0.4.3
+  image: kubeedge/sedna-gm:v0.6.0
   resources:
     requests:
       memory: 32Mi
@@ -28,7 +28,7 @@ gm:
     server: http://kb.sedna:9020
 
 lc:
-  image: kubeedge/sedna-lc:v0.4.3
+  image: kubeedge/sedna-lc:v0.6.0
   resources:
     requests:
       memory: 32Mi
