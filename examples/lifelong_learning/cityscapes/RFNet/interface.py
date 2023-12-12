@@ -32,6 +32,12 @@ from estimators.train import Trainer
 from estimators.eval import Validator, load_my_state_dict
 from accuracy import accuracy
 
+classes = ["road", "sidewalk", "building", "wall", "fence", "pole", "light",
+           "sign", "vegetation", "terrain", "sky", "pedestrian", "rider",
+           "car", "truck", "bus", "train", "motorcycle", "bicycle", "stair",
+           "curb", "ramp", "runway", "flowerbed", "door", "CCTV camera",
+           "Manhole", "hydrant", "belt", "dustbin", "ignore"]
+
 
 def preprocess_url(image_urls):
     transformed_images = []
@@ -80,6 +86,8 @@ def preprocess_frames(frames):
 
 class Estimator:
     def __init__(self, **kwargs):
+        self.classes = kwargs.get("classes", classes)
+
         self.train_args = TrainingArguments(**kwargs)
         self.val_args = EvaluationArguments(**kwargs)
 
