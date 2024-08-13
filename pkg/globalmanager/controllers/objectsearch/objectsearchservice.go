@@ -63,7 +63,7 @@ const (
 )
 
 // Kind contains the schema.GroupVersionKind for this controller type.
-var Kind = sednav1.SchemeGroupVersion.WithKind(Name)
+var Kind = sednav1.SchemeGroupVersion.WithKind(KindName)
 
 // Controller ensures that all ObjectSearchService objects
 // have corresponding pods to run their configured workload.
@@ -501,7 +501,7 @@ func (c *Controller) createWorkers(service *sednav1.ObjectSearchService) (active
 	// create reid worker deployment
 	var reidWorkerParam runtime.WorkerParam
 	reidWorkerParam.WorkerType = objectSearchReidWorker
-	_, err = runtime.CreateDeploymentWithTemplate(c.kubeClient, service, &service.Spec.ReidWorkers.DeploymentSpec, &reidWorkerParam, reidServicePort)
+	_, err = runtime.CreateDeploymentWithTemplate(c.kubeClient, service, &service.Spec.ReidWorkers.DeploymentSpec, &reidWorkerParam)
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create reid worker deployment: %w", err)
 	}
@@ -528,7 +528,7 @@ func (c *Controller) createWorkers(service *sednav1.ObjectSearchService) (active
 		"SERVICE_NAME": service.Name,
 		"WORKER_NAME":  "userworker-" + utilrand.String(5),
 	}
-	_, err = runtime.CreateDeploymentWithTemplate(c.kubeClient, service, userWorkerDeployment, &userWorkerParam, userWorkerPort)
+	_, err = runtime.CreateDeploymentWithTemplate(c.kubeClient, service, userWorkerDeployment, &userWorkerParam)
 
 	if err != nil {
 		return activePods, activeDeployments, fmt.Errorf("failed to create user worker: %w", err)
