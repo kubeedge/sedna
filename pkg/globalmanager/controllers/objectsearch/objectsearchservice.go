@@ -63,7 +63,7 @@ const (
 )
 
 // Kind contains the schema.GroupVersionKind for this controller type.
-var Kind = sednav1.SchemeGroupVersion.WithKind(Name)
+var Kind = sednav1.SchemeGroupVersion.WithKind(KindName)
 
 // Controller ensures that all ObjectSearchService objects
 // have corresponding pods to run their configured workload.
