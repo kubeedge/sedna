@@ -146,7 +146,7 @@ function install_edgecore() {
 
 : ${KUBEEDGE_VERSION:=$(get_latest_version kubeedge/kubeedge)}
 
-: ${NODE_IMAGE:=kubeedge/sedna-allinone-node:v1.21.1}
+: ${ALLINONE_NODE_IMAGE:=kubeedge/sedna-allinone-node:v1.21.1}
 : ${RETAIN_BUILD_CONTAINER:=}
 
 create_build_container
