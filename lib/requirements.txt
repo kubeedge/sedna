@@ -11,5 +11,5 @@ joblib~=1.2.0  # BSD
 pandas  # BSD
 six~=1.15.0  # MIT
 minio~=7.0.3  # Apache-2.0
-uvicorn~=0.14.0  # BSD
+uvicorn~=0.15.0  # BSD
 pycocotools
