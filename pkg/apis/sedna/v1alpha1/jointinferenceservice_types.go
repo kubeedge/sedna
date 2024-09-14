@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -40,6 +41,7 @@ type JointInferenceService struct {
 type JointInferenceServiceSpec struct {
 	EdgeWorker  EdgeWorker  `json:"edgeWorker"`
 	CloudWorker CloudWorker `json:"cloudWorker"`
+	appsv1.DeploymentSpec `json:",inline"`
 }
 
 // EdgeWorker describes the data a edge worker should have
