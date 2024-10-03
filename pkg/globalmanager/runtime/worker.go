@@ -212,8 +212,7 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 				{
 					// TODO: be clean, Port.Name is currently required by edgemesh(v1.8.0).
 					// and should be <protocol>-<suffix>
-					Name: "tcp-0",
-
+					Name:       "tcp-0",
 					Protocol:   "TCP",
 					Port:       servicePort,
 					TargetPort: targetPort,
@@ -232,12 +231,12 @@ func CreateEdgeMeshService(kubeClient kubernetes.Interface, object CommonInterfa
 }
 
 // CreateDeploymentWithTemplate creates and returns a deployment object given a crd object, deployment template
-func CreateDeploymentWithTemplate(client kubernetes.Interface, object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam, port int32) (*appsv1.Deployment, error) {
+func CreateDeploymentWithTemplate(client kubernetes.Interface, object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam) (*appsv1.Deployment, error) {
 	objectKind := object.GroupVersionKind()
 	objectName := object.GetNamespace() + "/" + object.GetName()
 	deployment := newDeployment(object, spec, workerParam)
 
-	injectDeploymentParam(deployment, workerParam, object, port)
+	injectDeploymentParam(deployment, workerParam, object)
 
 	createdDeployment, err := client.AppsV1().Deployments(object.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
 	if err != nil {
@@ -248,14 +247,33 @@ func CreateDeploymentWithTemplate(client kubernetes.Interface, object CommonInte
 	return createdDeployment, nil
 }
 
+// UpdateDeploymentWithTemplate updates an existing deployment object given a crd object, deployment template, and worker parameters
+func UpdateDeploymentWithTemplate(client kubernetes.Interface, object CommonInterface, newDeployment *appsv1.Deployment, workerParam *WorkerParam) (*appsv1.Deployment, error) {
+	objectKind := object.GroupVersionKind()
+	objectName := object.GetNamespace() + "/" + object.GetName()
+
+	// Inject worker parameters.
+	injectDeploymentParam(newDeployment, workerParam, object)
+
+	// Call the Kubernetes API to perform the update.
+	updatedDeployment, err := client.AppsV1().Deployments(newDeployment.Namespace).Update(context.TODO(), newDeployment, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Warningf("failed to update deployment for %s %s, err: %s", objectKind, objectName, err)
+		return nil, fmt.Errorf("failed to update deployment: %w", err)
+	}
+
+	klog.V(2).Infof("deployment %s is updated successfully for %s %s", updatedDeployment.Name, objectKind, objectName)
+	return updatedDeployment, nil
+}
+
 func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam) *appsv1.Deployment {
 	nameSpace := object.GetNamespace()
-	deploymentName := object.GetName() + "-" + "deployment" + "-" + strings.ToLower(workerParam.WorkerType) + "-"
+	deploymentName := object.GetName() + "-" + "deployment" + "-" + strings.ToLower(workerParam.WorkerType)
 	matchLabel := make(map[string]string)
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: deploymentName,
-			Namespace:    nameSpace,
+			Name:      deploymentName,
+			Namespace: nameSpace,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(object, object.GroupVersionKind()),
 			},
@@ -271,7 +289,7 @@ func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerPa
 }
 
 // injectDeploymentParam modifies deployment in-place
-func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface, _port int32) {
+func injectDeploymentParam(deployment *appsv1.Deployment, workerParam *WorkerParam, object CommonInterface) {
 	var appLabelKey = "app.sedna.io"
 	var appLabelValue = object.GetName() + "-" + workerParam.WorkerType + "-" + "svc"
 

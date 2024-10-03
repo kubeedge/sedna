@@ -1,0 +1,10 @@
+kubeConfig: "/Users/tangming/Desktop/open-source/sedna/sedna/cmd/sedna-gm/app/kubeconfig"
+master: ""
+namespace: ""
+websocket:
+  address: 0.0.0.0
+  port: 9000
+localController:
+  server: http://localhost:9100
+knowledgeBaseServer:
+  server: http://kb.sedna:9020
