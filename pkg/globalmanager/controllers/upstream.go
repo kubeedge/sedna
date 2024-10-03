@@ -95,7 +95,7 @@ func (uc *UpstreamController) Add(kind string, handler runtime.UpstreamHandler) 
 }
 
 // NewUpstreamController creates a new Upstream controller from config
-func NewUpstreamController(cc *runtime.ControllerContext) (*UpstreamController, error) {
+func NewUpstreamController(_ *runtime.ControllerContext) (*UpstreamController, error) {
 	uc := &UpstreamController{
 		messageLayer:   messagelayer.NewContextMessageLayer(),
 		updateHandlers: make(map[string]runtime.UpstreamHandler),

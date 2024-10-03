@@ -261,7 +261,7 @@ func (dm *Manager) GetName() string {
 	return KindName
 }
 
-func (dm *Manager) AddWorkerMessage(message workertypes.MessageContent) {
+func (dm *Manager) AddWorkerMessage(_ workertypes.MessageContent) {
 	// dummy
 }
 

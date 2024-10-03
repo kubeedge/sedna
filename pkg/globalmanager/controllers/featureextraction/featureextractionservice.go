@@ -354,9 +354,9 @@ func (c *Controller) sync(key string) (bool, error) {
 
 	var failedPods, failedDeployment int32 = 0, 0
 
-	var neededPodCounts int32 = *sharedFeatureExtractionService.Spec.Replicas
+	var neededPodCounts = *sharedFeatureExtractionService.Spec.Replicas
 
-	var neededDeploymentCounts int32 = int32(reflect.TypeOf(sednav1.FeatureExtractionServiceSpec{}).NumField())
+	var neededDeploymentCounts = int32(reflect.TypeOf(sednav1.FeatureExtractionServiceSpec{}).NumField())
 
 	// first start
 	if FeatureExtractionService.Status.StartTime == nil {
@@ -370,7 +370,7 @@ func (c *Controller) sync(key string) (bool, error) {
 	var manageServiceErr error
 	serviceFailed := false
 
-	var latestConditionType sednav1.FeatureExtractionServiceConditionType = ""
+	var latestConditionType sednav1.FeatureExtractionServiceConditionType
 
 	// get the latest condition type
 	// based on that condition updated is appended, not inserted.
@@ -576,7 +576,7 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 			c.syncToEdge(watch.Added, obj)
 		},
 
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(_, cur interface{}) {
 			c.enqueueController(cur, true)
 			c.syncToEdge(watch.Added, cur)
 		},

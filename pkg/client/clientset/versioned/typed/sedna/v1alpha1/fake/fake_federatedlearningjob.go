@@ -117,7 +117,7 @@ func (c *FakeFederatedLearningJobs) UpdateStatus(ctx context.Context, federatedL
 // Delete takes name of the federatedLearningJob and deletes it. Returns an error if one occurs.
 func (c *FakeFederatedLearningJobs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(federatedlearningjobsResource, c.ns, name), &v1alpha1.FederatedLearningJob{})
+		Invokes(testing.NewDeleteActionWithOptions(federatedlearningjobsResource, c.ns, name, opts), &v1alpha1.FederatedLearningJob{})
 
 	return err
 }

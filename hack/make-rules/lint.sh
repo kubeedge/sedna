@@ -26,7 +26,7 @@ export PATH=$PATH:$(go env GOPATH)/bin
 
 install_golangci-lint() {
   echo "installing golangci-lint."
-  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.34.1
+  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.61.0
   if [[ $? -ne 0 ]]; then
     echo "failed to install golangci-lint, exiting."
     exit 1

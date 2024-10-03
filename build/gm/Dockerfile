@@ -14,7 +14,7 @@
 
 # Add cross buildx improvement
 # _speed_buildx_for_go_
-FROM golang:1.16-alpine3.15 AS builder
+FROM golang:1.20.10-alpine3.18 AS builder
 LABEL stage=builder
 
 ARG GO_LDFLAGS
@@ -31,7 +31,7 @@ RUN make build WHAT=gm GO_LDFLAGS=$GO_LDFLAGS OUT_DIR=_output
 # ALT: just using go build
 # RUN CGO_ENABLED=0 go build -o _output/bin/sedna-gm -ldflags "$GO_LDFLAGS -w -s" cmd/sedna-gm/sedna-gm.go
 
-FROM alpine:3.11
+FROM alpine:3.18
 
 COPY --from=builder /code/_output/bin/sedna-gm /usr/local/bin/sedna-gm
 

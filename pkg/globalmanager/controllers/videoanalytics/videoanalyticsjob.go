@@ -525,7 +525,7 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 			// send it to edge's LC.
 			fc.syncToEdge(watch.Added, obj)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(_, cur interface{}) {
 			fc.enqueueController(cur, true)
 
 			// when a video analytics job is updated,

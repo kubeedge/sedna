@@ -117,7 +117,7 @@ func (c *FakeObjectTrackingServices) UpdateStatus(ctx context.Context, objectTra
 // Delete takes name of the objectTrackingService and deletes it. Returns an error if one occurs.
 func (c *FakeObjectTrackingServices) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(objecttrackingservicesResource, c.ns, name), &v1alpha1.ObjectTrackingService{})
+		Invokes(testing.NewDeleteActionWithOptions(objecttrackingservicesResource, c.ns, name, opts), &v1alpha1.ObjectTrackingService{})
 
 	return err
 }

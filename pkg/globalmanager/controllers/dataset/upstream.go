@@ -27,7 +27,7 @@ import (
 )
 
 // updateFromEdge syncs update from edge
-func (c *Controller) updateFromEdge(name, namespace, operation string, content []byte) error {
+func (c *Controller) updateFromEdge(name, namespace, _ string, content []byte) error {
 	status := sednav1.DatasetStatus{}
 	err := json.Unmarshal(content, &status)
 	if err != nil {

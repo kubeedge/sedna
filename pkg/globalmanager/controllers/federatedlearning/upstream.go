@@ -65,7 +65,7 @@ func (c *Controller) appendStatusCondition(name, namespace string, cond sednav1.
 }
 
 // updateFromEdge updates the federated job's status
-func (c *Controller) updateFromEdge(name, namespace, operation string, content []byte) (err error) {
+func (c *Controller) updateFromEdge(name, namespace, _ string, content []byte) (err error) {
 	// JobInfo defines the job information
 	type JobInfo struct {
 		// Current training round

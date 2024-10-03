@@ -541,7 +541,7 @@ func (c *Controller) getSecret(namespace, name string, ownerStr string) (secret 
 	return
 }
 
-func IsJobFinished(j *sednav1.LifelongLearningJob) bool {
+func IsJobFinished(_ *sednav1.LifelongLearningJob) bool {
 	// TODO
 	return false
 }
@@ -820,7 +820,7 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 			jc.enqueueController(obj, true)
 			jc.syncToEdge(watch.Added, obj)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(_, cur interface{}) {
 			jc.enqueueController(cur, true)
 			jc.syncToEdge(watch.Added, cur)
 		},

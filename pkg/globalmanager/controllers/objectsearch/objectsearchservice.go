@@ -350,8 +350,8 @@ func (c *Controller) sync(key string) (bool, error) {
 
 	latestConditionLen := len(service.Status.Conditions)
 
-	var podFailed int32 = 0
-	var deploymentFailed int32 = 0
+	var podFailed int32
+	var deploymentFailed int32
 
 	// neededPodCounts indicates the num of tracking worker pods should be created successfully in a objectsearch service currently.
 	// neededDeploymentCounts indicates the num of deployments should be created successfully in a objectsearch service currently,
@@ -373,7 +373,7 @@ func (c *Controller) sync(key string) (bool, error) {
 	var manageServiceErr error
 	serviceFailed := false
 
-	var latestConditionType sednav1.ObjectSearchServiceConditionType = ""
+	var latestConditionType sednav1.ObjectSearchServiceConditionType
 
 	// get the latest condition type
 	// based on that condition updated is appended, not inserted.
@@ -591,7 +591,7 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 			jc.enqueueController(obj, true)
 		},
 
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(_, cur interface{}) {
 			jc.enqueueController(cur, true)
 		},
 

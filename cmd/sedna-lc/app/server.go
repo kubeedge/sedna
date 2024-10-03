@@ -52,7 +52,7 @@ func NewLocalControllerCommand() *cobra.Command {
 		Use: cmdName,
 		Long: fmt.Sprintf(`%s is the localcontroller.
 It manages dataset and models, and controls ai features in local nodes.`, cmdName),
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			runServer()
 		},
 	}

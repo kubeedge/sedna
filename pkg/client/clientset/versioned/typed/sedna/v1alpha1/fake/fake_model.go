@@ -117,7 +117,7 @@ func (c *FakeModels) UpdateStatus(ctx context.Context, model *v1alpha1.Model, op
 // Delete takes name of the model and deletes it. Returns an error if one occurs.
 func (c *FakeModels) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(modelsResource, c.ns, name), &v1alpha1.Model{})
+		Invokes(testing.NewDeleteActionWithOptions(modelsResource, c.ns, name, opts), &v1alpha1.Model{})
 
 	return err
 }

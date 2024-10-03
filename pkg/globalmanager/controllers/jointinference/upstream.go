@@ -42,7 +42,7 @@ func (c *Controller) updateMetrics(name, namespace string, metrics []sednav1.Met
 }
 
 // updateFromEdge syncs the edge updates to k8s
-func (c *Controller) updateFromEdge(name, namespace, operation string, content []byte) error {
+func (c *Controller) updateFromEdge(name, namespace, _ string, content []byte) error {
 	// Output defines owner output information
 	type Output struct {
 		ServiceInfo map[string]interface{} `json:"ownerInfo"`

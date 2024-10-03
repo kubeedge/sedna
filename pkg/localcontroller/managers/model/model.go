@@ -98,6 +98,6 @@ func (mm *Manager) GetName() string {
 	return KindName
 }
 
-func (mm *Manager) AddWorkerMessage(message workertypes.MessageContent) {
+func (mm *Manager) AddWorkerMessage(_ workertypes.MessageContent) {
 	// dummy
 }

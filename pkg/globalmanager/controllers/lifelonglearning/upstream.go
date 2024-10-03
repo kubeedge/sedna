@@ -165,7 +165,7 @@ func (c *Controller) updateStatusKnowledgeBase(name, namespace string, cd Condit
 }
 
 // updateFromEdge syncs the edge updates to k8s
-func (c *Controller) updateFromEdge(name, namespace, operation string, content []byte) error {
+func (c *Controller) updateFromEdge(name, namespace, _ string, content []byte) error {
 	var jobStatus struct {
 		Phase  string `json:"phase"`
 		Status string `json:"status"`
