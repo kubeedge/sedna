@@ -4,10 +4,6 @@ import (
 	"context"
 	"testing"
 
-	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
-	fakeseednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/fake"
-	"github.com/kubeedge/sedna/pkg/globalmanager/config"
-	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -21,6 +17,11 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	fakeseednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/fake"
+	"github.com/kubeedge/sedna/pkg/globalmanager/config"
+	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
 )
 
 type mockPodLister struct {

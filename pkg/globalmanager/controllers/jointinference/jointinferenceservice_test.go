@@ -276,9 +276,6 @@ func Test_updateService(t *testing.T) {
 			recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "test-ji-service"}),
 			cfg:               cfg,
 			deploymentsLister: &mockDeploymentLister{deployments: []*appsv1.Deployment{edgeDeployment, cloudDeployment}},
-			podStore:          &mockPodLister{pods: []*v1.Pod{edgePod, cloudPod}},
-			bigModelHost:      "test-ji-service-cloud.default",
-			selector:          labels.SelectorFromSet(labels.Set{"jointinferenceservice.sedna.io/service-name": "test-ji-service"}),
 			sendToEdgeFunc: func(nodeName string, eventType watch.EventType, job interface{}) error {
 				return nil
 			},
@@ -291,12 +288,17 @@ func Test_updateService(t *testing.T) {
 		newService.Generation = 2
 		newService.ResourceVersion = "2"
 		// Call updateService function
-		c.updateService(oldService, newService)
-
-		// Verify that the deployments were deleted and recreated
+		c.createOrUpdateWorker(newService, jointInferenceForCloud, "test-ji-service.default", 8080, true)
+		c.createOrUpdateWorker(newService, jointInferenceForEdge, "test-ji-service.default", 8080, true)
+		// update service in fakeSednaClient
+		_, err = fakeSednaClient.SednaV1alpha1().JointInferenceServices("default").Update(context.TODO(), newService, metav1.UpdateOptions{})
+		if err != nil {
+			t.Fatalf("Failed to update service: %v", err)
+		}
+		// Verify that the services were deleted and recreated
 		updatedService, err := fakeSednaClient.SednaV1alpha1().JointInferenceServices("default").Get(context.TODO(), "test-ji-service", metav1.GetOptions{})
 		if err != nil {
-			t.Fatalf("Failed to get updated service: %v", err)
+			t.Fatalf("Failed to get updated deployment: %v", err)
 		}
 		if updatedService.Spec.EdgeWorker.HardExampleMining.Parameters[0].Value != "value2" {
 			t.Fatalf("Service was not updated correctly")
