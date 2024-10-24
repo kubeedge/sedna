@@ -150,7 +150,7 @@ func (c *Controller) addDeployment(obj interface{}) {
 	c.enqueueByDeployment(deployment)
 }
 
-//deleteDeployment enqueues the FeatureExtractionService obj When a deleteDeployment is deleted
+// deleteDeployment enqueues the FeatureExtractionService obj When a deleteDeployment is deleted
 func (c *Controller) deleteDeployment(obj interface{}) {
 	deployment, ok := obj.(*appsv1.Deployment)
 
@@ -513,7 +513,7 @@ func (c *Controller) createFeatureExtractionWorker(service *sednav1.FeatureExtra
 	}
 
 	// Create FE deployment AND related pods (as part of the deployment creation)
-	_, err = runtime.CreateDeploymentWithTemplate(c.kubeClient, service, &service.Spec.DeploymentSpec, &workerParam, FEPort)
+	_, err = runtime.CreateDeploymentWithTemplate(c.kubeClient, service, &service.Spec.DeploymentSpec, &workerParam)
 	if err != nil {
 		return fmt.Errorf("failed to create feature extraction deployment: %w", err)
 	}
