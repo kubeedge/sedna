@@ -211,6 +211,23 @@ spec:
 EOF
 ```
 
+### GPU enabled (optional)
+If you want GPU to accelerate training or inference in Sedna, you can follow the steps below to enable GPU:
+
+> 1. Follow the instructions in  [nvidia-device-plugin](https://github.com/NVIDIA/k8s-device-plugin#quick-start) to make nvidia-docker to be docker runtime.
+> 2. Set config `devicePluginEnabled` to `true` and restart edgecore in the gpu edge node. Please refer to this [doc](https://kubeedge.io/docs/setup/config#configuration-edge-side-kubeedge-worker-node) for configuring edgecore.
+> 3. Deploy the [device-plugin daemonset](https://github.com/NVIDIA/k8s-device-plugin#enabling-gpu-support-in-kubernetes) and check the device-plugin-pod running status in the gpu edge node.
+> 4. Check the capacity and allocatable of gpu edge node status.
+> 5. Deploy the [cuda-add pod](https://github.com/NVIDIA/k8s-device-plugin#enabling-gpu-support-in-kubernetes), and wait some time for the pod to be running since the size of cuda-add image is 1.97GB.
+> 6. Check the cuda-add pod status, the log of "Test PASSED" means the gpu is enabled successfully.
+ 
+The disscussion can be found in this [issue](https://github.com/kubeedge/kubeedge/issues/2324#issuecomment-726645832)
+
+When GPU plugin has been enabled, you can use the [robot-dog-delivery-gpu.yaml](./yaml/robot-dog-delivery-gpu.yaml) configuration to create and run lifelong learning job.
+
+To enable GPU in other Sedna features can be similarly configured like the above steps.
+
+
 ## 1.5 Check Lifelong Learning Job
 **(1). Query lifelong learning service status**
 
