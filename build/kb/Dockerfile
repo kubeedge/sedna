@@ -21,7 +21,7 @@ RUN pip install starlette~=0.13.6
 RUN pip install pydantic~=1.8.1
 RUN pip install joblib~=1.2.0
 RUN pip install pandas
-RUN pip install uvicorn~=0.14.0
+RUN pip install uvicorn~=0.30.5
 RUN pip install python-multipart~=0.0.5
 RUN pip install SQLAlchemy~=1.4.7
 RUN pip install aiofiles~=0.7.0
