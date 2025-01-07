@@ -1,12 +1,8 @@
 approvers:
-  - chendave
-  - fisherxu
-  - jaypume
-  - kevin-wangzefeng
-  - sids-b
-  - ugvddm
   - sig-ai-co-chairs
   - sig-ai-tech-leads
 
 reviewers:
+  - tangming1996
+  - MooreZheng
   - sig-ai-project-maintainers
