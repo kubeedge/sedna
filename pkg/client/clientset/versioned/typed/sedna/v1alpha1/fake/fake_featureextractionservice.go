@@ -117,7 +117,7 @@ func (c *FakeFeatureExtractionServices) UpdateStatus(ctx context.Context, featur
 // Delete takes name of the featureExtractionService and deletes it. Returns an error if one occurs.
 func (c *FakeFeatureExtractionServices) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(featureextractionservicesResource, c.ns, name), &v1alpha1.FeatureExtractionService{})
+		Invokes(testing.NewDeleteActionWithOptions(featureextractionservicesResource, c.ns, name, opts), &v1alpha1.FeatureExtractionService{})
 
 	return err
 }

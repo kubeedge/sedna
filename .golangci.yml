@@ -47,7 +47,7 @@ linters:
   enable:
     - goconst
     - gofmt
-    - golint
+    - revive
     - gosimple
     - govet
     - misspell

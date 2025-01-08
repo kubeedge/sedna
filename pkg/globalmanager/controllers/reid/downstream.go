@@ -23,7 +23,7 @@ import (
 )
 
 // NOTE: For this job we don't need synchronization
-func (c *Controller) syncToEdge(eventType watch.EventType, obj interface{}) error {
+func (c *Controller) syncToEdge(_ watch.EventType, _ interface{}) error {
 	return nil
 }
 

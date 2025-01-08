@@ -123,7 +123,7 @@ type TimerRangeTrigger struct {
 	Type  string
 }
 
-func (tt *TimerRangeTrigger) Trigger(stats map[string]interface{}) bool {
+func (tt *TimerRangeTrigger) Trigger(_ map[string]interface{}) bool {
 	now := time.Now()
 	start := tt.Start
 	end := tt.End

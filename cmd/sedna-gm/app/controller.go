@@ -46,7 +46,7 @@ func NewControllerCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:  "sedna-gm",
 		Long: `sedna-gm is the core cloud part of Sedna.`,
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, _ []string) {
 			verflag.PrintAndExitIfRequested()
 			PrintFlags(cmd.Flags())
 
@@ -85,7 +85,7 @@ func NewControllerCommand() *cobra.Command {
 		cliflag.PrintSections(cmd.OutOrStderr(), namedFs, cols)
 		return nil
 	})
-	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+	cmd.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStdout(), namedFs, cols)
 	})

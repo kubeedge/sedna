@@ -117,7 +117,7 @@ func (c *FakeIncrementalLearningJobs) UpdateStatus(ctx context.Context, incremen
 // Delete takes name of the incrementalLearningJob and deletes it. Returns an error if one occurs.
 func (c *FakeIncrementalLearningJobs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(incrementallearningjobsResource, c.ns, name), &v1alpha1.IncrementalLearningJob{})
+		Invokes(testing.NewDeleteActionWithOptions(incrementallearningjobsResource, c.ns, name, opts), &v1alpha1.IncrementalLearningJob{})
 
 	return err
 }

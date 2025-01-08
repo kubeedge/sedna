@@ -37,11 +37,11 @@ func (m *mockPodLister) Pods(namespace string) corelistersv1.PodNamespaceLister 
 	return mockPodNamespaceLister{pods: m.pods, namespace: namespace}
 }
 
-func (m *mockPodLister) List(selector labels.Selector) (ret []*v1.Pod, err error) {
+func (m *mockPodLister) List(_ labels.Selector) (ret []*v1.Pod, err error) {
 	return m.pods, nil
 }
 
-func (m mockPodNamespaceLister) List(selector labels.Selector) ([]*v1.Pod, error) {
+func (m mockPodNamespaceLister) List(_ labels.Selector) ([]*v1.Pod, error) {
 	var filteredPods []*v1.Pod
 	for _, pod := range m.pods {
 		if pod.Namespace == m.namespace {
@@ -55,7 +55,7 @@ type mockDeploymentLister struct {
 	deployments []*appsv1.Deployment
 }
 
-func (m *mockDeploymentLister) List(selector labels.Selector) (ret []*appsv1.Deployment, err error) {
+func (m *mockDeploymentLister) List(_ labels.Selector) (ret []*appsv1.Deployment, err error) {
 	return m.deployments, nil
 }
 
@@ -77,7 +77,7 @@ type mockDeploymentNamespaceLister struct {
 	namespace   string
 }
 
-func (m mockDeploymentNamespaceLister) List(selector labels.Selector) ([]*appsv1.Deployment, error) {
+func (m mockDeploymentNamespaceLister) List(_ labels.Selector) ([]*appsv1.Deployment, error) {
 	var filteredDeployments []*appsv1.Deployment
 	for _, deployment := range m.deployments {
 		if deployment.Namespace == m.namespace {
@@ -277,7 +277,7 @@ func Test_updateService(t *testing.T) {
 			recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "test-ji-service"}),
 			cfg:               cfg,
 			deploymentsLister: &mockDeploymentLister{deployments: []*appsv1.Deployment{edgeDeployment, cloudDeployment}},
-			sendToEdgeFunc: func(nodeName string, eventType watch.EventType, job interface{}) error {
+			sendToEdgeFunc: func(_ string, _ watch.EventType, _ interface{}) error {
 				return nil
 			},
 		}

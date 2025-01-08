@@ -98,7 +98,7 @@ func (c *Controller) appendStatusCondition(name, namespace string, cond sednav1.
 }
 
 // updateFromEdge syncs the edge updates to k8s
-func (c *Controller) updateFromEdge(name, namespace, operation string, content []byte) error {
+func (c *Controller) updateFromEdge(name, namespace, _ string, content []byte) error {
 	var jobStatus struct {
 		Phase  string `json:"phase"`
 		Status string `json:"status"`

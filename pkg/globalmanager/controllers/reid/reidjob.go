@@ -509,7 +509,7 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 			// send it to edge's LC.
 			rc.syncToEdge(watch.Added, obj)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(_, cur interface{}) {
 			rc.enqueueController(cur, true)
 
 			// when a reid job is updated,

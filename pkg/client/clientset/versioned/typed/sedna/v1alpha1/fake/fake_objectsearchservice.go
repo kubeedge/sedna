@@ -117,7 +117,7 @@ func (c *FakeObjectSearchServices) UpdateStatus(ctx context.Context, objectSearc
 // Delete takes name of the objectSearchService and deletes it. Returns an error if one occurs.
 func (c *FakeObjectSearchServices) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(objectsearchservicesResource, c.ns, name), &v1alpha1.ObjectSearchService{})
+		Invokes(testing.NewDeleteActionWithOptions(objectsearchservicesResource, c.ns, name, opts), &v1alpha1.ObjectSearchService{})
 
 	return err
 }

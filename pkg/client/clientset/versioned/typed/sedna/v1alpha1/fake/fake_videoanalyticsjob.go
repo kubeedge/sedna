@@ -117,7 +117,7 @@ func (c *FakeVideoAnalyticsJobs) UpdateStatus(ctx context.Context, videoAnalytic
 // Delete takes name of the videoAnalyticsJob and deletes it. Returns an error if one occurs.
 func (c *FakeVideoAnalyticsJobs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(videoanalyticsjobsResource, c.ns, name), &v1alpha1.VideoAnalyticsJob{})
+		Invokes(testing.NewDeleteActionWithOptions(videoanalyticsjobsResource, c.ns, name, opts), &v1alpha1.VideoAnalyticsJob{})
 
 	return err
 }

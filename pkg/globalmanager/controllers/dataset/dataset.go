@@ -44,7 +44,7 @@ type Controller struct {
 	sendToEdgeFunc runtime.DownstreamSendFunc
 }
 
-func (c *Controller) Run(stopCh <-chan struct{}) {
+func (c *Controller) Run(_ <-chan struct{}) {
 	// noop now
 }
 
@@ -61,7 +61,7 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 			c.syncToEdge(watch.Added, obj)
 		},
 
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(_, cur interface{}) {
 			c.syncToEdge(watch.Added, cur)
 		},
 

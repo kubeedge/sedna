@@ -117,7 +117,7 @@ func (c *FakeReidJobs) UpdateStatus(ctx context.Context, reidJob *v1alpha1.ReidJ
 // Delete takes name of the reidJob and deletes it. Returns an error if one occurs.
 func (c *FakeReidJobs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(reidjobsResource, c.ns, name), &v1alpha1.ReidJob{})
+		Invokes(testing.NewDeleteActionWithOptions(reidjobsResource, c.ns, name, opts), &v1alpha1.ReidJob{})
 
 	return err
 }

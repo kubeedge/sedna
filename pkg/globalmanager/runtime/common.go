@@ -84,7 +84,7 @@ func GetBackoff(queue workqueue.RateLimitingInterface, key interface{}) time.Dur
 }
 
 func CalcActivePodCount(pods []*v1.Pod) int32 {
-	var result int32 = 0
+	var result int32
 	for _, p := range pods {
 		if v1.PodSucceeded != p.Status.Phase &&
 			v1.PodFailed != p.Status.Phase &&
@@ -96,7 +96,7 @@ func CalcActivePodCount(pods []*v1.Pod) int32 {
 }
 
 func CalcActiveDeploymentCount(deployments []*appsv1.Deployment) int32 {
-	var result int32 = 0
+	var result int32
 	var latestConditionType appsv1.DeploymentConditionType
 	for _, d := range deployments {
 		dConditions := d.Status.Conditions

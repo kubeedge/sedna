@@ -21,7 +21,7 @@ import (
 )
 
 // TODO: updateFromEdge syncs the edge updates to k8s
-func (c *Controller) updateFromEdge(name, namespace, operation string, content []byte) error {
+func (c *Controller) updateFromEdge(_, _, _ string, _ []byte) error {
 	// TODO: syncs the edge updates to k8s
 	return nil
 }

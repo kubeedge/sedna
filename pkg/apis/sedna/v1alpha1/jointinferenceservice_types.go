@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -42,17 +43,56 @@ type JointInferenceServiceSpec struct {
 	CloudWorker CloudWorker `json:"cloudWorker"`
 }
 
+// HPA describes the desired functionality of the HorizontalPodAutoscaler.
+type HPA struct {
+	// minReplicas is the lower limit for the number of replicas to which the autoscaler
+	// can scale down.  It defaults to 1 pod.  minReplicas is allowed to be 0 if the
+	// alpha feature gate HPAScaleToZero is enabled and at least one Object or External
+	// metric is configured.  Scaling is active as long as at least one metric value is
+	// available.
+	// +optional
+	MinReplicas *int32 `json:"minReplicas,omitempty"`
+
+	// maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up.
+	// It cannot be less that minReplicas.
+	MaxReplicas int32 `json:"maxReplicas"`
+
+	// metrics contains the specifications for which to use to calculate the
+	// desired replica count (the maximum replica count across all metrics will
+	// be used).  The desired replica count is calculated multiplying the
+	// ratio between the target value and the current value by the current
+	// number of pods.  Ergo, metrics used must decrease as the pod count is
+	// increased, and vice-versa.  See the individual metric source types for
+	// more information about how each type of metric must respond.
+	// +optional
+	Metrics []autoscalingv2.MetricSpec `json:"metrics,omitempty"`
+
+	// behavior configures the scaling behavior of the target
+	// in both Up and Down directions (scaleUp and scaleDown fields respectively).
+	// If not set, the default HPAScalingRules for scale up and scale down are used.
+	// +optional
+	Behavior *autoscalingv2.HorizontalPodAutoscalerBehavior `json:"behavior,omitempty"`
+}
+
 // EdgeWorker describes the data a edge worker should have
 type EdgeWorker struct {
 	Model             SmallModel         `json:"model"`
 	HardExampleMining HardExampleMining  `json:"hardExampleMining"`
 	Template          v1.PodTemplateSpec `json:"template"`
+
+	// HPA describes the desired functionality of the HorizontalPodAutoscaler.
+	// +optional
+	HPA *HPA `json:"hpa"`
 }
 
 // CloudWorker describes the data a cloud worker should have
 type CloudWorker struct {
 	Model    BigModel           `json:"model"`
 	Template v1.PodTemplateSpec `json:"template"`
+
+	// HPA describes the desired functionality of the HorizontalPodAutoscaler.
+	// +optional
+	HPA *HPA `json:"hpa"`
 }
 
 // SmallModel describes the small model

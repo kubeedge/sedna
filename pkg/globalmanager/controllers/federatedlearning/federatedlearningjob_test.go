@@ -28,7 +28,7 @@ type mockPodLister struct {
 	pods []*v1.Pod
 }
 
-func (m *mockPodLister) List(selector labels.Selector) (ret []*v1.Pod, err error) {
+func (m *mockPodLister) List(_ labels.Selector) (ret []*v1.Pod, err error) {
 	return m.pods, nil
 }
 
@@ -41,7 +41,7 @@ type mockPodNamespaceLister struct {
 	namespace string
 }
 
-func (m mockPodNamespaceLister) List(selector labels.Selector) ([]*v1.Pod, error) {
+func (m mockPodNamespaceLister) List(_ labels.Selector) ([]*v1.Pod, error) {
 	var filteredPods []*v1.Pod
 	for _, pod := range m.pods {
 		if pod.Namespace == m.namespace {
@@ -342,7 +342,7 @@ func Test_updateJob(t *testing.T) {
 			queue:      workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), "test-fl-job"),
 			recorder:   eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "test-fl-job"}),
 			cfg:        cfg,
-			sendToEdgeFunc: func(nodeName string, eventType watch.EventType, job interface{}) error {
+			sendToEdgeFunc: func(_ string, _ watch.EventType, _ interface{}) error {
 				return nil
 			},
 		}
