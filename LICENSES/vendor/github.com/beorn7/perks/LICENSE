@@ -1,8 +1,6 @@
-= vendor/github.com/emicklei/go-restful/v3 licensed under: =
+= vendor/github.com/beorn7/perks licensed under: =
 
-Copyright (c) 2012,2013 Ernest Micklei
-
-MIT License
+Copyright (C) 2013 Blake Mizerany
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -22,4 +20,5 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-= vendor/github.com/emicklei/go-restful/v3/LICENSE 2ebc1c12a0f4eae5394522e31961e1de
+
+= vendor/github.com/beorn7/perks/LICENSE 0d0738f37ee8dc0b5f88a32e83c60198

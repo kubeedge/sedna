@@ -1,4 +1,4 @@
-= vendor/github.com/inconshreveable/mousetrap licensed under: =
+= vendor/github.com/prometheus/client_golang licensed under: =
 
                                  Apache License
                            Version 2.0, January 2004
@@ -188,7 +188,7 @@
       same "printed page" as the copyright notice for easier
       identification within third-party archives.
 
-   Copyright 2022 Alan Shreve (@inconshreveable)
+   Copyright [yyyy] [name of copyright owner]
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -202,4 +202,4 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 
-= vendor/github.com/inconshreveable/mousetrap/LICENSE 7ea8c6c3cf90c1ca8494325e32c35579
+= vendor/github.com/prometheus/client_golang/LICENSE 86d3f3a95c324c9479bd8986968f4327

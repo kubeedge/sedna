@@ -1,8 +1,8 @@
-= vendor/gorm.io/gorm licensed under: =
+= vendor/github.com/blang/semver/v4 licensed under: =
 
-The MIT License (MIT)
+The MIT License
 
-Copyright (c) 2013-NOW  Jinzhu <wosmvp@gmail.com>
+Copyright (c) 2014 Benedikt Lang <github at benediktlang.de>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,4 +22,5 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-= vendor/gorm.io/gorm/LICENSE 162a54d183196f03ce8b2a312e5919f8
+
+= vendor/github.com/blang/semver/v4/LICENSE 5a3ade42a900439691ebc22013660cae
