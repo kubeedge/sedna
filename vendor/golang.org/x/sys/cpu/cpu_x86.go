@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build 386 || amd64 || amd64p32
-// +build 386 amd64 amd64p32
 
 package cpu
 
@@ -37,8 +36,12 @@ func initOptions() {
 		{Name: "avx512vbmi2", Feature: &X86.HasAVX512VBMI2},
 		{Name: "avx512bitalg", Feature: &X86.HasAVX512BITALG},
 		{Name: "avx512bf16", Feature: &X86.HasAVX512BF16},
+		{Name: "amxtile", Feature: &X86.HasAMXTile},
+		{Name: "amxint8", Feature: &X86.HasAMXInt8},
+		{Name: "amxbf16", Feature: &X86.HasAMXBF16},
 		{Name: "bmi1", Feature: &X86.HasBMI1},
 		{Name: "bmi2", Feature: &X86.HasBMI2},
+		{Name: "cx16", Feature: &X86.HasCX16},
 		{Name: "erms", Feature: &X86.HasERMS},
 		{Name: "fma", Feature: &X86.HasFMA},
 		{Name: "osxsave", Feature: &X86.HasOSXSAVE},
@@ -73,6 +76,7 @@ func archInit() {
 	X86.HasPCLMULQDQ = isSet(1, ecx1)
 	X86.HasSSSE3 = isSet(9, ecx1)
 	X86.HasFMA = isSet(12, ecx1)
+	X86.HasCX16 = isSet(13, ecx1)
 	X86.HasSSE41 = isSet(19, ecx1)
 	X86.HasSSE42 = isSet(20, ecx1)
 	X86.HasPOPCNT = isSet(23, ecx1)
@@ -87,8 +91,15 @@ func archInit() {
 		// Check if XMM and YMM registers have OS support.
 		osSupportsAVX = isSet(1, eax) && isSet(2, eax)
 
-		// Check if OPMASK and ZMM registers have OS support.
-		osSupportsAVX512 = osSupportsAVX && isSet(5, eax) && isSet(6, eax) && isSet(7, eax)
+		if runtime.GOOS == "darwin" {
+			// Darwin doesn't save/restore AVX-512 mask registers correctly across signal handlers.
+			// Since users can't rely on mask register contents, let's not advertise AVX-512 support.
+			// See issue 49233.
+			osSupportsAVX512 = false
+		} else {
+			// Check if OPMASK and ZMM registers have OS support.
+			osSupportsAVX512 = osSupportsAVX && isSet(5, eax) && isSet(6, eax) && isSet(7, eax)
+		}
 	}
 
 	X86.HasAVX = isSet(28, ecx1) && osSupportsAVX
@@ -129,6 +140,10 @@ func archInit() {
 		eax71, _, _, _ := cpuid(7, 1)
 		X86.HasAVX512BF16 = isSet(5, eax71)
 	}
+
+	X86.HasAMXTile = isSet(24, edx7)
+	X86.HasAMXInt8 = isSet(25, edx7)
+	X86.HasAMXBF16 = isSet(22, edx7)
 }
 
 func isSet(bitpos uint, value uint32) bool {

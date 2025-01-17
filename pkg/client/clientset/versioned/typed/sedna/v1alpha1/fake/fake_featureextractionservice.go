@@ -24,7 +24,6 @@ import (
 	v1alpha1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeFeatureExtractionServices struct {
 	ns   string
 }
 
-var featureextractionservicesResource = schema.GroupVersionResource{Group: "sedna.io", Version: "v1alpha1", Resource: "featureextractionservices"}
+var featureextractionservicesResource = v1alpha1.SchemeGroupVersion.WithResource("featureextractionservices")
 
-var featureextractionservicesKind = schema.GroupVersionKind{Group: "sedna.io", Version: "v1alpha1", Kind: "FeatureExtractionService"}
+var featureextractionservicesKind = v1alpha1.SchemeGroupVersion.WithKind("FeatureExtractionService")
 
 // Get takes name of the featureExtractionService, and returns the corresponding featureExtractionService object, and an error if there is any.
 func (c *FakeFeatureExtractionServices) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.FeatureExtractionService, err error) {
@@ -117,7 +116,7 @@ func (c *FakeFeatureExtractionServices) UpdateStatus(ctx context.Context, featur
 // Delete takes name of the featureExtractionService and deletes it. Returns an error if one occurs.
 func (c *FakeFeatureExtractionServices) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(featureextractionservicesResource, c.ns, name), &v1alpha1.FeatureExtractionService{})
+		Invokes(testing.NewDeleteActionWithOptions(featureextractionservicesResource, c.ns, name, opts), &v1alpha1.FeatureExtractionService{})
 
 	return err
 }

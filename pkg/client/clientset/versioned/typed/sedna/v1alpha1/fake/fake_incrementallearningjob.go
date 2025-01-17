@@ -24,7 +24,6 @@ import (
 	v1alpha1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeIncrementalLearningJobs struct {
 	ns   string
 }
 
-var incrementallearningjobsResource = schema.GroupVersionResource{Group: "sedna.io", Version: "v1alpha1", Resource: "incrementallearningjobs"}
+var incrementallearningjobsResource = v1alpha1.SchemeGroupVersion.WithResource("incrementallearningjobs")
 
-var incrementallearningjobsKind = schema.GroupVersionKind{Group: "sedna.io", Version: "v1alpha1", Kind: "IncrementalLearningJob"}
+var incrementallearningjobsKind = v1alpha1.SchemeGroupVersion.WithKind("IncrementalLearningJob")
 
 // Get takes name of the incrementalLearningJob, and returns the corresponding incrementalLearningJob object, and an error if there is any.
 func (c *FakeIncrementalLearningJobs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.IncrementalLearningJob, err error) {
@@ -117,7 +116,7 @@ func (c *FakeIncrementalLearningJobs) UpdateStatus(ctx context.Context, incremen
 // Delete takes name of the incrementalLearningJob and deletes it. Returns an error if one occurs.
 func (c *FakeIncrementalLearningJobs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(incrementallearningjobsResource, c.ns, name), &v1alpha1.IncrementalLearningJob{})
+		Invokes(testing.NewDeleteActionWithOptions(incrementallearningjobsResource, c.ns, name, opts), &v1alpha1.IncrementalLearningJob{})
 
 	return err
 }

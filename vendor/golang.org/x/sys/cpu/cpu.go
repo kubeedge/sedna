@@ -38,7 +38,7 @@ var X86 struct {
 	HasAVX512F          bool // Advanced vector extension 512 Foundation Instructions
 	HasAVX512CD         bool // Advanced vector extension 512 Conflict Detection Instructions
 	HasAVX512ER         bool // Advanced vector extension 512 Exponential and Reciprocal Instructions
-	HasAVX512PF         bool // Advanced vector extension 512 Prefetch Instructions Instructions
+	HasAVX512PF         bool // Advanced vector extension 512 Prefetch Instructions
 	HasAVX512VL         bool // Advanced vector extension 512 Vector Length Extensions
 	HasAVX512BW         bool // Advanced vector extension 512 Byte and Word Instructions
 	HasAVX512DQ         bool // Advanced vector extension 512 Doubleword and Quadword Instructions
@@ -54,8 +54,12 @@ var X86 struct {
 	HasAVX512VBMI2      bool // Advanced vector extension 512 Vector Byte Manipulation Instructions 2
 	HasAVX512BITALG     bool // Advanced vector extension 512 Bit Algorithms
 	HasAVX512BF16       bool // Advanced vector extension 512 BFloat16 Instructions
+	HasAMXTile          bool // Advanced Matrix Extension Tile instructions
+	HasAMXInt8          bool // Advanced Matrix Extension Int8 instructions
+	HasAMXBF16          bool // Advanced Matrix Extension BFloat16 instructions
 	HasBMI1             bool // Bit manipulation instruction set 1
 	HasBMI2             bool // Bit manipulation instruction set 2
+	HasCX16             bool // Compare and exchange 16 Bytes
 	HasERMS             bool // Enhanced REP for MOVSB and STOSB
 	HasFMA              bool // Fused-multiply-add instructions
 	HasOSXSAVE          bool // OS supports XSAVE/XRESTOR for saving/restoring XMM registers.
@@ -105,8 +109,8 @@ var ARM64 struct {
 
 // ARM contains the supported CPU features of the current ARM (32-bit) platform.
 // All feature flags are false if:
-//   1. the current platform is not arm, or
-//   2. the current operating system is not Linux.
+//  1. the current platform is not arm, or
+//  2. the current operating system is not Linux.
 var ARM struct {
 	_           CacheLinePad
 	HasSWP      bool // SWP instruction support
@@ -154,14 +158,13 @@ var MIPS64X struct {
 // For ppc64/ppc64le, it is safe to check only for ISA level starting on ISA v3.00,
 // since there are no optional categories. There are some exceptions that also
 // require kernel support to work (DARN, SCV), so there are feature bits for
-// those as well. The minimum processor requirement is POWER8 (ISA 2.07).
-// The struct is padded to avoid false sharing.
+// those as well. The struct is padded to avoid false sharing.
 var PPC64 struct {
 	_        CacheLinePad
 	HasDARN  bool // Hardware random number generator (requires kernel enablement)
 	HasSCV   bool // Syscall vectored (requires kernel enablement)
 	IsPOWER8 bool // ISA v2.07 (POWER8)
-	IsPOWER9 bool // ISA v3.00 (POWER9)
+	IsPOWER9 bool // ISA v3.00 (POWER9), implies IsPOWER8
 	_        CacheLinePad
 }
 

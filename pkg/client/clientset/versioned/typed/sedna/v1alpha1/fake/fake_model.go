@@ -24,7 +24,6 @@ import (
 	v1alpha1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeModels struct {
 	ns   string
 }
 
-var modelsResource = schema.GroupVersionResource{Group: "sedna.io", Version: "v1alpha1", Resource: "models"}
+var modelsResource = v1alpha1.SchemeGroupVersion.WithResource("models")
 
-var modelsKind = schema.GroupVersionKind{Group: "sedna.io", Version: "v1alpha1", Kind: "Model"}
+var modelsKind = v1alpha1.SchemeGroupVersion.WithKind("Model")
 
 // Get takes name of the model, and returns the corresponding model object, and an error if there is any.
 func (c *FakeModels) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Model, err error) {
@@ -117,7 +116,7 @@ func (c *FakeModels) UpdateStatus(ctx context.Context, model *v1alpha1.Model, op
 // Delete takes name of the model and deletes it. Returns an error if one occurs.
 func (c *FakeModels) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(modelsResource, c.ns, name), &v1alpha1.Model{})
+		Invokes(testing.NewDeleteActionWithOptions(modelsResource, c.ns, name, opts), &v1alpha1.Model{})
 
 	return err
 }

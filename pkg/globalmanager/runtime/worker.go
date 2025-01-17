@@ -14,7 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	k8scontroller "k8s.io/kubernetes/pkg/controller"
+
+	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
 type WorkerMount struct {
@@ -174,7 +175,7 @@ func injectWorkerParam(pod *v1.Pod, workerParam *WorkerParam, object CommonInter
 // CreatePodWithTemplate creates and returns a pod object given a crd object, pod template, and workerParam
 func CreatePodWithTemplate(client kubernetes.Interface, object CommonInterface, spec *v1.PodTemplateSpec, workerParam *WorkerParam) (*v1.Pod, error) {
 	objectKind := object.GroupVersionKind()
-	pod, _ := k8scontroller.GetPodFromTemplate(spec, object, metav1.NewControllerRef(object, objectKind))
+	pod, _ := utils.GetPodFromTemplate(spec, object, metav1.NewControllerRef(object, objectKind))
 	injectWorkerParam(pod, workerParam, object)
 
 	createdPod, err := client.CoreV1().Pods(object.GetNamespace()).Create(context.TODO(), pod, metav1.CreateOptions{})

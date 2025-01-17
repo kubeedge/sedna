@@ -37,7 +37,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	k8scontroller "k8s.io/kubernetes/pkg/controller"
 
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	sednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
@@ -264,7 +263,7 @@ func (c *Controller) updateDeployment(old, cur interface{}) {
 // immediate tells the controller to update the status right away, and should
 // happen ONLY when there was a successful pod run.
 func (c *Controller) enqueueController(obj interface{}, immediate bool) {
-	key, err := k8scontroller.KeyFunc(obj)
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Warningf("Couldn't get key for object %+v: %v", obj, err)
 		return

@@ -108,7 +108,7 @@ func (s *Server) messageHandler(request *restful.Request, response *restful.Resp
 			msg = fmt.Sprintf("read worker(name=%s) message body failed, error: %v", workerName, err)
 		}
 
-		klog.Errorf(msg)
+		klog.Error(msg)
 		err = s.reply(response, http.StatusBadRequest, msg)
 		if err != nil {
 			klog.Errorf("reply messge to worker(name=%s) failed, error: %v", workerName, err)

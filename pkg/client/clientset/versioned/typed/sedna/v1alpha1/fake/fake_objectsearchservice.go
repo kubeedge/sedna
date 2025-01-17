@@ -24,7 +24,6 @@ import (
 	v1alpha1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeObjectSearchServices struct {
 	ns   string
 }
 
-var objectsearchservicesResource = schema.GroupVersionResource{Group: "sedna.io", Version: "v1alpha1", Resource: "objectsearchservices"}
+var objectsearchservicesResource = v1alpha1.SchemeGroupVersion.WithResource("objectsearchservices")
 
-var objectsearchservicesKind = schema.GroupVersionKind{Group: "sedna.io", Version: "v1alpha1", Kind: "ObjectSearchService"}
+var objectsearchservicesKind = v1alpha1.SchemeGroupVersion.WithKind("ObjectSearchService")
 
 // Get takes name of the objectSearchService, and returns the corresponding objectSearchService object, and an error if there is any.
 func (c *FakeObjectSearchServices) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ObjectSearchService, err error) {
@@ -117,7 +116,7 @@ func (c *FakeObjectSearchServices) UpdateStatus(ctx context.Context, objectSearc
 // Delete takes name of the objectSearchService and deletes it. Returns an error if one occurs.
 func (c *FakeObjectSearchServices) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(objectsearchservicesResource, c.ns, name), &v1alpha1.ObjectSearchService{})
+		Invokes(testing.NewDeleteActionWithOptions(objectsearchservicesResource, c.ns, name, opts), &v1alpha1.ObjectSearchService{})
 
 	return err
 }

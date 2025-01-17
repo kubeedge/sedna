@@ -24,7 +24,6 @@ import (
 	v1alpha1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeReidJobs struct {
 	ns   string
 }
 
-var reidjobsResource = schema.GroupVersionResource{Group: "sedna.io", Version: "v1alpha1", Resource: "reidjobs"}
+var reidjobsResource = v1alpha1.SchemeGroupVersion.WithResource("reidjobs")
 
-var reidjobsKind = schema.GroupVersionKind{Group: "sedna.io", Version: "v1alpha1", Kind: "ReidJob"}
+var reidjobsKind = v1alpha1.SchemeGroupVersion.WithKind("ReidJob")
 
 // Get takes name of the reidJob, and returns the corresponding reidJob object, and an error if there is any.
 func (c *FakeReidJobs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ReidJob, err error) {
@@ -117,7 +116,7 @@ func (c *FakeReidJobs) UpdateStatus(ctx context.Context, reidJob *v1alpha1.ReidJ
 // Delete takes name of the reidJob and deletes it. Returns an error if one occurs.
 func (c *FakeReidJobs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(reidjobsResource, c.ns, name), &v1alpha1.ReidJob{})
+		Invokes(testing.NewDeleteActionWithOptions(reidjobsResource, c.ns, name, opts), &v1alpha1.ReidJob{})
 
 	return err
 }

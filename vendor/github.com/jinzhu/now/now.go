@@ -108,6 +108,7 @@ func (now *Now) EndOfYear() time.Time {
 }
 
 // Monday monday
+/*
 func (now *Now) Monday() time.Time {
 	t := now.BeginningOfDay()
 	weekday := int(t.Weekday())
@@ -116,20 +117,52 @@ func (now *Now) Monday() time.Time {
 	}
 	return t.AddDate(0, 0, -weekday+1)
 }
+*/
 
-// Sunday sunday
-func (now *Now) Sunday() time.Time {
-	t := now.BeginningOfDay()
-	weekday := int(t.Weekday())
-	if weekday == 0 {
-		return t
+func (now *Now) Monday(strs ...string) time.Time {
+	var parseTime time.Time
+	var err error
+	if len(strs) > 0 {
+		parseTime, err = now.Parse(strs...)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		parseTime = now.BeginningOfDay()
 	}
-	return t.AddDate(0, 0, (7 - weekday))
+	weekday := int(parseTime.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	return parseTime.AddDate(0, 0, -weekday+1)
+}
+
+func (now *Now) Sunday(strs ...string) time.Time {
+	var parseTime time.Time
+	var err error
+	if len(strs) > 0 {
+		parseTime, err = now.Parse(strs...)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		parseTime = now.BeginningOfDay()
+	}
+	weekday := int(parseTime.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	return parseTime.AddDate(0, 0, (7 - weekday))
 }
 
 // EndOfSunday end of sunday
 func (now *Now) EndOfSunday() time.Time {
 	return New(now.Sunday()).EndOfDay()
+}
+
+// Quarter returns the yearly quarter
+func (now *Now) Quarter() uint {
+	return (uint(now.Month())-1)/3 + 1
 }
 
 func (now *Now) parseWithFormat(str string, location *time.Location) (t time.Time, err error) {
@@ -144,17 +177,17 @@ func (now *Now) parseWithFormat(str string, location *time.Location) (t time.Tim
 	return
 }
 
-var hasTimeRegexp = regexp.MustCompile(`(\s+|^\s*)\d{1,2}((:\d{1,2})*|((:\d{1,2}){2}\.(\d{3}|\d{6}|\d{9})))\s*$`) // match 15:04:05, 15:04:05.000, 15:04:05.000000 15, 2017-01-01 15:04, etc
-var onlyTimeRegexp = regexp.MustCompile(`^\s*\d{1,2}((:\d{1,2})*|((:\d{1,2}){2}\.(\d{3}|\d{6}|\d{9})))\s*$`)      // match 15:04:05, 15, 15:04:05.000, 15:04:05.000000, etc
+var hasTimeRegexp = regexp.MustCompile(`(\s+|^\s*|T)\d{1,2}((:\d{1,2})*|((:\d{1,2}){2}\.(\d{3}|\d{6}|\d{9})))(\s*$|[Z+-])`) // match 15:04:05, 15:04:05.000, 15:04:05.000000 15, 2017-01-01 15:04, 2021-07-20T00:59:10Z, 2021-07-20T00:59:10+08:00, 2021-07-20T00:00:10-07:00 etc
+var onlyTimeRegexp = regexp.MustCompile(`^\s*\d{1,2}((:\d{1,2})*|((:\d{1,2}){2}\.(\d{3}|\d{6}|\d{9})))\s*$`)            // match 15:04:05, 15, 15:04:05.000, 15:04:05.000000, etc
 
 // Parse parse string to time
 func (now *Now) Parse(strs ...string) (t time.Time, err error) {
 	var (
 		setCurrentTime  bool
 		parseTime       []int
-		currentTime     = []int{now.Nanosecond(), now.Second(), now.Minute(), now.Hour(), now.Day(), int(now.Month()), now.Year()}
 		currentLocation = now.Location()
 		onlyTimeInStr   = true
+		currentTime     = formatTimeToList(now.Time)
 	)
 
 	for _, str := range strs {
@@ -162,8 +195,7 @@ func (now *Now) Parse(strs ...string) (t time.Time, err error) {
 		onlyTimeInStr = hasTimeInStr && onlyTimeInStr && onlyTimeRegexp.MatchString(str)
 		if t, err = now.parseWithFormat(str, currentLocation); err == nil {
 			location := t.Location()
-
-			parseTime = []int{t.Nanosecond(), t.Second(), t.Minute(), t.Hour(), t.Day(), int(t.Month()), t.Year()}
+			parseTime = formatTimeToList(t)
 
 			for i, v := range parseTime {
 				// Don't reset hour, minute, second if current time str including time
@@ -190,7 +222,7 @@ func (now *Now) Parse(strs ...string) (t time.Time, err error) {
 			}
 
 			t = time.Date(parseTime[6], time.Month(parseTime[5]), parseTime[4], parseTime[3], parseTime[2], parseTime[1], parseTime[0], location)
-			currentTime = []int{t.Nanosecond(), t.Second(), t.Minute(), t.Hour(), t.Day(), int(t.Month()), t.Year()}
+			currentTime = formatTimeToList(t)
 		}
 	}
 	return
