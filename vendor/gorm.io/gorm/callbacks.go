@@ -32,6 +32,7 @@ type callbacks struct {
 
 type processor struct {
 	db        *DB
+	Clauses   []string
 	fns       []func(*DB)
 	callbacks []*callback
 }
@@ -71,19 +72,38 @@ func (cs *callbacks) Raw() *processor {
 	return cs.processors["raw"]
 }
 
-func (p *processor) Execute(db *DB) {
-	curTime := time.Now()
-	stmt := db.Statement
+func (p *processor) Execute(db *DB) *DB {
+	// call scopes
+	for len(db.Statement.scopes) > 0 {
+		db = db.executeScopes()
+	}
 
+	var (
+		curTime           = time.Now()
+		stmt              = db.Statement
+		resetBuildClauses bool
+	)
+
+	if len(stmt.BuildClauses) == 0 {
+		stmt.BuildClauses = p.Clauses
+		resetBuildClauses = true
+	}
+
+	if optimizer, ok := db.Statement.Dest.(StatementModifier); ok {
+		optimizer.ModifyStatement(stmt)
+	}
+
+	// assign model values
 	if stmt.Model == nil {
 		stmt.Model = stmt.Dest
 	} else if stmt.Dest == nil {
 		stmt.Dest = stmt.Model
 	}
 
+	// parse model values
 	if stmt.Model != nil {
-		if err := stmt.Parse(stmt.Model); err != nil && (!errors.Is(err, schema.ErrUnsupportedDataType) || (stmt.Table == "" && stmt.SQL.Len() == 0)) {
-			if errors.Is(err, schema.ErrUnsupportedDataType) && stmt.Table == "" {
+		if err := stmt.Parse(stmt.Model); err != nil && (!errors.Is(err, schema.ErrUnsupportedDataType) || (stmt.Table == "" && stmt.TableExpr == nil && stmt.SQL.Len() == 0)) {
+			if errors.Is(err, schema.ErrUnsupportedDataType) && stmt.Table == "" && stmt.TableExpr == nil {
 				db.AddError(fmt.Errorf("%w: Table not set, please set it like: db.Model(&user) or db.Table(\"users\")", err))
 			} else {
 				db.AddError(err)
@@ -91,13 +111,18 @@ func (p *processor) Execute(db *DB) {
 		}
 	}
 
+	// assign stmt.ReflectValue
 	if stmt.Dest != nil {
 		stmt.ReflectValue = reflect.ValueOf(stmt.Dest)
 		for stmt.ReflectValue.Kind() == reflect.Ptr {
+			if stmt.ReflectValue.IsNil() && stmt.ReflectValue.CanAddr() {
+				stmt.ReflectValue.Set(reflect.New(stmt.ReflectValue.Type().Elem()))
+			}
+
 			stmt.ReflectValue = stmt.ReflectValue.Elem()
 		}
 		if !stmt.ReflectValue.IsValid() {
-			db.AddError(fmt.Errorf("invalid value"))
+			db.AddError(ErrInvalidValue)
 		}
 	}
 
@@ -105,14 +130,26 @@ func (p *processor) Execute(db *DB) {
 		f(db)
 	}
 
-	db.Logger.Trace(stmt.Context, curTime, func() (string, int64) {
-		return db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...), db.RowsAffected
-	}, db.Error)
+	if stmt.SQL.Len() > 0 {
+		db.Logger.Trace(stmt.Context, curTime, func() (string, int64) {
+			sql, vars := stmt.SQL.String(), stmt.Vars
+			if filter, ok := db.Logger.(ParamsFilter); ok {
+				sql, vars = filter.ParamsFilter(stmt.Context, stmt.SQL.String(), stmt.Vars...)
+			}
+			return db.Dialector.Explain(sql, vars...), db.RowsAffected
+		}, db.Error)
+	}
 
 	if !stmt.DB.DryRun {
 		stmt.SQL.Reset()
 		stmt.Vars = nil
 	}
+
+	if resetBuildClauses {
+		stmt.BuildClauses = nil
+	}
+
+	return db
 }
 
 func (p *processor) Get(name string) func(*DB) {
@@ -181,7 +218,7 @@ func (c *callback) Register(name string, fn func(*DB)) error {
 }
 
 func (c *callback) Remove(name string) error {
-	c.processor.db.Logger.Warn(context.Background(), "removing callback `%v` from %v\n", name, utils.FileWithLineNum())
+	c.processor.db.Logger.Warn(context.Background(), "removing callback `%s` from %s\n", name, utils.FileWithLineNum())
 	c.name = name
 	c.remove = true
 	c.processor.callbacks = append(c.processor.callbacks, c)
@@ -189,7 +226,7 @@ func (c *callback) Remove(name string) error {
 }
 
 func (c *callback) Replace(name string, fn func(*DB)) error {
-	c.processor.db.Logger.Info(context.Background(), "replacing callback `%v` from %v\n", name, utils.FileWithLineNum())
+	c.processor.db.Logger.Info(context.Background(), "replacing callback `%s` from %s\n", name, utils.FileWithLineNum())
 	c.name = name
 	c.handler = fn
 	c.replace = true
@@ -212,14 +249,20 @@ func sortCallbacks(cs []*callback) (fns []func(*DB), err error) {
 		names, sorted []string
 		sortCallback  func(*callback) error
 	)
-	sort.Slice(cs, func(i, j int) bool {
-		return cs[j].before == "*" || cs[j].after == "*"
+	sort.SliceStable(cs, func(i, j int) bool {
+		if cs[j].before == "*" && cs[i].before != "*" {
+			return true
+		}
+		if cs[j].after == "*" && cs[i].after != "*" {
+			return true
+		}
+		return false
 	})
 
 	for _, c := range cs {
 		// show warning message the callback name already exists
 		if idx := getRIndex(names, c.name); idx > -1 && !c.replace && !c.remove && !cs[idx].remove {
-			c.processor.db.Logger.Warn(context.Background(), "duplicated callback `%v` from %v\n", c.name, utils.FileWithLineNum())
+			c.processor.db.Logger.Warn(context.Background(), "duplicated callback `%s` from %s\n", c.name, utils.FileWithLineNum())
 		}
 		names = append(names, c.name)
 	}
@@ -235,7 +278,7 @@ func sortCallbacks(cs []*callback) (fns []func(*DB), err error) {
 					// if before callback already sorted, append current callback just after it
 					sorted = append(sorted[:sortedIdx], append([]string{c.name}, sorted[sortedIdx:]...)...)
 				} else if curIdx > sortedIdx {
-					return fmt.Errorf("conflicting callback %v with before %v", c.name, c.before)
+					return fmt.Errorf("conflicting callback %s with before %s", c.name, c.before)
 				}
 			} else if idx := getRIndex(names, c.before); idx != -1 {
 				// if before callback exists
@@ -253,7 +296,7 @@ func sortCallbacks(cs []*callback) (fns []func(*DB), err error) {
 					// if after callback sorted, append current callback to last
 					sorted = append(sorted, c.name)
 				} else if curIdx < sortedIdx {
-					return fmt.Errorf("conflicting callback %v with before %v", c.name, c.after)
+					return fmt.Errorf("conflicting callback %s with before %s", c.name, c.after)
 				}
 			} else if idx := getRIndex(names, c.after); idx != -1 {
 				// if after callback exists but haven't sorted

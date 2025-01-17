@@ -3,6 +3,7 @@
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
+//go:build sqlite_vtable || vtable
 // +build sqlite_vtable vtable
 
 package sqlite3
@@ -19,7 +20,7 @@ package sqlite3
 #cgo CFLAGS: -Wno-deprecated-declarations
 
 #ifndef USE_LIBSQLITE3
-#include <sqlite3-binding.h>
+#include "sqlite3-binding.h"
 #else
 #include <sqlite3.h>
 #endif
@@ -226,10 +227,42 @@ static sqlite3_module goModule = {
 	0	                     // xRollbackTo
 };
 
+// See https://sqlite.org/vtab.html#eponymous_only_virtual_tables
+static sqlite3_module goModuleEponymousOnly = {
+	0,                       // iVersion
+	0,                       // xCreate - create a table, which here is null
+	cXConnect,               // xConnect - connect to an existing table
+	cXBestIndex,             // xBestIndex - Determine search strategy
+	cXDisconnect,            // xDisconnect - Disconnect from a table
+	cXDestroy,               // xDestroy - Drop a table
+	cXOpen,                  // xOpen - open a cursor
+	cXClose,                 // xClose - close a cursor
+	cXFilter,                // xFilter - configure scan constraints
+	cXNext,                  // xNext - advance a cursor
+	cXEof,                   // xEof
+	cXColumn,                // xColumn - read data
+	cXRowid,                 // xRowid - read data
+	cXUpdate,                // xUpdate - write data
+// Not implemented
+	0,                       // xBegin - begin transaction
+	0,                       // xSync - sync transaction
+	0,                       // xCommit - commit transaction
+	0,                       // xRollback - rollback transaction
+	0,                       // xFindFunction - function overloading
+	0,                       // xRename - rename the table
+	0,                       // xSavepoint
+	0,                       // xRelease
+	0	                     // xRollbackTo
+};
+
 void goMDestroy(void*);
 
 static int _sqlite3_create_module(sqlite3 *db, const char *zName, uintptr_t pClientData) {
   return sqlite3_create_module_v2(db, zName, &goModule, (void*) pClientData, goMDestroy);
+}
+
+static int _sqlite3_create_module_eponymous_only(sqlite3 *db, const char *zName, uintptr_t pClientData) {
+  return sqlite3_create_module_v2(db, zName, &goModuleEponymousOnly, (void*) pClientData, goMDestroy);
 }
 */
 import "C"
@@ -440,10 +473,21 @@ func goVBestIndex(pVTab unsafe.Pointer, icp unsafe.Pointer) *C.char {
 	}
 
 	info.idxNum = C.int(res.IdxNum)
-	idxStr := C.CString(res.IdxStr)
-	defer C.free(unsafe.Pointer(idxStr))
-	info.idxStr = idxStr
-	info.needToFreeIdxStr = C.int(0)
+	info.idxStr = (*C.char)(C.sqlite3_malloc(C.int(len(res.IdxStr) + 1)))
+	if info.idxStr == nil {
+		// C.malloc and C.CString ordinarily do this for you. See https://golang.org/cmd/cgo/
+		panic("out of memory")
+	}
+	info.needToFreeIdxStr = C.int(1)
+
+	idxStr := *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(info.idxStr)),
+		Len:  len(res.IdxStr) + 1,
+		Cap:  len(res.IdxStr) + 1,
+	}))
+	copy(idxStr, res.IdxStr)
+	idxStr[len(idxStr)-1] = 0 // null-terminated string
+
 	if res.AlreadyOrdered {
 		info.orderByConsumed = C.int(1)
 	}
@@ -473,7 +517,7 @@ func goMDestroy(pClientData unsafe.Pointer) {
 func goVFilter(pCursor unsafe.Pointer, idxNum C.int, idxName *C.char, argc C.int, argv **C.sqlite3_value) *C.char {
 	vtc := lookupHandle(pCursor).(*sqliteVTabCursor)
 	args := (*[(math.MaxInt32 - 1) / unsafe.Sizeof((*C.sqlite3_value)(nil))]*C.sqlite3_value)(unsafe.Pointer(argv))[:argc:argc]
-	vals := make([]interface{}, 0, argc)
+	vals := make([]any, 0, argc)
 	for _, v := range args {
 		conv, err := callbackArgGeneric(v)
 		if err != nil {
@@ -545,7 +589,7 @@ func goVUpdate(pVTab unsafe.Pointer, argc C.int, argv **C.sqlite3_value, pRowid 
 	if v, ok := vt.vTab.(VTabUpdater); ok {
 		// convert argv
 		args := (*[(math.MaxInt32 - 1) / unsafe.Sizeof((*C.sqlite3_value)(nil))]*C.sqlite3_value)(unsafe.Pointer(argv))[:argc:argc]
-		vals := make([]interface{}, 0, argc)
+		vals := make([]any, 0, argc)
 		for _, v := range args {
 			conv, err := callbackArgGeneric(v)
 			if err != nil {
@@ -595,6 +639,13 @@ type Module interface {
 	DestroyModule()
 }
 
+// EponymousOnlyModule is a "virtual table module" (as above), but
+// for defining "eponymous only" virtual tables See: https://sqlite.org/vtab.html#eponymous_only_virtual_tables
+type EponymousOnlyModule interface {
+	Module
+	EponymousOnlyModule()
+}
+
 // VTab describes a particular instance of the virtual table.
 // See: http://sqlite.org/c3ref/vtab.html
 type VTab interface {
@@ -612,9 +663,9 @@ type VTab interface {
 // deleted.
 // See: https://sqlite.org/vtab.html#xupdate
 type VTabUpdater interface {
-	Delete(interface{}) error
-	Insert(interface{}, []interface{}) (int64, error)
-	Update(interface{}, []interface{}) error
+	Delete(any) error
+	Insert(any, []any) (int64, error)
+	Update(any, []any) error
 }
 
 // VTabCursor describes cursors that point into the virtual table and are used
@@ -623,7 +674,7 @@ type VTabCursor interface {
 	// http://sqlite.org/vtab.html#xclose
 	Close() error
 	// http://sqlite.org/vtab.html#xfilter
-	Filter(idxNum int, idxStr string, vals []interface{}) error
+	Filter(idxNum int, idxStr string, vals []any) error
 	// http://sqlite.org/vtab.html#xnext
 	Next() error
 	// http://sqlite.org/vtab.html#xeof
@@ -652,9 +703,19 @@ func (c *SQLiteConn) CreateModule(moduleName string, module Module) error {
 	mname := C.CString(moduleName)
 	defer C.free(unsafe.Pointer(mname))
 	udm := sqliteModule{c, moduleName, module}
-	rv := C._sqlite3_create_module(c.db, mname, C.uintptr_t(uintptr(newHandle(c, &udm))))
-	if rv != C.SQLITE_OK {
-		return c.lastError()
+	switch module.(type) {
+	case EponymousOnlyModule:
+		rv := C._sqlite3_create_module_eponymous_only(c.db, mname, C.uintptr_t(uintptr(newHandle(c, &udm))))
+		if rv != C.SQLITE_OK {
+			return c.lastError()
+		}
+		return nil
+	case Module:
+		rv := C._sqlite3_create_module(c.db, mname, C.uintptr_t(uintptr(newHandle(c, &udm))))
+		if rv != C.SQLITE_OK {
+			return c.lastError()
+		}
+		return nil
 	}
 	return nil
 }

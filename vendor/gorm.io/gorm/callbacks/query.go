@@ -3,12 +3,12 @@ package callbacks
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
+	"gorm.io/gorm/utils"
 )
 
 func Query(db *gorm.DB) {
@@ -21,28 +21,29 @@ func Query(db *gorm.DB) {
 				db.AddError(err)
 				return
 			}
-			defer rows.Close()
-
-			gorm.Scan(rows, db, false)
+			defer func() {
+				db.AddError(rows.Close())
+			}()
+			gorm.Scan(rows, db, 0)
 		}
 	}
 }
 
 func BuildQuerySQL(db *gorm.DB) {
-	if db.Statement.Schema != nil && !db.Statement.Unscoped {
+	if db.Statement.Schema != nil {
 		for _, c := range db.Statement.Schema.QueryClauses {
 			db.Statement.AddClause(c)
 		}
 	}
 
-	if db.Statement.SQL.String() == "" {
+	if db.Statement.SQL.Len() == 0 {
 		db.Statement.SQL.Grow(100)
 		clauseSelect := clause.Select{Distinct: db.Statement.Distinct}
 
 		if db.Statement.ReflectValue.Kind() == reflect.Struct && db.Statement.ReflectValue.Type() == db.Statement.Schema.ModelType {
 			var conds []clause.Expression
 			for _, primaryField := range db.Statement.Schema.PrimaryFields {
-				if v, isZero := primaryField.ValueOf(db.Statement.ReflectValue); !isZero {
+				if v, isZero := primaryField.ValueOf(db.Statement.Context, db.Statement.ReflectValue); !isZero {
 					conds = append(conds, clause.Eq{Column: clause.Column{Table: db.Statement.Table, Name: primaryField.DBName}, Value: v})
 				}
 			}
@@ -96,127 +97,197 @@ func BuildQuerySQL(db *gorm.DB) {
 		}
 
 		// inline joins
-		if len(db.Statement.Joins) != 0 {
-			if len(db.Statement.Selects) == 0 && db.Statement.Schema != nil {
+		fromClause := clause.From{}
+		if v, ok := db.Statement.Clauses["FROM"].Expression.(clause.From); ok {
+			fromClause = v
+		}
+
+		if len(db.Statement.Joins) != 0 || len(fromClause.Joins) != 0 {
+			if len(db.Statement.Selects) == 0 && len(db.Statement.Omits) == 0 && db.Statement.Schema != nil {
 				clauseSelect.Columns = make([]clause.Column, len(db.Statement.Schema.DBNames))
 				for idx, dbName := range db.Statement.Schema.DBNames {
 					clauseSelect.Columns[idx] = clause.Column{Table: db.Statement.Table, Name: dbName}
 				}
 			}
 
-			joins := []clause.Join{}
+			specifiedRelationsName := make(map[string]interface{})
 			for _, join := range db.Statement.Joins {
-				if db.Statement.Schema == nil {
-					joins = append(joins, clause.Join{
-						Expression: clause.NamedExpr{SQL: join.Name, Vars: join.Conds},
-					})
-				} else if relation, ok := db.Statement.Schema.Relationships.Relations[join.Name]; ok {
-					tableAliasName := relation.Name
-
-					for _, s := range relation.FieldSchema.DBNames {
-						clauseSelect.Columns = append(clauseSelect.Columns, clause.Column{
-							Table: tableAliasName,
-							Name:  s,
-							Alias: tableAliasName + "__" + s,
-						})
-					}
-
-					exprs := make([]clause.Expression, len(relation.References))
-					for idx, ref := range relation.References {
-						if ref.OwnPrimaryKey {
-							exprs[idx] = clause.Eq{
-								Column: clause.Column{Table: clause.CurrentTable, Name: ref.PrimaryKey.DBName},
-								Value:  clause.Column{Table: tableAliasName, Name: ref.ForeignKey.DBName},
+				if db.Statement.Schema != nil {
+					var isRelations bool // is relations or raw sql
+					var relations []*schema.Relationship
+					relation, ok := db.Statement.Schema.Relationships.Relations[join.Name]
+					if ok {
+						isRelations = true
+						relations = append(relations, relation)
+					} else {
+						// handle nested join like "Manager.Company"
+						nestedJoinNames := strings.Split(join.Name, ".")
+						if len(nestedJoinNames) > 1 {
+							isNestedJoin := true
+							gussNestedRelations := make([]*schema.Relationship, 0, len(nestedJoinNames))
+							currentRelations := db.Statement.Schema.Relationships.Relations
+							for _, relname := range nestedJoinNames {
+								// incomplete match, only treated as raw sql
+								if relation, ok = currentRelations[relname]; ok {
+									gussNestedRelations = append(gussNestedRelations, relation)
+									currentRelations = relation.FieldSchema.Relationships.Relations
+								} else {
+									isNestedJoin = false
+									break
+								}
 							}
-						} else {
-							if ref.PrimaryValue == "" {
-								exprs[idx] = clause.Eq{
-									Column: clause.Column{Table: clause.CurrentTable, Name: ref.ForeignKey.DBName},
-									Value:  clause.Column{Table: tableAliasName, Name: ref.PrimaryKey.DBName},
-								}
-							} else {
-								exprs[idx] = clause.Eq{
-									Column: clause.Column{Table: tableAliasName, Name: ref.ForeignKey.DBName},
-									Value:  ref.PrimaryValue,
-								}
+
+							if isNestedJoin {
+								isRelations = true
+								relations = gussNestedRelations
 							}
 						}
 					}
 
-					joins = append(joins, clause.Join{
-						Type:  clause.LeftJoin,
-						Table: clause.Table{Name: relation.FieldSchema.Table, Alias: tableAliasName},
-						ON:    clause.Where{Exprs: exprs},
-					})
+					if isRelations {
+						genJoinClause := func(joinType clause.JoinType, parentTableName string, relation *schema.Relationship) clause.Join {
+							tableAliasName := relation.Name
+							if parentTableName != clause.CurrentTable {
+								tableAliasName = utils.NestedRelationName(parentTableName, tableAliasName)
+							}
+
+							columnStmt := gorm.Statement{
+								Table: tableAliasName, DB: db, Schema: relation.FieldSchema,
+								Selects: join.Selects, Omits: join.Omits,
+							}
+
+							selectColumns, restricted := columnStmt.SelectAndOmitColumns(false, false)
+							for _, s := range relation.FieldSchema.DBNames {
+								if v, ok := selectColumns[s]; (ok && v) || (!ok && !restricted) {
+									clauseSelect.Columns = append(clauseSelect.Columns, clause.Column{
+										Table: tableAliasName,
+										Name:  s,
+										Alias: utils.NestedRelationName(tableAliasName, s),
+									})
+								}
+							}
+
+							exprs := make([]clause.Expression, len(relation.References))
+							for idx, ref := range relation.References {
+								if ref.OwnPrimaryKey {
+									exprs[idx] = clause.Eq{
+										Column: clause.Column{Table: parentTableName, Name: ref.PrimaryKey.DBName},
+										Value:  clause.Column{Table: tableAliasName, Name: ref.ForeignKey.DBName},
+									}
+								} else {
+									if ref.PrimaryValue == "" {
+										exprs[idx] = clause.Eq{
+											Column: clause.Column{Table: parentTableName, Name: ref.ForeignKey.DBName},
+											Value:  clause.Column{Table: tableAliasName, Name: ref.PrimaryKey.DBName},
+										}
+									} else {
+										exprs[idx] = clause.Eq{
+											Column: clause.Column{Table: tableAliasName, Name: ref.ForeignKey.DBName},
+											Value:  ref.PrimaryValue,
+										}
+									}
+								}
+							}
+
+							{
+								onStmt := gorm.Statement{Table: tableAliasName, DB: db, Clauses: map[string]clause.Clause{}}
+								for _, c := range relation.FieldSchema.QueryClauses {
+									onStmt.AddClause(c)
+								}
+
+								if join.On != nil {
+									onStmt.AddClause(join.On)
+								}
+
+								if cs, ok := onStmt.Clauses["WHERE"]; ok {
+									if where, ok := cs.Expression.(clause.Where); ok {
+										where.Build(&onStmt)
+
+										if onSQL := onStmt.SQL.String(); onSQL != "" {
+											vars := onStmt.Vars
+											for idx, v := range vars {
+												bindvar := strings.Builder{}
+												onStmt.Vars = vars[0 : idx+1]
+												db.Dialector.BindVarTo(&bindvar, &onStmt, v)
+												onSQL = strings.Replace(onSQL, bindvar.String(), "?", 1)
+											}
+
+											exprs = append(exprs, clause.Expr{SQL: onSQL, Vars: vars})
+										}
+									}
+								}
+							}
+
+							return clause.Join{
+								Type:  joinType,
+								Table: clause.Table{Name: relation.FieldSchema.Table, Alias: tableAliasName},
+								ON:    clause.Where{Exprs: exprs},
+							}
+						}
+
+						parentTableName := clause.CurrentTable
+						for _, rel := range relations {
+							// joins table alias like "Manager, Company, Manager__Company"
+							nestedAlias := utils.NestedRelationName(parentTableName, rel.Name)
+							if _, ok := specifiedRelationsName[nestedAlias]; !ok {
+								fromClause.Joins = append(fromClause.Joins, genJoinClause(join.JoinType, parentTableName, rel))
+								specifiedRelationsName[nestedAlias] = nil
+							}
+
+							if parentTableName != clause.CurrentTable {
+								parentTableName = utils.NestedRelationName(parentTableName, rel.Name)
+							} else {
+								parentTableName = rel.Name
+							}
+						}
+					} else {
+						fromClause.Joins = append(fromClause.Joins, clause.Join{
+							Expression: clause.NamedExpr{SQL: join.Name, Vars: join.Conds},
+						})
+					}
 				} else {
-					joins = append(joins, clause.Join{
+					fromClause.Joins = append(fromClause.Joins, clause.Join{
 						Expression: clause.NamedExpr{SQL: join.Name, Vars: join.Conds},
 					})
 				}
 			}
 
-			db.Statement.AddClause(clause.From{Joins: joins})
+			db.Statement.AddClause(fromClause)
 		} else {
 			db.Statement.AddClauseIfNotExists(clause.From{})
 		}
 
 		db.Statement.AddClauseIfNotExists(clauseSelect)
 
-		db.Statement.Build("SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "LIMIT", "FOR")
+		db.Statement.Build(db.Statement.BuildClauses...)
 	}
 }
 
 func Preload(db *gorm.DB) {
 	if db.Error == nil && len(db.Statement.Preloads) > 0 {
-		preloadMap := map[string][]string{}
-		for name := range db.Statement.Preloads {
-			if name == clause.Associations {
-				for _, rel := range db.Statement.Schema.Relationships.Relations {
-					if rel.Schema == db.Statement.Schema {
-						preloadMap[rel.Name] = []string{rel.Name}
-					}
-				}
-			} else {
-				preloadFields := strings.Split(name, ".")
-				for idx := range preloadFields {
-					preloadMap[strings.Join(preloadFields[:idx+1], ".")] = preloadFields[:idx+1]
-				}
-			}
+		if db.Statement.Schema == nil {
+			db.AddError(fmt.Errorf("%w when using preload", gorm.ErrModelValueRequired))
+			return
 		}
 
-		preloadNames := make([]string, len(preloadMap))
-		idx := 0
-		for key := range preloadMap {
-			preloadNames[idx] = key
-			idx++
+		joins := make([]string, 0, len(db.Statement.Joins))
+		for _, join := range db.Statement.Joins {
+			joins = append(joins, join.Name)
 		}
-		sort.Strings(preloadNames)
 
-		for _, name := range preloadNames {
-			var (
-				curSchema     = db.Statement.Schema
-				preloadFields = preloadMap[name]
-				rels          = make([]*schema.Relationship, len(preloadFields))
-			)
-
-			for idx, preloadField := range preloadFields {
-				if rel := curSchema.Relationships.Relations[preloadField]; rel != nil {
-					rels[idx] = rel
-					curSchema = rel.FieldSchema
-				} else {
-					db.AddError(fmt.Errorf("%v: %w", name, gorm.ErrUnsupportedRelation))
-				}
-			}
-
-			if db.Error == nil {
-				preload(db, rels, db.Statement.Preloads[name])
-			}
+		tx := preloadDB(db, db.Statement.ReflectValue, db.Statement.Dest)
+		if tx.Error != nil {
+			return
 		}
+
+		db.AddError(preloadEntryPoint(tx, joins, &tx.Statement.Schema.Relationships, db.Statement.Preloads, db.Statement.Preloads[clause.Associations]))
 	}
 }
 
 func AfterQuery(db *gorm.DB) {
-	if db.Error == nil && db.Statement.Schema != nil && !db.Statement.SkipHooks && db.Statement.Schema.AfterFind {
+	// clear the joins after query because preload need it
+	db.Statement.Joins = nil
+	if db.Error == nil && db.Statement.Schema != nil && !db.Statement.SkipHooks && db.Statement.Schema.AfterFind && db.RowsAffected > 0 {
 		callMethod(db, func(value interface{}, tx *gorm.DB) bool {
 			if i, ok := value.(AfterFindInterface); ok {
 				db.AddError(i.AfterFind(tx))
