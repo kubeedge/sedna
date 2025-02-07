@@ -9,7 +9,7 @@ on:
 
 jobs:
   verify-and-lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: Verify codegen/vendor/licenses, do lint
     env:
       GOPATH: ${{ github.workspace }}
@@ -51,7 +51,7 @@ jobs:
         working-directory: ${{ env.CODE_DIR }}
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: build gm and lc
     steps:
       - name: Install Go
@@ -72,7 +72,7 @@ jobs:
       - run: make build  # without verify
 
   basic_test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: 'Unit test, integration test edge (noop now)'
     steps:
       - name: Install Go
@@ -96,7 +96,7 @@ jobs:
       - run: ': to be added'
 
   e2e_test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: 'E2e test'
     steps:
       - name: Install Go
@@ -131,7 +131,7 @@ jobs:
       - run: make e2e
 
   docker_build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: docker image build for gm/lc
     steps:
       - name: Install Go
@@ -152,7 +152,7 @@ jobs:
       - run: make images
 
   docker_cross_build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: docker cross build images for gm/lc/kb
     steps:
       - name: Install Go
