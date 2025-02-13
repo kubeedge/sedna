@@ -109,6 +109,9 @@ func (r *Response) EntityWriter() (EntityReaderWriter, bool) {
 		if DefaultResponseMimeType == MIME_XML {
 			return entityAccessRegistry.accessorAt(MIME_XML)
 		}
+		if DefaultResponseMimeType == MIME_ZIP {
+			return entityAccessRegistry.accessorAt(MIME_ZIP)
+		}
 		// Fallback to whatever the route says it can produce.
 		// https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
 		for _, each := range r.routeProduces {
@@ -175,7 +178,7 @@ func (r *Response) WriteHeaderAndJson(status int, value interface{}, contentType
 }
 
 // WriteError writes the http status and the error string on the response. err can be nil.
-// Return an error if writing was not succesful.
+// Return an error if writing was not successful.
 func (r *Response) WriteError(httpStatus int, err error) (writeErr error) {
 	r.err = err
 	if err == nil {

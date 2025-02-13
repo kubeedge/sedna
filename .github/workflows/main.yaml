@@ -9,7 +9,7 @@ on:
 
 jobs:
   verify-and-lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: Verify codegen/vendor/licenses, do lint
     env:
       GOPATH: ${{ github.workspace }}
@@ -21,7 +21,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.22.9
 
       - name: Checkout code
         uses: actions/checkout@v2
@@ -51,13 +51,13 @@ jobs:
         working-directory: ${{ env.CODE_DIR }}
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: build gm and lc
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.22.9
 
       - uses: actions/cache@v2
         with:
@@ -72,13 +72,13 @@ jobs:
       - run: make build  # without verify
 
   basic_test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: 'Unit test, integration test edge (noop now)'
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.22.9
 
       - uses: actions/cache@v2
         with:
@@ -96,13 +96,13 @@ jobs:
       - run: ': to be added'
 
   e2e_test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: 'E2e test'
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.22.9
 
       - uses: actions/cache@v2
         with:
@@ -114,7 +114,7 @@ jobs:
           # since this ubuntu-latest os has already kind/kubectl/jq(see https://github.com/actions/runner-images/blob/main/images/linux/Ubuntu2004-Readme.md),
           # but kind v0.19.0 has different api with v0.18.0, so here to reinstall kind v0.18.0
           sudo apt-get install -y jq
-          go get sigs.k8s.io/kind@$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/97518847 | jq -r .tag_name)
+          go install sigs.k8s.io/kind@$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/97518847 | jq -r .tag_name)
           kind version
           type kubectl || {
             curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
@@ -131,13 +131,13 @@ jobs:
       - run: make e2e
 
   docker_build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: docker image build for gm/lc
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.22.9
 
       - uses: actions/cache@v2
         with:
@@ -152,13 +152,13 @@ jobs:
       - run: make images
 
   docker_cross_build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: docker cross build images for gm/lc/kb
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: 1.22.9
 
       - uses: actions/cache@v2
         with:

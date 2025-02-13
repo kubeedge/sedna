@@ -222,13 +222,13 @@ func (c *Controller) updateFromEdge(name, namespace, operation string, content [
 
 	err = c.updateStatusKnowledgeBase(name, namespace, condData)
 	if err != nil {
-		klog.Errorf("failed to update KnowledgeBase, err:%w", err)
+		klog.Errorf("failed to update KnowledgeBase, err: %v", err)
 		return err
 	}
 
 	err = c.appendStatusCondition(name, namespace, cond)
 	if err != nil {
-		klog.Errorf("failed to append condition, err:%w", err)
+		klog.Errorf("failed to append condition, err: %v", err)
 		return err
 	}
 	return nil

@@ -39,13 +39,13 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	k8scontroller "k8s.io/kubernetes/pkg/controller"
 
 	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	sednaclientset "github.com/kubeedge/sedna/pkg/client/clientset/versioned/typed/sedna/v1alpha1"
 	sednav1listers "github.com/kubeedge/sedna/pkg/client/listers/sedna/v1alpha1"
 	"github.com/kubeedge/sedna/pkg/globalmanager/config"
 	"github.com/kubeedge/sedna/pkg/globalmanager/runtime"
+	"github.com/kubeedge/sedna/pkg/globalmanager/utils"
 )
 
 const (
@@ -250,7 +250,7 @@ func (c *Controller) deletePod(obj interface{}) {
 // immediate tells the controller to update the status right away, and should
 // happen ONLY when there was a successful pod run.
 func (c *Controller) enqueueController(obj interface{}, immediate bool) {
-	key, err := k8scontroller.KeyFunc(obj)
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Warningf("Couldn't get key for object %+v: %v", obj, err)
 		return
@@ -331,7 +331,7 @@ func (c *Controller) sync(key string) (bool, error) {
 		return false, err
 	}
 
-	activePods := k8scontroller.FilterActivePods(pods)
+	activePods := utils.FilterActivePods(pods)
 	active := int32(len(activePods))
 	var activeAgg int32
 	var activeTrain int32

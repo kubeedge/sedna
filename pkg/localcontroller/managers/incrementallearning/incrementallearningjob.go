@@ -431,7 +431,7 @@ func (im *Manager) startJob(name string) {
 
 	err = im.initJob(job, name)
 	if err != nil {
-		klog.Errorf("failed to init job (name=%s): %+v", name)
+		klog.Errorf("failed to init job (name=%s), err: %v", name, err)
 		return
 	}
 
@@ -757,7 +757,7 @@ func (im *Manager) getModelFromJobConditions(job *Job, jobStage sednav1.ILJobSta
 	getModel := func(initModel *Model, models []Model) *Model {
 		for _, m := range models {
 			if m.Format == initModel.Format {
-				if initModel.Devices != nil && len(m.Devices) == 1 {
+				if len(initModel.Devices) > 0 && len(m.Devices) == 1 {
 					for _, d := range initModel.Devices {
 						if m.Devices[0] == d {
 							return &m

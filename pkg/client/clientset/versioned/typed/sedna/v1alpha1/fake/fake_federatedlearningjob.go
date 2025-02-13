@@ -24,7 +24,6 @@ import (
 	v1alpha1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeFederatedLearningJobs struct {
 	ns   string
 }
 
-var federatedlearningjobsResource = schema.GroupVersionResource{Group: "sedna.io", Version: "v1alpha1", Resource: "federatedlearningjobs"}
+var federatedlearningjobsResource = v1alpha1.SchemeGroupVersion.WithResource("federatedlearningjobs")
 
-var federatedlearningjobsKind = schema.GroupVersionKind{Group: "sedna.io", Version: "v1alpha1", Kind: "FederatedLearningJob"}
+var federatedlearningjobsKind = v1alpha1.SchemeGroupVersion.WithKind("FederatedLearningJob")
 
 // Get takes name of the federatedLearningJob, and returns the corresponding federatedLearningJob object, and an error if there is any.
 func (c *FakeFederatedLearningJobs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.FederatedLearningJob, err error) {
@@ -117,7 +116,7 @@ func (c *FakeFederatedLearningJobs) UpdateStatus(ctx context.Context, federatedL
 // Delete takes name of the federatedLearningJob and deletes it. Returns an error if one occurs.
 func (c *FakeFederatedLearningJobs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(federatedlearningjobsResource, c.ns, name), &v1alpha1.FederatedLearningJob{})
+		Invokes(testing.NewDeleteActionWithOptions(federatedlearningjobsResource, c.ns, name, opts), &v1alpha1.FederatedLearningJob{})
 
 	return err
 }

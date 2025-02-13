@@ -23,20 +23,6 @@ SEDNA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 source ${SEDNA_ROOT}/hack/lib/init.sh
 
 ${SEDNA_ROOT}/hack/generate-groups.sh "deepcopy,client,informer,lister" \
-${SEDNA_GO_PACKAGE}/pkg/client ${SEDNA_GO_PACKAGE}/pkg/apis \
-"sedna:v1alpha1" \
---go-header-file ${SEDNA_ROOT}/hack/boilerplate/boilerplate.generatego.txt
-
-# Check if Sedna home is different from the standard directory where GO projects are located
-if ! [[ "${GOPATH}/src/${SEDNA_GO_PACKAGE}/" -ef "${SEDNA_ROOT}/" ]]; then
-    # Copy generated code into SEDNA_ROOT
-    echo "Warning: ${SEDNA_ROOT} not included in $GOPATH which is required by code-gen"
-    echo "Moving generated code from ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/ to ${SEDNA_ROOT}/"
-    rsync -a ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/{client,apis} ${SEDNA_ROOT}/pkg
-    if [ $? -eq 0 ]; then
-        echo "Copy successful!"
-        rm -rf ${GOPATH}/src/${SEDNA_GO_PACKAGE}/pkg/{client,apis}
-    else
-        echo "Error during copy of the generated code!" >&2
-    fi
-fi
+  ${SEDNA_GO_PACKAGE}/pkg/client ${SEDNA_GO_PACKAGE}/pkg/apis \
+  "sedna:v1alpha1" \
+  --go-header-file ${SEDNA_ROOT}/hack/boilerplate/boilerplate.generatego.txt
