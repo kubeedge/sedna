@@ -182,7 +182,26 @@ e2e:
 # Generate CRDs by kubebuilder
 .PHONY: crds controller-gen
 crds: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/apis/sedna/v1alpha1" output:crd:artifacts:config=build/crds
+	@rm -rf build/crds
+	@for version_dir in ./pkg/apis/sedna/*; do \
+		if [ -d "$$version_dir" ]; then \
+			version=$$(basename "$$version_dir"); \
+			echo "[+] generate version: $$version"; \
+			mkdir -p build/crds/$$version; \
+			$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="$$version_dir" output:crd:artifacts:config=build/crds/$$version; \
+			( \
+				cd build/crds/$$version; \
+				for file in sedna.io_*.yaml;  do \
+					new_name="sedna.io_$${version}_$${file#sedna.io_}";  \
+					mv "$$file" "$$new_name"; \
+				done; \
+			); \
+			mv build/crds/$$version/*.yaml build/crds/; \
+			rmdir build/crds/$$version; \
+		fi; \
+	done
+	@rm -rf build/helm/sedna/crds/*
+	@cp build/crds/*.yaml build/helm/sedna/crds/
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
