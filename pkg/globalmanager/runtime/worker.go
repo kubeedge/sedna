@@ -3,6 +3,9 @@ package runtime
 import (
 	"context"
 	"fmt"
+	sednav1 "github.com/kubeedge/sedna/pkg/apis/sedna/v1alpha1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -265,6 +268,94 @@ func UpdateDeploymentWithTemplate(client kubernetes.Interface, object CommonInte
 
 	klog.V(2).Infof("deployment %s is updated successfully for %s %s", updatedDeployment.Name, objectKind, objectName)
 	return updatedDeployment, nil
+}
+
+func CreateHPA(client kubernetes.Interface, object CommonInterface, kind, scaleTargetRefName, workerType string, hpa *sednav1.HPA) error {
+	hpaName := "hpa-" + scaleTargetRefName
+	newHPA := &autoscalingv2.HorizontalPodAutoscaler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      hpaName,
+			Namespace: object.GetNamespace(),
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(object, object.GroupVersionKind()),
+			},
+			Labels: generateLabels(object, workerType),
+		},
+		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
+			MaxReplicas: hpa.MaxReplicas,
+			Metrics:     hpa.Metrics,
+			MinReplicas: hpa.MinReplicas,
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       kind,
+				Name:       scaleTargetRefName,
+			},
+			Behavior: hpa.Behavior,
+		},
+	}
+	_, err := client.AutoscalingV2().HorizontalPodAutoscalers(object.GetNamespace()).Create(context.TODO(), newHPA, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create hpa for %s %s, err: %s", kind, hpaName, err)
+	}
+	return nil
+}
+
+func UpdateHPA(client kubernetes.Interface, object CommonInterface, kind, scaleTargetRefName, workerType string, hpa *sednav1.HPA) error {
+	// get existing HPA
+	hpaName := "hpa-" + scaleTargetRefName
+	existingHPA, err := client.AutoscalingV2().HorizontalPodAutoscalers(object.GetNamespace()).Get(context.TODO(), hpaName, metav1.GetOptions{})
+	if err != nil {
+		// create HPA if not found
+		if errors.IsNotFound(err) {
+			klog.Info("hpa not found, creating new hpa...")
+			return CreateHPA(client, object, kind, scaleTargetRefName, workerType, hpa)
+		}
+		return fmt.Errorf("failed to get hpa for %s %s, err: %s", kind, hpaName, err)
+	}
+
+	// update HPA
+	existingHPA.ObjectMeta.Labels = generateLabels(object, workerType)
+	existingHPA.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+		*metav1.NewControllerRef(object, object.GroupVersionKind()),
+	}
+	existingHPA.Spec.MaxReplicas = hpa.MaxReplicas
+	existingHPA.Spec.MinReplicas = hpa.MinReplicas
+	existingHPA.Spec.Metrics = hpa.Metrics
+	existingHPA.Spec.ScaleTargetRef = autoscalingv2.CrossVersionObjectReference{
+		APIVersion: "apps/v1",
+		Kind:       kind,
+		Name:       scaleTargetRefName,
+	}
+	existingHPA.Spec.Behavior = hpa.Behavior
+
+	// update HPA
+	_, err = client.AutoscalingV2().HorizontalPodAutoscalers(object.GetNamespace()).Update(context.TODO(), existingHPA, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update hpa for %s %s, err: %s", kind, hpaName, err)
+	}
+
+	return nil
+}
+
+func DeleteHPA(client kubernetes.Interface, namespace, name string) error {
+	// check if HPA exists
+	_, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		// Return nil if HPA not found
+		if errors.IsNotFound(err) {
+			return nil
+		}
+
+		return fmt.Errorf("failed to get hpa %s in namespace %s, err: %s", name, namespace, err)
+	}
+
+	// delete HPA
+	err = client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete hpa %s in namespace %s, err: %s", name, namespace, err)
+	}
+
+	return nil
 }
 
 func newDeployment(object CommonInterface, spec *appsv1.DeploymentSpec, workerParam *WorkerParam) *appsv1.Deployment {
