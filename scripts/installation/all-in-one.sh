@@ -635,8 +635,8 @@ function arch() {
 function _download_tool() {
   local name=$1 url=$2
   local file=/usr/local/bin/$name
-	curl -Lo $file $url
-  chmod +x $file
+	curl -Lo "$file" "$url"
+  chmod +x "$file"
 }
 
 function check_command_exists() {
@@ -645,7 +645,7 @@ function check_command_exists() {
 
 function ensure_tool() {
   local command=$1 download_url=$2
-  if check_command_exists $command; then
+  if check_command_exists "$command"; then
     return
   fi
 
