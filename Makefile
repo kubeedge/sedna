@@ -183,6 +183,7 @@ e2e:
 .PHONY: crds controller-gen
 crds: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/apis/sedna/v1alpha1" output:crd:artifacts:config=build/crds
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/apis/sedna/v1alpha1" output:crd:artifacts:config=build/helm/sedna/crds
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
