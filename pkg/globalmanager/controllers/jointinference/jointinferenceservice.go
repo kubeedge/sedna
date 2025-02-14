@@ -478,13 +478,17 @@ func (c *Controller) updateInferenceServices(old, cur interface{}) error {
 func (c *Controller) createOrUpdateWorker(service *sednav1.JointInferenceService, workerType string, bigModelHost string, bigModelPort int32, create bool) error {
 	var modelName string
 	var modelTemplate v1.PodTemplateSpec
+	var hpa *sednav1.HPA
 	var workerParam runtime.WorkerParam
+
+	deploymentName := service.GetName() + "-" + "deployment" + "-" + strings.ToLower(workerType)
 
 	// Set the corresponding parameters according to the workerType.
 	switch workerType {
 	case jointInferenceForCloud:
 		modelName = service.Spec.CloudWorker.Model.Name
 		modelTemplate = *service.Spec.CloudWorker.Template.DeepCopy()
+		hpa = service.Spec.CloudWorker.HPA.DeepCopy()
 
 		workerParam.Env = map[string]string{
 			"BIG_MODEL_BIND_PORT": strconv.Itoa(int(bigModelPort)),
@@ -494,6 +498,7 @@ func (c *Controller) createOrUpdateWorker(service *sednav1.JointInferenceService
 	case jointInferenceForEdge:
 		modelName = service.Spec.EdgeWorker.Model.Name
 		modelTemplate = *service.Spec.EdgeWorker.Template.DeepCopy()
+		hpa = service.Spec.EdgeWorker.HPA.DeepCopy()
 
 		HEMParameterJSON, _ := json.Marshal(service.Spec.EdgeWorker.HardExampleMining.Parameters)
 		HEMParameterString := string(HEMParameterJSON)
@@ -537,19 +542,30 @@ func (c *Controller) createOrUpdateWorker(service *sednav1.JointInferenceService
 	workerParam.Env["SERVICE_NAME"] = service.Name
 	workerParam.Env["WORKER_NAME"] = strings.ToLower(workerType) + "worker-" + utilrand.String(5)
 
+	// Set the group version kind.
+	service.SetGroupVersionKind(gvk)
+
 	// Create or update Deployment.
 	if create {
 		_, err = runtime.CreateDeploymentWithTemplate(c.kubeClient, service, &appsv1.DeploymentSpec{Template: modelTemplate}, &workerParam)
+		// create HPA
+		if hpa != nil {
+			return runtime.CreateHPA(c.kubeClient, service, "Deployment", deploymentName, workerType, hpa)
+		}
 	} else {
-		service.SetGroupVersionKind(gvk)
 		workerName := service.Name + "-deployment-" + strings.ToLower(workerType)
 		existingDeployment, err := c.deploymentsLister.Deployments(service.Namespace).Get(workerName)
 		if err != nil {
-			return fmt.Errorf("get %s Deployment failed:%v", strings.ToLower(workerType), err)
+			return fmt.Errorf("get %s Deployment failed: %v", strings.ToLower(workerType), err)
 		}
 		newDeployment := existingDeployment.DeepCopy()
 		newDeployment.Spec.Template = modelTemplate
 		_, err = runtime.UpdateDeploymentWithTemplate(c.kubeClient, service, newDeployment, &workerParam)
+		// update HPA
+		if hpa != nil {
+			return runtime.UpdateHPA(c.kubeClient, service, "Deployment", deploymentName, workerType, hpa)
+		}
+		return runtime.DeleteHPA(c.kubeClient, service.GetNamespace(), "hpa-"+deploymentName)
 	}
 	return err
 }
