@@ -214,6 +214,17 @@ func (c *Controller) deletePod(obj interface{}) {
 		return
 	}
 
+	_, err := c.jobLister.FederatedLearningJobs(pod.Namespace).Get(controllerRef.Name)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// The FederatedLearningJob has been deleted, and the Pod should not be rebuilt.
+			klog.Infof("FederatedLearningJob %s/%s not found, skipping pod recreation", pod.Namespace, controllerRef.Name)
+			return
+		}
+		klog.Errorf("Error getting FederatedLearningJob %s/%s: %v", pod.Namespace, controllerRef.Name, err)
+		return
+	}
+
 	// then check if the pod is already in the map
 	if _, exists := c.recreatedPods.Load(pod.Name); exists {
 		return
@@ -232,7 +243,7 @@ func (c *Controller) deletePod(obj interface{}) {
 	newPod.DeletionTimestamp = nil
 	// Remove the deletion grace period seconds
 	newPod.DeletionGracePeriodSeconds = nil
-	_, err := c.kubeClient.CoreV1().Pods(pod.Namespace).Create(context.TODO(), newPod, metav1.CreateOptions{})
+	_, err = c.kubeClient.CoreV1().Pods(pod.Namespace).Create(context.TODO(), newPod, metav1.CreateOptions{})
 	if err != nil {
 		return
 	}
@@ -713,7 +724,10 @@ func New(cc *runtime.ControllerContext) (runtime.FeatureControllerI, error) {
 		kubeClient: cc.KubeClient,
 		client:     cc.SednaClient.SednaV1alpha1(),
 
-		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff), Name),
+		queue: workqueue.NewRateLimitingQueueWithConfig(
+			workqueue.NewItemExponentialFailureRateLimiter(runtime.DefaultBackOff, runtime.MaxBackOff),
+			workqueue.RateLimitingQueueConfig{Name: Name},
+		),
 		recorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: Name + "-controller"}),
 		cfg:      cfg,
 	}
