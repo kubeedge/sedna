@@ -29,7 +29,7 @@ import (
 
 const (
 	downloadInitalizerContainerName = "storage-initializer"
-	downloadInitalizerImage         = "kubeedge/sedna-storage-initializer:v0.3.0"
+	downloadInitalizerImage         = "kubeedge/sedna-storage-initializer:v0.5.0"
 
 	downloadInitalizerPrefix     = "/downloads"
 	downloadInitalizerVolumeName = "sedna-storage-initializer"
