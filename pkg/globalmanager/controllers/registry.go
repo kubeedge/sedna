@@ -23,6 +23,7 @@ import (
 	il "github.com/kubeedge/sedna/pkg/globalmanager/controllers/incrementallearning"
 	ji "github.com/kubeedge/sedna/pkg/globalmanager/controllers/jointinference"
 	ll "github.com/kubeedge/sedna/pkg/globalmanager/controllers/lifelonglearning"
+	llmji "github.com/kubeedge/sedna/pkg/globalmanager/controllers/llmjointinference"
 	objs "github.com/kubeedge/sedna/pkg/globalmanager/controllers/objectsearch"
 	reid "github.com/kubeedge/sedna/pkg/globalmanager/controllers/reid"
 	va "github.com/kubeedge/sedna/pkg/globalmanager/controllers/videoanalytics"
@@ -36,6 +37,7 @@ type Registry map[string]FeatureFactory
 func NewRegistry() Registry {
 	return Registry{
 		ji.Name:      ji.New,
+		llmji.Name:   llmji.New,
 		fe.Name:      fe.New,
 		fl.Name:      fl.New,
 		il.Name:      il.New,

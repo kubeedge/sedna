@@ -58,6 +58,14 @@ type JointInferenceServiceListerExpansion interface{}
 // JointInferenceServiceNamespaceLister.
 type JointInferenceServiceNamespaceListerExpansion interface{}
 
+// LLMJointInferenceServiceListerExpansion allows custom methods to be added to
+// LLMJointInferenceServiceLister.
+type LLMJointInferenceServiceListerExpansion interface{}
+
+// LLMJointInferenceServiceNamespaceListerExpansion allows custom methods to be added to
+// LLMJointInferenceServiceNamespaceLister.
+type LLMJointInferenceServiceNamespaceListerExpansion interface{}
+
 // LifelongLearningJobListerExpansion allows custom methods to be added to
 // LifelongLearningJobLister.
 type LifelongLearningJobListerExpansion interface{}
