@@ -19,17 +19,17 @@ jobs:
 
     steps:
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: 1.22.9
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           path: ${{ env.CODE_DIR }}
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -55,17 +55,17 @@ jobs:
     name: build gm and lc
     steps:
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: 1.22.9
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -76,11 +76,11 @@ jobs:
     name: 'Unit test, integration test edge (noop now)'
     steps:
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: 1.22.9
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -89,7 +89,7 @@ jobs:
         run: ': to be added'
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -100,11 +100,11 @@ jobs:
     name: 'E2e test'
     steps:
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: 1.22.9
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -124,7 +124,7 @@ jobs:
 
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -135,17 +135,17 @@ jobs:
     name: docker image build for gm/lc
     steps:
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: 1.22.9
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -156,17 +156,17 @@ jobs:
     name: docker cross build images for gm/lc/kb
     steps:
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: 1.22.9
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
