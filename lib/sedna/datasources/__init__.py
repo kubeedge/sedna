@@ -13,15 +13,24 @@
 # limitations under the License.
 
 from abc import ABC
-from pathlib import Path
 
+import json
 import numpy as np
 import pandas as pd
+from pycocotools.coco import COCO
 
+from pathlib import Path
 from sedna.common.file_ops import FileOps
 from sedna.common.class_factory import ClassFactory, ClassType
 
-__all__ = ('BaseDataSource', 'TxtDataParse', 'CSVDataParse', 'JSONDataParse')
+__all__ = (
+    'BaseDataSource',
+    'TxtDataParse',
+    'CSVDataParse',
+    'JSONDataParse',
+    'JsonlDataParse',
+    'JSONMetaDataParse'
+)
 
 
 class BaseDataSource:
@@ -89,7 +98,7 @@ class TxtDataParse(BaseDataSource, ABC):
             with open(f) as fin:
                 if self.process_func:
                     res = list(map(self.process_func, [
-                               line.strip() for line in fin.readlines()]))
+                        line.strip() for line in fin.readlines()]))
                 else:
                     res = [line.strip().split() for line in fin.readlines()]
             for tup in res:
@@ -121,8 +130,6 @@ class CSVDataParse(BaseDataSource, ABC):
         return pd.DataFrame.from_dict([lines], **kwargs)
 
     def parse(self, *args, **kwargs):
-        from pycocotools.coco import COCO
-
         x_data = []
         y_data = []
         label = kwargs.pop("label") if "label" in kwargs else ""
@@ -162,11 +169,6 @@ class JSONDataParse(BaseDataSource, ABC):
 
     def __init__(self, data_type, func=None):
         super(JSONDataParse, self).__init__(data_type=data_type, func=func)
-        self.data_dir = None
-        self.coco = None
-        self.ids = None
-        self.class_ids = None
-        self.annotations = None
 
     def parse(self, *args, **kwargs):
         DIRECTORY = "train"
@@ -184,7 +186,7 @@ class JSONDataParse(BaseDataSource, ABC):
             "class_ids": self.class_ids,
             "annotations": self.annotations,
         }
-        self.y = list(self.data_dir.glob(LABEL_PATH))
+        self.y = [f for f in self.data_dir.glob(LABEL_PATH)]
 
     def load_anno_from_ids(self, id_):
         im_ann = self.coco.loadImgs(id_)[0]
@@ -196,25 +198,115 @@ class JSONDataParse(BaseDataSource, ABC):
         annotations = self.coco.loadAnns(anno_ids)
         objs = []
         for obj in annotations:
-            if obj["area"] > 0 and obj["bbox"][2] >= 0 and obj["bbox"][3] >= 0:
-                obj["clean_bbox"] = [
-                        obj["bbox"][0], obj["bbox"][1],
-                        obj["bbox"][0] + obj["bbox"][2],
-                        obj["bbox"][1] + obj["bbox"][3]]
+            x1 = obj["bbox"][0]
+            y1 = obj["bbox"][1]
+            x2 = x1 + obj["bbox"][2]
+            y2 = y1 + obj["bbox"][3]
+            if obj["area"] > 0 and x2 >= x1 and y2 >= y1:
+                obj["clean_bbox"] = [x1, y1, x2, y2]
                 objs.append(obj)
 
-        res = np.zeros((len(objs), 6))
+        num_objs = len(objs)
+        res = np.zeros((num_objs, 6))
 
-        for i, obj in enumerate(objs):
-            res[i, 0:4] = obj["clean_bbox"]
-            res[i, 4] = self.class_ids.index(obj["category_id"])
-            res[i, 5] = obj["track_id"]
+        for ix, obj in enumerate(objs):
+            cls = self.class_ids.index(obj["category_id"])
+            res[ix, 0:4] = obj["clean_bbox"]
+            res[ix, 4] = cls
+            res[ix, 5] = obj["track_id"]
 
         file_name = (
-            im_ann["file_name"] if "file_name" in im_ann
-            else f"{id_:012}.jpg")
+            im_ann["file_name"]
+            if "file_name" in im_ann
+            else f"{id_:012}.jpg"
+        )
         img_info = (height, width, frame_id, video_id, file_name)
 
         del im_ann, annotations
 
         return (res, img_info, file_name)
+
+
+class JsonlDataParse(BaseDataSource, ABC):
+    """
+    jsonl file which contain Structured Data parser
+    """
+
+    def __init__(self, data_type, func=None):
+        super(JsonlDataParse, self).__init__(data_type=data_type, func=func)
+
+    def parse(self, *args, **kwargs):
+        x_data = []
+        y_data = []
+        for f in args:
+            if not (f and FileOps.exists(f)):
+                continue
+            with open(f, 'r', encoding='utf-8') as file:
+                for line in file:
+                    line = json.loads(line)
+                    x_data.append(line['question'])
+                    y_data.append(line['answer'])
+        self.x = np.array(x_data)
+        self.y = np.array(y_data)
+
+
+class JSONMetaDataParse(BaseDataSource, ABC):
+    """
+    parse data_info.json file
+    """
+
+    def __init__(self, data_type, func=None):
+        super(JSONMetaDataParse, self).__init__(data_type=data_type, func=func)
+        self.need_other_info = True
+
+    def parse(self, *args, **kwargs):
+        for f in args:
+            if not (f and FileOps.exists(f)):
+                continue
+            with open(f, 'r', encoding='utf-8') as file:
+                json_data = json.load(file)
+                self.dataset_name = json_data['dataset']
+                self.description = json_data['description']
+                self.level_1_dim = json_data['level_1_dim']
+                self.level_2_dim = json_data['level_2_dim']
+                if 'level_3_dim' in json_data:
+                    self.level_3_dim = json_data['level_3_dim']
+                if 'level_4_dim' in json_data:
+                    self.level_4_dim = json_data['level_4_dim']
+
+            data_f = f.replace('metadata.json', 'data.jsonl')
+            x_data = []
+            y_data = []
+            explanation_data = []
+            judge_prompts = []
+            level_3_data = []
+            level_4_data = []
+            with open(data_f, 'r', encoding='utf-8') as file:
+                for line in file:
+                    line = json.loads(line)
+                    cur_x = ""
+                    # "prompt" is optional
+                    if 'prompt' in line:
+                        cur_x += line['prompt']
+                    cur_x += line['query']
+                    x_data.append(cur_x)
+                    y_data.append(line['response'])
+                    # "explanation" is optional
+                    cur_exp = ""
+                    if 'explanation' in line:
+                        cur_exp = line['explanation']
+                    explanation_data.append(cur_exp)
+                    # "judge_prompt" is optional
+                    cur_jp = ""
+                    if "judge_prompt" in line:
+                        cur_jp += line['judge_prompt']
+                    judge_prompts.append(cur_jp)
+                    level_3_data.append(line['level_3_dim'])
+                    level_4_data.append(line['level_4_dim'])
+
+            self.x = np.array(x_data)
+            self.y = np.array(y_data)
+            self.explanation = np.array(explanation_data)
+            self.judge_prompts = np.array(judge_prompts)
+            self.level_3 = np.array(level_3_data)
+            self.level_4 = np.array(level_4_data)
