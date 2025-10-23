@@ -119,6 +119,7 @@ class JobBase:
         self.worker_name = self.config.worker_name or self.job_name
         self.namespace = self.config.namespace or self.job_name
         self.lc_server = self.config.lc_server
+        self.model_load_mode = self.get_parameters("MODEL_LOAD_MODE", "file")
 
         if str(
                 self.get_parameters("MODEL_HOT_UPDATE", "False")
@@ -130,7 +131,8 @@ class JobBase:
 
     @property
     def model_path(self):
-        if os.path.isfile(self.config.model_url):
+        if self.model_load_mode != "file" or os.path.isfile(
+                self.config.model_url):
             return self.config.model_url
         return self.get_parameters('model_path') or FileOps.join_path(
             self.config.model_url, self.estimator.model_name)

@@ -1,0 +1,78 @@
+apiVersion: sedna.io/v1alpha1
+kind: JointInferenceService
+metadata:
+  name: answer-generation-inference-example
+  namespace: default
+spec:
+  edgeWorker:
+    model:
+      name: "answer-generation-inference-little-model"
+    hardExampleMining:
+      name: "BertRouter"
+      parameters:
+        - key: "model"
+          value: "routellm/bert"
+        - key: "threshold"
+          value: "0.5"
+    template:
+      spec:
+        nodeName: $EDGE_NODE
+        dnsPolicy: ClusterFirstWithHostNet
+        containers:
+        - image: kubeedge/sedna-example-joint-inference-answer-generation-little:v0.8.0
+          imagePullPolicy: IfNotPresent
+          name:  little-model
+          env:  # user defined environments
+          - name: "BACKEND_TYPE"
+            value: "TORCH"
+          - name: "MINING_MODE"
+            value: "mining-then-inference"
+          - name: "MODEL_LOAD_MODE"
+            value: "hf"
+          - name: "input_text"
+            value: "/data/input"
+          - name: "all_examples_inference_output"
+            value: "/data/output"
+          - name: "hard_example_cloud_inference_output"
+            value: "/data/hard_example_cloud_inference_output"
+          - name: "hard_example_edge_inference_output"
+            value: "/data/hard_example_edge_inference_output"
+          resources:  # user defined resources
+            requests:
+              memory: 64M 
+              cpu: 100m
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: outputdir
+              mountPath: /data/
+        volumes:   # user defined volumes
+          - name: outputdir
+            hostPath:
+              # user must create the directory in host
+              path: /joint_inference
+              type: Directory
+
+  cloudWorker:
+    model:
+      name: "answer-generation-inference-big-model"
+    template:
+      spec:
+        nodeName: $CLOUD_NODE
+        dnsPolicy: ClusterFirstWithHostNet
+        containers:
+          - image: kubeedge/sedna-example-joint-inference-answer-generation-big:v0.8.0
+            name:  big-model
+            imagePullPolicy: IfNotPresent
+            env:
+              - name: "BACKEND_TYPE"
+                value: "TORCH"
+              - name: "MODEL_LOAD_MODE"
+                value: "https"
+              - name: "API_KEY"
+                value: $API_KEY
+              - name: "MODEL_NAME"
+                value: "deepseek-chat"
+            resources:
+              requests:
+                memory: 2Gi

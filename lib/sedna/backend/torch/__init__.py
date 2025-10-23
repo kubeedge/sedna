@@ -54,7 +54,8 @@ class TorchBackend(BackendBase):
 
     def load(self, model_url="", model_name=None, **kwargs):
         model_path = self.model_save_path
-        if os.path.exists(model_path):
+        model_load_mode = os.environ.get("MODEL_LOAD_MODE", "file")
+        if model_load_mode != "file" or os.path.exists(model_path):
             try:
                 self.estimator.load(**kwargs)
             except Exception as e:
