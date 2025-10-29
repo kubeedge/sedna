@@ -16,10 +16,25 @@
 
 import abc
 import math
+import os
 import random
 from sedna.common.class_factory import ClassFactory, ClassType
+import logging
 
-__all__ = ('ThresholdFilter', 'CrossEntropyFilter', 'IBTFilter')
+# Only import torch and transformers when BACKEND_TYPE is TORCH
+BACKEND_TYPE = os.environ.get('BACKEND_TYPE', '').upper()
+if BACKEND_TYPE == 'TORCH':
+    import torch
+    from transformers import pipeline
+
+__all__ = ['ThresholdFilter', 'CrossEntropyFilter', 'IBTFilter',
+           'RandomFilter', 'CloudOnlyFilter', 'EdgeOnlyFilter']
+
+# Only add BertRouterFilter to __all__ when BACKEND_TYPE is TORCH
+if BACKEND_TYPE == 'TORCH':
+    __all__.append('BertRouterFilter')
+
+LOG = logging.getLogger(__name__)
 
 
 class BaseFilter(metaclass=abc.ABCMeta):
@@ -57,6 +72,7 @@ class ThresholdFilter(BaseFilter, abc.ABC):
     threshold: float
         hard coefficient threshold score to filter img, default to 0.5.
     """
+
     def __init__(self, threshold: float = 0.5, **kwargs):
         self.threshold = float(threshold)
 
@@ -197,6 +213,7 @@ class RandomFilter(BaseFilter):
             is hard sample: bool
                 `True` means hard sample, `False` means not.
             """
+
     def __init__(self, random_ratio=0.3, **kwargs):
         self.random_ratio = random_ratio
 
@@ -204,3 +221,134 @@ class RandomFilter(BaseFilter):
         if random.uniform(0, 1) < self.random_ratio:
             return True
         return False
+
+
+@ClassFactory.register(ClassType.HEM, alias="CloudOnly")
+class CloudOnlyFilter(BaseFilter):
+    def __init__(self, **kwargs):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return True
+
+
+@ClassFactory.register(ClassType.HEM, alias="EdgeOnly")
+class EdgeOnlyFilter(BaseFilter):
+    def __init__(self, **kwargs):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return False
+
+
+# Only define BertRouterFilter when BACKEND_TYPE is TORCH
+if BACKEND_TYPE == 'TORCH':
+    @ClassFactory.register(ClassType.HEM, alias="BertRouter")
+    class BertRouterFilter(BaseFilter, abc.ABC):
+        def __init__(self, **kwargs):
+            """Initialize the BERTFilter.
+
+            Parameters
+            ----------
+            kwargs: dict
+                Possible kwargs are:
+                - `model`: str, default "routellm/bert". The model to use.
+                - `task`: str, default "text-classification". Task to use.
+                - `max_length`: int, default 512. Max length of the input.
+            """
+
+            self.model = kwargs.get("model", "routellm/bert")
+            self.task = kwargs.get("task", "text-classification")
+            self.max_length = int(kwargs.get("max_length", 512))
+            self.device = kwargs.get(
+                "device", "cuda" if torch.cuda.is_available() else "cpu")
+            self.threshold = float(kwargs.get("threshold", 0.5))
+
+            try:
+                self.classifier = pipeline(
+                    self.task, model=self.model, device=self.device)
+            except Exception as e:
+                LOG.error(f"Failed to initialize the pipeline: {e}")
+                raise RuntimeError(
+                    "Pipeline initialization failed. "
+                    "Please check the model and task parameters.")
+
+        def _text_classification_postprocess(self, result):
+            """Postprocess the text classification result
+
+            Parameters
+            ----------
+            result : list
+                The result from the classifier. Example:
+                ```
+                [{"label": "LABEL_0", "score": 0.5},
+                {"label": "LABEL_1", "score": 0.4},
+                {"label": "LABEL_2", "score": 0.1}]
+
+            Returns
+            -------
+            bool
+                `True` means hard sample, `False` means not.
+            """
+
+            res = {item["label"]: item["score"] for item in result}
+            scaled_score = res["LABEL_0"] / (res["LABEL_0"] + res["LABEL_1"])
+
+            label = "LABEL_0" if scaled_score >= self.threshold else "LABEL_1"
+            return False if label == "LABEL_0" else True
+
+        def _predict(self, data):
+            """Predict the data label
+
+            Parameters
+            ----------
+            data : dict
+                See format at BaseLLM's `inference()`.
+
+            Returns
+            -------
+            bool
+                `True` means hard sample, `False` means not.
+
+            Raises
+            ------
+            NotImplementedError
+                If the task is not supported
+            """
+
+            if self.task == "text-classification":
+                result = self.classifier(data, top_k=None)
+                is_hard_sample = \
+                    self._text_classification_postprocess(result[0])
+            else:
+                raise NotImplementedError
+
+            return is_hard_sample
+
+        def _preprocess(self, data):
+            """Preprocess the data
+
+            Parameters
+            ----------
+            data : dict
+                See format at BaseLLM's `inference()`.
+
+            Returns
+            -------
+            str
+                query string
+            """
+            query = data.get("query")
+            if "query" in query:
+                return query["query"][:self.max_length]
+            else:
+                return query[:self.max_length]
+
+        def cleanup(self):
+            """Release the classifier model
+            """
+            del self.classifier
+
+        def __call__(self, data=None) -> bool:
+            # data = self._preprocess(data)
+            return self._predict(data)

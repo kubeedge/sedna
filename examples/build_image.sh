@@ -80,6 +80,11 @@ joint-inference-helmet-detection-big.Dockerfile
 joint-inference-helmet-detection-little.Dockerfile
 )
 
+dockerfiles_joint_inference_llm=(
+joint-inference-answer-generation-big.Dockerfile
+joint-inference-answer-generation-little.Dockerfile
+)
+
 dockerfiles_lifelong_learning=(
 lifelong-learning-atcii-classifier.Dockerfile
 )

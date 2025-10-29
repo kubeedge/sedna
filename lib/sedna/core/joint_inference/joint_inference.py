@@ -60,7 +60,8 @@ class BigModelService(JobBase):
 
         if callable(self.estimator):
             self.estimator = self.estimator()
-        if not os.path.exists(self.model_path):
+        if self.model_load_mode == "file" and \
+                not os.path.exists(self.model_path):
             raise FileExistsError(f"{self.model_path} miss")
         else:
             self.estimator.load(self.model_path)
@@ -167,7 +168,8 @@ class JointInference(JobBase):
 
         if callable(self.estimator):
             self.estimator = self.estimator()
-        if not os.path.exists(self.model_path):
+        if self.model_load_mode == "file" and \
+                not os.path.exists(self.model_path):
             raise FileExistsError(f"{self.model_path} miss")
         else:
             self.estimator.load(self.model_path)
@@ -210,6 +212,30 @@ class JointInference(JobBase):
             **param
         )
 
+    def _get_edge_result(self, data, callback_func, **kwargs):
+        edge_result = self.estimator.predict(data, **kwargs)
+        res = deepcopy(edge_result)
+
+        if callback_func:
+            res = callback_func(res)
+
+        self.lc_reporter.update_for_edge_inference()
+
+        return res, edge_result
+
+    def _get_cloud_result(self, data, post_process, **kwargs):
+        cloud_result = self.cloud.inference(
+            data, post_process=post_process, **kwargs)
+        res = deepcopy(cloud_result)
+
+        self.lc_reporter.update_for_collaboration_inference()
+
+        return res, cloud_result
+
+    def _check_hem_algorithm(self):
+        if self.hard_example_mining_algorithm is None:
+            raise ValueError("Hard example mining algorithm is not set.")
+
     def inference(self, data=None, post_process=None, **kwargs):
         """
         Inference task with JointInference
@@ -240,27 +266,43 @@ class JointInference(JobBase):
             callback_func = ClassFactory.get_cls(
                 ClassType.CALLBACK, post_process)
 
-        res = self.estimator.predict(data, **kwargs)
-        edge_result = deepcopy(res)
+        mining_mode = self.get_parameters(
+            "MINING_MODE", "inference-then-mining")
 
-        if callback_func:
-            res = callback_func(res)
+        if mining_mode == "inference-then-mining":
+            res, edge_result = self._get_edge_result(
+                data, callback_func, **kwargs)
 
-        self.lc_reporter.update_for_edge_inference()
+            is_hard_example = False
+            cloud_result = None
 
-        is_hard_example = False
-        cloud_result = None
+            if self.hard_example_mining_algorithm:
+                is_hard_example = self.hard_example_mining_algorithm(res)
+                if is_hard_example:
+                    try:
+                        cloud_data = self.cloud.inference(
+                            data.tolist(), post_process=post_process, **kwargs)
+                        cloud_result = cloud_data["result"]
+                    except Exception as err:
+                        self.log.error(f"get cloud result error: {err}")
+                    else:
+                        res = cloud_result
+                    self.lc_reporter.update_for_collaboration_inference()
 
-        if self.hard_example_mining_algorithm:
-            is_hard_example = self.hard_example_mining_algorithm(res)
+        elif mining_mode == "mining-then-inference":
+            self._check_hem_algorithm()
+
+            is_hard_example = self.hard_example_mining_algorithm(data)
             if is_hard_example:
-                try:
-                    cloud_data = self.cloud.inference(
-                        data.tolist(), post_process=post_process, **kwargs)
-                    cloud_result = cloud_data["result"]
-                except Exception as err:
-                    self.log.error(f"get cloud result error: {err}")
-                else:
-                    res = cloud_result
-                self.lc_reporter.update_for_collaboration_inference()
+                res, cloud_result = self._get_cloud_result(
+                    data, post_process=post_process, **kwargs)
+                edge_result = None
+            else:
+                res, edge_result = self._get_edge_result(
+                    data, callback_func, **kwargs)
+                cloud_result = None
+
+        else:
+            raise ValueError(f"Invalid MINING_MODE: {mining_mode}. ")
+
         return [is_hard_example, res, edge_result, cloud_result]
