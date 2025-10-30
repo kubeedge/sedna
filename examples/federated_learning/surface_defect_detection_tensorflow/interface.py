@@ -36,7 +36,7 @@ s3_transmitter = FederatedLearningV2.get_transmitter_from_config()
 
 
 class Dataset:
-    def __init__(self, trainset=None, testset=None) -> None:
+    def __init__(self, trainset=None, testset=None):
         self.customized = True
         self.trainset = tf.data.Dataset.from_tensor_slices((trainset.x, trainset.y))
         self.trainset = self.trainset.batch(int(Context.get_parameters("batch_size", 32)))
@@ -44,7 +44,7 @@ class Dataset:
         self.testset = self.testset.batch(int(Context.get_parameters("batch_size", 32)))
 
 class Estimator:
-    def __init__(self) -> None:
+    def __init__(self):
         self.model = self.build()
         self.pretrained = None
         self.saved = None
@@ -61,7 +61,8 @@ class Estimator:
             # The machine learning model
             "model_name": "sdd_model",
             "momentum": 0.9,
-            "weight_decay": 0.0
+            "weight_decay": 0.0,
+            "history": 0.1
         }
 
     @staticmethod
