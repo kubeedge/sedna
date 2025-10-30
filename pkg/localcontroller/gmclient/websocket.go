@@ -21,9 +21,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog/v2"
 
 	"github.com/kubeedge/sedna/cmd/sedna-lc/app/options"
@@ -76,6 +78,34 @@ func (c *wsClient) Subscribe(m MessageResourceHandler) error {
 	return nil
 }
 
+func sanitizeHeaderField(rawStr string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(rawStr, "\n", ""), "\r", "")
+}
+
+func sanitizeHeader(h MessageHeader) MessageHeader {
+	h.ResourceName = sanitizeHeaderField(h.ResourceName)
+	h.Namespace = sanitizeHeaderField(h.Namespace)
+	h.ResourceKind = sanitizeHeaderField(h.ResourceKind)
+	h.Operation = sanitizeHeaderField(h.Operation)
+	return h
+}
+
+func validateMessage(msg *Message) (err error) {
+	// ResourceName/Namespace follow 'RFC 1123 Label Names' constraint
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
+	errs := validation.IsDNS1123Label(msg.Header.ResourceName)
+	if len(errs) > 0 {
+		err = fmt.Errorf("invalid resource name: %s", strings.Join(errs, ","))
+		return
+	}
+	errs = validation.IsDNS1123Label(msg.Header.Namespace)
+	if len(errs) > 0 {
+		err = fmt.Errorf("invalid namespace: %s", strings.Join(errs, ","))
+		return
+	}
+	return
+}
+
 // handleReceivedMessage handles received message
 func (c *wsClient) handleReceivedMessage(stop chan struct{}) {
 	defer func() {
@@ -85,16 +115,22 @@ func (c *wsClient) handleReceivedMessage(stop chan struct{}) {
 	ws := c.WSConnection.WSConn
 
 	for {
-		message := Message{}
+		var message Message
 		if err := ws.ReadJSON(&message); err != nil {
-			klog.Errorf("client received message from global manager(address: %s) failed, error: %v",
+			klog.Errorf("client failed to read message from gm(%s): %v",
 				c.Options.GMAddr, err)
 			return
 		}
+		if err := validateMessage(&message); err != nil {
+			klog.Warningf("failed to validate message from gm(%s): %v",
+				message.Header, c.Options.GMAddr, err)
+			continue
+		}
+		message.Header = sanitizeHeader(message.Header)
 
-		klog.V(2).Infof("client received message header: %+v from global manager(address: %s)",
+		klog.V(2).Infof("client received message header: %+v from gm(%s)",
 			message.Header, c.Options.GMAddr)
-		klog.V(4).Infof("client received message content: %s from global manager(address: %s)",
+		klog.V(4).Infof("client received message content: %s from gm(%s)",
 			message.Content, c.Options.GMAddr)
 
 		m := c.SubscribeMessageMap[message.Header.ResourceKind]
