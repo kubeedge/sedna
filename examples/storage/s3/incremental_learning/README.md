@@ -34,15 +34,15 @@ apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
   name: initial-model
-  spec:
-    url : "s3://kubeedge/model/base_model"
-    format: "ckpt"
-    credentialName: mysecret
+spec:
+  url : "s3://kubeedge/model/base_model"
+  format: "ckpt"
+  credentialName: mysecret
 EOF
 ```
 
 ```shell
-kubectl $action -f - <<EOF
+kubectl create -f - <<EOF
 apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
@@ -60,7 +60,7 @@ EOF
 * Attach the created secret to Dataset and create Dataset.  
 
 ```shell
-kubectl $action -f - <<EOF
+kubectl create -f - <<EOF
 apiVersion: sedna.io/v1alpha1
 kind: Dataset
 metadata:

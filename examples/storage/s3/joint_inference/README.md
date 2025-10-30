@@ -35,15 +35,15 @@ apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
   name: big-model
-  spec:
-    url : "s3://kubeedge/model/big-model/yolov3_darknet.pb"
-    format: "pb"
-    credentialName: mysecret
+spec:
+  url : "s3://kubeedge/model/big-model/yolov3_darknet.pb"
+  format: "pb"
+  credentialName: mysecret
 EOF
 ```
 
 ```shell
-kubectl $action -f - <<EOF
+kubectl create -f - <<EOF
 apiVersion: sedna.io/v1alpha1
 kind: Model
 metadata:
