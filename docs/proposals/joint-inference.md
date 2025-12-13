@@ -122,7 +122,7 @@ Updates are categorized below along with the possible actions that the upstream 
 |-------------------------------     |---------------------------------------------- |
 |Joint-inference-service Reported State Updated    |  The controller appends the reported status of the Joint-inference-service in the cloud. |
 
-### Details of api between GM(cloud) and LC(edge)
+### Details of API between GM(cloud) and LC(edge)
 1. GM(downstream controller) syncs the task info to LC:
     ```go
     // POST <namespace>/sedna/downstream/jointinferenceservices/<name>/insert
@@ -133,8 +133,8 @@ Updates are categorized below along with the possible actions that the upstream 
     ```go
     // POST <namespace>/sedna/upstream/jointinferenceservices/<name>/status
        
-    // JoinInferenceServiceStatus defines status that send to GlobalManager
-    type JoinInferenceServiceStatus struct {
+    // JoinInferenceServiceStatus defines status that is sent to GlobalManager
+    type JointInferenceServiceStatus struct {
     	Phase  string  `json:"phase"`
     	Status string  `json:"status"`
     	Output *Output `json:"output"`
@@ -163,7 +163,7 @@ Updates are categorized below along with the possible actions that the upstream 
 
     ```
 
-### Details of api between Worker(edge) and LC(edge)
+### Details of API between Worker(edge) and LC(edge)
 1. Worker sends inference info to LC in same edge node:
 
     ```
