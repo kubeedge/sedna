@@ -133,7 +133,7 @@ Updates are categorized below along with the possible actions that the upstream 
     ```go
     // POST <namespace>/sedna/upstream/jointinferenceservices/<name>/status
        
-    // JoinInferenceServiceStatus defines status that is sent to GlobalManager
+    // JointInferenceServiceStatus defines status that is sent to GlobalManager
     type JointInferenceServiceStatus struct {
     	Phase  string  `json:"phase"`
     	Status string  `json:"status"`
