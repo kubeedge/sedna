@@ -137,6 +137,7 @@ func getClient() *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(dbURL), &gorm.Config{})
 	if err != nil {
 		klog.Errorf("try to connect the db failed, error: %v", err)
+		return nil
 	}
 
 	_ = db.AutoMigrate(&Resource{})

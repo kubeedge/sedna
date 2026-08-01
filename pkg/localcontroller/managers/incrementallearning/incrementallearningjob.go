@@ -859,6 +859,9 @@ func (im *Manager) triggerEvalTask(job *Job) (*clienttypes.UpstreamMessage, erro
 	var err error
 
 	m := im.getModelFromJobConditions(job, sednav1.ILJobEval)
+	if m == nil {
+		return nil, fmt.Errorf("job(%s) failed to get the trained model from job conditions", jobConfig.UniqueIdentifier)
+	}
 
 	var models []Model
 	models = append(models, *m, *jobConfig.EvalModel)
