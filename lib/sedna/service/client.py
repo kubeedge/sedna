@@ -192,19 +192,33 @@ class AggregationClient:
         except OSError as err:
             LOGGER.warning(f"{self.uri} connection failed - with {err}")
 
+    async def _reconnect_if_closed(self):
+        if self.ws is None or self.ws.closed:
+            LOGGER.warning(f"{self.uri} connection lost, reconnecting")
+            await self.connect()
+
     @retry(stop=tenacity.stop_after_attempt(15),
            retry=tenacity.retry_if_result(lambda x: x is None),
            wait=tenacity.wait_fixed(3))
     async def _send(self, data):
+        # let a fully-exhausted reconnect (connect() already retries
+        # internally) fail fast instead of retrying it again here
+        await self._reconnect_if_closed()
         try:
             await asyncio.wait_for(self.ws.send(data), self._ws_timeout)
             return True
         except Exception as err:
             LOGGER.info(f"{self.uri} send data failed - with {err}")
 
+    @retry(stop=tenacity.stop_after_attempt(15),
+           retry=tenacity.retry_if_result(lambda x: x is None),
+           wait=tenacity.wait_fixed(3))
     async def _recv(self):
-        result = await self.ws.recv()
-        return result
+        await self._reconnect_if_closed()
+        try:
+            return await self.ws.recv()
+        except Exception as err:
+            LOGGER.info(f"{self.uri} recv data failed - with {err}")
 
     def send(self, data, msg_type="message", job_name=""):
         loop = asyncio.get_event_loop()
