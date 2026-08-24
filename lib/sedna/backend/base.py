@@ -57,7 +57,9 @@ class BackendBase:
         if callable(self.estimator):
             varkw = self.parse_kwargs(self.estimator, **kwargs)
             self.estimator = self.estimator(**varkw)
-        fit_method = getattr(self.estimator, "fit", self.estimator.train)
+        fit_method = getattr(self.estimator, "fit", None)
+        if fit_method is None:
+            fit_method = self.estimator.train
         varkw = self.parse_kwargs(fit_method, **kwargs)
         return fit_method(*args, **varkw)
 
@@ -66,7 +68,9 @@ class BackendBase:
         if callable(self.estimator):
             varkw = self.parse_kwargs(self.estimator, **kwargs)
             self.estimator = self.estimator(**varkw)
-        fit_method = getattr(self.estimator, "fit", self.estimator.update)
+        fit_method = getattr(self.estimator, "fit", None)
+        if fit_method is None:
+            fit_method = self.estimator.update
         varkw = self.parse_kwargs(fit_method, **kwargs)
         return fit_method(*args, **varkw)
 
