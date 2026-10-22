@@ -55,14 +55,14 @@ function prepare_env() {
   : ${CLUSTER_NAME:=sedna-mini}
 
   # here not use := because it ignore the error of get_latest_version command
-  if [ -z "${KUBEEDGE_VERSION:-}" ]; then
+  if [ -z "${KUBEEDGE_VERSION:-}" ] || [ "$KUBEEDGE_VERSION" = latest ]; then
     KUBEEDGE_VERSION=$(get_latest_version kubeedge/kubeedge $DEFAULT_KUBEEDGE_VERSION)
   fi
   # 1.8.0 => v1.8.0
   # v1.8.0 => v1.8.0
   KUBEEDGE_VERSION=v${KUBEEDGE_VERSION#v}
 
-  if [ -z "${SEDNA_VERSION:-}" ]; then
+  if [ -z "${SEDNA_VERSION:-}" ] || [ "$SEDNA_VERSION" = latest ]; then
     SEDNA_VERSION=$(get_latest_version kubeedge/sedna $DEFAULT_SEDNA_VERSION)
   fi
   SEDNA_VERSION=v${SEDNA_VERSION#v}
@@ -591,15 +591,15 @@ function install_sedna() {
       log_info
       return
     fi
-    run_in_control_plane bash -ec "
-    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_ACTION=clean SEDNA_VERSION=$SEDNA_VERSION bash -
+    run_in_control_plane bash -e -o pipefail -c "
+    curl -fsSL https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_ACTION=clean SEDNA_VERSION=$SEDNA_VERSION bash -
   "
   fi
 
   log_info "Installing Sedna Control Components..."
 
-  run_in_control_plane bash -ec "
-    curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_ACTION=create SEDNA_VERSION=$SEDNA_VERSION bash -
+  run_in_control_plane bash -e -o pipefail -c "
+    curl -fsSL https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/install.sh | SEDNA_ACTION=create SEDNA_VERSION=$SEDNA_VERSION bash -
   "
 }
 

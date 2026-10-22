@@ -47,7 +47,10 @@ get_latest_version() {
   } || echo $DEFAULT_SEDNA_VERSION # fallback
 }
 
-: ${SEDNA_VERSION:=$(get_latest_version)}
+# an empty value or "latest" means the latest release; otherwise "latest" would become the image tag "vlatest"
+if [ -z "${SEDNA_VERSION:-}" ] || [ "$SEDNA_VERSION" = latest ]; then
+  SEDNA_VERSION=$(get_latest_version)
+fi
 SEDNA_VERSION=v${SEDNA_VERSION#v}
 
 _download_yamls() {
@@ -361,7 +364,9 @@ delete_lc() {
 wait_ok() {
   echo "Waiting control components to be ready..."
   kubectl -n sedna wait --for=condition=available --timeout=600s deployment/gm
-  kubectl -n sedna wait pod --for=condition=Ready --selector=sedna
+  # the default 30s timeout is too short when a node pulls the lc image for the first time,
+  # e.g. a newly created edge node in the all-in-one setup
+  kubectl -n sedna wait pod --for=condition=Ready --selector=sedna --timeout=600s
   kubectl -n sedna get pod
 }
 
