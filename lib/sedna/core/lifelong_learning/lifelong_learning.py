@@ -309,8 +309,10 @@ class LifelongLearning(JobBase):
 
         task_index_url = Context.get_parameters(
             "CLOUD_KB_INDEX", self.cloud_knowledge_management.task_index)
-        task_index_url = FileOps.join_path(
-            BaseConfig.data_path_prefix, task_index_url)
+        if not (os.path.isabs(task_index_url) or
+                FileOps.is_remote(task_index_url)):
+            task_index_url = FileOps.join_path(
+                BaseConfig.data_path_prefix, task_index_url)
         index_url = self.cloud_knowledge_management.local_task_index_url
         FileOps.download(task_index_url, index_url)
         self.log.info(
