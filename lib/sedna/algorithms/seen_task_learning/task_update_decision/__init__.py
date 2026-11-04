@@ -12,4 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from . import task_update_decision
 from . import task_update_decision_finetune
