@@ -46,7 +46,6 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
             self.edge_output_url, KBResourceConstant.KB_INDEX_NAME.value)
         self.local_unseen_save_url = FileOps.join_path(
             self.edge_output_url, "unseen_samples")
-        os.makedirs(self.local_unseen_save_url, exist_ok=True)
 
         self.pinned_service_start = False
         self.unseen_sample_observer = None
@@ -133,6 +132,7 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
         return extractor, task_groups
 
     def save_unseen_samples(self, samples, post_process):
+        os.makedirs(self.local_unseen_save_url, exist_ok=True)
         for sample in samples.x:
             if callable(post_process):
                 # customized sample saving function
@@ -154,9 +154,11 @@ class EdgeKnowledgeManagement(BaseKnowledgeManagement):
         LOGGER.info(f"Unseen sample uploading completes.")
 
     def start_services(self):
+        os.makedirs(self.local_unseen_save_url, exist_ok=True)
         self.unseen_sample_observer = Observer()
         self.unseen_sample_observer.schedule(
-            UnseenSampleUploadingHandler(), self.local_unseen_save_url, True)
+            UnseenSampleUploadingHandler(), self.local_unseen_save_url,
+            recursive=True)
         self.unseen_sample_observer.start()
 
         ModelHotUpdateThread(self).start()
