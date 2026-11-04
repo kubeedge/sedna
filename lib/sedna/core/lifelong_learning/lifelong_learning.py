@@ -76,8 +76,10 @@ class LifelongLearning(JobBase):
         see `unseen_task_processing.unseen_task_allocation.
         unseen_task_allocation` for more detail.
     unseen_sample_recognition: Dict
-        Dividing inference samples into seen tasks and unseen tasks,
-        see 'unseen_task_processing.unseen_sample_recognition.
+        Dividing inference samples into seen tasks and unseen tasks.
+        Defaults to treating all samples as seen. Configure a custom
+        recognizer to identify unseen samples. See
+        'unseen_task_detection.unseen_sample_recognition.
         unseen_sample_recognition' for more detail.
     unseen_sample_re_recognition: Dict
         Dividing unseen training samples into seen tasks and unseen tasks,

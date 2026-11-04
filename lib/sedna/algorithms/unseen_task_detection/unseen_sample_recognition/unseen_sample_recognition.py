@@ -25,7 +25,9 @@ __all__ = ('SampleRegonitionDefault', 'SampleRegonitionByRFNet')
 @ClassFactory.register(ClassType.UTD)
 class SampleRegonitionDefault(BaseSampleRegonition):
     '''
-    Divide inference samples into seen samples and unseen samples
+    Treat all inference samples as seen when no recognizer is configured.
+
+    Configure a custom recognizer to identify unseen samples.
 
     Parameters
     ----------
@@ -37,35 +39,27 @@ class SampleRegonitionDefault(BaseSampleRegonition):
         super(SampleRegonitionDefault, self).__init__(task_index)
 
     def __call__(self,
-                 samples: BaseDataSource) -> Tuple[BaseDataSource,
-                                                   BaseDataSource]:
+                 samples: BaseDataSource,
+                 **kwargs) -> Tuple[BaseDataSource, BaseDataSource]:
         '''
         Parameters
         ----------
         samples : BaseDataSource
             inference samples
+        kwargs : Dict
+            extra inference parameters, ignored by this default recognizer
 
         Returns
         -------
         seen_task_samples: BaseDataSource
+            all input samples, in their original order
         unseen_task_samples: BaseDataSource
+            empty datasource with the same data type as the input
         '''
-        import random
         seen_task_samples = BaseDataSource(data_type=samples.data_type)
         unseen_task_samples = BaseDataSource(data_type=samples.data_type)
 
-        if samples.num_examples() == 1:
-            random_index = random.randint(0, 1)
-            if random_index == 0:
-                seen_task_samples.x = []
-                unseen_task_samples.x = samples.x
-            else:
-                seen_task_samples.x = samples.x
-                unseen_task_samples.x = []
-            return seen_task_samples, unseen_task_samples
-
-        sample_num = int(len(samples.x) / 2)
-        seen_task_samples.x = samples.x[:sample_num]
-        unseen_task_samples.x = samples.x[sample_num:]
+        seen_task_samples.x = samples.x
+        unseen_task_samples.x = []
 
         return seen_task_samples, unseen_task_samples

@@ -51,13 +51,15 @@ class BaseSampleRegonition:
             self.task_index = task_index
 
     def __call__(self,
-                 samples: BaseDataSource) -> Tuple[BaseDataSource,
-                                                   BaseDataSource]:
+                 samples: BaseDataSource,
+                 **kwargs) -> Tuple[BaseDataSource, BaseDataSource]:
         '''
         Parameters
         ----------
         samples : BaseDataSource
             inference samples
+        kwargs : Dict
+            extra inference parameters forwarded by the lifelong learning job
 
         Returns
         -------
