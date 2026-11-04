@@ -36,9 +36,10 @@ class UpdateStrategyByFinetune(BaseTaskUpdateDecision):
 
     def __init__(self, task_index, **kwargs):
         super(UpdateStrategyByFinetune, self).__init__(task_index)
-        self.attribute = kwargs.get("attribute").split(", ")
-        if not self.attribute:
-            self.attribute = ("real", "sim")
+        attribute = kwargs.get("attribute")
+        self.attribute = (
+            attribute.split(", ") if attribute else ("real", "sim")
+        )
         self.city = kwargs.get("city", "berlin")
 
     def __call__(self, samples, task_type) -> Tuple[List[Task], Dict]:
