@@ -41,3 +41,17 @@ Clean all-in-one Sedna:
   ```bash
   curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/all-in-one.sh | bash /dev/stdin clean
   ```
+
+#### Edge containers of older versions
+
+Edge containers are labelled with their cluster (`sedna.io/cluster=<CLUSTER_NAME>`) and named `<CLUSTER_NAME>-edge<N>`, so creating or cleaning one cluster leaves the others alone. Older versions of the script named them `sedna-mini-edge<N>` for every `CLUSTER_NAME`, without that label.
+
+- For the default cluster (`CLUSTER_NAME` unset), nothing is needed: the script reuses an older edge container whose node is registered in the cluster, and `clean` removes it.
+- For a custom `CLUSTER_NAME`, clean the cluster with the version of the script that created it. If its edge containers are left behind, list the unlabelled ones:
+
+  ```bash
+  docker ps -a --filter label=sedna.io=sedna-mini-edge \
+    --format '{{.Names}} {{.Label "sedna.io/cluster"}}' | awk '$2 == "" { print $1 }'
+  ```
+
+  Check that each listed container belongs to the cluster you are removing (`docker inspect <name>`), then remove it with `docker rm -f <name>`.
