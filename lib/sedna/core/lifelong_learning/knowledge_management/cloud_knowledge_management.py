@@ -41,7 +41,12 @@ class CloudKnowledgeManagement(BaseKnowledgeManagement):
             "cloud_output_url", "/tmp")
         self.task_index = FileOps.join_path(
             self.cloud_output_url, config["task_index"])
-        self.local_task_index_url = KBResourceConstant.KB_INDEX_NAME.value
+        # Keep the working copy local and separate from the published index.
+        self._local_task_index_dir = tempfile.TemporaryDirectory(
+            prefix="sedna-kb-")
+        self.local_task_index_url = FileOps.join_path(
+            self._local_task_index_dir.name,
+            KBResourceConstant.KB_INDEX_NAME.value)
 
     def update_kb(self, task_index):
         if isinstance(task_index, str):

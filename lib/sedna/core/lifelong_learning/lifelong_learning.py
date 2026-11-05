@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import numpy as np
-import os
 
 from sedna.core.base import JobBase
 from sedna.common.file_ops import FileOps
@@ -388,10 +387,12 @@ class LifelongLearning(JobBase):
         task_index_url = Context.get_parameters(
             "MODEL_URLS", self.cloud_knowledge_management.task_index)
         index_url = self.cloud_knowledge_management.local_task_index_url
-        if not os.path.exists(index_url):
-            self.log.info(
-                f"Download kb index from {task_index_url} to {index_url}")
-            FileOps.download(task_index_url, index_url)
+        self.log.info(
+            f"Download kb index from {task_index_url} to {index_url}")
+        if (not FileOps.is_remote(task_index_url) and
+                not FileOps.exists(task_index_url)):
+            raise FileNotFoundError(task_index_url)
+        FileOps.download(task_index_url, index_url)
 
         res, index_file = self._task_evaluation(
             data, task_index=index_url, **kwargs)
