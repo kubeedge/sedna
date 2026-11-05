@@ -23,9 +23,11 @@ set -o pipefail
 
 # just reuse kind image
 # https://github.com/kubernetes-sigs/kind/blob/4910c3e221a858e68e29f9494170a38e1c4e8b80/pkg/build/nodeimage/defaults.go#L23
-# 
-# Note: here use v1.21.1 of kindest/node, because kubeedge-1.8.0 still uses apiextensions.k8s.io/v1beta1 of CRD, which will be removed in k8s 1.22.0
-readonly BASE_IMAGE=kindest/node:v1.21.1
+#
+# Kubernetes v1.30 matches KubeEdge v1.21, which is built against Kubernetes v1.30.
+# The node image tag follows the Kubernetes version.
+: ${K8S_VERSION:=v1.30.0}
+readonly BASE_IMAGE=kindest/node:$K8S_VERSION
 
 readonly BUILD_IMAGE_NAME=sedna-edge-build-$RANDOM
 
@@ -61,7 +63,7 @@ function commit_build_container() {
     # put entrypoint back
     # https://github.com/kubernetes-sigs/kind/blob/4910c3e221a858e68e29f9494170a38e1c4e8b80/images/base/Dockerfile#L203
     --change 'ENTRYPOINT [ "/usr/local/bin/entrypoint", "/sbin/init" ]'
-    $BUILD_IMAGE_NAME $ALLINONE_NODE_IMAGE
+    $BUILD_IMAGE_NAME $NODE_IMAGE
   )
   "${commit_args[@]}"
 }
@@ -95,10 +97,10 @@ function install_keadm() {
     mv $path /usr/local/bin/
     rm $tarfile
 
-    # install dependencies of keadm init/join
+    # install dependencies of keadm init/join; no mosquitto, keadm init deploys
+    # the edge MQTT broker (edge-eclipse-mosquitto) itself
     apt update -y
-    apt install -y wget sudo mosquitto
-    systemctl enable mosquitto
+    apt install -y wget sudo
 
     # install debug tools
     apt install -y less sqlite3
@@ -106,9 +108,8 @@ function install_keadm() {
     # add convenient command
     echo 'alias docker=crictl' > ~/.bash_aliases
   "
-  
-  # download the kubeedge into the docker image in advance
-  download_kubeedge
+  # keadm init and join pull the KubeEdge images themselves (cloudcore and
+  # installation-package), so the KubeEdge release tarball is no longer downloaded here
 }
 
 function download_kubeedge() {
@@ -144,9 +145,10 @@ function install_edgecore() {
   "
 }
 
-: ${KUBEEDGE_VERSION:=$(get_latest_version kubeedge/kubeedge)}
+# keadm in the image must match the KubeEdge version all-in-one.sh installs by default
+: ${KUBEEDGE_VERSION:=v1.21.0}
 
-: ${NODE_IMAGE:=kubeedge/sedna-allinone-node:v1.21.1}
+: ${NODE_IMAGE:=kubeedge/sedna-allinone-node:$K8S_VERSION}
 : ${RETAIN_BUILD_CONTAINER:=}
 
 create_build_container

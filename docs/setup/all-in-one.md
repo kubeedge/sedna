@@ -1,8 +1,14 @@
 ### Deploy All In One Sedna
 The [all-in-one script](/scripts/installation/all-in-one.sh) is used to install Sedna along with a mini Kubernetes environment locally, including:
-  - A Kubernetes v1.21 cluster with multi worker nodes, default zero worker node.
-  - KubeEdge with multi edge nodes, default is latest KubeEdge and one edge node.
-  - Sedna, default is the latest version.
+  - A Kubernetes v1.30 cluster with multi worker nodes, default zero worker node.
+  - KubeEdge with multi edge nodes, default is KubeEdge v1.21.0 and one edge node.
+  - Sedna, default is v0.7.0.
+
+These versions are tested together. The node image `kubeedge/sedna-allinone-node:v1.30.0` is built from `kindest/node:v1.30.0` with `keadm` v1.21.0 by [build-allinone-image.sh](/scripts/installation/build-allinone-image.sh). If the image is not available from Docker Hub, build it locally first (about 2 minutes):
+
+  ```bash
+  bash scripts/installation/build-allinone-image.sh
+  ```
 
 It requires you:
   - 2 CPUs or more
@@ -15,13 +21,13 @@ It requires you:
 For example: 
 
   ```bash
-  curl https://raw.githubusercontent.com/kubeedge/sedna/master/scripts/installation/all-in-one.sh | KUBEEDGE_VERSION=v1.8.0 NUM_EDGE_NODES=2 bash -
+  curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/all-in-one.sh | NUM_EDGE_NODES=2 bash -
   ```
 
 Above command installs a mini Sedna environment, including:
-  - A Kubernetes v1.21 cluster with only one master node.
-  - KubeEdge with two edge nodes.
-  - The latest Sedna.
+  - A Kubernetes v1.30 cluster with only one master node.
+  - KubeEdge v1.21.0 with two edge nodes.
+  - Sedna v0.7.0.
 
 You can play it online on [katacoda](https://www.katacoda.com/kubeedge-sedna/scenarios/all-in-one).
 
@@ -30,17 +36,19 @@ Advanced options:
 | --- |  --- | --- |
 |NUM_EDGE_NODES     | Number of KubeEdge nodes| 1 |
 |NUM_CLOUD_WORKER_NODES    | Number of cloud **worker** nodes, not master node| 0|
-|SEDNA_VERSION    | The Sedna version to be installed. |The latest version|
-|KUBEEDGE_VERSION    | The KubeEdge version to be installed. |The latest version|
+|SEDNA_VERSION    | The Sedna version to be installed; `latest` for the latest release |v0.7.0|
+|KUBEEDGE_VERSION    | The KubeEdge version to be installed; `latest` for the latest release. Other versions need a node image with a matching `keadm` |v1.21.0|
 |CLUSTER_NAME       | The all-in-one cluster name| sedna-mini|
 |FORCE_INSTALL_SEDNA       | If 'true', force to reinstall Sedna|false|
-|NODE_IMAGE       | Custom node image| kubeedge/sedna-allinone-node:v1.21.1|
+|NODE_IMAGE       | Custom node image| kubeedge/sedna-allinone-node:v1.30.0|
 |REUSE_EDGE_CONTAINER      | Whether reuse edge node containers or not|true|
 
 Clean all-in-one Sedna:  
   ```bash
   curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/all-in-one.sh | bash /dev/stdin clean
   ```
+
+A cluster created with the former node image (`v1.21.1`, KubeEdge up to v1.14) cannot be reused: clean it before creating one with the current defaults.
 
 #### Edge containers of older versions
 
