@@ -249,10 +249,14 @@ class KBClient:
     """Communicate with Knowledge Base server"""
 
     def __init__(self, kbserver):
-        self.kbserver = f"{kbserver}/knowledgebase"
+        # No KB server configured (e.g. standalone use): skip remote calls
+        self.kbserver = f"{kbserver}/knowledgebase" if kbserver else None
 
     def upload_file(self, files, name=""):
         if not (files and os.path.isfile(files)):
+            return files
+        if not self.kbserver:
+            LOGGER.info("No KB server configured, skip uploading file")
             return files
         if not name:
             name = os.path.basename(files)
@@ -268,6 +272,9 @@ class KBClient:
         return f"{self.kbserver}/{outurl}"
 
     def update_db(self, task_info_file):
+        if not self.kbserver:
+            LOGGER.info("No KB server configured, skip updating KB")
+            return None
 
         _url = f"{self.kbserver}/update"
 
@@ -287,6 +294,9 @@ class KBClient:
         return outurl
 
     def update_task_status(self, tasks: str, new_status=1):
+        if not self.kbserver:
+            LOGGER.info("No KB server configured, skip updating task status")
+            return None
         data = {
             "tasks": tasks,
             "status": int(new_status)
