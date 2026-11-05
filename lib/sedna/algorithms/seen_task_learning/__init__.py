@@ -15,6 +15,7 @@
 # train
 from . import task_definition
 from . import task_relation_discovery
+from . import task_update_decision
 
 # inference
 from . import task_remodeling

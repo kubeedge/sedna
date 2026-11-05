@@ -20,7 +20,7 @@ from sedna.common.class_factory import ClassType, ClassFactory
 from ..artifact import Task
 from .base_task_update_decision import BaseTaskUpdateDecision
 
-__all__ = ('UpdateStrategyDefault', )
+__all__ = ('UpdateStrategyByFinetune', )
 
 
 @ClassFactory.register(ClassType.KM)
