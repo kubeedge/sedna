@@ -48,6 +48,10 @@ func (c *FakeSednaV1alpha1) JointInferenceServices(namespace string) v1alpha1.Jo
 	return &FakeJointInferenceServices{c, namespace}
 }
 
+func (c *FakeSednaV1alpha1) LLMJointInferenceServices(namespace string) v1alpha1.LLMJointInferenceServiceInterface {
+	return &FakeLLMJointInferenceServices{c, namespace}
+}
+
 func (c *FakeSednaV1alpha1) LifelongLearningJobs(namespace string) v1alpha1.LifelongLearningJobInterface {
 	return &FakeLifelongLearningJobs{c, namespace}
 }

@@ -34,6 +34,8 @@ type Interface interface {
 	IncrementalLearningJobs() IncrementalLearningJobInformer
 	// JointInferenceServices returns a JointInferenceServiceInformer.
 	JointInferenceServices() JointInferenceServiceInformer
+	// LLMJointInferenceServices returns a LLMJointInferenceServiceInformer.
+	LLMJointInferenceServices() LLMJointInferenceServiceInformer
 	// LifelongLearningJobs returns a LifelongLearningJobInformer.
 	LifelongLearningJobs() LifelongLearningJobInformer
 	// Models returns a ModelInformer.
@@ -82,6 +84,11 @@ func (v *version) IncrementalLearningJobs() IncrementalLearningJobInformer {
 // JointInferenceServices returns a JointInferenceServiceInformer.
 func (v *version) JointInferenceServices() JointInferenceServiceInformer {
 	return &jointInferenceServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// LLMJointInferenceServices returns a LLMJointInferenceServiceInformer.
+func (v *version) LLMJointInferenceServices() LLMJointInferenceServiceInformer {
+	return &lLMJointInferenceServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // LifelongLearningJobs returns a LifelongLearningJobInformer.

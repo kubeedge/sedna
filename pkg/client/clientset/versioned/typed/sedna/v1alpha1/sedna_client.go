@@ -33,6 +33,7 @@ type SednaV1alpha1Interface interface {
 	FederatedLearningJobsGetter
 	IncrementalLearningJobsGetter
 	JointInferenceServicesGetter
+	LLMJointInferenceServicesGetter
 	LifelongLearningJobsGetter
 	ModelsGetter
 	ObjectSearchServicesGetter
@@ -64,6 +65,10 @@ func (c *SednaV1alpha1Client) IncrementalLearningJobs(namespace string) Incremen
 
 func (c *SednaV1alpha1Client) JointInferenceServices(namespace string) JointInferenceServiceInterface {
 	return newJointInferenceServices(c, namespace)
+}
+
+func (c *SednaV1alpha1Client) LLMJointInferenceServices(namespace string) LLMJointInferenceServiceInterface {
+	return newLLMJointInferenceServices(c, namespace)
 }
 
 func (c *SednaV1alpha1Client) LifelongLearningJobs(namespace string) LifelongLearningJobInterface {
