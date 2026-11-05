@@ -34,12 +34,12 @@ Sedna provides three deployment methods, which can be selected according to your
 - [Install Sedna on a cluster](../setup/install.md).
 
 The [all-in-one script](/scripts/installation/all-in-one.sh) is used to install Sedna along with a mini Kubernetes environment locally, including:
-  - A Kubernetes v1.21 cluster with multi worker nodes, default zero worker node.
-  - KubeEdge with multi edge nodes, default is latest KubeEdge and one edge node.
-  - Sedna, default is the latest version.
+  - A Kubernetes v1.30 cluster with multi worker nodes, default zero worker node.
+  - KubeEdge with multi edge nodes, default is KubeEdge v1.21.0 and one edge node.
+  - Sedna, default is v0.7.0.
 
   ```bash
-  curl https://raw.githubusercontent.com/kubeedge/sedna/master/scripts/installation/all-in-one.sh | NUM_EDGE_NODES=1 bash -
+  curl https://raw.githubusercontent.com/kubeedge/sedna/main/scripts/installation/all-in-one.sh | NUM_EDGE_NODES=1 bash -
   ```
 
 Then you get two nodes `sedna-mini-control-plane` and `sedna-mini-edge0`,you can get into each node by following command:
