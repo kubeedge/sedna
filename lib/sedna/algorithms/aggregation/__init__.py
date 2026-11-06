@@ -13,4 +13,23 @@
 # limitations under the License.
 
 from . import aggregation
-from .aggregation import FedAvg, MistNet, AggClient, FedAvgV2
+from .aggregation import (
+    AggClient,
+    FedAvg,
+    FedAvgV2,
+    MistNet,
+    QuantizedFedAvg,
+    dequantize_weights,
+    quantize_weights,
+)
+
+__all__ = [
+    "AggClient",
+    "FedAvg",
+    "FedAvgV2",
+    "MistNet",
+    "QuantizedFedAvg",
+    "aggregation",
+    "dequantize_weights",
+    "quantize_weights",
+]

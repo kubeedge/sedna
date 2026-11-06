@@ -20,7 +20,8 @@ from typing import List
 
 from sedna.common.class_factory import ClassFactory, ClassType
 
-__all__ = ('AggClient', 'FedAvg',)
+__all__ = ('AggClient', 'FedAvg', 'FedAvgV2', 'MistNet', 'QuantizedFedAvg',
+           'quantize_weights', 'dequantize_weights')
 
 
 class AggClient:
@@ -137,3 +138,176 @@ class FedAvgV2(BaseAggregation, abc.ABC):
 
     def aggregate(self, clients: List[AggClient]):
         pass
+
+
+def quantize_weights(weights: List, nbits: int = 8, block_size: int = 64) -> List[dict]:
+    """Quantize model weights using block-wise symmetric quantization.
+
+    Supports INT8 and packed INT4 with block scale factors.
+
+    Parameters
+    ----------
+    weights: List
+        List of layer weights (numpy arrays or nested lists).
+    nbits: int
+        Bit precision, 4 or 8. Default is 8.
+    block_size: int
+        Block size for scaling. Default is 64.
+
+    Returns
+    -------
+    List[dict]
+        List of quantized layer dictionaries with metadata and scale factors.
+    """
+    import numpy as np
+
+    if nbits not in (4, 8):
+        raise ValueError(f"Unsupported nbits: {nbits}. Choose 4 or 8.")
+
+    max_val = 7.0 if nbits == 4 else 127.0
+    quantized_layers = []
+
+    for w in weights:
+        arr = np.asarray(w, dtype=np.float32)
+        orig_shape = arr.shape
+        flat = arr.flatten()
+        orig_len = len(flat)
+
+        pad_len = (block_size - (orig_len % block_size)) % block_size
+        if pad_len > 0:
+            flat_padded = np.pad(flat, (0, pad_len), mode="constant")
+        else:
+            flat_padded = flat
+
+        blocks = flat_padded.reshape(-1, block_size)
+        scales = np.max(np.abs(blocks), axis=1) / max_val
+        scales[scales == 0] = 1.0
+
+        q = np.clip(np.round(blocks / scales[:, None]), -max_val, max_val).astype(np.int8)
+
+        if nbits == 4:
+            q_flat = q.flatten()
+            even = q_flat[0::2] & 0x0F
+            odd = q_flat[1::2] & 0x0F
+            packed = ((even << 4) | odd).astype(np.uint8)
+            data = packed.tolist()
+        else:
+            data = q.flatten().tolist()
+
+        quantized_layers.append({
+            "data": data,
+            "scale": scales.tolist(),
+            "shape": list(orig_shape),
+            "orig_len": orig_len,
+            "pad_len": pad_len,
+            "nbits": nbits,
+            "block_size": block_size,
+        })
+
+    return quantized_layers
+
+
+def dequantize_weights(quantized_layers: List[dict]) -> List:
+    """Dequantize block-wise quantized layers back to floating-point weights.
+
+    Parameters
+    ----------
+    quantized_layers: List[dict]
+        List of dictionaries produced by quantize_weights.
+
+    Returns
+    -------
+    List
+        List of reconstructed float layers as nested lists or arrays.
+    """
+    import numpy as np
+
+    reconstructed_layers = []
+    for q_dict in quantized_layers:
+        nbits = q_dict["nbits"]
+        scales = np.array(q_dict["scale"], dtype=np.float32)
+        block_size = q_dict["block_size"]
+        orig_len = q_dict["orig_len"]
+        shape = q_dict["shape"]
+
+        if nbits == 4:
+            packed = np.array(q_dict["data"], dtype=np.uint8)
+            even = (packed >> 4) & 0x0F
+            odd = packed & 0x0F
+            even = np.where(even >= 8, even - 16, even).astype(np.int8)
+            odd = np.where(odd >= 8, odd - 16, odd).astype(np.int8)
+            unpacked = np.empty(len(packed) * 2, dtype=np.int8)
+            unpacked[0::2] = even
+            unpacked[1::2] = odd
+            q_blocks = unpacked.reshape(-1, block_size)
+        else:
+            q_flat = np.array(q_dict["data"], dtype=np.int8)
+            q_blocks = q_flat.reshape(-1, block_size)
+
+        recon_blocks = q_blocks.astype(np.float32) * scales[:, None]
+        recon_flat = recon_blocks.flatten()[:orig_len]
+        reconstructed_layers.append(recon_flat.reshape(shape).tolist())
+
+    return reconstructed_layers
+
+
+@ClassFactory.register(ClassType.FL_AGG)
+class QuantizedFedAvg(BaseAggregation, abc.ABC):
+    """Federated averaging algorithm supporting quantized updates from edge clients.
+
+    Edge clients can send quantized model updates (INT4 or INT8) to reduce uplink
+    transmission bandwidth. QuantizedFedAvg transparently reconstructs the float
+    weights before computing sample-weighted aggregation.
+    """
+
+    def __init__(self, nbits: int = 8, block_size: int = 64):
+        super().__init__()
+        self.nbits = nbits
+        self.block_size = block_size
+        self.parameters = {
+            "type": "quantized_fedavg",
+            "nbits": nbits,
+            "block_size": block_size,
+        }
+
+    def aggregate(self, clients: List[AggClient]):
+        """Calculate weighted average across clients, handling quantized or float weights.
+
+        Parameters
+        ----------
+        clients: List[AggClient]
+            List of client objects participating in this aggregation round.
+
+        Returns
+        -------
+        update_weights: List
+            Aggregated float weights formatted as nested lists.
+        """
+        import numpy as np
+
+        if not len(clients):
+            return self.weights
+
+        self.total_size = sum(c.num_samples for c in clients)
+
+        unpacked_client_weights = []
+        for c in clients:
+            weights = c.weights
+            if weights and isinstance(weights[0], dict) and "data" in weights[0]:
+                unpacked = dequantize_weights(weights)
+            else:
+                unpacked = weights
+            unpacked_client_weights.append(unpacked)
+
+        first_weights = unpacked_client_weights[0]
+        accumulators = [np.zeros(np.array(layer).shape, dtype=np.float32) for layer in first_weights]
+
+        for c_idx, c in enumerate(clients):
+            sample_ratio = c.num_samples / self.total_size
+            weights = unpacked_client_weights[c_idx]
+            for inx, layer in enumerate(weights):
+                accumulators[inx] += np.asarray(layer, dtype=np.float32) * sample_ratio
+
+        updates = [acc.tolist() for acc in accumulators]
+        self.weights = deepcopy(updates)
+        return updates
