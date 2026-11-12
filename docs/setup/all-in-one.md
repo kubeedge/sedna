@@ -10,12 +10,30 @@ These versions are tested together. The node image `kubeedge/sedna-allinone-node
   bash scripts/installation/build-allinone-image.sh
   ```
 
+The script builds for the host's architecture, `amd64` or `arm64`. On an arm64 host (for example a Raspberry Pi 5, a Jetson or an Apple silicon Mac running Linux), the same command builds an arm64 image. To build for another architecture than the host's, set `PLATFORM`; it runs under emulation, so Docker needs QEMU (Docker Desktop includes it) and the build takes longer:
+
+  ```bash
+  PLATFORM=linux/arm64 NODE_IMAGE=kubeedge/sedna-allinone-node:v1.30.0-arm64 \
+    bash scripts/installation/build-allinone-image.sh
+  ```
+
+To publish a multi-arch tag, which `docker pull` resolves to the host's architecture, build each architecture under its own tag, push both and join them:
+
+  ```bash
+  PLATFORM=linux/amd64 NODE_IMAGE=kubeedge/sedna-allinone-node:v1.30.0-amd64 bash scripts/installation/build-allinone-image.sh
+  PLATFORM=linux/arm64 NODE_IMAGE=kubeedge/sedna-allinone-node:v1.30.0-arm64 bash scripts/installation/build-allinone-image.sh
+  docker push kubeedge/sedna-allinone-node:v1.30.0-amd64
+  docker push kubeedge/sedna-allinone-node:v1.30.0-arm64
+  docker buildx imagetools create -t kubeedge/sedna-allinone-node:v1.30.0 \
+    kubeedge/sedna-allinone-node:v1.30.0-amd64 kubeedge/sedna-allinone-node:v1.30.0-arm64
+  ```
+
 It requires you:
   - 2 CPUs or more
   - 2GB+ free memory, depends on node number setting
   - 10GB+ free disk space
   - Internet connection(docker hub, github etc.)
-  - Linux platform, such as ubuntu/centos
+  - Linux platform (amd64 or arm64), such as ubuntu/centos
   - Docker 17.06+
 
 For example: 
@@ -42,6 +60,10 @@ Advanced options:
 |FORCE_INSTALL_SEDNA       | If 'true', force to reinstall Sedna|false|
 |NODE_IMAGE       | Custom node image| kubeedge/sedna-allinone-node:v1.30.0|
 |REUSE_EDGE_CONTAINER      | Whether reuse edge node containers or not|true|
+|EDGEMESH_VERSION      | The EdgeMesh release whose helm chart is installed|v1.17.0|
+|EDGEMESH_CHART      | The EdgeMesh helm chart: a URL, downloaded with up to 5 attempts, or a local `.tgz` file for hosts with a slow or no connection to GitHub|the chart of `EDGEMESH_VERSION`|
+|HELM_VERSION      | The Helm version installed when the host has no `helm`|v3.22.1|
+|NODE_READY_TIMEOUT      | How long to wait for all nodes to be Ready after the edge nodes join|300s|
 
 Clean all-in-one Sedna:  
   ```bash
