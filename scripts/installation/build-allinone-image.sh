@@ -23,9 +23,11 @@ set -o pipefail
 
 # just reuse kind image
 # https://github.com/kubernetes-sigs/kind/blob/4910c3e221a858e68e29f9494170a38e1c4e8b80/pkg/build/nodeimage/defaults.go#L23
-# 
-# Note: here use v1.21.1 of kindest/node, because kubeedge-1.8.0 still uses apiextensions.k8s.io/v1beta1 of CRD, which will be removed in k8s 1.22.0
-readonly BASE_IMAGE=kindest/node:v1.21.1
+#
+# Kubernetes v1.30 matches KubeEdge v1.21, which is built against Kubernetes v1.30.
+# The node image tag follows the Kubernetes version.
+: ${K8S_VERSION:=v1.30.0}
+readonly BASE_IMAGE=kindest/node:$K8S_VERSION
 
 readonly BUILD_IMAGE_NAME=sedna-edge-build-$RANDOM
 
@@ -40,7 +42,10 @@ function get_latest_version() {
 }
 
 function create_build_container() {
-  docker run --rm --name $BUILD_IMAGE_NAME -d --entrypoint sleep $BASE_IMAGE inf || true
+  # kindest/node is multi-arch: --platform picks the variant to build on; another
+  # architecture than the host's runs under emulation (e.g. QEMU, as in Docker Desktop)
+  docker run --rm --platform "linux/$(arch)" --name $BUILD_IMAGE_NAME -d \
+    --entrypoint sleep $BASE_IMAGE inf || true
 
   if [ -z "$RETAIN_BUILD_CONTAINER" ]; then
     trap clean_build_container EXIT
@@ -61,7 +66,7 @@ function commit_build_container() {
     # put entrypoint back
     # https://github.com/kubernetes-sigs/kind/blob/4910c3e221a858e68e29f9494170a38e1c4e8b80/images/base/Dockerfile#L203
     --change 'ENTRYPOINT [ "/usr/local/bin/entrypoint", "/sbin/init" ]'
-    $BUILD_IMAGE_NAME $ALLINONE_NODE_IMAGE
+    $BUILD_IMAGE_NAME $NODE_IMAGE
   )
   "${commit_args[@]}"
 }
@@ -71,13 +76,22 @@ function gen_edgecore_config_template() {
   cat | run_in_build_container mkdir -p /etc/kubeedge
 }
 
-function arch() {
-  local arch=$(uname -m)
-  case "$arch" in
-    x86_64) arch=amd64;;
-    *);;
+function normalize_arch() {
+  # the architecture names of the Kubernetes and KubeEdge release assets
+  case "$1" in
+    x86_64|amd64) echo amd64;;
+    aarch64|arm64) echo arm64;;
+    *) echo "$1";;
   esac
-  echo "$arch"
+}
+
+function arch() {
+  # the target architecture: from PLATFORM (e.g. linux/arm64), else the host's
+  if [ -n "$PLATFORM" ]; then
+    normalize_arch "${PLATFORM#linux/}"
+  else
+    normalize_arch "$(uname -m)"
+  fi
 }
 
 function install_keadm() {
@@ -95,10 +109,10 @@ function install_keadm() {
     mv $path /usr/local/bin/
     rm $tarfile
 
-    # install dependencies of keadm init/join
+    # install dependencies of keadm init/join; no mosquitto, keadm init deploys
+    # the edge MQTT broker (edge-eclipse-mosquitto) itself
     apt update -y
-    apt install -y wget sudo mosquitto
-    systemctl enable mosquitto
+    apt install -y wget sudo
 
     # install debug tools
     apt install -y less sqlite3
@@ -106,9 +120,8 @@ function install_keadm() {
     # add convenient command
     echo 'alias docker=crictl' > ~/.bash_aliases
   "
-  
-  # download the kubeedge into the docker image in advance
-  download_kubeedge
+  # keadm init and join pull the KubeEdge images themselves (cloudcore and
+  # installation-package), so the KubeEdge release tarball is no longer downloaded here
 }
 
 function download_kubeedge() {
@@ -144,10 +157,22 @@ function install_edgecore() {
   "
 }
 
-: ${KUBEEDGE_VERSION:=$(get_latest_version kubeedge/kubeedge)}
+# keadm in the image must match the KubeEdge version all-in-one.sh installs by default
+: ${KUBEEDGE_VERSION:=v1.21.0}
 
-: ${NODE_IMAGE:=kubeedge/sedna-allinone-node:v1.21.1}
+: ${NODE_IMAGE:=kubeedge/sedna-allinone-node:$K8S_VERSION}
 : ${RETAIN_BUILD_CONTAINER:=}
+# the platform to build the image for, linux/amd64 or linux/arm64; default the host's.
+# For a multi-arch tag, build each platform under its own tag (NODE_IMAGE=...-amd64,
+# ...-arm64), push both and join them, see docs/setup/all-in-one.md
+: ${PLATFORM:=}
+
+case "$(arch)" in
+  amd64|arm64) ;;
+  *) echo "unsupported architecture: $(arch); use PLATFORM=linux/amd64 or linux/arm64" >&2
+     exit 1;;
+esac
+echo "building $NODE_IMAGE for linux/$(arch) from $BASE_IMAGE with keadm $KUBEEDGE_VERSION"
 
 create_build_container
 install_keadm
