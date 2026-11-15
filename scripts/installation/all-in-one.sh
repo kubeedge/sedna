@@ -233,6 +233,8 @@ function setup_cloudcore() {
 
   # Use default docker network for edge nodes to separate the network of control plane which uses the defined network 'kind'
   CLOUDCORE_EXPOSED_IP=$(get_docker_network_gw $EDGE_NODE_NETWORK)
+  [ -n "$CLOUDCORE_EXPOSED_IP" ] ||
+    log_fault "cannot find the IPv4 gateway of the docker network $EDGE_NODE_NETWORK, which the edge nodes join cloudcore through"
 
   CLOUDCORE_EXPOSED_WS_PORT=$(get_control_plane_exposed_port $CLOUDCORE_WS_PORT)
   CLOUDCORE_EXPOSED_CERT_PORT=$(get_control_plane_exposed_port $CLOUDCORE_CERT_PORT)
@@ -490,7 +492,10 @@ function clean_edgenodes() {
 }
 
 function get_docker_network_gw() {
-  docker network inspect ${1-bridge} --format='{{(index .IPAM.Config 0).Gateway}}'
+  # the first IPv4 gateway: a network with IPv6 enabled, such as kind's on recent
+  # Docker, can list an IPv6 subnet without a gateway first
+  docker network inspect ${1-bridge} --format='{{range .IPAM.Config}}{{.Gateway}} {{end}}' |
+    tr ' ' '\n' | grep -m1 '\.' || true
 }
 
 function setup_cloud() {
@@ -610,8 +615,17 @@ function ensure_helm() {
   # the helm version installed when the host has none: Helm 3, pinned so that the
   # installer's latest release (now Helm 4) cannot change what this script runs
   local version=${HELM_VERSION:-v3.22.1}
+  # get-helm-3 copies helm into /usr/local/bin with sudo when not run as root; a sudo
+  # that asks for a password waits forever when the installer runs non-interactively,
+  # as under Ianvs, so sudo is used only when it needs no password
+  local use_sudo=false
+  if [ "$EUID" -ne 0 ] && [ ! -w /usr/local/bin ]; then
+    sudo -n true 2>/dev/null ||
+      log_fault "helm is not installed, and installing it into /usr/local/bin needs a sudo password; install helm $version first: https://helm.sh/docs/intro/install/"
+    use_sudo=true
+  fi
   curl -fsSL https://raw.githubusercontent.com/helm/helm/$version/scripts/get-helm-3 |
-    DESIRED_VERSION=$version bash
+    DESIRED_VERSION=$version USE_SUDO=$use_sudo bash
 }
 
 function ensure_tools() {
