@@ -1,0 +1,15 @@
+apiVersion: sedna.io/v1alpha1
+kind: JointInferenceService
+metadata:
+  name: test-threshold-algorithm
+  namespace: default
+spec:
+  edgeWorker:
+    model:
+      name: "your-edge-model-name"
+    # Here is where your new algorithm gets called!
+    hardExampleMining:
+      name: "Threshold"
+      parameters:
+        - key: "threshold"
+          value: "0.9"
