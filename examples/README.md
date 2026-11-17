@@ -22,6 +22,8 @@ Example: [Using Federated Learning Job in Surface Defect Detection Scenario](./f
 ### Lifelong Learning
 Example: [Using Lifelong Learning Job in Thermal Comfort Prediction Scenario](./lifelong_learning/atcii/README.md)
 
+Example: [Using Lifelong Learning in Campus Robot Delivery Scenario](./lifelong_learning/cityscapes/README.md)
+
 ### Multi-Edge Inference
 Example: [Using ReID to Track an Infected COVID-19 Carrier in Pandemic Scenario](./multiedgeinference/pedestrian_tracking/README.md)
 
