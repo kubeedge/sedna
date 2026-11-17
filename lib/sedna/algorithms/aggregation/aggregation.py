@@ -121,7 +121,7 @@ class MistNet(BaseAggregation, abc.ABC):
 
         if isinstance(self.parameters["epsilon"], str):
             if self.parameters["epsilon"].isdigit():
-                self.parameters["epsilon"] = int(cut_layer)
+                self.parameters["epsilon"] = int(epsilon)
 
     def aggregate(self, clients: List[AggClient]):
         pass
