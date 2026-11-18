@@ -26,8 +26,10 @@ cd "$SEDNA_ROOT"
 {
   __WITH_SOURCE__=true
   # this will export KUBECONFIG
-  echo "Prepare all-in-one env" 
-  cat scripts/installation/all-in-one.sh | NUM_EDGE_NODES=0 bash -
+  echo "Prepare all-in-one env"
+  # one edge node, so e2e also covers the edge join, its CNI and EdgeMesh:
+  # the installer waits for every node to be Ready
+  cat scripts/installation/all-in-one.sh | NUM_EDGE_NODES=1 bash -
 }
 
 # Running e2e
