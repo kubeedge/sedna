@@ -110,6 +110,15 @@ function prepare_env() {
   # TODO(llhuii): find a way to use the default docker network 'bridge'.
   : ${EDGE_NODE_NETWORK:=kind}
 
+  # the EdgeMesh helm chart: a URL, downloaded with retries, or a local .tgz file
+  # for hosts with a slow or no connection to GitHub. Pinned to a release, so a change
+  # on EdgeMesh's main branch cannot break all-in-one; v1.17.0 deploys edgemesh-agent v1.17.0
+  : ${EDGEMESH_VERSION:=v1.17.0}
+  : ${EDGEMESH_CHART:=https://raw.githubusercontent.com/kubeedge/edgemesh/$EDGEMESH_VERSION/build/helm/edgemesh.tgz}
+
+  # how long to wait for all nodes to be Ready after the edge nodes join
+  : ${NODE_READY_TIMEOUT:=300s}
+
 
   validate_env
 }
@@ -224,6 +233,8 @@ function setup_cloudcore() {
 
   # Use default docker network for edge nodes to separate the network of control plane which uses the defined network 'kind'
   CLOUDCORE_EXPOSED_IP=$(get_docker_network_gw $EDGE_NODE_NETWORK)
+  [ -n "$CLOUDCORE_EXPOSED_IP" ] ||
+    log_fault "cannot find the IPv4 gateway of the docker network $EDGE_NODE_NETWORK, which the edge nodes join cloudcore through"
 
   CLOUDCORE_EXPOSED_WS_PORT=$(get_control_plane_exposed_port $CLOUDCORE_WS_PORT)
   CLOUDCORE_EXPOSED_CERT_PORT=$(get_control_plane_exposed_port $CLOUDCORE_CERT_PORT)
@@ -277,11 +288,26 @@ function install_edgemesh() {
   # the dynamicController of cloudcore and the metaServer and DNS of edgecore that
   # edgemesh needs are enabled by keadm init and join
 
+  # helm fetches a chart URL once, with a short timeout, so a slow connection to
+  # GitHub fails the whole install; download it with retries first
+  local chart=$EDGEMESH_CHART
+  if [[ "$chart" == http://* || "$chart" == https://* ]]; then
+    local chart_dir=$(mktemp -d)
+    local i
+    for i in 1 2 3 4 5; do
+      curl -fsSL --connect-timeout 30 --max-time 180 -o "$chart_dir/edgemesh.tgz" "$chart" && break
+      log_info "downloading the EdgeMesh chart failed (attempt $i/5), retrying"
+      sleep 5
+    done
+    [ -s "$chart_dir/edgemesh.tgz" ] || log_fault "cannot download the EdgeMesh chart from $chart; set EDGEMESH_CHART to a local copy"
+    chart=$chart_dir/edgemesh.tgz
+  fi
+
   # no server.publicIP
   # since allinone is in flat network, we just use private ip for edgemesh server
- helm upgrade --install edgemesh --kube-context "$KUBE_CONTEXT" \
+  helm upgrade --install edgemesh --kube-context "$KUBE_CONTEXT" \
     --set server.nodeName=$server_node_name \
-    https://raw.githubusercontent.com/kubeedge/edgemesh/main/build/helm/edgemesh.tgz
+    "$chart"
 
   echo Install edgemesh successfully
 }
@@ -459,12 +485,17 @@ function clean_edgenodes() {
     cids+=" $(legacy_edge_containers)"
   fi
   for cid in $(printf '%s\n' $cids | sort -u); do
-    docker stop $cid; docker rm $cid
+    # -v: also remove the container's anonymous volumes (its /var, with the images it
+    # pulled), which `docker run --volume /var` creates and a plain `docker rm` leaves behind
+    docker stop $cid; docker rm -v $cid
   done
 }
 
 function get_docker_network_gw() {
-  docker network inspect ${1-bridge} --format='{{(index .IPAM.Config 0).Gateway}}'
+  # the first IPv4 gateway: a network with IPv6 enabled, such as kind's on recent
+  # Docker, can list an IPv6 subnet without a gateway first
+  docker network inspect ${1-bridge} --format='{{range .IPAM.Config}}{{.Gateway}} {{end}}' |
+    tr ' ' '\n' | grep -m1 '\.' || true
 }
 
 function setup_cloud() {
@@ -534,9 +565,11 @@ function get_latest_version() {
 }
 
 function arch() {
+  # the architecture names of the kind, kubectl and KubeEdge release assets
   local arch=$(uname -m)
   case "$arch" in
     x86_64) arch=amd64;;
+    aarch64) arch=arm64;;
     *);;
   esac
   echo "$arch"
@@ -579,7 +612,20 @@ function ensure_helm() {
   if check_command_exists helm; then
     return
   fi
-  curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  # the helm version installed when the host has none: Helm 3, pinned so that the
+  # installer's latest release (now Helm 4) cannot change what this script runs
+  local version=${HELM_VERSION:-v3.22.1}
+  # get-helm-3 copies helm into /usr/local/bin with sudo when not run as root; a sudo
+  # that asks for a password waits forever when the installer runs non-interactively,
+  # as under Ianvs, so sudo is used only when it needs no password
+  local use_sudo=false
+  if [ "$EUID" -ne 0 ] && [ ! -w /usr/local/bin ]; then
+    sudo -n true 2>/dev/null ||
+      log_fault "helm is not installed, and installing it into /usr/local/bin needs a sudo password; install helm $version first: https://helm.sh/docs/intro/install/"
+    use_sudo=true
+  fi
+  curl -fsSL https://raw.githubusercontent.com/helm/helm/$version/scripts/get-helm-3 |
+    DESIRED_VERSION=$version USE_SUDO=$use_sudo bash
 }
 
 function ensure_tools() {
@@ -597,8 +643,10 @@ function main() {
     create)
       setup_cloud
       setup_edge
-      # wait all nodes to be ready
-      kubectl --context "$KUBE_CONTEXT" wait --for=condition=ready node --all
+      # wait all nodes to be ready; kubectl waits only 30s by default, which a busy
+      # host can exceed right after the edge nodes join
+      kubectl --context "$KUBE_CONTEXT" wait --for=condition=ready node --all \
+        --timeout="$NODE_READY_TIMEOUT"
 
       # edgemesh need to be installed before sedna
       install_edgemesh
