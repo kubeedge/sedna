@@ -27,7 +27,7 @@ cd "$SEDNA_ROOT"
   __WITH_SOURCE__=true
   # this will export KUBECONFIG
   echo "Prepare all-in-one env" 
-  cat scripts/installation/all-in-one.sh | KUBEEDGE_VERSION=v1.8.0 NUM_EDGE_NODES=0 bash -
+  cat scripts/installation/all-in-one.sh | NUM_EDGE_NODES=0 bash -
 }
 
 # Running e2e
