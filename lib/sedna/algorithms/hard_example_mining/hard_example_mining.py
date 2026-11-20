@@ -27,8 +27,8 @@ if BACKEND_TYPE == 'TORCH':
     import torch
     from transformers import pipeline
 
-__all__ = ['ThresholdFilter', 'CrossEntropyFilter', 'IBTFilter',
-           'RandomFilter', 'CloudOnlyFilter', 'EdgeOnlyFilter']
+__all__ = ['ThresholdFilter', 'CrossEntropyFilter', 'MarginFilter',
+           'IBTFilter', 'RandomFilter', 'CloudOnlyFilter', 'EdgeOnlyFilter']
 
 # Only add BertRouterFilter to __all__ when BACKEND_TYPE is TORCH
 if BACKEND_TYPE == 'TORCH':
@@ -140,6 +140,54 @@ class CrossEntropyFilter(BaseFilter, abc.ABC):
         confidence_score = 1 + 1.0 * log_sum / math.log(
             len(infer_result))
         return confidence_score < self.threshold_cross_entropy
+
+
+@ClassFactory.register(ClassType.HEM, alias="Margin")
+class MarginFilter(BaseFilter, abc.ABC):
+    """
+    **Classification** Hard samples discovery methods named `Margin`
+
+    A sample is hard when the model cannot clearly separate its two most
+    probable classes, i.e. the gap between the highest and the second
+    highest class probability is below the threshold.
+
+    Parameters
+    ----------
+    threshold_margin: float
+        hard coefficient threshold to filter sample, default to 0.2.
+    """
+
+    def __init__(self, threshold_margin=0.2, **kwargs):
+        self.threshold_margin = float(threshold_margin)
+
+    def __call__(self, infer_result=None) -> bool:
+        """judge the sample is hard sample or not.
+
+        Parameters
+        ----------
+        infer_result: array_like
+            prediction classes list, such as
+            [class1-score, class2-score, class2-score,....],
+            where class-score is the score corresponding to the class,
+            class-score value is in [0,1].
+
+        Returns
+        -------
+        is hard sample: bool
+            `True` means hard sample, `False` means not. Input that has
+            fewer than two scores or a score not in [0,1] is not hard.
+        """
+
+        if infer_result is None or len(infer_result) < 2:
+            # if invalid input, return False
+            return False
+
+        if not all(self.data_check(score) for score in infer_result):
+            return False
+
+        top_two = sorted((float(score) for score in infer_result),
+                         reverse=True)[:2]
+        return top_two[0] - top_two[1] < self.threshold_margin
 
 
 @ClassFactory.register(ClassType.HEM, alias="IBT")
