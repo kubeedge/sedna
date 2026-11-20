@@ -135,8 +135,15 @@ class CrossEntropyFilter(BaseFilter, abc.ABC):
         if len(data_check_list) != len(infer_result):
             return False
 
+        if len(infer_result) < 2:
+            # A single class carries no uncertainty (and would divide by
+            # log(1) == 0 below), so it can never be a hard sample.
+            return False
+
         for class_data in data_check_list:
-            log_sum += class_data * math.log(class_data)
+            # lim p->0 of p * log(p) is 0, and math.log(0) would raise.
+            if class_data > 0:
+                log_sum += class_data * math.log(class_data)
         confidence_score = 1 + 1.0 * log_sum / math.log(
             len(infer_result))
         return confidence_score < self.threshold_cross_entropy
